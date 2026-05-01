@@ -7,8 +7,267 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <style>
-*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Arial,"Noto Sans Hebrew",sans-serif;background:linear-gradient(135deg,#eff6ff,#fdf2f8);color:#111827;padding:14px}.app{max-width:1100px;margin:auto}.top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:8px 0 16px}.brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:23px}.logo{width:46px;height:46px;border-radius:17px;background:linear-gradient(135deg,#2563eb,#9333ea);color:white;display:grid;place-items:center;box-shadow:0 12px 26px rgba(37,99,235,.28)}.card{background:rgba(255,255,255,.96);border:1px solid #fff;border-radius:24px;box-shadow:0 16px 38px rgba(15,23,42,.12);padding:18px;margin-bottom:14px}.hidden{display:none!important}h1,h2,h3{margin:0 0 12px}p,.muted{color:#6b7280;line-height:1.55}input,textarea,select{width:100%;border:1px solid #e5e7eb;border-radius:16px;padding:13px 14px;font-size:16px;margin:7px 0;font-family:inherit;background:white}textarea{min-height:85px;resize:vertical}button{border:0;border-radius:16px;padding:12px 16px;font-size:15px;font-weight:900;cursor:pointer;color:white;background:#2563eb;font-family:inherit;box-shadow:0 10px 22px rgba(37,99,235,.15)}button:disabled{opacity:.55}.btn-light{background:#f3f4f6;color:#111827;box-shadow:none}.btn-green{background:#16a34a}.btn-red{background:#dc2626}.btn-yellow{background:#f59e0b;color:#111827}.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{background:#fff;border:1px solid #e5e7eb;border-radius:20px;padding:15px}.stat .label{color:#6b7280;font-size:13px}.stat .value{font-size:22px;font-weight:900;margin-top:8px}.actions{display:flex;gap:8px;flex-wrap:wrap}.item{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:13px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:8px}.item-title{font-weight:900}.item-sub{color:#6b7280;font-size:14px;white-space:pre-wrap}.money{color:#16a34a;font-weight:900;font-size:19px;white-space:nowrap}.cal-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}.weekday{text-align:center;color:#6b7280;font-weight:900;font-size:13px}.day{min-height:82px;background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:9px;cursor:pointer}.empty{background:transparent;border:0;cursor:default}.shabbat{background:#f3f4f6;color:#9ca3af;cursor:not-allowed}.today{border:2px solid #2563eb}.selected{background:#dbeafe}.day-total{color:#16a34a;font-weight:900;margin-top:8px}.day-count{font-size:12px;color:#6b7280}.type-card{background:#fff;border:2px solid #e5e7eb;border-radius:22px;padding:18px;text-align:center;font-weight:900;cursor:pointer}.type-card.active{border-color:#2563eb;background:#dbeafe}.progress{height:16px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:10px}.bar{height:100%;background:#16a34a;width:0}.danger{color:#dc2626!important;font-weight:900}.success{color:#16a34a!important;font-weight:900}.qty{max-width:115px;text-align:center}.secret{height:42px;text-align:center;color:#cbd5e1;font-size:12px;user-select:none}.login-box{max-width:520px;margin:35px auto}.big-title{text-align:center;font-size:30px;margin-top:8px}.total-preview{font-weight:900;color:#16a34a;font-size:20px;margin:12px 0}.notice{background:#ecfdf5;border:1px solid #bbf7d0;color:#166534;border-radius:16px;padding:12px;margin:10px 0;font-weight:900}.hint-card{text-align:center;padding:26px;border:2px dashed #cbd5e1;background:#f8fafc;border-radius:22px;color:#64748b;font-weight:900}.panel{border:2px solid #bfdbfe;background:#eff6ff}.debug{background:#020617;color:#d1fae5;border-radius:18px;padding:12px;font-family:monospace;font-size:12px;direction:ltr;white-space:pre-wrap;max-height:220px;overflow:auto}.debug-line{border-bottom:1px solid #334155;padding:4px 0}
-@media(max-width:800px){.grid2,.grid3,.grid4{grid-template-columns:1fr}.cal{gap:5px}.day{min-height:70px;padding:7px;border-radius:14px}.item{flex-direction:column}.cal-head{flex-direction:column}.actions button{flex:1;min-width:120px}.brand{font-size:19px}}
+:root{
+  --bg-a:#e0f2fe;
+  --bg-b:#fdf2f8;
+  --bg-c:#eef2ff;
+  --card:rgba(255,255,255,.88);
+  --text:#0f172a;
+  --muted:#64748b;
+  --line:#e2e8f0;
+  --blue:#2563eb;
+  --blue2:#1d4ed8;
+  --green:#16a34a;
+  --red:#dc2626;
+  --yellow:#f59e0b;
+  --purple:#7c3aed;
+  --shadow:0 18px 44px rgba(15,23,42,.13);
+  --soft-shadow:0 10px 24px rgba(15,23,42,.08);
+  --radius:24px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-height:100vh;
+  font-family:Arial,"Noto Sans Hebrew",sans-serif;
+  color:var(--text);
+  padding:14px;
+  background:
+    radial-gradient(circle at top right,rgba(37,99,235,.22),transparent 34%),
+    radial-gradient(circle at bottom left,rgba(236,72,153,.18),transparent 32%),
+    linear-gradient(135deg,var(--bg-a),var(--bg-b) 55%,var(--bg-c));
+}
+body:before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.24) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.24) 1px,transparent 1px);
+  background-size:32px 32px;
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.3),transparent 70%);
+}
+.app{max-width:1120px;margin:auto;position:relative}
+.top{
+  position:sticky;
+  top:8px;
+  z-index:20;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin:8px 0 16px;
+  padding:10px;
+  border-radius:26px;
+  background:rgba(255,255,255,.74);
+  backdrop-filter:blur(16px);
+  box-shadow:var(--soft-shadow);
+  border:1px solid rgba(255,255,255,.75);
+}
+.brand{display:flex;align-items:center;gap:12px;font-weight:900;font-size:23px;letter-spacing:-.3px}
+.logo{
+  width:50px;height:50px;border-radius:18px;
+  background:linear-gradient(135deg,#2563eb,#9333ea);
+  color:white;display:grid;place-items:center;
+  box-shadow:0 14px 28px rgba(37,99,235,.32);
+  font-size:24px;
+}
+.card{
+  background:var(--card);
+  border:1px solid rgba(255,255,255,.85);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:20px;
+  margin-bottom:14px;
+  backdrop-filter:blur(14px);
+}
+.hidden{display:none!important}
+h1,h2,h3{margin:0 0 12px;letter-spacing:-.2px}
+h1{font-size:30px}
+h2{font-size:22px}
+h3{font-size:18px}
+p,.muted{color:var(--muted);line-height:1.55}
+input,textarea,select{
+  width:100%;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:14px 15px;
+  font-size:16px;
+  margin:7px 0;
+  font-family:inherit;
+  background:rgba(255,255,255,.96);
+  transition:.16s ease;
+}
+textarea{min-height:92px;resize:vertical}
+input:focus,textarea:focus,select:focus{
+  outline:none;
+  border-color:#60a5fa;
+  box-shadow:0 0 0 4px rgba(37,99,235,.13);
+  transform:translateY(-1px);
+}
+button{
+  border:0;
+  border-radius:18px;
+  padding:13px 17px;
+  font-size:15px;
+  font-weight:900;
+  cursor:pointer;
+  color:white;
+  background:linear-gradient(135deg,var(--blue),var(--blue2));
+  font-family:inherit;
+  box-shadow:0 12px 24px rgba(37,99,235,.2);
+  transition:.16s ease;
+}
+button:hover{transform:translateY(-1px);filter:brightness(1.03)}
+button:active{transform:translateY(0) scale(.99)}
+button:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.btn-light{background:#f8fafc;color:#111827;box-shadow:none;border:1px solid var(--line)}
+.btn-green{background:linear-gradient(135deg,#16a34a,#22c55e)}
+.btn-red{background:linear-gradient(135deg,#dc2626,#ef4444)}
+.btn-yellow{background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#111827}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat{
+  position:relative;
+  overflow:hidden;
+  background:linear-gradient(180deg,#fff,rgba(248,250,252,.9));
+  border:1px solid var(--line);
+  border-radius:22px;
+  padding:16px;
+  box-shadow:var(--soft-shadow);
+}
+.stat:before{
+  content:"";
+  position:absolute;
+  top:0;right:0;left:0;height:4px;
+  background:linear-gradient(90deg,#2563eb,#22c55e,#f59e0b);
+}
+.stat .label{color:var(--muted);font-size:13px;font-weight:800}
+.stat .value{font-size:24px;font-weight:900;margin-top:8px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.item{
+  background:rgba(255,255,255,.92);
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:14px;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+  margin-bottom:8px;
+  box-shadow:0 8px 18px rgba(15,23,42,.055);
+}
+.item-title{font-weight:900}
+.item-sub{color:var(--muted);font-size:14px;white-space:pre-wrap;line-height:1.55}
+.money{color:var(--green);font-weight:900;font-size:20px;white-space:nowrap}
+.cal-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:12px;
+}
+.cal{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:8px;
+}
+.weekday{
+  text-align:center;
+  color:var(--muted);
+  font-weight:900;
+  font-size:13px;
+  padding:7px 0;
+}
+.day{
+  min-height:88px;
+  background:linear-gradient(180deg,#fff,#f8fafc);
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:10px;
+  cursor:pointer;
+  box-shadow:0 8px 16px rgba(15,23,42,.055);
+  transition:.14s ease;
+}
+.day:hover{transform:translateY(-2px);border-color:#93c5fd}
+.empty{background:transparent;border:0;cursor:default;box-shadow:none}
+.shabbat{background:#f1f5f9;color:#94a3b8;cursor:not-allowed}
+.today{border:2px solid var(--blue);box-shadow:0 0 0 4px rgba(37,99,235,.1)}
+.selected{background:#dbeafe;border-color:var(--blue)}
+.day-num{font-weight:900}
+.day-total{color:var(--green);font-weight:900;margin-top:8px;font-size:14px}
+.day-count{font-size:12px;color:var(--muted)}
+.type-card{
+  background:linear-gradient(180deg,#fff,#f8fafc);
+  border:2px solid var(--line);
+  border-radius:24px;
+  padding:22px;
+  text-align:center;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:var(--soft-shadow);
+  transition:.16s ease;
+}
+.type-card:hover{transform:translateY(-2px);border-color:#93c5fd}
+.type-card.active{border-color:var(--blue);background:#dbeafe}
+.progress{height:18px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:10px}
+.bar{height:100%;background:linear-gradient(90deg,#16a34a,#22c55e);width:0;transition:.25s ease}
+.danger{color:var(--red)!important;font-weight:900}
+.success{color:var(--green)!important;font-weight:900}
+.qty{max-width:115px;text-align:center}
+.secret{height:42px;text-align:center;color:#cbd5e1;font-size:12px;user-select:none}
+.login-box{max-width:530px;margin:35px auto;padding:26px}
+.big-title{text-align:center;font-size:32px;margin-top:8px}
+.total-preview{font-weight:900;color:var(--green);font-size:21px;margin:12px 0}
+.notice{
+  background:#ecfdf5;
+  border:1px solid #bbf7d0;
+  color:#166534;
+  border-radius:18px;
+  padding:13px;
+  margin:10px 0;
+  font-weight:900;
+}
+.hint-card{
+  text-align:center;
+  padding:30px;
+  border:2px dashed #cbd5e1;
+  background:rgba(248,250,252,.82);
+  border-radius:24px;
+  color:#64748b;
+  font-weight:900;
+}
+.panel{border:2px solid #bfdbfe;background:rgba(239,246,255,.9)}
+.debug{background:#020617;color:#d1fae5;border-radius:18px;padding:12px;font-family:monospace;font-size:12px;direction:ltr;white-space:pre-wrap;max-height:220px;overflow:auto}
+.debug-line{border-bottom:1px solid #334155;padding:4px 0}
+#workerLoginView:before{content:"👷‍♂️";display:block;text-align:center;font-size:52px;margin-bottom:4px}
+#adminLoginView:before{content:"👑";display:block;text-align:center;font-size:48px;margin-bottom:4px}
+#adminView>.card:first-child h2:before{content:"👑 "}
+#workerView>.card:first-child h2:before{content:"👋 "}
+#calendar .day:not(.empty):not(.shabbat) .day-num:before{content:"📅 ";font-size:12px}
+#priceAdmin .item-title:before{content:"🧾 "}
+#workersList .item-title:before{content:"👷 "}
+#dayEntries .item-title:before{content:"✅ "}
+@media(max-width:800px){
+  body{padding:10px}
+  .top{top:6px;border-radius:22px;padding:9px}
+  .grid2,.grid3,.grid4{grid-template-columns:1fr}
+  .card{padding:16px;border-radius:22px}
+  .cal{gap:5px}
+  .day{min-height:74px;padding:7px;border-radius:16px}
+  .day-total{font-size:12px}
+  .weekday{font-size:12px}
+  .item{flex-direction:column;border-radius:18px}
+  .cal-head{flex-direction:column;align-items:stretch;text-align:center}
+  .actions button{flex:1;min-width:120px}
+  .brand{font-size:19px}
+  .logo{width:44px;height:44px}
+  h1{font-size:27px}
+  .big-title{font-size:29px}
+  button{width:100%;padding:14px 15px}
+  .type-card{padding:20px}
+}
 </style>
 </head>
 <body>
@@ -19,7 +278,7 @@
 <h1 class="big-title">כניסת עובד</h1><p style="text-align:center">הכנס שם משתמש וסיסמה שקיבלת מהמנהל.</p>
 <input id="workerUsername" placeholder="שם משתמש"><input id="workerPassword" type="password" placeholder="סיסמה">
 <button class="btn-green" onclick="workerLogin()">כניסה</button><p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.1.3</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.2.0</div>
 </section>
 
 <section id="adminLoginView" class="card login-box hidden">
@@ -32,12 +291,12 @@
 <div class="card"><h2>לוח מנהל</h2><p>ניהול עובדים, מחירון, הגדרות מנהל וצפייה בדוחות.</p></div>
 
 <div class="card">
-<h2>הגדרות מנהל</h2>
+<h2>🔐 הגדרות מנהל</h2>
 <div class="grid3"><input id="adminSetUsername" placeholder="שם משתמש מנהל"><input id="adminSetPassword" type="password" placeholder="סיסמה חדשה - השאר ריק כדי לא לשנות"><button class="btn-green" onclick="saveAdminSettings()">שמור הגדרות מנהל</button></div>
 <div id="adminSettingsMsg"></div>
 </div>
 
-<div class="card"><h2>יצירת עובד</h2>
+<div class="card"><h2>➕ יצירת עובד</h2>
 <div class="grid3"><input id="wName" placeholder="שם עובד"><input id="wUser" placeholder="שם משתמש לעובד"><input id="wPass" type="password" placeholder="סיסמה"></div>
 <div class="grid2"><input id="wGoal" type="number" placeholder="יעד חודשי למשל 20000"><button id="createWorkerBtn" class="btn-green" onclick="createWorker()">צור עובד</button></div><div id="workerMsg"></div></div>
 
@@ -50,12 +309,12 @@
 </div>
 
 <div class="card">
-<h2>מחיר קריאת שירות</h2><p>המחיר הזה ישמש כל קריאת שירות חדשה. עבודות שכבר נשמרו לא ישתנו.</p>
+<h2>☎️ מחיר קריאת שירות</h2><p>המחיר הזה ישמש כל קריאת שירות חדשה. עבודות שכבר נשמרו לא ישתנו.</p>
 <div class="grid2"><input id="servicePriceInput" type="number" placeholder="מחיר קריאת שירות"><button class="btn-green" onclick="saveServicePrice()">שמור מחיר קריאת שירות</button></div><div id="servicePriceMsg"></div>
 </div>
 
 <div class="card">
-<div class="cal-head"><h2>מחירון התקנות</h2><button class="btn-light" onclick="loadPriceListAdmin()">רענן</button></div>
+<div class="cal-head"><h2>🧾 מחירון התקנות</h2><button class="btn-light" onclick="loadPriceListAdmin()">רענן</button></div>
 <p>אפשר להוסיף פריטים, לערוך שם/מחיר/סוג בחירה, או להסיר פריט מהרשימה. פריט שהוסר נשאר במסד הנתונים אבל לא מוצג יותר.</p>
 <div class="grid3"><input id="pName" placeholder="שם פעולה"><input id="pPrice" type="number" placeholder="מחיר ₪"><select id="pMode"><option value="qty">כמות מספרית</option><option value="check">סימון כן/לא</option></select></div>
 <button class="btn-green" onclick="addPriceItem()">הוסף פריט</button>
@@ -70,7 +329,7 @@
 <div id="editPriceMsg"></div>
 </div>
 
-<div class="card"><div class="cal-head"><h2>עובדים</h2><button class="btn-light" onclick="loadWorkers()">רענן</button></div><div id="workersList"></div></div>
+<div class="card"><div class="cal-head"><h2>👷 עובדים</h2><button class="btn-light" onclick="loadWorkers()">רענן</button></div><div id="workersList"></div></div>
 <div class="card"><div class="cal-head"><h2>לוג מערכת</h2><button class="btn-light" onclick="loadDebugLogs()">רענן לוג</button></div><div id="debugLog" class="debug">אין לוגים עדיין</div></div>
 </section>
 
@@ -78,7 +337,7 @@
 <div class="card"><div class="cal-head"><div><h2 id="helloTitle">שלום</h2><div id="monthSub" class="muted"></div></div><button id="backAdminBtn" class="btn-light hidden" onclick="showAdmin()">חזרה למנהל</button></div>
 <div class="grid4"><div class="stat"><div class="label">סה״כ החודש</div><div id="monthTotal" class="value">₪0</div></div><div class="stat"><div class="label">היום הנבחר</div><div id="dayTotal" class="value">₪0</div></div><div class="stat"><div class="label">יעד חודשי</div><div id="goalTotal" class="value">₪0</div></div><div class="stat"><div class="label">חסר ליעד</div><div id="leftTotal" class="value">₪0</div></div></div><div class="progress"><div id="goalBar" class="bar"></div></div><p id="paceLine"></p></div>
 <div class="card">
-<div class="cal-head"><h2>הגדרות אישיות</h2><button class="btn-light" onclick="toggleWorkerSettings()">פתח / סגור</button></div>
+<div class="cal-head"><h2>⚙️ הגדרות אישיות</h2><button class="btn-light" onclick="toggleWorkerSettings()">פתח / סגור</button></div>
 <div id="workerSettingsPanel" class="hidden">
 <p>כאן אפשר לשנות סיסמה ויעד חודשי.</p>
 <div class="grid2"><input id="selfMonthlyGoal" type="number" placeholder="יעד חודשי"><input id="selfNewPassword" type="password" placeholder="סיסמה חדשה - לא חובה"></div>
@@ -88,7 +347,7 @@
 </div>
 
 <div class="card">
-<div class="cal-head"><h2>חיפוש וסיכומים</h2><button class="btn-light" onclick="toggleSearchPanel()">פתח / סגור</button></div>
+<div class="cal-head"><h2>🔎 חיפוש וסיכומים</h2><button class="btn-light" onclick="toggleSearchPanel()">פתח / סגור</button></div>
 <div id="searchPanel" class="hidden">
 <p>אפשר לחפש לפי מספר לקוח, כתובת, יום, חודש או סוג עבודה. הסיכום מתעדכן לפי התוצאות.</p>
 <div class="grid3">
@@ -282,4 +541,4 @@ async function loadDebugLogs(){const box=$("debugLog");if(!box)return;try{const 
 function $(id){return document.getElementById(id)}function show(id){$(id).classList.remove("hidden")}function hide(id){$(id).classList.add("hidden")}function hideAll(){["workerLoginView","adminLoginView","adminView","workerView"].forEach(hide)}function val(id){return $(id).value.trim()}function text(id,v){$(id).textContent=v}function normalize(s){return String(s||"").trim().toLowerCase()}function workerIdFromUsername(k){return"worker_"+String(k||"").replace(/[^a-z0-9_\-א-ת]/gi,"_")}function pad(n){return String(n).padStart(2,"0")}function formatDate(d){return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}function parseDate(s){const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}function heDate(s){const d=parseDate(s);return`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`}function money(n){return`₪${Number(n||0).toLocaleString("he-IL",{maximumFractionDigits:0})}`}function esc(s){return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}async function sha256(str){const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("")}
 </script>
 </body>
-</html>
+  </html>
