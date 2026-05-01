@@ -19,7 +19,7 @@
 <h1 class="big-title">כניסת עובד</h1><p style="text-align:center">הכנס שם משתמש וסיסמה שקיבלת מהמנהל.</p>
 <input id="workerUsername" placeholder="שם משתמש"><input id="workerPassword" type="password" placeholder="סיסמה">
 <button class="btn-green" onclick="workerLogin()">כניסה</button><p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.1.2</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.1.3</div>
 </section>
 
 <section id="adminLoginView" class="card login-box hidden">
@@ -80,10 +80,30 @@
 <div class="card">
 <div class="cal-head"><h2>הגדרות אישיות</h2><button class="btn-light" onclick="toggleWorkerSettings()">פתח / סגור</button></div>
 <div id="workerSettingsPanel" class="hidden">
-<p>כאן העובד יכול לשנות רק סיסמה ויעד חודשי. שם משתמש נשאר רק אצל המנהל.</p>
+<p>כאן אפשר לשנות סיסמה ויעד חודשי.</p>
 <div class="grid2"><input id="selfMonthlyGoal" type="number" placeholder="יעד חודשי"><input id="selfNewPassword" type="password" placeholder="סיסמה חדשה - לא חובה"></div>
 <button class="btn-green" onclick="saveWorkerSelfSettings()">שמור הגדרות אישיות</button>
 <div id="selfSettingsMsg"></div>
+</div>
+</div>
+
+<div class="card">
+<div class="cal-head"><h2>חיפוש וסיכומים</h2><button class="btn-light" onclick="toggleSearchPanel()">פתח / סגור</button></div>
+<div id="searchPanel" class="hidden">
+<p>אפשר לחפש לפי מספר לקוח, כתובת, יום, חודש או סוג עבודה. הסיכום מתעדכן לפי התוצאות.</p>
+<div class="grid3">
+<input id="searchCustomer" placeholder="חיפוש לפי מספר לקוח">
+<input id="searchAddress" placeholder="חיפוש לפי כתובת">
+<select id="searchType"><option value="">כל סוגי העבודה</option><option value="service">קריאות שירות</option><option value="install">התקנות</option></select>
+</div>
+<div class="grid3">
+<input id="searchDate" type="date" placeholder="יום מסוים">
+<input id="searchMonth" type="month" placeholder="חודש מסוים">
+<button class="btn-green" onclick="runSearch()">חפש וסכם</button>
+</div>
+<div class="actions"><button class="btn-light" onclick="clearSearch()">נקה חיפוש</button><button class="btn-yellow" onclick="renderFullSummary()">סיכום חודש מלא</button></div>
+<div id="summaryResults"></div>
+<div id="searchResults"></div>
 </div>
 </div>
 
@@ -128,6 +148,108 @@ async function openPriceEdit(id){const doc=await db.collection("priceList").doc(
 async function savePriceEdit(){const id=val("editPriceId"),name=val("editPriceName"),price=Number(val("editPriceValue")),inputMode=$("editPriceMode").value,active=$("editPriceActive").value==="true";if(!name||Number.isNaN(price)||price<0)return $("editPriceMsg").innerHTML="<p class='danger'>שם או מחיר לא תקינים.</p>";await db.collection("priceList").doc(id).update({name,price,inputMode,active,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});$("editPriceMsg").innerHTML="<div class='notice'>הפריט נשמר ✅</div>";await loadPriceListAdmin()}
 async function togglePrice(id,active){await db.collection("priceList").doc(id).update({active,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});await loadPriceListAdmin()}
 
+
+function toggleSearchPanel(){const p=$("searchPanel");p.classList.toggle("hidden");if(!p.classList.contains("hidden"))renderFullSummary()}
+function getFilteredEntries(){
+  const customer=val("searchCustomer");
+  const address=val("searchAddress").toLowerCase();
+  const type=val("searchType");
+  const date=val("searchDate");
+  const month=val("searchMonth");
+  let arr=[...monthEntries];
+
+  if(customer) arr=arr.filter(e=>String(e.customerNumber||"").includes(customer));
+  if(address) arr=arr.filter(e=>String(e.address||"").toLowerCase().includes(address));
+  if(type) arr=arr.filter(e=>e.workType===type);
+  if(date) arr=arr.filter(e=>e.date===date);
+  if(month) arr=arr.filter(e=>String(e.date||"").startsWith(month));
+
+  return arr;
+}
+function runSearch(){renderSummary(getFilteredEntries(), "תוצאות חיפוש")}
+function clearSearch(){
+  ["searchCustomer","searchAddress","searchDate","searchMonth"].forEach(id=>$(id).value="");
+  $("searchType").value="";
+  renderFullSummary();
+}
+function renderFullSummary(){renderSummary(monthEntries, "סיכום חודש בתצוגה")}
+function getWeekKey(dateStr){
+  const d=parseDate(dateStr);
+  const first=new Date(d.getFullYear(),0,1);
+  const days=Math.floor((d-first)/86400000);
+  const week=Math.ceil((days+first.getDay()+1)/7);
+  return `${d.getFullYear()} שבוע ${week}`;
+}
+function groupAdd(obj,key,amount){if(!obj[key])obj[key]=0;obj[key]+=Number(amount||0)}
+function renderSummary(entries,title){
+  const box=$("summaryResults");
+  const results=$("searchResults");
+  if(!box||!results)return;
+
+  const total=entries.reduce((s,e)=>s+Number(e.amount||0),0);
+  const services=entries.filter(e=>e.workType==="service");
+  const installs=entries.filter(e=>e.workType==="install");
+  const paidServices=services.filter(e=>!e.isReturnCall);
+  const returnServices=services.filter(e=>e.isReturnCall);
+
+  const byDay={}, byWeek={}, byType={"קריאות שירות":0,"התקנות":0};
+  const byInstallItem={};
+
+  entries.forEach(e=>{
+    groupAdd(byDay,e.date||"ללא תאריך",e.amount);
+    groupAdd(byWeek,getWeekKey(e.date),e.amount);
+    if(e.workType==="service") groupAdd(byType,"קריאות שירות",e.amount);
+    if(e.workType==="install") groupAdd(byType,"התקנות",e.amount);
+    if(e.items) e.items.forEach(i=>{
+      if(!byInstallItem[i.name]) byInstallItem[i.name]={qty:0,total:0};
+      byInstallItem[i.name].qty+=Number(i.quantity||0);
+      byInstallItem[i.name].total+=Number(i.total||0);
+    });
+  });
+
+  box.innerHTML=`
+    <h3>${esc(title)}</h3>
+    <div class="grid4">
+      <div class="stat"><div class="label">סה״כ כסף</div><div class="value">${money(total)}</div></div>
+      <div class="stat"><div class="label">קריאות שירות</div><div class="value">${services.length}</div></div>
+      <div class="stat"><div class="label">התקנות</div><div class="value">${installs.length}</div></div>
+      <div class="stat"><div class="label">קריאות חוזרות</div><div class="value">${returnServices.length}</div></div>
+    </div>
+    <div class="grid2" style="margin-top:10px">
+      <div class="card" style="box-shadow:none;border:1px solid #e5e7eb"><h3>לפי ימים</h3>${renderMiniTable(byDay)}</div>
+      <div class="card" style="box-shadow:none;border:1px solid #e5e7eb"><h3>לפי שבועות</h3>${renderMiniTable(byWeek)}</div>
+    </div>
+    <div class="grid2">
+      <div class="card" style="box-shadow:none;border:1px solid #e5e7eb"><h3>לפי סוג עבודה</h3>${renderMiniTable(byType)}</div>
+      <div class="card" style="box-shadow:none;border:1px solid #e5e7eb"><h3>פירוט פריטי התקנה</h3>${renderInstallItemsSummary(byInstallItem)}</div>
+    </div>
+    <p class="muted">קריאות שירות בתשלום: ${paidServices.length} · קריאות חוזרות ללא תשלום: ${returnServices.length}</p>
+  `;
+
+  results.innerHTML = entries.length ? "<h3>פירוט תוצאות</h3>" : "<p class='muted'>אין תוצאות.</p>";
+  entries
+    .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")))
+    .forEach(e=>{
+      const details=e.workType==="install" && e.items
+        ? e.items.map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("\\n")
+        : (e.isReturnCall?"קריאה חוזרת ללא תשלום":"קריאת שירות");
+      const div=document.createElement("div");
+      div.className="item";
+      div.innerHTML=`<div><div class="item-title">${esc(e.date||"")} · ${esc(e.description||"")}</div><div class="item-sub">לקוח: ${esc(e.customerNumber||"")}\\nכתובת: ${esc(e.address||"")}\\n${esc(details)}\\n${esc(e.notes||"")}</div></div><div class="money">${money(e.amount||0)}</div>`;
+      results.appendChild(div);
+    });
+}
+function renderMiniTable(obj){
+  const keys=Object.keys(obj).sort();
+  if(!keys.length)return "<p class='muted'>אין נתונים.</p>";
+  return keys.map(k=>`<div class="item"><div class="item-title">${esc(k)}</div><div class="money">${money(obj[k])}</div></div>`).join("");
+}
+function renderInstallItemsSummary(obj){
+  const keys=Object.keys(obj).sort();
+  if(!keys.length)return "<p class='muted'>אין פריטי התקנה.</p>";
+  return keys.map(k=>`<div class="item"><div><div class="item-title">${esc(k)}</div><div class="item-sub">כמות: ${obj[k].qty}</div></div><div class="money">${money(obj[k].total)}</div></div>`).join("");
+}
+
 function toggleWorkerSettings(){const p=$("workerSettingsPanel");p.classList.toggle("hidden");if(viewedWorker&&$("selfMonthlyGoal"))$("selfMonthlyGoal").value=Number(viewedWorker.monthlyGoal||0)}
 async function saveWorkerSelfSettings(){
   if(!viewedWorker)return;
@@ -147,7 +269,7 @@ async function saveWorkerSelfSettings(){
 }
 
 async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();await showWorker({id:doc.id,...doc.data()})}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");$("backAdminBtn").classList.toggle("hidden",!(session&&session.role==="admin"));text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=new Date();selectedDate=null;selectedType=null;if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=Number(worker.monthlyGoal||0);if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth()}
-async function loadMonth(){await loadPriceList();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);monthEntries=[];renderCalendar();renderDay();renderStats();const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();monthEntries=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats()}
+async function loadMonth(){await loadPriceList();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);monthEntries=[];renderCalendar();renderDay();renderStats();const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();monthEntries=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats();if($('searchPanel')&&!$('searchPanel').classList.contains('hidden'))renderFullSummary()}
 function renderCalendar(){const cal=$("calendar");cal.innerHTML="";weekdays.forEach(w=>{const d=document.createElement("div");d.className="weekday";d.textContent=w;cal.appendChild(d)});const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0).getDate(),today=formatDate(new Date());for(let i=0;i<first.getDay();i++){const e=document.createElement("div");e.className="day empty";cal.appendChild(e)}for(let d=1;d<=last;d++){const ds=`${y}-${pad(m+1)}-${pad(d)}`,dt=new Date(y,m,d),sh=dt.getDay()===6,entries=monthEntries.filter(e=>e.date===ds),total=entries.reduce((s,e)=>s+Number(e.amount||0),0),div=document.createElement("div");div.className="day";if(sh)div.classList.add("shabbat");if(ds===today)div.classList.add("today");if(ds===selectedDate)div.classList.add("selected");div.innerHTML=`<div class="day-num">${d}</div>${total?`<div class="day-total">${money(total)}</div>`:""}${entries.length?`<div class="day-count">${entries.length} עבודות</div>`:""}`;if(!sh)div.onclick=()=>selectDay(ds);cal.appendChild(div)}}
 function selectDay(ds){selectedDate=ds;selectedType=null;renderCalendar();renderDay();renderStats()}function renderDay(){if(!selectedDate){hide("dayPanel");show("selectDayHint");return}show("dayPanel");hide("selectDayHint");text("dateTitle",`יום ${heDate(selectedDate)}`);renderInstallItems();setType(selectedType,false);updateServicePriceLabels();const entries=monthEntries.filter(e=>e.date===selectedDate).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)),box=$("dayEntries");box.innerHTML=entries.length?"":"<p class='muted'>אין עבודות ביום הזה עדיין.</p>";entries.forEach(e=>{const details=e.workType==="service"?`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n${e.notes||""}`:`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("\n")+`\n${e.notes||""}`,row=document.createElement("div");row.className="item";row.innerHTML=`<div><div class="item-title">${esc(e.description)}</div><div class="item-sub">${esc(details)}</div></div><div><div class="money">${money(e.amount)}</div><button class="btn-red" style="margin-top:8px" onclick="deleteEntry('${e.id}')">מחק</button></div>`;box.appendChild(row)})}
 function renderStats(){const monthTotal=monthEntries.reduce((s,e)=>s+Number(e.amount||0),0),dayTotal=selectedDate?monthEntries.filter(e=>e.date===selectedDate).reduce((s,e)=>s+Number(e.amount||0),0):0,goal=Number(viewedWorker.monthlyGoal||0),left=Math.max(goal-monthTotal,0);$("monthTotal").textContent=money(monthTotal);$("dayTotal").textContent=money(dayTotal);$("goalTotal").textContent=money(goal);$("leftTotal").textContent=money(left);$("goalBar").style.width=goal?Math.min(monthTotal/goal*100,100)+"%":"0%";text("paceLine",goal?(left<=0?"מעולה — היעד הושג.":`חסר ליעד: ${money(left)}.`):"לא הוגדר יעד חודשי.")}
