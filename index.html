@@ -30,7 +30,7 @@
     .actions{display:flex;gap:8px;flex-wrap:wrap}.item{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:13px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:8px}.item-title{font-weight:900}.item-sub{color:#6b7280;font-size:14px;white-space:pre-wrap}.money{color:#16a34a;font-weight:900;font-size:19px;white-space:nowrap}
     .cal-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}.weekday{text-align:center;color:#6b7280;font-weight:900;font-size:13px}.day{min-height:82px;background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:9px;cursor:pointer}.empty{background:transparent;border:0;cursor:default}.shabbat{background:#f3f4f6;color:#9ca3af;cursor:not-allowed}.today{border:2px solid #2563eb}.selected{background:#dbeafe}.day-total{color:#16a34a;font-weight:900;margin-top:8px}.day-count{font-size:12px;color:#6b7280}
     .type-card{background:#fff;border:2px solid #e5e7eb;border-radius:22px;padding:18px;text-align:center;font-weight:900;cursor:pointer}.type-card.active{border-color:#2563eb;background:#dbeafe}
-    .progress{height:16px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:10px}.bar{height:100%;background:#16a34a;width:0}.danger{color:#dc2626!important;font-weight:900}.success{color:#16a34a!important;font-weight:900}.qty{max-width:115px;text-align:center}.secret{height:42px;text-align:center;color:#cbd5e1;font-size:12px;user-select:none}.login-box{max-width:520px;margin:35px auto}.big-title{text-align:center;font-size:30px;margin-top:8px}.total-preview{font-weight:900;color:#16a34a;font-size:20px;margin:12px 0}.notice{background:#ecfdf5;border:1px solid #bbf7d0;color:#166534;border-radius:16px;padding:12px;margin:10px 0;font-weight:900}.hint-card{text-align:center;padding:26px;border:2px dashed #cbd5e1;background:#f8fafc;border-radius:22px;color:#64748b;font-weight:900}
+    .progress{height:16px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:10px}.bar{height:100%;background:#16a34a;width:0}.danger{color:#dc2626!important;font-weight:900}.success{color:#16a34a!important;font-weight:900}.qty{max-width:115px;text-align:center}.secret{height:42px;text-align:center;color:#cbd5e1;font-size:12px;user-select:none}.login-box{max-width:520px;margin:35px auto}.big-title{text-align:center;font-size:30px;margin-top:8px}.total-preview{font-weight:900;color:#16a34a;font-size:20px;margin:12px 0}.notice{background:#ecfdf5;border:1px solid #bbf7d0;color:#166534;border-radius:16px;padding:12px;margin:10px 0;font-weight:900}.debug{background:#020617;color:#d1fae5;border-radius:18px;padding:12px;font-family:monospace;font-size:12px;direction:ltr;white-space:pre-wrap;max-height:260px;overflow:auto}.debug-line{border-bottom:1px solid #334155;padding:4px 0}.hint-card{text-align:center;padding:26px;border:2px dashed #cbd5e1;background:#f8fafc;border-radius:22px;color:#64748b;font-weight:900}
     @media(max-width:800px){.grid2,.grid3,.grid4{grid-template-columns:1fr}.cal{gap:5px}.day{min-height:70px;padding:7px;border-radius:14px}.item{flex-direction:column}.cal-head{flex-direction:column}.actions button{flex:1;min-width:120px}.brand{font-size:19px}}
   </style>
 </head>
@@ -49,7 +49,7 @@
     <input id="workerPassword" type="password" placeholder="סיסמה">
     <button class="btn-green" onclick="workerLogin()">כניסה</button>
     <p id="workerLoginMsg" class="danger"></p>
-    <div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.0.2</div>
+    <div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.0.4</div>
   </section>
 
   <section id="adminLoginView" class="card login-box hidden">
@@ -106,6 +106,18 @@
     </div>
 
     <div class="card">
+      <div class="cal-head">
+        <h2>לוג מערכת</h2>
+        <div class="actions">
+          <button class="btn-light" onclick="loadDebugLogs()">רענן לוג</button>
+          <button class="btn-red" onclick="clearDebugLogs()">נקה לוג</button>
+        </div>
+      </div>
+      <p>הלוג הזה יעזור לנו לראות אם העובד באמת נשמר בפיירבייס או אם יש שגיאה.</p>
+      <div id="debugLog" class="debug">אין לוגים עדיין</div>
+    </div>
+
+    <div class="card">
       <div class="cal-head"><h2>עובדים</h2><button class="btn-light" onclick="loadWorkers()">רענן</button></div>
       <div id="workersList"></div>
     </div>
@@ -148,6 +160,7 @@
 
         <div id="serviceForm" class="hidden" style="margin-top:14px">
           <h3>קריאת שירות</h3>
+          <input id="sCustomer" inputmode="numeric" pattern="[0-9]*" placeholder="מספר לקוח - ספרות בלבד">
           <input id="sAddress" placeholder="כתובת">
           <textarea id="sNotes" placeholder="הערות"></textarea>
           <div id="servicePreview" class="total-preview">סה״כ: ₪65</div>
@@ -156,6 +169,7 @@
 
         <div id="installForm" class="hidden" style="margin-top:14px">
           <h3>התקנה</h3>
+          <input id="iCustomer" inputmode="numeric" pattern="[0-9]*" placeholder="מספר לקוח - ספרות בלבד">
           <input id="iAddress" placeholder="כתובת">
           <div id="installItems"></div>
           <div id="installPreview" class="total-preview">סה״כ התקנה: ₪0</div>
@@ -286,13 +300,14 @@ async function workerLogin(){
     .where("active","==",true)
     .limit(1).get();
 
-  if(q.empty) return text("workerLoginMsg","שם משתמש לא קיים או לא פעיל.");
+  if(q.empty){ await addLog("workerLogin:notFound", {username, usernameKey: normalize(username)}); return text("workerLoginMsg","שם משתמש לא קיים או לא פעיל."); }
 
   const doc = q.docs[0], worker = {id:doc.id, ...doc.data()};
-  if(worker.passwordHash !== await sha256(pass)) return text("workerLoginMsg","סיסמה שגויה.");
+  if(worker.passwordHash !== await sha256(pass)){ await addLog("workerLogin:wrongPassword", {workerId: worker.id, username}); return text("workerLoginMsg","סיסמה שגויה."); }
 
   session = {role:"worker", workerId:worker.id, name:worker.name};
   localStorage.setItem("workSession", JSON.stringify(session));
+  await addLog("workerLogin:success", {workerId: worker.id, username});
   await showWorker(worker);
 }
 
@@ -311,6 +326,7 @@ async function showAdmin(){
   $("servicePriceInput").value = SERVICE_PRICE;
   await loadWorkers();
   await loadPriceListAdmin();
+  await loadDebugLogs();
 }
 
 async function createWorker(){
@@ -320,34 +336,58 @@ async function createWorker(){
   btn.disabled = true;
   btn.textContent = "יוצר עובד...";
 
+  const name = val("wName");
+  const username = val("wUser");
+  const pass = val("wPass");
+  const goal = Number(val("wGoal")||0);
+  const usernameKey = normalize(username);
+
   try {
-    const name = val("wName"), username = val("wUser"), pass = val("wPass"), goal = Number(val("wGoal")||0);
+    await addLog("createWorker:start", {name, username, usernameKey, goal});
+
     if(!name || !username || !pass){
       msg.innerHTML = "<p class='danger'>חובה למלא שם, שם משתמש וסיסמה.</p>";
+      await addLog("createWorker:validationFailed", {reason:"missing fields"});
       return;
     }
 
-    const usernameKey = normalize(username);
     const exists = await db.collection("workers").where("usernameKey","==",usernameKey).limit(1).get();
     if(!exists.empty){
       msg.innerHTML = "<p class='danger'>שם המשתמש כבר קיים.</p>";
+      await addLog("createWorker:duplicate", {usernameKey});
       return;
     }
 
-    await db.collection("workers").add({
-      name, username, usernameKey,
-      passwordHash: await sha256(pass),
+    const passwordHash = await sha256(pass);
+    const payload = {
+      name,
+      username,
+      usernameKey,
+      passwordHash,
       monthlyGoal: goal,
       active: true,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    };
+
+    const ref = await db.collection("workers").add(payload);
+    await addLog("createWorker:docAdded", {workerId: ref.id, usernameKey});
+
+    const verifyDoc = await db.collection("workers").doc(ref.id).get();
+    if(!verifyDoc.exists){
+      throw new Error("העובד נוצר אבל לא נמצא בבדיקת אימות מול Firestore");
+    }
 
     ["wName","wUser","wPass","wGoal"].forEach(id=>$(id).value="");
-    msg.innerHTML = `<div class="notice">העובד ${esc(name)} נוצר בהצלחה ✅</div>`;
+    msg.innerHTML = `<div class="notice">העובד ${esc(name)} נוצר בהצלחה ✅<br>מזהה עובד: ${ref.id}</div>`;
+    await addLog("createWorker:success", {workerId: ref.id, name, username});
     await loadWorkers();
+    await loadDebugLogs();
   } catch(e) {
+    console.error(e);
     msg.innerHTML = `<p class='danger'>שגיאה ביצירת עובד: ${esc(e.message)}</p>`;
+    await addLog("createWorker:error", {message:e.message, code:e.code || ""});
+    await loadDebugLogs();
   } finally {
     btn.disabled = false;
     btn.textContent = "צור עובד";
@@ -357,24 +397,48 @@ async function createWorker(){
 async function loadWorkers(){
   const box = $("workersList");
   box.innerHTML = "<p>טוען עובדים...</p>";
-  const snap = await db.collection("workers").orderBy("createdAt","desc").get();
-  workers = snap.docs.map(d=>({id:d.id,...d.data()}));
-  box.innerHTML = workers.length ? "" : "<p class='muted'>אין עובדים עדיין.</p>";
-  workers.forEach(w=>{
-    const row = document.createElement("div");
-    row.className = "item";
-    row.innerHTML = `
-      <div>
-        <div class="item-title">${esc(w.name)}</div>
-        <div class="item-sub">שם משתמש: ${esc(w.username)} · יעד: ${money(w.monthlyGoal||0)} · ${w.active===false?"לא פעיל":"פעיל"}</div>
-      </div>
-      <div class="actions">
-        <button onclick="showWorkerById('${w.id}')">פתח מעקב</button>
-        <button class="btn-yellow" onclick="editWorker('${w.id}')">ערוך</button>
-        <button class="${w.active===false?"btn-green":"btn-red"}" onclick="toggleWorker('${w.id}', ${w.active===false})">${w.active===false?"הפעל":"בטל"}</button>
-      </div>`;
-    box.appendChild(row);
-  });
+
+  try {
+    let snap;
+    try {
+      snap = await db.collection("workers").orderBy("createdAt","desc").get();
+    } catch(orderErr) {
+      await addLog("loadWorkers:orderByFailed", {message:orderErr.message});
+      snap = await db.collection("workers").get();
+    }
+
+    workers = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+    workers.sort((a,b)=>{
+      const aa = a.createdAt && a.createdAt.seconds ? a.createdAt.seconds : 0;
+      const bb = b.createdAt && b.createdAt.seconds ? b.createdAt.seconds : 0;
+      return bb - aa;
+    });
+
+    await addLog("loadWorkers:success", {count: workers.length});
+
+    box.innerHTML = workers.length ? "" : "<p class='muted'>אין עובדים עדיין.</p>";
+    workers.forEach(w=>{
+      const row = document.createElement("div");
+      row.className = "item";
+      row.innerHTML = `
+        <div>
+          <div class="item-title">${esc(w.name)}</div>
+          <div class="item-sub">שם משתמש: ${esc(w.username)} · יעד: ${money(w.monthlyGoal||0)} · ${w.active===false?"לא פעיל":"פעיל"} · ID: ${w.id}</div>
+        </div>
+        <div class="actions">
+          <button onclick="showWorkerById('${w.id}')">פתח מעקב</button>
+          <button class="btn-yellow" onclick="editWorker('${w.id}')">ערוך</button>
+          <button class="${w.active===false?"btn-green":"btn-red"}" onclick="toggleWorker('${w.id}', ${w.active===false})">${w.active===false?"הפעל":"בטל"}</button>
+        </div>`;
+      box.appendChild(row);
+    });
+  } catch(e) {
+    console.error(e);
+    box.innerHTML = `<p class='danger'>שגיאה בטעינת עובדים: ${esc(e.message)}</p>`;
+    await addLog("loadWorkers:error", {message:e.message, code:e.code || ""});
+    await loadDebugLogs();
+  }
 }
 
 async function editWorker(id){
@@ -607,8 +671,8 @@ function renderDay(){
   box.innerHTML = entries.length ? "" : "<p class='muted'>אין עבודות ביום הזה עדיין.</p>";
   entries.forEach(e=>{
     const details = e.workType==="service"
-      ? `כתובת: ${e.address||""}\n${e.notes||""}`
-      : `כתובת: ${e.address||""}\n` + (e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("\n") + `\n${e.notes||""}`;
+      ? `מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n${e.notes||""}`
+      : `מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n` + (e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("\n") + `\n${e.notes||""}`;
     const row=document.createElement("div");
     row.className="item";
     row.innerHTML = `<div><div class="item-title">${esc(e.description)}</div><div class="item-sub">${esc(details)}</div></div><div><div class="money">${money(e.amount)}</div><button class="btn-red" style="margin-top:8px" onclick="deleteEntry('${e.id}')">מחק</button></div>`;
@@ -659,24 +723,32 @@ function updateInstallPreview(){
 }
 
 async function addService(){
-  const address=val("sAddress"), notes=val("sNotes");
+  const customerNumber=val("sCustomer"), address=val("sAddress"), notes=val("sNotes");
+  if(!customerNumber || !/^\d+$/.test(customerNumber)){
+    $("entryMsg").innerHTML = "<p class='danger'>חובה למלא מספר לקוח בספרות בלבד.</p>";
+    return;
+  }
   if(!address){
     $("entryMsg").innerHTML = "<p class='danger'>חובה למלא כתובת.</p>";
     return;
   }
   await db.collection("workEntries").add({
     workerId:viewedWorker.id, workerName:viewedWorker.name, date:selectedDate,
-    workType:"service", description:"קריאת שירות", address, notes,
+    workType:"service", description:"קריאת שירות", customerNumber, address, notes,
     amount:SERVICE_PRICE,
     createdAt:firebase.firestore.FieldValue.serverTimestamp()
   });
-  $("sAddress").value=""; $("sNotes").value="";
+  $("sCustomer").value=""; $("sAddress").value=""; $("sNotes").value="";
   $("entryMsg").innerHTML = "<div class='notice'>קריאת השירות נשמרה ✅</div>";
   await loadMonth();
 }
 
 async function addInstall(){
-  const address=val("iAddress"), notes=val("iNotes");
+  const customerNumber=val("iCustomer"), address=val("iAddress"), notes=val("iNotes");
+  if(!customerNumber || !/^\d+$/.test(customerNumber)){
+    $("entryMsg").innerHTML = "<p class='danger'>חובה למלא מספר לקוח בספרות בלבד.</p>";
+    return;
+  }
   if(!address){
     $("entryMsg").innerHTML = "<p class='danger'>חובה למלא כתובת.</p>";
     return;
@@ -696,10 +768,10 @@ async function addInstall(){
 
   await db.collection("workEntries").add({
     workerId:viewedWorker.id, workerName:viewedWorker.name, date:selectedDate,
-    workType:"install", description:"התקנה", address, notes, items, amount:total,
+    workType:"install", description:"התקנה", customerNumber, address, notes, items, amount:total,
     createdAt:firebase.firestore.FieldValue.serverTimestamp()
   });
-  $("iAddress").value=""; $("iNotes").value="";
+  $("iCustomer").value=""; $("iAddress").value=""; $("iNotes").value="";
   $("entryMsg").innerHTML = "<div class='notice'>ההתקנה נשמרה ✅</div>";
   await loadMonth();
 }
@@ -715,6 +787,54 @@ function changeMonth(delta){
   selectedDate = null;
   selectedType = null;
   loadMonth();
+}
+
+
+/******** לוג מערכת ********/
+async function addLog(action, data={}){
+  try{
+    const record = {
+      action,
+      data,
+      pageVersion: "1.0.4",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      clientTime: new Date().toISOString()
+    };
+    await db.collection("appLogs").add(record);
+  }catch(e){
+    console.error("addLog failed", e);
+  }
+}
+
+async function loadDebugLogs(){
+  const box = $("debugLog");
+  if(!box) return;
+  try{
+    const snap = await db.collection("appLogs").orderBy("createdAt","desc").limit(30).get();
+    if(snap.empty){
+      box.textContent = "אין לוגים עדיין";
+      return;
+    }
+    box.innerHTML = "";
+    snap.docs.forEach(doc=>{
+      const d = doc.data();
+      const div = document.createElement("div");
+      div.className = "debug-line";
+      div.textContent = `${d.clientTime || ""} | ${d.action} | ${JSON.stringify(d.data || {})}`;
+      box.appendChild(div);
+    });
+  }catch(e){
+    box.textContent = "שגיאה בטעינת לוגים: " + e.message;
+  }
+}
+
+async function clearDebugLogs(){
+  if(!confirm("לנקות את הלוגים?")) return;
+  const snap = await db.collection("appLogs").limit(200).get();
+  const batch = db.batch();
+  snap.docs.forEach(doc=>batch.delete(doc.ref));
+  await batch.commit();
+  await loadDebugLogs();
 }
 
 /******** עזר ********/
