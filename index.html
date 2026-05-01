@@ -49,7 +49,7 @@
     <input id="workerPassword" type="password" placeholder="סיסמה">
     <button class="btn-green" onclick="workerLogin()">כניסה</button>
     <p id="workerLoginMsg" class="danger"></p>
-    <div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.0.8</div>
+    <div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.0.9</div>
   </section>
 
   <section id="adminLoginView" class="card login-box hidden">
@@ -99,8 +99,12 @@
       <div class="grid3">
         <input id="pName" placeholder="שם פעולה">
         <input id="pPrice" type="number" placeholder="מחיר ₪">
-        <button class="btn-green" onclick="addPriceItem()">הוסף פריט</button>
+        <select id="pMode" style="width:100%;border:1px solid #e5e7eb;border-radius:16px;padding:13px 14px;font-size:16px;margin:7px 0;font-family:inherit;background:white">
+          <option value="qty">כמות מספרית</option>
+          <option value="check">סימון כן/לא</option>
+        </select>
       </div>
+      <button class="btn-green" onclick="addPriceItem()">הוסף פריט</button>
       <div id="priceAdmin"></div>
       <div id="priceMsg"></div>
     </div>
@@ -579,10 +583,10 @@ async function loadPriceListAdmin(){
     row.innerHTML = `
       <div>
         <div class="item-title">${esc(item.name)}</div>
-        <div class="item-sub">מחיר: ${money(item.price)} · ${item.active===false?"לא פעיל":"פעיל"}</div>
+        <div class="item-sub">מחיר: ${money(item.price)} · סוג: ${(item.inputMode||"qty")==="check"?"סימון כן/לא":"כמות מספרית"} · ${item.active===false?"לא פעיל":"פעיל"}</div>
       </div>
       <div class="actions">
-        <button class="btn-yellow" onclick='editPrice("${item.id}", ${JSON.stringify(item.name)}, ${Number(item.price||0)})'>ערוך</button>
+        <button class="btn-yellow" onclick='editPrice("${item.id}", ${JSON.stringify(item.name)}, ${Number(item.price||0)}, ${JSON.stringify(item.inputMode||"qty")})'>ערוך</button>
         <button class="${item.active===false?"btn-green":"btn-red"}" onclick="togglePrice('${item.id}', ${item.active===false})">${item.active===false?"הפעל":"בטל"}</button>
       </div>`;
     box.appendChild(row);
@@ -872,7 +876,7 @@ async function addLog(action, data={}){
     const record = {
       action,
       data,
-      pageVersion: "1.0.8",
+      pageVersion: "1.0.9",
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       clientTime: new Date().toISOString()
     };
