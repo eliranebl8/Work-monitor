@@ -49,7 +49,7 @@
     <input id="workerPassword" type="password" placeholder="סיסמה">
     <button class="btn-green" onclick="workerLogin()">כניסה</button>
     <p id="workerLoginMsg" class="danger"></p>
-    <div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.0.4</div>
+    <div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.0.6</div>
   </section>
 
   <section id="adminLoginView" class="card login-box hidden">
@@ -295,20 +295,45 @@ async function workerLogin(){
   const username = val("workerUsername"), pass = val("workerPassword");
   if(!username || !pass) return text("workerLoginMsg","חובה למלא שם משתמש וסיסמה.");
 
-  const q = await db.collection("workers")
-    .where("usernameKey","==",normalize(username))
-    .where("active","==",true)
-    .limit(1).get();
+  const usernameKey = normalize(username);
+  const workerDocId = workerIdFromUsername(usernameKey);
 
-  if(q.empty){ await addLog("workerLogin:notFound", {username, usernameKey: normalize(username)}); return text("workerLoginMsg","שם משתמש לא קיים או לא פעיל."); }
+  try{
+    await addLog("workerLogin:start", {username, usernameKey, workerDocId});
 
-  const doc = q.docs[0], worker = {id:doc.id, ...doc.data()};
-  if(worker.passwordHash !== await sha256(pass)){ await addLog("workerLogin:wrongPassword", {workerId: worker.id, username}); return text("workerLoginMsg","סיסמה שגויה."); }
+    let doc = await db.collection("workers").doc(workerDocId).get();
 
-  session = {role:"worker", workerId:worker.id, name:worker.name};
-  localStorage.setItem("workSession", JSON.stringify(session));
-  await addLog("workerLogin:success", {workerId: worker.id, username});
-  await showWorker(worker);
+    if(!doc.exists){
+      await addLog("workerLogin:directDocNotFound", {workerDocId});
+      const q = await db.collection("workers").where("usernameKey","==",usernameKey).where("active","==",true).limit(1).get();
+      if(q.empty){
+        await addLog("workerLogin:notFound", {username, usernameKey});
+        return text("workerLoginMsg","שם משתמש לא קיים או לא פעיל.");
+      }
+      doc = q.docs[0];
+    }
+
+    const worker = {id:doc.id, ...doc.data()};
+
+    if(worker.active === false){
+      await addLog("workerLogin:notActive", {workerId: worker.id, username});
+      return text("workerLoginMsg","העובד לא פעיל.");
+    }
+
+    if(worker.passwordHash !== await sha256(pass)){
+      await addLog("workerLogin:wrongPassword", {workerId: worker.id, username});
+      return text("workerLoginMsg","סיסמה שגויה.");
+    }
+
+    session = {role:"worker", workerId:worker.id, name:worker.name};
+    localStorage.setItem("workSession", JSON.stringify(session));
+    await addLog("workerLogin:success", {workerId: worker.id, username});
+    await showWorker(worker);
+  }catch(e){
+    console.error(e);
+    await addLog("workerLogin:error", {message:e.message, code:e.code || "", username});
+    text("workerLoginMsg","שגיאה בכניסה: " + e.message);
+  }
 }
 
 function logout(){
@@ -332,7 +357,8 @@ async function showAdmin(){
 async function createWorker(){
   const btn = $("createWorkerBtn");
   const msg = $("workerMsg");
-  msg.innerHTML = "";
+
+  msg.innerHTML = "<div class='notice'>יוצר עובד... נא להמתין</div>";
   btn.disabled = true;
   btn.textContent = "יוצר עובד...";
 
@@ -341,24 +367,27 @@ async function createWorker(){
   const pass = val("wPass");
   const goal = Number(val("wGoal")||0);
   const usernameKey = normalize(username);
+  const workerDocId = workerIdFromUsername(usernameKey);
 
   try {
-    await addLog("createWorker:start", {name, username, usernameKey, goal});
+    addLog("createWorker:start", {name, username, usernameKey, workerDocId, goal});
 
     if(!name || !username || !pass){
       msg.innerHTML = "<p class='danger'>חובה למלא שם, שם משתמש וסיסמה.</p>";
-      await addLog("createWorker:validationFailed", {reason:"missing fields"});
+      addLog("createWorker:validationFailed", {reason:"missing fields"});
       return;
     }
 
-    const exists = await db.collection("workers").where("usernameKey","==",usernameKey).limit(1).get();
-    if(!exists.empty){
-      msg.innerHTML = "<p class='danger'>שם המשתמש כבר קיים.</p>";
-      await addLog("createWorker:duplicate", {usernameKey});
+    if(!workerDocId || workerDocId === "worker_"){
+      msg.innerHTML = "<p class='danger'>שם משתמש לא תקין.</p>";
+      addLog("createWorker:badUsername", {username, usernameKey});
       return;
     }
 
+    msg.innerHTML = "<div class='notice'>מחשב סיסמה ומכין שמירה...</div>";
     const passwordHash = await sha256(pass);
+
+    const ref = db.collection("workers").doc(workerDocId);
     const payload = {
       name,
       username,
@@ -366,27 +395,34 @@ async function createWorker(){
       passwordHash,
       monthlyGoal: goal,
       active: true,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    const ref = await db.collection("workers").add(payload);
-    await addLog("createWorker:docAdded", {workerId: ref.id, usernameKey});
+    // createdAt לא נדרס אם העובד כבר קיים
+    payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
 
-    const verifyDoc = await db.collection("workers").doc(ref.id).get();
+    msg.innerHTML = "<div class='notice'>שומר עובד בפיירבייס...</div>";
+    addLog("createWorker:beforeSet", {workerDocId, usernameKey});
+
+    await withTimeout(ref.set(payload, {merge:true}), 12000, "שמירת עובד בפיירבייס נתקעה מעל 12 שניות");
+
+    msg.innerHTML = "<div class='notice'>בודק שהעובד נשמר...</div>";
+    const verifyDoc = await withTimeout(ref.get(), 12000, "בדיקת עובד אחרי שמירה נתקעה מעל 12 שניות");
+
     if(!verifyDoc.exists){
-      throw new Error("העובד נוצר אבל לא נמצא בבדיקת אימות מול Firestore");
+      throw new Error("השמירה הסתיימה אבל העובד לא נמצא בפיירבייס");
     }
 
     ["wName","wUser","wPass","wGoal"].forEach(id=>$(id).value="");
-    msg.innerHTML = `<div class="notice">העובד ${esc(name)} נוצר בהצלחה ✅<br>מזהה עובד: ${ref.id}</div>`;
-    await addLog("createWorker:success", {workerId: ref.id, name, username});
+    msg.innerHTML = `<div class="notice">העובד ${esc(name)} נוצר/עודכן בהצלחה ✅<br>שם משתמש: ${esc(username)}<br>מזהה עובד: ${workerDocId}</div>`;
+    addLog("createWorker:success", {workerDocId, name, username});
+
     await loadWorkers();
     await loadDebugLogs();
   } catch(e) {
     console.error(e);
     msg.innerHTML = `<p class='danger'>שגיאה ביצירת עובד: ${esc(e.message)}</p>`;
-    await addLog("createWorker:error", {message:e.message, code:e.code || ""});
+    addLog("createWorker:error", {message:e.message, code:e.code || "", workerDocId});
     await loadDebugLogs();
   } finally {
     btn.disabled = false;
@@ -796,14 +832,21 @@ async function addLog(action, data={}){
     const record = {
       action,
       data,
-      pageVersion: "1.0.4",
+      pageVersion: "1.0.6",
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       clientTime: new Date().toISOString()
     };
-    await db.collection("appLogs").add(record);
+    db.collection("appLogs").add(record).catch(err => console.error("addLog write failed", err));
   }catch(e){
     console.error("addLog failed", e);
   }
+}
+
+function withTimeout(promise, ms, message){
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))
+  ]);
 }
 
 async function loadDebugLogs(){
@@ -845,6 +888,7 @@ function hideAll(){["workerLoginView","adminLoginView","adminView","workerView"]
 function val(id){return $(id).value.trim()}
 function text(id,v){$(id).textContent=v}
 function normalize(s){return String(s||"").trim().toLowerCase()}
+function workerIdFromUsername(usernameKey){return "worker_" + String(usernameKey||"").replace(/[^a-z0-9_\-א-ת]/gi,"_")}
 function pad(n){return String(n).padStart(2,"0")}
 function formatDate(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}
 function parseDate(s){const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}
