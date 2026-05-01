@@ -49,7 +49,7 @@
     <input id="workerPassword" type="password" placeholder="סיסמה">
     <button class="btn-green" onclick="workerLogin()">כניסה</button>
     <p id="workerLoginMsg" class="danger"></p>
-    <div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.0.6</div>
+    <div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.0.8</div>
   </section>
 
   <section id="adminLoginView" class="card login-box hidden">
@@ -545,8 +545,26 @@ async function ensureDefaultPriceList(){
 }
 
 async function loadPriceList(){
-  const snap = await db.collection("priceList").orderBy("order","asc").get();
-  priceList = snap.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.active !== false);
+  try{
+    let snap;
+    try{
+      snap = await db.collection("priceList").orderBy("order","asc").get();
+    }catch(orderErr){
+      addLog("loadPriceList:orderByFailed", {message:orderErr.message});
+      snap = await db.collection("priceList").get();
+    }
+
+    priceList = snap.docs
+      .map(d=>({id:d.id,...d.data()}))
+      .filter(x=>x.active !== false)
+      .sort((a,b)=>(Number(a.order||0)-Number(b.order||0)));
+
+    addLog("loadPriceList:success", {count:priceList.length});
+  }catch(e){
+    console.error(e);
+    addLog("loadPriceList:error", {message:e.message, code:e.code || ""});
+    priceList = [];
+  }
 }
 
 async function loadPriceListAdmin(){
@@ -628,22 +646,44 @@ async function showWorker(worker){
 }
 
 async function loadMonth(){
-  await loadPriceList();
-  const y = calendarDate.getFullYear(), m = calendarDate.getMonth(), last = new Date(y,m+1,0).getDate();
-  const start = `${y}-${pad(m+1)}-01`, end = `${y}-${pad(m+1)}-${pad(last)}`;
+  const y = calendarDate.getFullYear();
+  const m = calendarDate.getMonth();
+  const last = new Date(y,m+1,0).getDate();
+  const start = `${y}-${pad(m+1)}-01`;
+  const end = `${y}-${pad(m+1)}-${pad(last)}`;
+
   text("calTitle", `${months[m]} ${y}`);
   text("monthSub", `חודש בתצוגה: ${months[m]} ${y}`);
 
-  const snap = await db.collection("workEntries")
-    .where("workerId","==",viewedWorker.id)
-    .where("date",">=",start)
-    .where("date","<=",end)
-    .get();
-
-  monthEntries = snap.docs.map(d=>({id:d.id,...d.data()}));
+  // קודם מציגים לוח שנה מיד, גם אם הטעינה מפיירבייס מתעכבת
+  monthEntries = [];
   renderCalendar();
   renderDay();
   renderStats();
+
+  try{
+    await loadPriceList();
+
+    // לא משתמשים בשאילתת תאריכים מורכבת כדי שלא יהיה צורך ב-Index בפיירבייס
+    const snap = await withTimeout(
+      db.collection("workEntries").where("workerId","==",viewedWorker.id).get(),
+      12000,
+      "טעינת עבודות מפיירבייס נתקעה מעל 12 שניות"
+    );
+
+    monthEntries = snap.docs
+      .map(d=>({id:d.id,...d.data()}))
+      .filter(e => e.date >= start && e.date <= end);
+
+    addLog("loadMonth:success", {workerId:viewedWorker.id, count:monthEntries.length, start, end});
+    renderCalendar();
+    renderDay();
+    renderStats();
+  }catch(e){
+    console.error(e);
+    addLog("loadMonth:error", {message:e.message, code:e.code || "", workerId:viewedWorker.id});
+    $("calendar").innerHTML = `<div class="danger" style="grid-column:1/-1;padding:15px;background:white;border-radius:18px;">שגיאה בטעינת הלוח: ${esc(e.message)}</div>`;
+  }
 }
 
 function renderCalendar(){
@@ -832,7 +872,7 @@ async function addLog(action, data={}){
     const record = {
       action,
       data,
-      pageVersion: "1.0.6",
+      pageVersion: "1.0.8",
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       clientTime: new Date().toISOString()
     };
