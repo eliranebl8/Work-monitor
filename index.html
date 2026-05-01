@@ -249,7 +249,59 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 #priceAdmin .item-title:before{content:"🧾 "}
 #workersList .item-title:before{content:"👷 "}
 #dayEntries .item-title:before{content:"✅ "}
-@media(max-width:800px){
+.dash-card{
+  background:linear-gradient(135deg,#ffffff,#f8fafc);
+  border:1px solid var(--line);
+  border-radius:24px;
+  padding:16px;
+  box-shadow:var(--soft-shadow);
+}
+.dash-icon{font-size:26px;margin-bottom:8px}
+.dash-title{font-weight:900;margin-bottom:6px}
+.dash-value{font-size:24px;font-weight:900;color:var(--blue)}
+.recent-box{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:10px;margin:7px 0;font-weight:900}.recent-ok{background:#ecfdf5;border:1px solid #bbf7d0;color:#166534;border-radius:16px;padding:10px;margin:7px 0;font-weight:900}.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:7px 11px;
+  border-radius:999px;
+  background:#eff6ff;
+  color:#1d4ed8;
+  font-size:13px;
+  font-weight:900;
+  margin:3px;
+}
+.client-card{
+  background:linear-gradient(135deg,#fff,#f8fafc);
+  border:1px solid var(--line);
+  border-radius:22px;
+  padding:15px;
+  margin:10px 0;
+  box-shadow:var(--soft-shadow);
+}
+.client-head{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.kpi-strip{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin:12px 0;
+}
+.kpi{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:12px;
+  text-align:center;
+}
+.kpi b{display:block;font-size:20px;margin-top:4px}
+@media(max-width:800px){.kpi-strip{grid-template-columns:repeat(2,1fr)}
+
   body{padding:10px}
   .top{top:6px;border-radius:22px;padding:9px}
   .grid2,.grid3,.grid4{grid-template-columns:1fr}
@@ -278,7 +330,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <h1 class="big-title">כניסת עובד</h1><p style="text-align:center">הכנס שם משתמש וסיסמה שקיבלת מהמנהל.</p>
 <input id="workerUsername" placeholder="שם משתמש"><input id="workerPassword" type="password" placeholder="סיסמה">
 <button class="btn-green" onclick="workerLogin()">כניסה</button><p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.2.0</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.3.1</div>
 </section>
 
 <section id="adminLoginView" class="card login-box hidden">
@@ -347,6 +399,22 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 </div>
 
 <div class="card">
+<div class="cal-head"><h2>🧠 דשבורד חכם</h2><div class="actions"><button class="btn-light" onclick="toggleDashboard()">הצג / הסתר</button><button class="btn-light" onclick="renderSmartDashboard()">רענן דשבורד</button></div></div>
+<div id="smartDashboard">
+  <p class="muted">הדשבורד יתעדכן אוטומטית אחרי טעינת החודש.</p>
+</div>
+</div>
+
+<div class="card">
+<div class="cal-head"><h2>👤 היסטוריית לקוח</h2><button class="btn-light" onclick="toggleClientHistory()">פתח / סגור</button></div>
+<div id="clientHistoryPanel" class="hidden">
+<p>הכנס מספר לקוח כדי לראות את כל ההיסטוריה שלו במערכת.</p>
+<div class="grid2"><input id="clientHistoryNumber" inputmode="numeric" placeholder="מספר לקוח"><button class="btn-green" onclick="loadClientHistory()">חפש לקוח</button></div>
+<div id="clientHistoryResults"></div>
+</div>
+</div>
+
+<div class="card">
 <div class="cal-head"><h2>🔎 חיפוש וסיכומים</h2><button class="btn-light" onclick="toggleSearchPanel()">פתח / סגור</button></div>
 <div id="searchPanel" class="hidden">
 <p>אפשר לחפש לפי מספר לקוח, כתובת, יום, חודש או סוג עבודה. הסיכום מתעדכן לפי התוצאות.</p>
@@ -369,8 +437,8 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <div class="card"><div class="cal-head"><button class="btn-light" onclick="changeMonth(-1)">חודש קודם</button><h2 id="calTitle"></h2><button class="btn-light" onclick="changeMonth(1)">חודש הבא</button></div><div id="calendar" class="cal"></div></div>
 <div id="dayPanel" class="card hidden"><h2 id="dateTitle">בחר יום</h2><p id="shabbatMsg" class="danger hidden">שבת חסומה לעבודה.</p>
 <div id="entryForm"><div class="grid2"><div id="serviceBtn" class="type-card" onclick="setType('service')">קריאת שירות<br><span id="servicePriceLabel" class="muted">₪65 קבוע</span></div><div id="installBtn" class="type-card" onclick="setType('install')">התקנה<br><span class="muted">לפי מחירון</span></div></div>
-<div id="serviceForm" class="hidden" style="margin-top:14px"><h3>קריאת שירות</h3><input id="sCustomer" inputmode="numeric" pattern="[0-9]*" placeholder="מספר לקוח - ספרות בלבד"><input id="sAddress" placeholder="כתובת"><label style="display:flex;align-items:center;gap:8px;font-weight:900;margin:10px 0"><input id="sReturnCall" type="checkbox" onchange="updateServicePreview()" style="width:24px;height:24px;margin:0"> קריאת שירות חוזרת / ללא תשלום</label><textarea id="sNotes" placeholder="הערות"></textarea><div id="servicePreview" class="total-preview">סה״כ: ₪65</div><button class="btn-green" onclick="addService()">שמור קריאת שירות</button></div>
-<div id="installForm" class="hidden" style="margin-top:14px"><h3>התקנה</h3><input id="iCustomer" inputmode="numeric" pattern="[0-9]*" placeholder="מספר לקוח - ספרות בלבד"><input id="iAddress" placeholder="כתובת"><div id="installItems"></div><div id="installPreview" class="total-preview">סה״כ התקנה: ₪0</div><textarea id="iNotes" placeholder="הערות"></textarea><button class="btn-green" onclick="addInstall()">שמור התקנה</button></div><div id="entryMsg"></div></div>
+<div id="serviceForm" class="hidden" style="margin-top:14px"><h3>קריאת שירות</h3><input id="sCustomer" inputmode="numeric" pattern="[0-9]*" placeholder="מספר לקוח - ספרות בלבד" onblur="checkRecentCustomer('sCustomer','sCustomerHistory')"><div id="sCustomerHistory" class="muted"></div><div class="grid2"><input id="sAddress" placeholder="כתובת"><button class="btn-light" onclick="fillAddressFromLocation('sAddress')">📍 מיקום</button></div><label style="display:flex;align-items:center;gap:8px;font-weight:900;margin:10px 0"><input id="sReturnCall" type="checkbox" onchange="updateServicePreview()" style="width:24px;height:24px;margin:0"> קריאת שירות חוזרת / ללא תשלום</label><textarea id="sNotes" placeholder="הערות"></textarea><div id="servicePreview" class="total-preview">סה״כ: ₪65</div><button class="btn-green" onclick="addService()">שמור קריאת שירות</button></div>
+<div id="installForm" class="hidden" style="margin-top:14px"><h3>התקנה</h3><input id="iCustomer" inputmode="numeric" pattern="[0-9]*" placeholder="מספר לקוח - ספרות בלבד" onblur="checkRecentCustomer('iCustomer','iCustomerHistory')"><div id="iCustomerHistory" class="muted"></div><div class="grid2"><input id="iAddress" placeholder="כתובת"><button class="btn-light" onclick="fillAddressFromLocation('iAddress')">📍 מיקום</button></div><div id="installItems"></div><div id="installPreview" class="total-preview">סה״כ התקנה: ₪0</div><textarea id="iNotes" placeholder="הערות"></textarea><button class="btn-green" onclick="addInstall()">שמור התקנה</button></div><div id="entryMsg"></div></div>
 <h3>עבודות ביום הזה</h3><div id="dayEntries"></div></div>
 <div id="selectDayHint" class="card"><div class="hint-card">בחר יום בלוח השנה כדי להוסיף קריאת שירות או התקנה</div></div>
 </section>
@@ -407,6 +475,182 @@ async function openPriceEdit(id){const doc=await db.collection("priceList").doc(
 async function savePriceEdit(){const id=val("editPriceId"),name=val("editPriceName"),price=Number(val("editPriceValue")),inputMode=$("editPriceMode").value,active=$("editPriceActive").value==="true";if(!name||Number.isNaN(price)||price<0)return $("editPriceMsg").innerHTML="<p class='danger'>שם או מחיר לא תקינים.</p>";await db.collection("priceList").doc(id).update({name,price,inputMode,active,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});$("editPriceMsg").innerHTML="<div class='notice'>הפריט נשמר ✅</div>";await loadPriceListAdmin()}
 async function togglePrice(id,active){await db.collection("priceList").doc(id).update({active,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});await loadPriceListAdmin()}
 
+
+
+
+function toggleDashboard(){
+  const d=$("smartDashboard");
+  if(!d)return;
+  d.classList.toggle("hidden");
+}
+async function checkRecentCustomer(inputId, resultId){
+  const num=val(inputId);
+  const box=$(resultId);
+  if(!box)return;
+  box.innerHTML="";
+  if(!num)return;
+  if(!/^\d+$/.test(num)){
+    box.innerHTML="<div class='danger'>מספר לקוח חייב להיות ספרות בלבד</div>";
+    return;
+  }
+  box.innerHTML="<div class='muted'>בודק 30 ימים אחרונים...</div>";
+  try{
+    const now=new Date();
+    const from=new Date(now.getTime()-30*24*60*60*1000);
+    const fromStr=formatDate(from);
+    const snap=await db.collection("workEntries").where("customerNumber","==",num).get();
+    const matches=snap.docs
+      .map(d=>({id:d.id,...d.data()}))
+      .filter(e=>e.date>=fromStr)
+      .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+    if(!matches.length){
+      box.innerHTML="<div class='recent-ok'>לא נמצאה עבודה ללקוח הזה ב־30 הימים האחרונים ✅</div>";
+      return;
+    }
+    const last=matches[0];
+    box.innerHTML=`<div class="recent-box">שים לב: היית אצל הלקוח הזה ב־30 הימים האחרונים.<br>פעם אחרונה: ${heDate(last.date)} · ${esc(last.description||"עבודה")} · ${money(last.amount||0)}<br>כתובת: ${esc(last.address||"")}</div>`;
+  }catch(e){
+    box.innerHTML=`<div class='danger'>שגיאה בבדיקת לקוח: ${esc(e.message)}</div>`;
+  }
+}
+async function fillAddressFromLocation(targetInputId){
+  const input=$(targetInputId);
+  if(!input)return;
+  if(!navigator.geolocation){
+    alert("המכשיר לא תומך במיקום.");
+    return;
+  }
+  input.value="מאתר מיקום...";
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat=pos.coords.latitude;
+    const lon=pos.coords.longitude;
+    try{
+      const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&accept-language=he`;
+      const res=await fetch(url,{headers:{"Accept":"application/json"}});
+      const data=await res.json();
+      input.value=data.display_name || `${lat}, ${lon}`;
+    }catch(e){
+      input.value=`${lat}, ${lon}`;
+      alert("לא הצלחתי להמיר לכתובת, שמתי קואורדינטות במקום.");
+    }
+  },err=>{
+    input.value="";
+    alert("לא התקבל אישור מיקום או שהמיקום נכשל: " + err.message);
+  },{enableHighAccuracy:true,timeout:12000,maximumAge:60000});
+}
+
+function renderSmartDashboard(){
+  const box=$("smartDashboard");
+  if(!box)return;
+  const entries=[...monthEntries];
+  const total=entries.reduce((s,e)=>s+Number(e.amount||0),0);
+  const workDays=[...new Set(entries.map(e=>e.date))].length;
+  const avg=workDays?total/workDays:0;
+  const services=entries.filter(e=>e.workType==="service");
+  const installs=entries.filter(e=>e.workType==="install");
+  const returnCalls=services.filter(e=>e.isReturnCall);
+  const paidServices=services.filter(e=>!e.isReturnCall);
+
+  const byDay={};
+  entries.forEach(e=>groupAdd(byDay,e.date||"ללא תאריך",e.amount));
+  const dayKeys=Object.keys(byDay);
+  const bestDay=dayKeys.length?dayKeys.reduce((a,b)=>byDay[a]>byDay[b]?a:b):null;
+  const weakDay=dayKeys.length?dayKeys.reduce((a,b)=>byDay[a]<byDay[b]?a:b):null;
+
+  const goal=Number(viewedWorker?.monthlyGoal||0);
+  const left=Math.max(goal-total,0);
+  const remaining=remainingWorkDaysInMonth();
+  const needed=remaining?left/remaining:left;
+  const progress=goal?Math.min(total/goal*100,100):0;
+
+  const clientMap={};
+  entries.forEach(e=>{
+    const c=e.customerNumber||"ללא מספר";
+    if(!clientMap[c])clientMap[c]={count:0,total:0};
+    clientMap[c].count++;
+    clientMap[c].total+=Number(e.amount||0);
+  });
+  const topClient=Object.keys(clientMap).sort((a,b)=>clientMap[b].total-clientMap[a].total)[0];
+
+  const installItems={};
+  entries.forEach(e=>(e.items||[]).forEach(i=>{
+    if(!installItems[i.name])installItems[i.name]={qty:0,total:0};
+    installItems[i.name].qty+=Number(i.quantity||0);
+    installItems[i.name].total+=Number(i.total||0);
+  }));
+  const topItem=Object.keys(installItems).sort((a,b)=>installItems[b].total-installItems[a].total)[0];
+
+  box.innerHTML=`
+    <div class="grid4">
+      <div class="dash-card"><div class="dash-icon">🔥</div><div class="dash-title">היום הכי חזק</div><div class="dash-value">${bestDay?heDate(bestDay):"אין"}</div><div class="muted">${bestDay?money(byDay[bestDay]):""}</div></div>
+      <div class="dash-card"><div class="dash-icon">📉</div><div class="dash-title">היום הכי חלש</div><div class="dash-value">${weakDay?heDate(weakDay):"אין"}</div><div class="muted">${weakDay?money(byDay[weakDay]):""}</div></div>
+      <div class="dash-card"><div class="dash-icon">📊</div><div class="dash-title">ממוצע ליום עבודה</div><div class="dash-value">${money(avg)}</div><div class="muted">${workDays} ימי עבודה עם נתונים</div></div>
+      <div class="dash-card"><div class="dash-icon">🎯</div><div class="dash-title">קצב ליעד</div><div class="dash-value">${Math.round(progress)}%</div><div class="muted">${left>0?`צריך ${money(needed)} ליום עבודה שנשאר`:"היעד הושג"}</div></div>
+    </div>
+    <div class="kpi-strip">
+      <div class="kpi">סה״כ חודש<b>${money(total)}</b></div>
+      <div class="kpi">קריאות שירות<b>${services.length}</b></div>
+      <div class="kpi">התקנות<b>${installs.length}</b></div>
+      <div class="kpi">קריאות חוזרות<b>${returnCalls.length}</b></div>
+    </div>
+    <div>
+      <span class="badge">✅ קריאות בתשלום: ${paidServices.length}</span>
+      <span class="badge">🔁 חוזרות ללא תשלום: ${returnCalls.length}</span>
+      <span class="badge">👤 לקוח מוביל: ${topClient?`${esc(topClient)} · ${money(clientMap[topClient].total)}`:"אין"}</span>
+      <span class="badge">🧾 פריט התקנה מוביל: ${topItem?`${esc(topItem)} · ${installItems[topItem].qty}`:"אין"}</span>
+    </div>
+  `;
+}
+function remainingWorkDaysInMonth(){
+  const now=new Date();
+  const y=calendarDate.getFullYear(),m=calendarDate.getMonth();
+  const start=(now.getFullYear()===y&&now.getMonth()===m)?now.getDate():1;
+  const last=new Date(y,m+1,0).getDate();
+  let count=0;
+  for(let d=start;d<=last;d++){
+    const dt=new Date(y,m,d);
+    if(dt.getDay()!==6)count++;
+  }
+  return count;
+}
+function toggleClientHistory(){const p=$("clientHistoryPanel");p.classList.toggle("hidden")}
+async function loadClientHistory(){
+  const num=val("clientHistoryNumber");
+  const box=$("clientHistoryResults");
+  if(!num||!/^\d+$/.test(num)){box.innerHTML="<p class='danger'>חובה להכניס מספר לקוח בספרות בלבד.</p>";return}
+  box.innerHTML="<p>טוען היסטוריית לקוח...</p>";
+  try{
+    const snap=await db.collection("workEntries").where("customerNumber","==",num).get();
+    const entries=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+    if(!entries.length){box.innerHTML="<p class='muted'>לא נמצאה היסטוריה ללקוח הזה.</p>";return}
+    const total=entries.reduce((s,e)=>s+Number(e.amount||0),0);
+    const services=entries.filter(e=>e.workType==="service").length;
+    const installs=entries.filter(e=>e.workType==="install").length;
+    const addresses=[...new Set(entries.map(e=>e.address).filter(Boolean))];
+
+    box.innerHTML=`
+      <div class="client-card">
+        <div class="client-head"><h3>לקוח ${esc(num)}</h3><div class="money">${money(total)}</div></div>
+        <div class="kpi-strip">
+          <div class="kpi">סה״כ עבודות<b>${entries.length}</b></div>
+          <div class="kpi">קריאות שירות<b>${services}</b></div>
+          <div class="kpi">התקנות<b>${installs}</b></div>
+          <div class="kpi">כתובות<b>${addresses.length}</b></div>
+        </div>
+        <p class="muted">כתובות: ${addresses.map(esc).join(" | ")}</p>
+      </div>
+    `;
+    entries.forEach(e=>{
+      const details=e.workType==="install"&&e.items?e.items.map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("\\n"):(e.isReturnCall?"קריאה חוזרת ללא תשלום":"קריאת שירות");
+      const div=document.createElement("div");
+      div.className="item";
+      div.innerHTML=`<div><div class="item-title">${esc(e.date||"")} · ${esc(e.description||"")}</div><div class="item-sub">כתובת: ${esc(e.address||"")}\\n${esc(details)}\\n${esc(e.notes||"")}</div></div><div class="money">${money(e.amount||0)}</div>`;
+      box.appendChild(div);
+    });
+  }catch(e){
+    box.innerHTML=`<p class='danger'>שגיאה בטעינת היסטוריית לקוח: ${esc(e.message)}</p>`;
+  }
+}
 
 function toggleSearchPanel(){const p=$("searchPanel");p.classList.toggle("hidden");if(!p.classList.contains("hidden"))renderFullSummary()}
 function getFilteredEntries(){
@@ -528,17 +772,17 @@ async function saveWorkerSelfSettings(){
 }
 
 async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();await showWorker({id:doc.id,...doc.data()})}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");$("backAdminBtn").classList.toggle("hidden",!(session&&session.role==="admin"));text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=new Date();selectedDate=null;selectedType=null;if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=Number(worker.monthlyGoal||0);if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth()}
-async function loadMonth(){await loadPriceList();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);monthEntries=[];renderCalendar();renderDay();renderStats();const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();monthEntries=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats();if($('searchPanel')&&!$('searchPanel').classList.contains('hidden'))renderFullSummary()}
+async function loadMonth(){await loadPriceList();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);monthEntries=[];renderCalendar();renderDay();renderStats();const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();monthEntries=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats();renderSmartDashboard();if($('searchPanel')&&!$('searchPanel').classList.contains('hidden'))renderFullSummary()}
 function renderCalendar(){const cal=$("calendar");cal.innerHTML="";weekdays.forEach(w=>{const d=document.createElement("div");d.className="weekday";d.textContent=w;cal.appendChild(d)});const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0).getDate(),today=formatDate(new Date());for(let i=0;i<first.getDay();i++){const e=document.createElement("div");e.className="day empty";cal.appendChild(e)}for(let d=1;d<=last;d++){const ds=`${y}-${pad(m+1)}-${pad(d)}`,dt=new Date(y,m,d),sh=dt.getDay()===6,entries=monthEntries.filter(e=>e.date===ds),total=entries.reduce((s,e)=>s+Number(e.amount||0),0),div=document.createElement("div");div.className="day";if(sh)div.classList.add("shabbat");if(ds===today)div.classList.add("today");if(ds===selectedDate)div.classList.add("selected");div.innerHTML=`<div class="day-num">${d}</div>${total?`<div class="day-total">${money(total)}</div>`:""}${entries.length?`<div class="day-count">${entries.length} עבודות</div>`:""}`;if(!sh)div.onclick=()=>selectDay(ds);cal.appendChild(div)}}
-function selectDay(ds){selectedDate=ds;selectedType=null;renderCalendar();renderDay();renderStats()}function renderDay(){if(!selectedDate){hide("dayPanel");show("selectDayHint");return}show("dayPanel");hide("selectDayHint");text("dateTitle",`יום ${heDate(selectedDate)}`);renderInstallItems();setType(selectedType,false);updateServicePriceLabels();const entries=monthEntries.filter(e=>e.date===selectedDate).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)),box=$("dayEntries");box.innerHTML=entries.length?"":"<p class='muted'>אין עבודות ביום הזה עדיין.</p>";entries.forEach(e=>{const details=e.workType==="service"?`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n${e.notes||""}`:`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("\n")+`\n${e.notes||""}`,row=document.createElement("div");row.className="item";row.innerHTML=`<div><div class="item-title">${esc(e.description)}</div><div class="item-sub">${esc(details)}</div></div><div><div class="money">${money(e.amount)}</div><button class="btn-red" style="margin-top:8px" onclick="deleteEntry('${e.id}')">מחק</button></div>`;box.appendChild(row)})}
+function selectDay(ds){selectedDate=ds;selectedType=null;renderCalendar();renderDay();renderStats();renderSmartDashboard()}function renderDay(){if(!selectedDate){hide("dayPanel");show("selectDayHint");return}show("dayPanel");hide("selectDayHint");text("dateTitle",`יום ${heDate(selectedDate)}`);renderInstallItems();setType(selectedType,false);updateServicePriceLabels();const entries=monthEntries.filter(e=>e.date===selectedDate).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)),box=$("dayEntries");box.innerHTML=entries.length?"":"<p class='muted'>אין עבודות ביום הזה עדיין.</p>";entries.forEach(e=>{const details=e.workType==="service"?`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n${e.notes||""}`:`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("\n")+`\n${e.notes||""}`,row=document.createElement("div");row.className="item";row.innerHTML=`<div><div class="item-title">${esc(e.description)}</div><div class="item-sub">${esc(details)}</div></div><div><div class="money">${money(e.amount)}</div><button class="btn-red" style="margin-top:8px" onclick="deleteEntry('${e.id}')">מחק</button></div>`;box.appendChild(row)})}
 function renderStats(){const monthTotal=monthEntries.reduce((s,e)=>s+Number(e.amount||0),0),dayTotal=selectedDate?monthEntries.filter(e=>e.date===selectedDate).reduce((s,e)=>s+Number(e.amount||0),0):0,goal=Number(viewedWorker.monthlyGoal||0),left=Math.max(goal-monthTotal,0);$("monthTotal").textContent=money(monthTotal);$("dayTotal").textContent=money(dayTotal);$("goalTotal").textContent=money(goal);$("leftTotal").textContent=money(left);$("goalBar").style.width=goal?Math.min(monthTotal/goal*100,100)+"%":"0%";text("paceLine",goal?(left<=0?"מעולה — היעד הושג.":`חסר ליעד: ${money(left)}.`):"לא הוגדר יעד חודשי.")}
 function setType(type,clear=true){selectedType=type;$("serviceForm").classList.toggle("hidden",type!=="service");$("installForm").classList.toggle("hidden",type!=="install");$("serviceBtn").classList.toggle("active",type==="service");$("installBtn").classList.toggle("active",type==="install");if(clear)$("entryMsg").innerHTML=""}
 function renderInstallItems(){const box=$("installItems");box.innerHTML="";priceList.forEach(item=>{const row=document.createElement("div");row.className="item";const mode=item.inputMode||"qty",control=mode==="check"?`<label style="display:flex;align-items:center;gap:8px;font-weight:900"><input id="qty_${item.id}" type="checkbox" onchange="updateInstallPreview()" style="width:24px;height:24px;margin:0"> בוצע</label>`:`<input class="qty" id="qty_${item.id}" type="number" min="0" placeholder="כמות" oninput="updateInstallPreview()">`;row.innerHTML=`<div><div class="item-title">${esc(item.name)}</div><div class="item-sub">מחיר: ${money(item.price)} · ${mode==="check"?"סימון כן/לא":"כמות מספרית"}</div></div>${control}`;box.appendChild(row)});updateInstallPreview()}function updateInstallPreview(){let total=0;priceList.forEach(p=>{const el=$("qty_"+p.id);let q=0;if(el)q=(p.inputMode||"qty")==="check"?(el.checked?1:0):Number(el.value||0);if(q>0)total+=q*Number(p.price||0)});$("installPreview").textContent="סה״כ התקנה: "+money(total)}
 async function addService(){const customerNumber=val("sCustomer"),address=val("sAddress"),notes=val("sNotes"),isReturnCall=$("sReturnCall")&&$("sReturnCall").checked;const amount=isReturnCall?0:SERVICE_PRICE;if(!customerNumber||!/^\d+$/.test(customerNumber))return $("entryMsg").innerHTML="<p class='danger'>חובה למלא מספר לקוח בספרות בלבד.</p>";if(!address)return $("entryMsg").innerHTML="<p class='danger'>חובה למלא כתובת.</p>";await db.collection("workEntries").add({workerId:viewedWorker.id,workerName:viewedWorker.name,date:selectedDate,workType:"service",description:isReturnCall?"קריאת שירות חוזרת":"קריאת שירות",customerNumber,address,notes,isReturnCall,amount,createdAt:firebase.firestore.FieldValue.serverTimestamp()});$("sCustomer").value="";$("sAddress").value="";$("sNotes").value="";if($("sReturnCall"))$("sReturnCall").checked=false;updateServicePreview();$("entryMsg").innerHTML="<div class='notice'>קריאת השירות נשמרה ✅</div>";await loadMonth()}
-async function addInstall(){const customerNumber=val("iCustomer"),address=val("iAddress"),notes=val("iNotes");if(!customerNumber||!/^\d+$/.test(customerNumber))return $("entryMsg").innerHTML="<p class='danger'>חובה למלא מספר לקוח בספרות בלבד.</p>";if(!address)return $("entryMsg").innerHTML="<p class='danger'>חובה למלא כתובת.</p>";let items=[],total=0;priceList.forEach(p=>{const el=$("qty_"+p.id);let q=0;if(el)q=(p.inputMode||"qty")==="check"?(el.checked?1:0):Number(el.value||0);if(q>0){items.push({id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||"qty",total:q*Number(p.price||0)});total+=q*Number(p.price||0)}});if(!items.length)return $("entryMsg").innerHTML="<p class='danger'>חובה לבחור לפחות פריט אחד.</p>";await db.collection("workEntries").add({workerId:viewedWorker.id,workerName:viewedWorker.name,date:selectedDate,workType:"install",description:"התקנה",customerNumber,address,notes,items,amount:total,createdAt:firebase.firestore.FieldValue.serverTimestamp()});$("iCustomer").value="";$("iAddress").value="";$("iNotes").value="";$("entryMsg").innerHTML="<div class='notice'>ההתקנה נשמרה ✅</div>";await loadMonth()}
+async function addInstall(){const customerNumber=val("iCustomer"),address=val("iAddress"),notes=val("iNotes");if(!customerNumber||!/^\d+$/.test(customerNumber))return $("entryMsg").innerHTML="<p class='danger'>חובה למלא מספר לקוח בספרות בלבד.</p>";if(!address)return $("entryMsg").innerHTML="<p class='danger'>חובה למלא כתובת.</p>";let items=[],total=0;priceList.forEach(p=>{const el=$("qty_"+p.id);let q=0;if(el)q=(p.inputMode||"qty")==="check"?(el.checked?1:0):Number(el.value||0);if(q>0){items.push({id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||"qty",total:q*Number(p.price||0)});total+=q*Number(p.price||0)}});if(!items.length)return $("entryMsg").innerHTML="<p class='danger'>חובה לבחור לפחות פריט אחד.</p>";await db.collection("workEntries").add({workerId:viewedWorker.id,workerName:viewedWorker.name,date:selectedDate,workType:"install",description:"התקנה",customerNumber,address,notes,items,amount:total,createdAt:firebase.firestore.FieldValue.serverTimestamp()});$("iCustomer").value="";$("iAddress").value="";$("iNotes").value="";if($("iCustomerHistory"))$("iCustomerHistory").innerHTML="";$("entryMsg").innerHTML="<div class='notice'>ההתקנה נשמרה ✅</div>";await loadMonth()}
 async function deleteEntry(id){if(!confirm("למחוק את העבודה?"))return;await db.collection("workEntries").doc(id).delete();await loadMonth()}function changeMonth(delta){calendarDate=new Date(calendarDate.getFullYear(),calendarDate.getMonth()+delta,1);selectedDate=null;selectedType=null;loadMonth()}
 async function loadDebugLogs(){const box=$("debugLog");if(!box)return;try{const snap=await db.collection("appLogs").limit(30).get();box.textContent=snap.empty?"אין לוגים":snap.docs.map(d=>JSON.stringify(d.data())).join("\n")}catch(e){box.textContent="שגיאה בלוג: "+e.message}}
 function $(id){return document.getElementById(id)}function show(id){$(id).classList.remove("hidden")}function hide(id){$(id).classList.add("hidden")}function hideAll(){["workerLoginView","adminLoginView","adminView","workerView"].forEach(hide)}function val(id){return $(id).value.trim()}function text(id,v){$(id).textContent=v}function normalize(s){return String(s||"").trim().toLowerCase()}function workerIdFromUsername(k){return"worker_"+String(k||"").replace(/[^a-z0-9_\-א-ת]/gi,"_")}function pad(n){return String(n).padStart(2,"0")}function formatDate(d){return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}function parseDate(s){const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}function heDate(s){const d=parseDate(s);return`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`}function money(n){return`₪${Number(n||0).toLocaleString("he-IL",{maximumFractionDigits:0})}`}function esc(s){return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}async function sha256(str){const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("")}
 </script>
 </body>
-  </html>
+</html>
