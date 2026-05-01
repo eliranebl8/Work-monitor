@@ -49,7 +49,7 @@
     <input id="workerPassword" type="password" placeholder="סיסמה">
     <button class="btn-green" onclick="workerLogin()">כניסה</button>
     <p id="workerLoginMsg" class="danger"></p>
-    <div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.0.9</div>
+    <div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.1.0</div>
   </section>
 
   <section id="adminLoginView" class="card login-box hidden">
@@ -95,7 +95,7 @@
 
     <div class="card">
       <div class="cal-head"><h2>מחירון התקנות</h2><button class="btn-light" onclick="loadPriceListAdmin()">רענן</button></div>
-      <p>אפשר להוסיף פריטים, לערוך מחירים, או לבטל פריט. עובד רואה רק פריטים פעילים.</p>
+      <p>אפשר להוסיף פריטים, לערוך שם/מחיר/סוג בחירה, או להסיר פריט מהרשימה. פריט שהוסר נשאר במסד הנתונים אבל לא מוצג יותר.</p>
       <div class="grid3">
         <input id="pName" placeholder="שם פעולה">
         <input id="pPrice" type="number" placeholder="מחיר ₪">
@@ -483,15 +483,67 @@ async function loadWorkers(){
 
 async function editWorker(id){
   const w = workers.find(x=>x.id===id);
-  const name = prompt("שם עובד", w.name); if(name===null) return;
-  const goal = prompt("יעד חודשי", w.monthlyGoal||0); if(goal===null) return;
-  const newPass = prompt("סיסמה חדשה - השאר ריק כדי לא לשנות","");
-  const update = {name:name.trim(), monthlyGoal:Number(goal)||0, updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-  if(newPass.trim()) update.passwordHash = await sha256(newPass.trim());
+  if(!w) return alert("עובד לא נמצא ברשימה");
+
+  const name = prompt("שם עובד", w.name || "");
+  if(name === null) return;
+
+  const username = prompt("שם משתמש", w.username || "");
+  if(username === null) return;
+
+  const goalText = prompt("יעד חודשי", w.monthlyGoal || 0);
+  if(goalText === null) return;
+
+  const activeText = prompt("פעיל? כתוב yes או no", w.active === false ? "no" : "yes");
+  if(activeText === null) return;
+
+  const newPass = prompt("סיסמה חדשה - השאר ריק כדי לא לשנות", "");
+  if(newPass === null) return;
+
+  const usernameKey = normalize(username);
+  if(!name.trim() || !username.trim() || !usernameKey){
+    return alert("שם עובד או שם משתמש לא תקינים");
+  }
+
+  const goal = Number(goalText);
+  if(Number.isNaN(goal) || goal < 0){
+    return alert("יעד חודשי לא תקין");
+  }
+
+  const activeNormalized = String(activeText).trim().toLowerCase();
+  if(!["yes","no","כן","לא","true","false"].includes(activeNormalized)){
+    return alert("בשדה פעיל צריך לכתוב yes או no");
+  }
+
+  const isActive = ["yes","כן","true"].includes(activeNormalized);
+
+  const update = {
+    name: name.trim(),
+    username: username.trim(),
+    usernameKey,
+    monthlyGoal: goal,
+    active: isActive,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  if(newPass.trim()){
+    update.passwordHash = await sha256(newPass.trim());
+  }
+
   await db.collection("workers").doc(id).update(update);
+
+  // אם שינית שם משתמש, ניצור גם מסמך חדש עם מזהה לפי שם המשתמש החדש כדי שכניסה תעבוד מהר.
+  const newWorkerDocId = workerIdFromUsername(usernameKey);
+  if(newWorkerDocId !== id){
+    const oldDoc = await db.collection("workers").doc(id).get();
+    const merged = {...oldDoc.data(), ...update};
+    await db.collection("workers").doc(newWorkerDocId).set(merged, {merge:true});
+    await db.collection("workers").doc(id).update({active:false, movedTo:newWorkerDocId, updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    alert("שם המשתמש שונה. נוצר מזהה חדש לעובד, והישן סומן כלא פעיל.");
+  }
+
   await loadWorkers();
 }
-
 async function toggleWorker(id, active){
   await db.collection("workers").doc(id).update({active, updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
   await loadWorkers();
@@ -587,7 +639,7 @@ async function loadPriceListAdmin(){
       </div>
       <div class="actions">
         <button class="btn-yellow" onclick='editPrice("${item.id}", ${JSON.stringify(item.name)}, ${Number(item.price||0)}, ${JSON.stringify(item.inputMode||"qty")})'>ערוך</button>
-        <button class="${item.active===false?"btn-green":"btn-red"}" onclick="togglePrice('${item.id}', ${item.active===false})">${item.active===false?"הפעל":"בטל"}</button>
+        <button class="${item.active===false?"btn-green":"btn-red"}" onclick="togglePrice('${item.id}', ${item.active===false})">${item.active===false?"הפעל":"הסר מהרשימה"}</button>
       </div>`;
     box.appendChild(row);
   });
@@ -610,18 +662,40 @@ async function addPriceItem(){
   await loadPriceListAdmin();
 }
 
-async function editPrice(id, oldName, oldPrice){
-  const name = prompt("שם פעולה", oldName); if(name===null) return;
-  const price = Number(prompt("מחיר", oldPrice));
+async function editPrice(id,oldName,oldPrice,oldMode="qty"){
+  const name = prompt("שם פעולה", oldName || "");
+  if(name === null) return;
+
+  const priceText = prompt("מחיר", oldPrice);
+  if(priceText === null) return;
+
+  let inputMode = prompt("סוג בחירה: qty = כמות מספרית, check = סימון כן/לא", oldMode || "qty");
+  if(inputMode === null) return;
+
+  const activeText = prompt("להשאיר פעיל ברשימה? yes או no", "yes");
+  if(activeText === null) return;
+
+  const price = Number(priceText);
+  inputMode = String(inputMode).trim().toLowerCase();
+  const activeNormalized = String(activeText).trim().toLowerCase();
+
+  if(!name.trim()) return alert("שם פעולה לא תקין");
   if(Number.isNaN(price) || price < 0) return alert("מחיר לא תקין");
+  if(inputMode !== "qty" && inputMode !== "check") return alert("סוג בחירה לא תקין. צריך qty או check");
+  if(!["yes","no","כן","לא","true","false"].includes(activeNormalized)) return alert("פעיל צריך להיות yes או no");
+
+  const active = ["yes","כן","true"].includes(activeNormalized);
+
   await db.collection("priceList").doc(id).update({
-    name:name.trim(),
+    name: name.trim(),
     price,
-    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    inputMode,
+    active,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   });
+
   await loadPriceListAdmin();
 }
-
 async function togglePrice(id, active){
   await db.collection("priceList").doc(id).update({
     active,
@@ -876,7 +950,7 @@ async function addLog(action, data={}){
     const record = {
       action,
       data,
-      pageVersion: "1.0.9",
+      pageVersion: "1.1.0",
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       clientTime: new Date().toISOString()
     };
