@@ -340,7 +340,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <h1 class="big-title">כניסת עובד</h1><p style="text-align:center">הכנס שם משתמש וסיסמה שקיבלת מהמנהל.</p>
 <input id="workerUsername" placeholder="שם משתמש"><input id="workerPassword" type="password" placeholder="סיסמה">
 <button class="btn-green" onclick="workerLogin()">כניסה</button><p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.4.0</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.4.2</div>
 </section>
 
 <section id="adminLoginView" class="card login-box hidden">
@@ -350,6 +350,34 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 </section>
 
 <section id="adminView" class="hidden">
+<div class="card">
+  <div class="cal-head"><h2>📦 ייצוא, גיבוי, שחזור ותבניות</h2></div>
+  <p>כלי ניהול מתקדמים: ייצוא לאקסל, גיבוי מלא, שחזור ותבניות התקנה מוכנות.</p>
+  <div class="actions">
+    <button class="btn-green" onclick="exportEntriesCSV()">📊 ייצוא לאקסל</button>
+    <button onclick="backupJSON()">💾 גיבוי JSON</button>
+    <button class="btn-yellow" onclick="$('restoreFileTop').click()">♻️ שחזור JSON</button>
+    <input id="restoreFileTop" type="file" accept="application/json" class="hidden" onchange="restoreJSON(event)">
+  </div>
+  <div id="backupMsgTop"></div>
+</div>
+
+<div class="card">
+  <div class="cal-head"><h2>⚡ תבניות התקנה מוכנות</h2><button class="btn-light" onclick="loadTemplatesAdmin()">רענן תבניות</button></div>
+  <p>צור תבנית כמו “התקנת אינטרנט בלבד”, ואז במסך התקנה העובד יבחר אותה והמערכת תסמן לבד את הפריטים.</p>
+  <div class="grid2">
+    <input id="tplNameTop" placeholder="שם תבנית">
+    <button class="btn-green" onclick="openTemplateBuilderTop()">בנה תבנית חדשה</button>
+  </div>
+  <div id="templateBuilderTop" class="card panel hidden" style="box-shadow:none">
+    <h3>בניית תבנית</h3>
+    <div id="templateItemsTop"></div>
+    <button class="btn-green" onclick="saveTemplateTop()">שמור תבנית</button>
+  </div>
+  <div id="templatesAdminTop"></div>
+  <div id="templateMsgTop"></div>
+</div>
+
 <div class="card"><h2>לוח מנהל</h2><p>ניהול עובדים, מחירון, הגדרות מנהל וצפייה בדוחות.</p></div>
 
 <div class="card">
@@ -428,6 +456,20 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <div class="card"><div class="cal-head"><div><h2 id="helloTitle">שלום</h2><div id="monthSub" class="muted"></div></div><button id="backAdminBtn" class="btn-light hidden" onclick="showAdmin()">חזרה למנהל</button></div>
 <div class="grid4"><div class="stat"><div class="label">סה״כ החודש</div><div id="monthTotal" class="value">₪0</div></div><div class="stat"><div class="label">היום הנבחר</div><div id="dayTotal" class="value">₪0</div></div><div class="stat"><div class="label">יעד חודשי</div><div id="goalTotal" class="value">₪0</div></div><div class="stat"><div class="label">חסר ליעד</div><div id="leftTotal" class="value">₪0</div></div></div><div class="progress"><div id="goalBar" class="bar"></div></div><p id="paceLine"></p></div>
 <div class="card">
+<div class="cal-head"><h2>📦 הכלים שלי</h2><button class="btn-light" onclick="toggleWorkerTools()">פתח / סגור</button></div>
+<div id="workerToolsPanel" class="hidden">
+<p>ייצוא, גיבוי ושחזור לנתונים האישיים שלך בלבד.</p>
+<div class="actions">
+  <button class="btn-green" onclick="exportMyEntriesCSV()">📊 ייצוא שלי לאקסל</button>
+  <button onclick="backupMyJSON()">💾 גיבוי שלי JSON</button>
+  <button class="btn-yellow" onclick="$('restoreMyFile').click()">♻️ שחזור שלי JSON</button>
+  <input id="restoreMyFile" type="file" accept="application/json" class="hidden" onchange="restoreMyJSON(event)">
+</div>
+<div id="workerToolsMsg"></div>
+</div>
+</div>
+
+<div class="card">
 <div class="cal-head"><h2>⚙️ הגדרות אישיות</h2><button class="btn-light" onclick="toggleWorkerSettings()">פתח / סגור</button></div>
 <div id="workerSettingsPanel" class="hidden">
 <p>כאן אפשר לשנות סיסמה ויעד חודשי.</p>
@@ -486,6 +528,12 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
   <input id="editEntryAddress" placeholder="כתובת">
   <textarea id="editEntryNotes" placeholder="הערות"></textarea>
   <input id="editEntryAmount" type="number" placeholder="סכום">
+  <div id="editInstallItemsBox" class="hidden">
+    <h3>עריכת פריטי התקנה</h3>
+    <p class="muted">אם זו התקנה, אפשר לערוך כאן את הסימונים והכמויות לפי המחירון. הסכום יחושב מחדש אוטומטית.</p>
+    <div id="editInstallItems"></div>
+    <div id="editInstallPreview" class="total-preview">סה״כ התקנה: ₪0</div>
+  </div>
   <div class="actions"><button class="btn-green" onclick="saveEntryEdit()">שמור עבודה</button><button class="btn-light" onclick="hide('editEntryPanel')">ביטול</button></div>
   <div id="editEntryMsg"></div>
 </div>
@@ -824,7 +872,7 @@ async function saveWorkerSelfSettings(){
 async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();await showWorker({id:doc.id,...doc.data()})}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");$("backAdminBtn").classList.toggle("hidden",!(session&&session.role==="admin"));text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=new Date();selectedDate=null;selectedType=null;if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=Number(worker.monthlyGoal||0);if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth()}
 async function loadMonth(){await loadPriceList();await loadTemplates();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);monthEntries=[];renderCalendar();renderDay();renderStats();const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();monthEntries=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats();renderSmartDashboard();if($('searchPanel')&&!$('searchPanel').classList.contains('hidden'))renderFullSummary()}
 function renderCalendar(){const cal=$("calendar");cal.innerHTML="";weekdays.forEach(w=>{const d=document.createElement("div");d.className="weekday";d.textContent=w;cal.appendChild(d)});const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0).getDate(),today=formatDate(new Date());for(let i=0;i<first.getDay();i++){const e=document.createElement("div");e.className="day empty";cal.appendChild(e)}for(let d=1;d<=last;d++){const ds=`${y}-${pad(m+1)}-${pad(d)}`,dt=new Date(y,m,d),sh=dt.getDay()===6,entries=monthEntries.filter(e=>e.date===ds),total=entries.reduce((s,e)=>s+Number(e.amount||0),0),div=document.createElement("div");div.className="day";if(sh)div.classList.add("shabbat");if(ds===today)div.classList.add("today");if(ds===selectedDate)div.classList.add("selected");div.innerHTML=`<div class="day-num">${d}</div>${total?`<div class="day-total">${money(total)}</div>`:""}${entries.length?`<div class="day-count">${entries.length} עבודות</div>`:""}`;if(!sh)div.onclick=()=>selectDay(ds);cal.appendChild(div)}}
-function selectDay(ds){selectedDate=ds;selectedType=null;renderCalendar();renderDay();renderStats();renderSmartDashboard()}function renderDay(){if(!selectedDate){hide("dayPanel");show("selectDayHint");return}show("dayPanel");hide("selectDayHint");text("dateTitle",`יום ${heDate(selectedDate)}`);renderInstallItems();setType(selectedType,false);updateServicePriceLabels();const entries=monthEntries.filter(e=>e.date===selectedDate).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)),box=$("dayEntries");box.innerHTML=entries.length?"":"<p class='muted'>אין עבודות ביום הזה עדיין.</p>";entries.forEach(e=>{const details=e.workType==="service"?`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n${e.notes||""}`:`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("\n")+`\n${e.notes||""}`,row=document.createElement("div");row.className="item";const iconClass=e.workType==="install"?"install":(e.isReturnCall?"return":"service");const icon=e.workType==="install"?"🛠️":(e.isReturnCall?"🔁":"☎️");row.innerHTML=`<div class="work-row-main"><div class="work-icon ${iconClass}">${icon}</div><div><div class="item-title">${esc(e.description)}</div><div class="item-sub">${esc(details)}</div></div></div><div><div class="money">${money(e.amount)}</div><div class="actions" style="margin-top:8px"><button class="btn-yellow" onclick="openEntryEdit('${e.id}')">ערוך</button><button class="btn-light" onclick="duplicateEntry('${e.id}')">שכפל</button><button class="btn-red" onclick="deleteEntry('${e.id}')">מחק</button></div></div>`;box.appendChild(row)})}
+function selectDay(ds){selectedDate=ds;selectedType=null;renderCalendar();renderDay();renderStats();renderSmartDashboard()}function renderDay(){if(!selectedDate){hide("dayPanel");show("selectDayHint");return}show("dayPanel");hide("selectDayHint");text("dateTitle",`יום ${heDate(selectedDate)}`);renderInstallItems();setType(selectedType,false);updateServicePriceLabels();const entries=monthEntries.filter(e=>e.date===selectedDate).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)),box=$("dayEntries");box.innerHTML=entries.length?"":"<p class='muted'>אין עבודות ביום הזה עדיין.</p>";entries.forEach(e=>{const details=e.workType==="service"?`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n${e.notes||""}`:`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("\n")+`\n${e.notes||""}`,row=document.createElement("div");row.className="item";const iconClass=e.workType==="install"?"install":(e.isReturnCall?"return":"service");const icon=e.workType==="install"?"🛠️":(e.isReturnCall?"🔁":"☎️");row.innerHTML=`<div class="work-row-main"><div class="work-icon ${iconClass}">${icon}</div><div><div class="item-title">${esc(e.description)}</div><div class="item-sub">${esc(details)}</div></div></div><div><div class="money">${money(e.amount)}</div><div class="actions" style="margin-top:8px"><button class="btn-yellow" onclick="openEntryEdit('${e.id}')">ערוך</button>${e.workType==="install"?`<button class="btn-light" onclick="saveEntryAsTemplate('${e.id}')">שמור כתבנית</button>`:""}<button class="btn-red" onclick="deleteEntry('${e.id}')">מחק</button></div></div>`;box.appendChild(row)})}
 function renderStats(){const monthTotal=monthEntries.reduce((s,e)=>s+Number(e.amount||0),0),dayTotal=selectedDate?monthEntries.filter(e=>e.date===selectedDate).reduce((s,e)=>s+Number(e.amount||0),0):0,goal=Number(viewedWorker.monthlyGoal||0),left=Math.max(goal-monthTotal,0);$("monthTotal").textContent=money(monthTotal);$("dayTotal").textContent=money(dayTotal);$("goalTotal").textContent=money(goal);$("leftTotal").textContent=money(left);$("goalBar").style.width=goal?Math.min(monthTotal/goal*100,100)+"%":"0%";text("paceLine",goal?(left<=0?"מעולה — היעד הושג.":`חסר ליעד: ${money(left)}.`):"לא הוגדר יעד חודשי.")}
 function setType(type,clear=true){selectedType=type;$("serviceForm").classList.toggle("hidden",type!=="service");$("installForm").classList.toggle("hidden",type!=="install");$("serviceBtn").classList.toggle("active",type==="service");$("installBtn").classList.toggle("active",type==="install");if(clear)$("entryMsg").innerHTML=""}
 function renderInstallItems(){const box=$("installItems");box.innerHTML="";priceList.forEach(item=>{const row=document.createElement("div");row.className="item";const mode=item.inputMode||"qty",control=mode==="check"?`<label style="display:flex;align-items:center;gap:8px;font-weight:900"><input id="qty_${item.id}" type="checkbox" onchange="updateInstallPreview()" style="width:24px;height:24px;margin:0"> בוצע</label>`:`<input class="qty" id="qty_${item.id}" type="number" min="0" placeholder="כמות" oninput="updateInstallPreview()">`;row.innerHTML=`<div><div class="item-title">${esc(item.name)}</div><div class="item-sub">מחיר: ${money(item.price)} · ${mode==="check"?"סימון כן/לא":"כמות מספרית"}</div></div>${control}`;box.appendChild(row)});updateInstallPreview()}function updateInstallPreview(){let total=0;priceList.forEach(p=>{const el=$("qty_"+p.id);let q=0;if(el)q=(p.inputMode||"qty")==="check"?(el.checked?1:0):Number(el.value||0);if(q>0)total+=q*Number(p.price||0)});$("installPreview").textContent="סה״כ התקנה: "+money(total)}
@@ -835,7 +883,12 @@ async function deleteEntry(id){if(!confirm("למחוק את העבודה?"))retu
 async function loadTemplates(){
   try{
     const snap=await db.collection("installTemplates").get();
-    templates=snap.docs.map(d=>({id:d.id,...d.data()})).filter(t=>t.active!==false).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+    const currentWorkerId = viewedWorker ? viewedWorker.id : null;
+    templates=snap.docs
+      .map(d=>({id:d.id,...d.data()}))
+      .filter(t=>t.active!==false)
+      .filter(t=>!t.ownerWorkerId || t.ownerWorkerId===currentWorkerId || (session&&session.role==="admin"))
+      .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
     renderTemplateSelect();
   }catch(e){templates=[]}
 }
@@ -926,14 +979,26 @@ function openEntryEdit(id){
   $("editEntryNotes").value=e.notes||"";
   $("editEntryAmount").value=Number(e.amount||0);
   $("editEntryMsg").innerHTML="";
+  renderEditInstallItems(e);
   window.scrollTo({top:$("editEntryPanel").offsetTop-20,behavior:"smooth"});
 }
 async function saveEntryEdit(){
-  const id=val("editEntryId"),customerNumber=val("editEntryCustomer"),address=val("editEntryAddress"),notes=val("editEntryNotes"),amount=Number(val("editEntryAmount")||0);
+  const id=val("editEntryId"),customerNumber=val("editEntryCustomer"),address=val("editEntryAddress"),notes=val("editEntryNotes");
+  let amount=Number(val("editEntryAmount")||0);
   if(!customerNumber||!/^\d+$/.test(customerNumber))return $("editEntryMsg").innerHTML="<p class='danger'>מספר לקוח חייב להיות ספרות בלבד.</p>";
   if(!address)return $("editEntryMsg").innerHTML="<p class='danger'>חובה למלא כתובת.</p>";
-  if(Number.isNaN(amount)||amount<0)return $("editEntryMsg").innerHTML="<p class='danger'>סכום לא תקין.</p>";
-  await db.collection("workEntries").doc(id).update({customerNumber,address,notes,amount,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  const original=monthEntries.find(x=>x.id===id);
+  const update={customerNumber,address,notes,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  if(original&&original.workType==="install"){
+    const edited=getEditedInstallItems();
+    if(!edited.items.length)return $("editEntryMsg").innerHTML="<p class='danger'>חובה לבחור לפחות פריט התקנה אחד.</p>";
+    update.items=edited.items;
+    update.amount=edited.total;
+  }else{
+    if(Number.isNaN(amount)||amount<0)return $("editEntryMsg").innerHTML="<p class='danger'>סכום לא תקין.</p>";
+    update.amount=amount;
+  }
+  await db.collection("workEntries").doc(id).update(update);
   $("editEntryMsg").innerHTML="<div class='notice'>העבודה נשמרה ✅</div>";
   await loadMonth();
 }
@@ -960,7 +1025,7 @@ async function exportEntriesCSV(){
 }
 async function backupJSON(){
   const collections=["workers","priceList","workEntries","settings","installTemplates"];
-  const data={version:"1.4.0",exportedAt:new Date().toISOString(),collections:{}};
+  const data={version:"1.4.2",exportedAt:new Date().toISOString(),collections:{}};
   for(const c of collections){
     const snap=await db.collection(c).get();
     data.collections[c]=snap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
@@ -994,6 +1059,220 @@ function downloadFile(filename,content,type){
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
   a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+}
+
+
+async function loadTemplates(){
+  try{
+    const snap=await db.collection("installTemplates").get();
+    const currentWorkerId = viewedWorker ? viewedWorker.id : null;
+    templates=snap.docs
+      .map(d=>({id:d.id,...d.data()}))
+      .filter(t=>t.active!==false)
+      .filter(t=>!t.ownerWorkerId || t.ownerWorkerId===currentWorkerId || (session&&session.role==="admin"))
+      .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+    renderTemplateSelect();
+  }catch(e){templates=[]}
+}
+function renderTemplateSelect(){
+  const sel=$("installTemplateSelect");
+  if(!sel)return;
+  sel.innerHTML='<option value="">בחר תבנית התקנה מוכנה</option>';
+  templates.forEach(t=>{
+    const opt=document.createElement("option");
+    opt.value=t.id;
+    opt.textContent=t.name;
+    sel.appendChild(opt);
+  });
+}
+async function loadTemplatesAdmin(){
+  await loadTemplates();
+  const targets=["templatesAdmin","templatesAdminTop"];
+  targets.forEach(id=>{
+    const box=$(id);
+    if(!box)return;
+    box.innerHTML=templates.length?"":"<p class='muted'>אין תבניות עדיין.</p>";
+    templates.forEach(t=>{
+      const div=document.createElement("div");
+      div.className="item";
+      div.innerHTML=`<div><div class="item-title">⚡ ${esc(t.name)}</div><div class="item-sub">${(t.items||[]).map(i=>`${i.name} × ${i.quantity}`).join("\\n")}</div></div><div class="actions"><button class="btn-red" onclick="deleteTemplate('${t.id}')">מחק</button></div>`;
+      box.appendChild(div);
+    });
+  });
+}
+function openTemplateBuilderTop(){
+  show("templateBuilderTop");
+  renderTemplateBuilderItemsTop();
+}
+function renderTemplateBuilderItemsTop(){
+  const box=$("templateItemsTop");
+  if(!box)return;
+  box.innerHTML="";
+  priceList.forEach(item=>{
+    const row=document.createElement("div");
+    row.className="item";
+    const mode=item.inputMode||"qty";
+    const control=mode==="check"
+      ? `<input id="tplTop_${item.id}" type="checkbox" style="width:24px;height:24px;margin:0">`
+      : `<input class="qty" id="tplTop_${item.id}" type="number" min="0" placeholder="כמות">`;
+    row.innerHTML=`<div><div class="item-title">${esc(item.name)}</div><div class="item-sub">${money(item.price)} · ${mode==="check"?"סימון":"כמות"}</div></div>${control}`;
+    box.appendChild(row);
+  });
+}
+async function saveTemplateTop(){
+  const name=val("tplNameTop");
+  if(!name)return $("templateMsgTop").innerHTML="<p class='danger'>חובה למלא שם תבנית.</p>";
+  const items=[];
+  priceList.forEach(p=>{
+    const el=$("tplTop_"+p.id);
+    if(!el)return;
+    const q=(p.inputMode||"qty")==="check"?(el.checked?1:0):Number(el.value||0);
+    if(q>0)items.push({id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||"qty",total:q*Number(p.price||0)});
+  });
+  if(!items.length)return $("templateMsgTop").innerHTML="<p class='danger'>חובה לבחור לפחות פריט אחד.</p>";
+  await db.collection("installTemplates").add({name,items,active:true,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  $("tplNameTop").value="";
+  hide("templateBuilderTop");
+  $("templateMsgTop").innerHTML="<div class='notice'>התבנית נשמרה ✅</div>";
+  await loadTemplatesAdmin();
+}
+async function deleteTemplate(id){
+  if(!confirm("למחוק את התבנית?"))return;
+  await db.collection("installTemplates").doc(id).update({active:false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  await loadTemplatesAdmin();
+}
+function applyTemplateFromSelect(){
+  const id=val("installTemplateSelect");
+  if(!id)return;
+  const tpl=templates.find(t=>t.id===id);
+  if(!tpl)return;
+  (tpl.items||[]).forEach(i=>{
+    const el=$("qty_"+i.id);
+    if(!el)return;
+    if((i.inputMode||"qty")==="check")el.checked=true;
+    else el.value=i.quantity;
+  });
+  updateInstallPreview();
+}
+function renderEditInstallItems(entry){
+  const box=$("editInstallItems");
+  const wrap=$("editInstallItemsBox");
+  if(!box||!wrap)return;
+  if(entry.workType!=="install"){
+    wrap.classList.add("hidden");
+    return;
+  }
+  wrap.classList.remove("hidden");
+  box.innerHTML="";
+  const oldItems={};
+  (entry.items||[]).forEach(i=>oldItems[i.id]=i);
+  priceList.forEach(item=>{
+    const old=oldItems[item.id];
+    const row=document.createElement("div");
+    row.className="item";
+    const mode=item.inputMode||"qty";
+    let control="";
+    if(mode==="check"){
+      control=`<label style="display:flex;align-items:center;gap:8px;font-weight:900"><input id="editQty_${item.id}" type="checkbox" ${old&&Number(old.quantity)>0?"checked":""} onchange="updateEditInstallPreview()" style="width:24px;height:24px;margin:0"> בוצע</label>`;
+    }else{
+      control=`<input class="qty" id="editQty_${item.id}" type="number" min="0" placeholder="כמות" value="${old?Number(old.quantity||0):""}" oninput="updateEditInstallPreview()">`;
+    }
+    row.innerHTML=`<div><div class="item-title">${esc(item.name)}</div><div class="item-sub">${money(item.price)} · ${mode==="check"?"סימון כן/לא":"כמות מספרית"}</div></div>${control}`;
+    box.appendChild(row);
+  });
+  updateEditInstallPreview();
+}
+function getEditedInstallItems(){
+  const items=[];
+  let total=0;
+  priceList.forEach(p=>{
+    const el=$("editQty_"+p.id);
+    if(!el)return;
+    let q=0;
+    if((p.inputMode||"qty")==="check")q=el.checked?1:0;
+    else q=Number(el.value||0);
+    if(q>0){
+      const item={id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||"qty",total:q*Number(p.price||0)};
+      items.push(item);
+      total+=item.total;
+    }
+  });
+  return {items,total};
+}
+function updateEditInstallPreview(){
+  const data=getEditedInstallItems();
+  if($("editInstallPreview"))$("editInstallPreview").textContent="סה״כ התקנה: "+money(data.total);
+  if($("editEntryAmount"))$("editEntryAmount").value=data.total;
+}
+
+
+function toggleWorkerTools(){
+  const p=$("workerToolsPanel");
+  if(p)p.classList.toggle("hidden");
+}
+async function exportMyEntriesCSV(){
+  if(!viewedWorker)return;
+  const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
+  const rows=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
+  const header=["id","date","workerName","customerNumber","address","workType","description","amount","notes","items"];
+  const csv=[header.join(",")].concat(rows.map(e=>header.map(h=>{
+    let v=h==="items"?(e.items||[]).map(i=>`${i.name} x ${i.quantity} = ${i.total}`).join(" | "):(e[h]??"");
+    return `"${String(v).replaceAll('"','""')}"`;
+  }).join(","))).join("\n");
+  downloadFile(`my_work_entries_${viewedWorker.username||viewedWorker.name||"worker"}.csv`,"\ufeff"+csv,"text/csv;charset=utf-8");
+  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>הייצוא ירד למכשיר ✅</div>";
+}
+async function backupMyJSON(){
+  if(!viewedWorker)return;
+  const data={version:"1.4.2",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
+  const entriesSnap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
+  data.collections.workEntries=entriesSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+  const tplSnap=await db.collection("installTemplates").get();
+  data.collections.installTemplates=tplSnap.docs.map(d=>({id:d.id,...d.data()})).filter(t=>t.ownerWorkerId===viewedWorker.id).map(t=>({id:t.id,data:serializeFirestore(t)}));
+  downloadFile(`my_backup_${viewedWorker.username||viewedWorker.name||"worker"}.json`,JSON.stringify(data,null,2),"application/json");
+  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>גיבוי אישי ירד למכשיר ✅</div>";
+}
+async function restoreMyJSON(event){
+  const file=event.target.files[0];
+  if(!file||!viewedWorker)return;
+  if(!confirm("שחזור אישי יוסיף/יעדכן עבודות ותבניות לחשבון שלך בלבד. להמשיך?"))return;
+  const text=await file.text();
+  const data=JSON.parse(text);
+  const entries=(data.collections&&data.collections.workEntries)||[];
+  const templatesData=(data.collections&&data.collections.installTemplates)||[];
+  for(const doc of entries){
+    const payload={...(doc.data||{}),workerId:viewedWorker.id,workerName:viewedWorker.name,restoredAt:new Date().toISOString()};
+    await db.collection("workEntries").doc(doc.id).set(payload,{merge:true});
+  }
+  for(const doc of templatesData){
+    const payload={...(doc.data||{}),ownerWorkerId:viewedWorker.id,ownerWorkerName:viewedWorker.name,restoredAt:new Date().toISOString()};
+    await db.collection("installTemplates").doc(doc.id).set(payload,{merge:true});
+  }
+  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>השחזור האישי הסתיים ✅</div>";
+  await loadMonth();
+}
+async function saveEntryAsTemplate(id){
+  const e=monthEntries.find(x=>x.id===id);
+  if(!e||e.workType!=="install"||!e.items||!e.items.length){
+    alert("אפשר לשמור כתבנית רק התקנה עם פריטים.");
+    return;
+  }
+  const defaultName=`תבנית מ-${heDate(e.date)} לקוח ${e.customerNumber||""}`.trim();
+  const name=prompt("שם לתבנית",defaultName);
+  if(name===null)return;
+  if(!name.trim())return alert("חובה לתת שם לתבנית");
+  await db.collection("installTemplates").add({
+    name:name.trim(),
+    items:e.items.map(i=>({id:i.id,name:i.name,price:Number(i.price||0),quantity:Number(i.quantity||0),inputMode:i.inputMode||"qty",total:Number(i.total||0)})),
+    active:true,
+    ownerWorkerId:viewedWorker?viewedWorker.id:null,
+    ownerWorkerName:viewedWorker?viewedWorker.name:"",
+    createdFromEntry:id,
+    createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  });
+  alert("התבנית נשמרה ✅ בפעם הבאה בהתקנה תוכל לבחור אותה מהרשימה.");
+  await loadTemplates();
 }
 
 async function loadDebugLogs(){const box=$("debugLog");if(!box)return;try{const snap=await db.collection("appLogs").limit(30).get();box.textContent=snap.empty?"אין לוגים":snap.docs.map(d=>JSON.stringify(d.data())).join("\n")}catch(e){box.textContent="שגיאה בלוג: "+e.message}}
