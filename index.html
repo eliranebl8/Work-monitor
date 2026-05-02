@@ -5661,5 +5661,176 @@ async function resetWorkerAccessV178(workerId){
 }
 </script>
 
+
+
+<script>
+/* ===== VERSION 1.8.5: Recovery permission-denied final fix =====
+   הסיבה ל-permission-denied בשחזור גישה היא בדרך כלל Security Rules שלא מזהות את האדמין
+   דרך users/{uid}, או שאין עדיין users doc תקין למנהל. בגרסה זו ה-Rules מזהות אדמין גם לפי
+   Firebase Auth email הפנימי admin@work-monitor.local, וכפתור העתקת Rules מעודכן לגרסה 1.8.5.
+*/
+(function(){
+  const VERSION="1.8.5";
+  window.APP_VERSION=VERSION;
+  function forceVersionV185(){
+    document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
+    document.title="מעקב עבודה - גרסה "+VERSION;
+    const p=document.getElementById("recoveryInfoPanelV178");
+    if(p){ p.querySelectorAll("h2").forEach(h=>h.innerHTML="🔑 שחזור גישה לעובד 1.8.5"); }
+  }
+  window.addEventListener("load",()=>setTimeout(forceVersionV185,120));
+  setInterval(forceVersionV185,1200);
+  forceVersionV185();
+})();
+
+const FIRESTORE_RULES_V185 = String.raw`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function adminByEmail() {
+      return signedIn() && request.auth.token.email == 'admin@work-monitor.local';
+    }
+
+    function hasUserDoc() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return adminByEmail() || (hasUserDoc() && userDoc().data.role == 'admin');
+    }
+
+    function myWorkerId() {
+      return hasUserDoc() ? userDoc().data.workerId : '';
+    }
+
+    function isWorker() {
+      return hasUserDoc() && userDoc().data.role == 'worker';
+    }
+
+    function isOwnWorker(workerId) {
+      return isWorker() && myWorkerId() == workerId;
+    }
+
+    match /usernameLookup/{usernameKey} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if isAdmin() || (signedIn() && request.auth.uid == uid && request.resource.data.uid == request.auth.uid && request.resource.data.role == 'worker');
+      allow update: if isAdmin() || (signedIn() && request.auth.uid == uid && resource.data.role == 'worker' && request.resource.data.role == 'worker');
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /workers/{workerId} {
+      allow read: if isAdmin() || isOwnWorker(workerId);
+      allow create, update, delete: if isAdmin() || (isOwnWorker(workerId) && request.resource.data.authUid == request.auth.uid);
+    }
+
+    match /workEntries/{entryId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create: if isAdmin() || (signedIn() && request.resource.data.workerId == myWorkerId());
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId() && request.resource.data.workerId == resource.data.workerId);
+    }
+
+    match /priceList/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /installTemplates/{doc} {
+      allow read: if isAdmin() || (signedIn() && (!('ownerWorkerId' in resource.data) || resource.data.ownerWorkerId == null || resource.data.ownerWorkerId == '' || resource.data.ownerWorkerId == myWorkerId()));
+      allow create: if isAdmin() || (signedIn() && request.resource.data.ownerWorkerId == myWorkerId());
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.ownerWorkerId == myWorkerId());
+    }
+
+    match /paymentRequests/{doc} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create: if isAdmin() || (signedIn() && request.resource.data.workerId == myWorkerId());
+      allow update, delete: if isAdmin();
+    }
+
+    match /payments/{doc} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /appLogs/{doc} {
+      allow read: if isAdmin();
+      allow create: if signedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}`;
+
+async function copySecurityRulesV169(){
+  try{
+    await navigator.clipboard.writeText(FIRESTORE_RULES_V185);
+    const msg=document.getElementById("securityToolsMsgV169") || document.getElementById("adminAuthBootstrapMsgV170");
+    if(msg) msg.innerHTML="<div class='notice'>Security Rules 1.8.5 הועתקו ✅<br>פתח Firebase → Firestore Database → Rules → הדבק → Publish.</div>";
+    alert("Security Rules 1.8.5 הועתקו ✅\nחובה לפרסם אותן ב-Firebase כדי ששחזור גישה יעבוד בלי permission-denied.");
+  }catch(e){
+    prompt("העתק את ה־Security Rules 1.8.5:", FIRESTORE_RULES_V185);
+  }
+}
+
+function addRulesWarningV185(){
+  const admin=document.getElementById("adminView");
+  if(!admin || document.getElementById("rulesWarningV185")) return;
+  const div=document.createElement("div");
+  div.id="rulesWarningV185";
+  div.className="card panel";
+  div.innerHTML=`
+    <div class="cal-head"><h2>⚠️ תיקון הרשאות 1.8.5</h2><button class="btn-green" onclick="copySecurityRulesV169()">העתק Rules 1.8.5</button></div>
+    <p>אם בשחזור גישה מופיע <b>permission-denied</b>, זה לא באג במסך — ה־Security Rules הישנות לא מזהות את האדמין בזמן כתיבה ל־users/workers.</p>
+    <div class="notice">צריך להעתיק את Rules 1.8.5, להדביק ב־Firebase Firestore Rules וללחוץ Publish פעם אחת.</div>`;
+  admin.insertBefore(div, admin.firstChild);
+}
+
+(function(){
+  const oldShowAdmin=window.showAdmin;
+  if(typeof oldShowAdmin==="function"){
+    window.showAdmin=async function(){
+      await oldShowAdmin.apply(this,arguments);
+      addRulesWarningV185();
+    };
+  }
+})();
+
+// גרסת שחזור עם הודעה ברורה במקרה שה-Rules לא עודכנו.
+const oldResetWorkerAccessV185 = window.resetWorkerAccessV178;
+window.resetWorkerAccessV178 = async function(workerId){
+  try{
+    return await oldResetWorkerAccessV185(workerId);
+  }catch(e){
+    const msg=String(e && (e.code||e.message) || e);
+    if(msg.includes("permission-denied")){
+      alert("שחזור הגישה נחסם על ידי Firebase Rules.\n\nהפתרון: באדמין לחץ 'העתק Rules 1.8.5', הדבק ב-Firebase Firestore Rules ולחץ Publish. אחרי זה נסה שוב.");
+      return;
+    }
+    throw e;
+  }
+};
+</script>
+
 </body>
   </html>
