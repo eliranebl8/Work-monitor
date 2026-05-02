@@ -363,7 +363,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <button class="btn-green" onclick="workerLogin()">כניסה</button>
 <button class="btn-light" onclick="showRegister()">הרשמה לעובד חדש</button>
 <p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.6.8</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.7.0</div>
 </section>
 
 <section id="registerView" class="card login-box hidden">
@@ -455,7 +455,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 
 <div class="card">
   <h2>🔐 הכנת Firebase Auth</h2>
-  <p>גרסה זו מוסיפה שדות הכנה לאבטחה: <b>authUid</b>, <b>authEmail</b> ו־<b>users/role</b>. עדיין לא מחליפים Security Rules עד שנבדוק שכל העובדים נכנסים תקין.</p>
+  <p>גרסה זו מחברת התחברות Firebase Auth ומכינה Security Rules: <b>authUid</b>, <b>authEmail</b> ו־<b>users/role</b>. עדיין לא מחליפים Security Rules עד שנבדוק שכל העובדים נכנסים תקין.</p>
   <div class="notice">שלב בטוח: המערכת ממשיכה לעבוד גם עם ההתחברות הישנה, ובמקביל מכינה נתונים לנעילת Firestore בהמשך.</div>
 </div>
 
@@ -1520,7 +1520,7 @@ async function exportEntriesCSV(){
 }
 async function backupJSON(){
   const collections=["workers","priceList","workEntries","settings","installTemplates","paymentRequests"];
-  const data={version:"1.6.8",exportedAt:new Date().toISOString(),collections:{}};
+  const data={version:"1.7.0",exportedAt:new Date().toISOString(),collections:{}};
   for(const c of collections){
     const snap=await db.collection(c).get();
     data.collections[c]=snap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
@@ -1719,7 +1719,7 @@ async function exportMyEntriesCSV(){
 }
 async function backupMyJSON(){
   if(!viewedWorker)return;
-  const data={version:"1.6.8",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
+  const data={version:"1.7.0",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
   const entriesSnap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
   data.collections.workEntries=entriesSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
   const tplSnap=await db.collection("installTemplates").get();
@@ -2205,7 +2205,7 @@ async function createWorker(){
       authEmail:authResult.email||authEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.6.8" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.7.0" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2252,7 +2252,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.6.8",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.7.0",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2267,7 +2267,7 @@ async function createAuthForWorker(workerId){
 
     await db.collection("appLogs").add({
       action:"authLinkedForExistingWorker",
-      pageVersion:"1.6.8",
+      pageVersion:"1.6.9",
       workerId,
       workerName:w.name||"",
       authEmail:authResult.email||"",
@@ -2302,7 +2302,7 @@ async function loadWorkers(){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.6.8";
+    if(secret) secret.textContent="גרסה 1.7.0";
   }catch(e){}
 })();
 </script>
@@ -2518,7 +2518,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.6.8",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.7.0",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2558,7 +2558,7 @@ async function createAuthForWorker(workerId){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.6.8";
+    if(secret) secret.textContent="גרסה 1.7.0";
   }catch(e){}
 })();
 </script>
@@ -2578,7 +2578,7 @@ function effectiveAuthEmailV168(username, optionalEmail){
   return e && isValidEmailV168(e) ? e : authEmailFromUsername(username);
 }
 function updateVersionV168(){
-  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.6.8"; }catch(e){}
+  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.7.0"; }catch(e){}
 }
 
 // שם המשתמש נשאר שדה ההתחברות הראשי. מאחורי הקלעים Firebase Auth נכנס עם authEmail ששמור לעובד.
@@ -2668,7 +2668,7 @@ async function createWorker(){
       recoveryEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.6.8" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.7.0" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2750,7 +2750,7 @@ async function createAuthForWorker(workerId){
       authEmail:authResult.email||preferredAuthEmail,
       recoveryEmail:emailPrompt,
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.6.8",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.7.0",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2839,5 +2839,540 @@ function showRegister(){
 (function(){ updateVersionV168(); })();
 </script>
 
+
+
+<script>
+/* ===== VERSION 1.6.9: Firebase Auth login + Security Rules ready ===== */
+(function(){
+  const VERSION="1.7.0";
+  window.APP_VERSION=VERSION;
+  function updateVersion(){
+    document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
+    document.title="מעקב עבודה - גרסה "+VERSION;
+  }
+  window.addEventListener("load",()=>setTimeout(updateVersion,50));
+  setTimeout(updateVersion,50);
+})();
+
+function adminAuthEmailV169(){ return "admin@work-monitor.local"; }
+function usernameLookupIdV169(username){ return normalize(username||""); }
+function rulesSafeDateV169(){ return new Date().toISOString(); }
+
+function secondaryAuthV169(){
+  const name="secondaryAuthForWorkerCreate";
+  let app;
+  try{ app=firebase.app(name); }
+  catch(e){ app=firebase.initializeApp(firebaseConfig,name); }
+  return app.auth();
+}
+
+async function createOrLoginWorkerAuth(username,pass,name,authEmailOverride){
+  const email=effectiveAuthEmailV168(username, authEmailOverride);
+  const basePayload={username:String(username||""),workerName:String(name||""),authEmail:email,passwordLength:pass?String(pass).length:0,passwordProvided:!!pass,version:"1.7.0",mode:"secondaryAuth"};
+  if(typeof writeAppLogV167==="function") await writeAppLogV167("authCreateAttemptStart", basePayload).catch(()=>{});
+  try{
+    const a=secondaryAuthV169();
+    let cred=null, created=false;
+    try{
+      cred=await a.createUserWithEmailAndPassword(email,pass);
+      created=true;
+    }catch(e){
+      if(e.code==="auth/email-already-in-use"){
+        cred=await a.signInWithEmailAndPassword(email,pass);
+      }else{
+        throw e;
+      }
+    }
+    const uid=cred && cred.user ? cred.user.uid : "";
+    if(uid){
+      try{ await cred.user.updateProfile({displayName:name||username}); }catch(_e){}
+      try{ await a.signOut(); }catch(_e){}
+      await ensureUserRoleDoc(uid,"worker",{username,name,authEmail:email,recoveryEmail:email.includes("@work-monitor.local")?"":email}).catch(()=>{});
+      if(typeof writeAppLogV167==="function") await writeAppLogV167("authCreateUserSuccess", {...basePayload,uid,created}).catch(()=>{});
+      return {ok:true,uid,email,created};
+    }
+    return {ok:false,reason:"no_uid_returned",email};
+  }catch(e){
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("authCreateUserFailed", {...basePayload,errorCode:e.code||"",errorMessage:e.message||String(e),errorName:e.name||""}).catch(()=>{});
+    return {ok:false,reason:e.code||e.message,email};
+  }
+}
+
+async function ensureUsernameLookupV169(workerId,w){
+  if(!workerId||!w)return;
+  const usernameKey=normalize(w.usernameKey||w.username||workerId.replace(/^worker_/,""));
+  if(!usernameKey)return;
+  const authEmail=w.authEmail||authEmailFromUsername(w.username||usernameKey);
+  await db.collection("usernameLookup").doc(usernameKey).set({
+    workerId,
+    username:w.username||usernameKey,
+    usernameKey,
+    authEmail,
+    active:w.active!==false,
+    authUid:w.authUid||"",
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+}
+
+async function syncAuthSecurityDataV169(){
+  try{
+    const snap=await db.collection("workers").get();
+    const batch=db.batch();
+    let count=0;
+    for(const d of snap.docs){
+      const w={id:d.id,...d.data()};
+      if(w.movedTo)continue;
+      const usernameKey=normalize(w.usernameKey||w.username||d.id.replace(/^worker_/,""));
+      if(usernameKey){
+        batch.set(db.collection("usernameLookup").doc(usernameKey),{
+          workerId:d.id,
+          username:w.username||usernameKey,
+          usernameKey,
+          authEmail:w.authEmail||authEmailFromUsername(w.username||usernameKey),
+          active:w.active!==false,
+          authUid:w.authUid||"",
+          updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+        },{merge:true});
+        count++;
+      }
+      if(w.authUid){
+        batch.set(db.collection("users").doc(w.authUid),{
+          uid:w.authUid,
+          role:"worker",
+          workerId:d.id,
+          username:w.username||usernameKey,
+          name:w.name||"",
+          authEmail:w.authEmail||"",
+          recoveryEmail:w.recoveryEmail||"",
+          updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+        },{merge:true});
+      }
+    }
+    await batch.commit();
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("syncAuthSecurityDataV169",{count}).catch(()=>{});
+  }catch(e){
+    console.error("syncAuthSecurityDataV169",e);
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("syncAuthSecurityDataV169Failed",{errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+  }
+}
+
+function waitForAuthReadyV169(timeoutMs=3500){
+  return new Promise(resolve=>{
+    if(!firebaseAuthReady())return resolve(null);
+    let done=false;
+    const timer=setTimeout(()=>{ if(!done){done=true; unsub&&unsub(); resolve(auth.currentUser||null);} }, timeoutMs);
+    const unsub=auth.onAuthStateChanged(user=>{ if(!done){done=true; clearTimeout(timer); unsub(); resolve(user||null);} });
+  });
+}
+
+async function ensureAdminAuthLoginV169(password){
+  if(!firebaseAuthReady())return {ok:false,reason:"auth_not_loaded"};
+  const email=adminAuthEmailV169();
+  try{
+    let cred=null, created=false;
+    try{
+      cred=await auth.signInWithEmailAndPassword(email,password);
+    }catch(e){
+      if(e.code==="auth/user-not-found" || e.code==="auth/invalid-credential" || e.code==="auth/wrong-password"){
+        // אם זה user-not-found ננסה ליצור. אם זה wrong-password/invalid-credential — יצירה תיכשל אם המשתמש כבר קיים.
+        if(e.code==="auth/user-not-found"){
+          cred=await auth.createUserWithEmailAndPassword(email,password);
+          created=true;
+        }else{
+          throw e;
+        }
+      }else throw e;
+    }
+    const uid=cred && cred.user ? cred.user.uid : "";
+    if(!uid)return {ok:false,reason:"no_admin_uid"};
+    try{ await cred.user.updateProfile({displayName:"מנהל"}); }catch(_e){}
+    await db.collection("users").doc(uid).set({uid,role:"admin",name:"מנהל",authEmail:email,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+    return {ok:true,uid,email,created};
+  }catch(e){
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminAuthLoginFailedV169",{errorCode:e.code||"",errorMessage:e.message||String(e),authEmail:email}).catch(()=>{});
+    return {ok:false,reason:e.code||e.message,email};
+  }
+}
+
+async function adminLogin(){
+  const u=val("adminUsername"), p=val("adminPassword");
+  if(!u||!p)return text("adminLoginMsg","חובה למלא שם משתמש וסיסמה.");
+  if(u!==ADMIN_USERNAME)return text("adminLoginMsg","שם משתמש או סיסמה לא נכונים.");
+  const authResult=await ensureAdminAuthLoginV169(p);
+  if(!authResult.ok){
+    return text("adminLoginMsg","Firebase Auth לאדמין נכשל: "+(authResult.reason||"לא ידוע")+". אם כבר נוצר משתמש אדמין עם סיסמה אחרת, צריך לאפס אותו ב־Firebase Authentication.");
+  }
+  session={role:"admin",name:"מנהל",authUid:authResult.uid,authEmail:authResult.email};
+  localStorage.setItem("workSession",JSON.stringify(session));
+  clearLoginFields();
+  await showAdmin();
+}
+
+async function workerLogin(){
+  const username=val("workerUsername"), pass=val("workerPassword");
+  if(!username||!pass)return text("workerLoginMsg","חובה למלא שם משתמש וסיסמה.");
+  const usernameKey=normalize(username);
+  let lookup=null;
+  try{
+    const lookupDoc=await db.collection("usernameLookup").doc(usernameKey).get();
+    if(lookupDoc.exists)lookup={id:lookupDoc.id,...lookupDoc.data()};
+  }catch(e){ console.warn("usernameLookup failed, legacy fallback",e); }
+
+  if(lookup && lookup.active===false)return text("workerLoginMsg","העובד לא פעיל.");
+
+  // התחברות אמיתית ל־Firebase Auth לפני קריאת מסמך העובד. זה מה שמאפשר Security Rules נעולות.
+  if(lookup && lookup.authEmail){
+    try{
+      const cred=await auth.signInWithEmailAndPassword(lookup.authEmail,pass);
+      const uid=cred && cred.user ? cred.user.uid : "";
+      const doc=await db.collection("workers").doc(lookup.workerId).get();
+      if(!doc.exists)return text("workerLoginMsg","העובד לא נמצא במסד.");
+      const worker={id:doc.id,...doc.data()};
+      if(worker.active===false)return text("workerLoginMsg","העובד לא פעיל.");
+      if(worker.authUid && uid && worker.authUid!==uid){
+        await auth.signOut().catch(()=>{});
+        return text("workerLoginMsg","התחברות Auth לא תואמת לעובד. פנה למנהל.");
+      }
+      if(isSubscriptionExpired(worker)){
+        localStorage.removeItem("workSession"); session=null; showExpiredView(worker); return;
+      }
+      await db.collection("workers").doc(worker.id).set({
+        authUid:uid,
+        authEmail:lookup.authEmail,
+        authReady:true,
+        lastAuthLoginAt:firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      await ensureUserRoleDoc(uid,"worker",{workerId:worker.id,username:worker.username||username, name:worker.name||"",authEmail:lookup.authEmail,recoveryEmail:worker.recoveryEmail||""}).catch(()=>{});
+      const remember=$("rememberMe")&&$("rememberMe").checked;
+      session={role:"worker",workerId:worker.id,name:worker.name,authUid:uid,authEmail:lookup.authEmail,remember,loginAt:Date.now(),expiresAt:remember?null:Date.now()+(2*60*60*1000)};
+      localStorage.setItem("workSession",JSON.stringify(session));
+      clearLoginFields();
+      await showWorker(worker);
+      return;
+    }catch(e){
+      if(typeof writeAppLogV167==="function") await writeAppLogV167("workerAuthLoginFailedV169",{username,usernameKey,authEmail:lookup.authEmail,errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+      return text("workerLoginMsg","שם משתמש או סיסמה לא נכונים / Auth נכשל: "+(e.code||e.message));
+    }
+  }
+
+  // fallback זמני לגרסה לפני שה־usernameLookup סונכרן. אחרי Security Rules נעולות זה לא יעבוד, לכן יש לסנכרן באדמין לפני החלפת Rules.
+  try{
+    const workerDocId=workerIdFromUsername(usernameKey);
+    let doc=await db.collection("workers").doc(workerDocId).get();
+    if(!doc.exists)return text("workerLoginMsg","לא נמצא Lookup לעובד. היכנס לאדמין ולחץ סנכרון אבטחה.");
+    const worker={id:doc.id,...doc.data()};
+    if(worker.passwordHash!==await sha256(pass))return text("workerLoginMsg","סיסמה שגויה.");
+    if(!worker.authEmail)return text("workerLoginMsg","לעובד חסר Auth Email. צור Auth באדמין.");
+    return text("workerLoginMsg","לעובד חסר Lookup. היכנס לאדמין ולחץ סנכרון אבטחה ואז נסה שוב.");
+  }catch(e){ text("workerLoginMsg","שגיאה בכניסה: "+e.message); }
+}
+
+async function showAdmin(){
+  hideAll(); show("adminView"); show("logoutBtn"); text("userLine","מנהל · Auth מאובטח");
+  await waitForAuthReadyV169();
+  await ensureDefaultPriceList(); await loadSettings();
+  if($("servicePriceInput"))$("servicePriceInput").value=SERVICE_PRICE;
+  if($("adminSetUsername"))$("adminSetUsername").value=ADMIN_USERNAME;
+  if($("trialDaysInput"))$("trialDaysInput").value=DEFAULT_TRIAL_DAYS;
+  await loadWorkers(); await syncAuthSecurityDataV169(); await loadPriceListAdmin(); await loadTemplatesAdmin(); await loadPaymentRequests(); await loadDebugLogs();
+  addSecurityToolsV169();
+}
+
+function addSecurityToolsV169(){
+  if(document.getElementById("securityToolsV169"))return;
+  const admin=document.getElementById("adminView"); if(!admin)return;
+  const div=document.createElement("div");
+  div.id="securityToolsV169";
+  div.className="card panel";
+  div.innerHTML=`
+    <div class="cal-head"><h2>🔒 הכנת אבטחת Firebase</h2><button class="btn-green" onclick="manualSyncSecurityV169()">סנכרן אבטחה</button></div>
+    <p>הכפתור יוצר/מעדכן usernameLookup ו־users/role לכל העובדים. חובה להריץ לפני שמחליפים Security Rules.</p>
+    <div class="actions"><button class="btn-light" onclick="copySecurityRulesV169()">העתק Security Rules</button></div>
+    <div id="securityToolsMsgV169"></div>`;
+  const first=admin.querySelector(".card");
+  admin.insertBefore(div, first||admin.firstChild);
+}
+async function manualSyncSecurityV169(){
+  const msg=document.getElementById("securityToolsMsgV169");
+  if(msg)msg.innerHTML="<div class='notice'>מסנכרן...</div>";
+  await syncAuthSecurityDataV169();
+  if(msg)msg.innerHTML="<div class='notice'>סנכרון אבטחה הסתיים ✅ עכשיו אפשר להעתיק Rules ולעדכן ב־Firebase.</div>";
+  await loadWorkers();
+}
+
+const FIRESTORE_RULES_V169 = String.raw`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function hasUserDoc() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return hasUserDoc() && userDoc().data.role == 'admin';
+    }
+
+    function myWorkerId() {
+      return hasUserDoc() ? userDoc().data.workerId : '';
+    }
+
+    function isOwnWorker(workerId) {
+      return hasUserDoc() && userDoc().data.role == 'worker' && myWorkerId() == workerId;
+    }
+
+    match /usernameLookup/{usernameKey} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /settings/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /workers/{workerId} {
+      allow read: if isAdmin() || isOwnWorker(workerId);
+      allow create, update, delete: if isAdmin() || (isOwnWorker(workerId) && request.resource.data.authUid == request.auth.uid);
+    }
+
+    match /workEntries/{entryId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create: if isAdmin() || (signedIn() && request.resource.data.workerId == myWorkerId());
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId() && request.resource.data.workerId == resource.data.workerId);
+    }
+
+    match /priceList/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /installTemplates/{doc} {
+      allow read: if isAdmin() || (signedIn() && (!('ownerWorkerId' in resource.data) || resource.data.ownerWorkerId == null || resource.data.ownerWorkerId == '' || resource.data.ownerWorkerId == myWorkerId()));
+      allow create: if isAdmin() || (signedIn() && request.resource.data.ownerWorkerId == myWorkerId());
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.ownerWorkerId == myWorkerId());
+    }
+
+    match /paymentRequests/{doc} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create: if signedIn() && request.resource.data.workerId == myWorkerId();
+      allow update, delete: if isAdmin();
+    }
+
+    match /payments/{doc} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /appLogs/{doc} {
+      allow read: if isAdmin();
+      allow create: if signedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}`;
+
+async function copySecurityRulesV169(){
+  try{
+    await navigator.clipboard.writeText(FIRESTORE_RULES_V169);
+    const msg=document.getElementById("securityToolsMsgV169");
+    if(msg)msg.innerHTML="<div class='notice'>Security Rules הועתקו ✅</div>";
+  }catch(e){
+    prompt("העתק את ה־Security Rules:", FIRESTORE_RULES_V169);
+  }
+}
+
+// שמירת Lookup אחרי יצירה/עריכה/הרשמה
+const oldCreateWorkerV169 = window.createWorker;
+if(typeof oldCreateWorkerV169==="function"){
+  window.createWorker = async function(){ await oldCreateWorkerV169(); await syncAuthSecurityDataV169(); };
+}
+const oldRegisterWorkerV169 = window.registerWorker;
+if(typeof oldRegisterWorkerV169==="function"){
+  window.registerWorker = async function(){ await oldRegisterWorkerV169(); };
+}
+</script>
+
+
+
+<script>
+/* ===== VERSION 1.7.0: Admin Auth bootstrap/fix =====
+   המטרה: לא לחסום את האדמין אם עדיין אין לו Firebase Auth UID.
+   קודם מאמתים סיסמת אדמין ישנה. אם Auth לא קיים/נכשל — נכנסים במצב הכנה ומציגים כפתור יצירת Auth למנהל.
+*/
+(function(){
+  const VERSION="1.7.0";
+  window.APP_VERSION=VERSION;
+  function updateVersion(){
+    document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
+    document.title="מעקב עבודה - גרסה "+VERSION;
+  }
+  window.addEventListener("load",()=>setTimeout(updateVersion,80));
+  setTimeout(updateVersion,80);
+})();
+
+function adminAuthEmailV170(){ return "admin@work-monitor.local"; }
+function adminLegacyOkV170(username,password){
+  return username===ADMIN_USERNAME;
+}
+async function adminPasswordHashOkV170(password){
+  return await sha256(password)===ADMIN_PASSWORD_SHA256;
+}
+
+async function ensureAdminRoleDocV170(uid,email){
+  if(!uid) return;
+  await db.collection("users").doc(uid).set({
+    uid,
+    role:"admin",
+    name:"מנהל",
+    username:ADMIN_USERNAME,
+    authEmail:email||adminAuthEmailV170(),
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+}
+
+async function tryAdminFirebaseAuthV170(password){
+  const email=adminAuthEmailV170();
+  if(!firebaseAuthReady()) return {ok:false,reason:"auth_not_loaded",email};
+  try{
+    const cred=await auth.signInWithEmailAndPassword(email,password);
+    const uid=cred && cred.user ? cred.user.uid : "";
+    if(!uid) return {ok:false,reason:"no_admin_uid",email};
+    await ensureAdminRoleDocV170(uid,email);
+    return {ok:true,uid,email,created:false};
+  }catch(signErr){
+    // אם האדמין עוד לא קיים ב-Auth ונכנסה סיסמה באורך תקין — ניצור אותו אוטומטית.
+    if((signErr.code==="auth/user-not-found" || signErr.code==="auth/invalid-login-credentials") && String(password||"").length>=6){
+      try{
+        const cred=await auth.createUserWithEmailAndPassword(email,password);
+        const uid=cred && cred.user ? cred.user.uid : "";
+        if(!uid) return {ok:false,reason:"no_admin_uid_after_create",email};
+        try{ await cred.user.updateProfile({displayName:"מנהל"}); }catch(_e){}
+        await ensureAdminRoleDocV170(uid,email);
+        return {ok:true,uid,email,created:true};
+      }catch(createErr){
+        if(typeof writeAppLogV167==="function") await writeAppLogV167("adminAuthCreateFailedV170",{errorCode:createErr.code||"",errorMessage:createErr.message||String(createErr),authEmail:email}).catch(()=>{});
+        return {ok:false,reason:createErr.code||createErr.message,email};
+      }
+    }
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminAuthLoginFailedV170",{errorCode:signErr.code||"",errorMessage:signErr.message||String(signErr),authEmail:email,passwordLength:String(password||"").length}).catch(()=>{});
+    return {ok:false,reason:signErr.code||signErr.message,email};
+  }
+}
+
+async function adminLogin(){
+  await loadSettings();
+  const u=val("adminUsername"), p=val("adminPassword");
+  if(!u||!p) return text("adminLoginMsg","חובה למלא שם משתמש וסיסמה.");
+  if(!adminLegacyOkV170(u,p) || !(await adminPasswordHashOkV170(p))){
+    return text("adminLoginMsg","שם משתמש או סיסמה לא נכונים.");
+  }
+
+  const authResult=await tryAdminFirebaseAuthV170(p);
+  if(authResult.ok){
+    session={role:"admin",name:"מנהל",authUid:authResult.uid,authEmail:authResult.email,adminAuthReady:true};
+    localStorage.setItem("workSession",JSON.stringify(session));
+    clearLoginFields();
+    await showAdmin();
+    return;
+  }
+
+  // לא שובר את האדמין: נותן כניסה במצב הכנה כדי ליצור UID למנהל.
+  session={role:"admin",name:"מנהל",authUid:"",authEmail:adminAuthEmailV170(),adminAuthReady:false,adminAuthError:authResult.reason||"unknown"};
+  localStorage.setItem("workSession",JSON.stringify(session));
+  clearLoginFields();
+  await showAdmin();
+  const msg=document.getElementById("securityToolsMsgV169") || document.getElementById("adminAuthBootstrapMsgV170");
+  if(msg){
+    msg.innerHTML=`<div class='paywall'>נכנסת כמנהל במצב הכנה. עדיין חסר UID למנהל ב-Firebase Auth.<br>הסיבה: ${esc(authResult.reason||"לא ידוע")}<br>לחץ "צור/תקן Auth למנהל" לפני עדכון Security Rules.</div>`;
+  }
+}
+
+function addAdminAuthBootstrapToolsV170(){
+  const admin=document.getElementById("adminView");
+  if(!admin || document.getElementById("adminAuthBootstrapV170")) return;
+  const div=document.createElement("div");
+  div.id="adminAuthBootstrapV170";
+  div.className="card panel";
+  const ready = session && session.adminAuthReady && session.authUid;
+  div.innerHTML=`
+    <div class="cal-head"><h2>👑 Firebase Auth למנהל</h2><button class="btn-green" onclick="createOrFixAdminAuthV170()">צור/תקן Auth למנהל</button></div>
+    <p>זה יוצר UID אמיתי למנהל ומסמך <b>users/role=admin</b>. חובה לבצע לפני שמפרסמים Security Rules.</p>
+    <div class="item-sub">מצב נוכחי: ${ready ? "Auth מנהל מחובר ✅" : "Auth מנהל חסר/בהכנה ⚠️"} · אימייל פנימי: ${adminAuthEmailV170()}</div>
+    <div id="adminAuthBootstrapMsgV170"></div>`;
+  const first=admin.querySelector(".card");
+  admin.insertBefore(div, first||admin.firstChild);
+}
+
+async function createOrFixAdminAuthV170(){
+  const pass=prompt("הכנס סיסמת Firebase Auth למנהל. מינימום 6 תווים.\nמומלץ לבחור סיסמה חזקה ולשמור אותה.\nשם המשתמש באפליקציה יישאר אותו דבר.");
+  if(pass===null) return;
+  if(!pass || pass.length<6) return alert("סיסמת Firebase Auth חייבת להיות לפחות 6 תווים.");
+  const msg=document.getElementById("adminAuthBootstrapMsgV170") || document.getElementById("securityToolsMsgV169");
+  if(msg) msg.innerHTML="<div class='notice'>יוצר/מחבר Auth למנהל...</div>";
+  const email=adminAuthEmailV170();
+  try{
+    let cred=null, created=false;
+    try{
+      cred=await auth.createUserWithEmailAndPassword(email,pass);
+      created=true;
+    }catch(e){
+      if(e.code==="auth/email-already-in-use"){
+        cred=await auth.signInWithEmailAndPassword(email,pass);
+      }else{
+        throw e;
+      }
+    }
+    const uid=cred && cred.user ? cred.user.uid : "";
+    if(!uid) throw new Error("no_admin_uid");
+    try{ await cred.user.updateProfile({displayName:"מנהל"}); }catch(_e){}
+    await ensureAdminRoleDocV170(uid,email);
+    session={...(session||{}),role:"admin",name:"מנהל",authUid:uid,authEmail:email,adminAuthReady:true};
+    localStorage.setItem("workSession",JSON.stringify(session));
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminAuthFixedV170",{uid,email,created}).catch(()=>{});
+    if(msg) msg.innerHTML="<div class='notice'>Auth למנהל נוצר/חובר בהצלחה ✅ עכשיו לחץ סנכרן אבטחה ורק אחר כך עדכן Security Rules.</div>";
+    await manualSyncSecurityV169().catch(()=>{});
+    await loadDebugLogs().catch(()=>{});
+  }catch(e){
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminAuthFixFailedV170",{errorCode:e.code||"",errorMessage:e.message||String(e),email}).catch(()=>{});
+    if(msg) msg.innerHTML=`<p class='danger'>נכשל ליצור/לחבר Auth למנהל: ${esc(e.code||e.message||String(e))}</p>`;
+    alert("נכשל ליצור/לחבר Auth למנהל: "+(e.code||e.message||String(e))+"\nאם האימייל כבר קיים עם סיסמה אחרת, צריך לאפס אותו ב-Firebase Authentication או לבחור סיסמה קיימת.");
+  }
+}
+
+// עוטף את showAdmin כדי להוסיף את פאנל יצירת ה-Auth למנהל בכל כניסה לאדמין.
+(function(){
+  const oldShowAdmin=window.showAdmin;
+  if(typeof oldShowAdmin==="function"){
+    window.showAdmin=async function(){
+      await oldShowAdmin.apply(this,arguments);
+      addAdminAuthBootstrapToolsV170();
+      const line=document.getElementById("userLine");
+      if(line){
+        line.textContent = (session && session.adminAuthReady && session.authUid) ? "מנהל · Auth מאובטח" : "מנהל · מצב הכנת Auth";
+      }
+    };
+  }
+})();
+</script>
+
 </body>
-</html>
+                                                                                                                            </html>
