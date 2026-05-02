@@ -921,7 +921,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "3.9";
+const APP_VERSION = "4.0";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1179,24 +1179,38 @@ async function checkRecentCustomer(inputId, resultId){
     box.innerHTML="<div class='danger'>מספר לקוח חייב להיות ספרות בלבד</div>";
     return;
   }
-  box.innerHTML="<div class='muted'>בודק 30 ימים אחרונים...</div>";
+  if(!viewedWorker || !viewedWorker.id){
+    box.innerHTML="<div class='danger'>לא זוהה עובד פעיל לבדיקה.</div>";
+    return;
+  }
+  box.innerHTML="<div class='muted'>בודק 30 ימים אחרונים אצל העובד הנוכחי...</div>";
   try{
     const now=new Date();
     const from=new Date(now.getTime()-30*24*60*60*1000);
     const fromStr=formatDate(from);
-    const snap=await db.collection("workEntries").where("customerNumber","==",num).get();
+
+    // חשוב: הבדיקה חייבת להיות מוגבלת לעובד הנוכחי.
+    // ב-Firestore Rules מאובטחים, שאילתה על כל העובדים תיחסם גם אם אחר כך מסננים בצד הלקוח.
+    const snap=await db.collection("workEntries")
+      .where("workerId","==",viewedWorker.id)
+      .where("customerNumber","==",num)
+      .get();
+
     const matches=snap.docs
       .map(d=>({id:d.id,...d.data()}))
-      .filter(e=>e.date>=fromStr)
+      .filter(e=>e.workerId===viewedWorker.id && e.date>=fromStr)
       .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
     if(!matches.length){
-      box.innerHTML="<div class='recent-ok'>לא נמצאה עבודה ללקוח הזה ב־30 הימים האחרונים ✅</div>";
+      box.innerHTML="<div class='recent-ok'>לא נמצאה עבודה שלך אצל הלקוח הזה ב־30 הימים האחרונים ✅</div>";
       return;
     }
     const last=matches[0];
     box.innerHTML=`<div class="recent-box">שים לב: היית אצל הלקוח הזה ב־30 הימים האחרונים.<br>פעם אחרונה: ${heDate(last.date)} · ${esc(last.description||"עבודה")} · ${money(last.amount||0)}<br>כתובת: ${esc(last.address||"")}</div>`;
   }catch(e){
-    box.innerHTML=`<div class='danger'>שגיאה בבדיקת לקוח: ${esc(e.message)}</div>`;
+    const msg=e && (e.code==="permission-denied" || String(e.message||"").includes("permissions"))
+      ? "אין הרשאה לבדוק היסטוריית לקוח. השאילתה כבר מוגבלת לעובד הנוכחי, לכן אם זה חוזר צריך לעדכן Rules שיאפשרו לעובד לקרוא workEntries שלו לפי workerId."
+      : "שגיאה בבדיקת לקוח: "+(e.message||e);
+    box.innerHTML=`<div class='danger'>${esc(msg)}</div>`;
   }
 }
 async function fillAddressFromLocation(targetInputId){
@@ -7070,4 +7084,4 @@ button.btn-light,.btn-light{
 </script>
 
 </body>
-</html>
+  </html>
