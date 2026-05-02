@@ -4700,5 +4700,195 @@ window.onload = async()=>{
 };
 </script>
 
+
+
+<script>
+/* ===== VERSION 1.8.0: Safe logout + worker null guard =====
+   תיקון: אם עובד עושה יציאה בזמן שעדיין רצות טעינות async ברקע,
+   לא מאפשרים לטעינה הישנה להמשיך לצייר דשבורד או לקרוא monthlyGoal על viewedWorker ריק.
+*/
+(function(){
+  const VERSION="1.8.0";
+  window.APP_VERSION=VERSION;
+  window.__appNavTokenV180 = window.__appNavTokenV180 || 0;
+  window.__isLoggingOutV180 = false;
+
+  function updateVersionV180(){
+    document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
+    document.title="מעקב עבודה - גרסה "+VERSION;
+  }
+  window.addEventListener("load",()=>setTimeout(updateVersionV180,80));
+  setTimeout(updateVersionV180,80);
+})();
+
+function nextNavTokenV180(){
+  window.__appNavTokenV180 = Number(window.__appNavTokenV180 || 0) + 1;
+  return window.__appNavTokenV180;
+}
+function currentNavTokenV180(){
+  return Number(window.__appNavTokenV180 || 0);
+}
+function isStaleNavV180(token){
+  return token !== currentNavTokenV180() || window.__isLoggingOutV180;
+}
+
+// יציאה בטוחה: קודם מבטלים טעינות רקע ומנקים session, אחר כך מציגים כניסה.
+async function logout(){
+  const token = nextNavTokenV180();
+  window.__isLoggingOutV180 = true;
+  try{ localStorage.removeItem("workSession"); }catch(e){}
+  session = null;
+  viewedWorker = null;
+  selectedDate = null;
+  selectedType = null;
+  monthEntries = [];
+  try{ clearLoginFields(); }catch(e){}
+  try{ hideAll(); show("workerLoginView"); hide("logoutBtn"); text("userLine","לא מחובר"); }catch(e){}
+
+  // signOut יכול לקחת רגע או להיכשל בגלל מצב ביניים — לא נותנים לזה לשבור את המסך.
+  try{ if(firebaseAuthReady()) await auth.signOut(); }catch(e){ console.warn("signOut skipped/failed", e); }
+
+  // רק אם אין ניווט חדש בינתיים, מסיימים מצב logout.
+  if(token === currentNavTokenV180()){
+    window.__isLoggingOutV180 = false;
+    try{ hideAll(); show("workerLoginView"); hide("logoutBtn"); text("userLine","לא מחובר"); }catch(e){}
+  }
+}
+
+// גרסה מוגנת לסטטיסטיקות: אם אין viewedWorker לא קוראים monthlyGoal.
+function renderStats(){
+  const worker = viewedWorker || {};
+  const entries = Array.isArray(monthEntries) ? monthEntries : [];
+  const monthTotal = entries.reduce((s,e)=>s+Number(e.amount||0),0);
+  const dayTotal = selectedDate ? entries.filter(e=>e.date===selectedDate).reduce((s,e)=>s+Number(e.amount||0),0) : 0;
+  const goal = Number(worker.monthlyGoal || 0);
+  const left = Math.max(goal-monthTotal,0);
+  if($("monthTotal")) $("monthTotal").textContent = money(monthTotal);
+  if($("dayTotal")) $("dayTotal").textContent = money(dayTotal);
+  if($("goalTotal")) $("goalTotal").textContent = money(goal);
+  if($("leftTotal")) $("leftTotal").textContent = money(left);
+  if($("goalBar")) $("goalBar").style.width = goal ? Math.min(monthTotal/goal*100,100)+"%" : "0%";
+  if($("paceLine")) text("paceLine", goal ? (left<=0 ? "מעולה — היעד הושג." : `חסר ליעד: ${money(left)}.`) : "לא הוגדר יעד חודשי.");
+}
+
+// פתיחת עובד מוגנת ממרוץ בין refresh/logout.
+async function showWorkerById(id){
+  const token = nextNavTokenV180();
+  window.__isLoggingOutV180 = false;
+  try{
+    if(!id) throw new Error("חסר מזהה עובד");
+    const worker = await fetchFreshWorkerV177(id);
+    if(isStaleNavV180(token)) return;
+    const gate = await assertWorkerCanViewV177(worker);
+    if(isStaleNavV180(token) || !gate.ok) return;
+    await showWorker(gate.worker, token);
+  }catch(e){
+    if(window.__isLoggingOutV180 || !session) return;
+    try{ if(isWorkerSessionV177()) await logout(); }catch(_e){}
+    if(!window.__isLoggingOutV180) alert("שגיאה בפתיחת עובד: " + (e.message || String(e)));
+  }
+}
+
+async function showWorker(worker, token){
+  token = token || nextNavTokenV180();
+  window.__isLoggingOutV180 = false;
+  if(!worker || !worker.id) return;
+
+  const gate = await assertWorkerCanViewV177(worker);
+  if(isStaleNavV180(token) || !gate.ok) return;
+  worker = gate.worker;
+
+  viewedWorker = worker;
+  hideAll();
+  show("workerView");
+  show("logoutBtn");
+  if($("backAdminBtn")) $("backAdminBtn").classList.toggle("hidden", !(session && session.role === "admin"));
+  text("userLine", `${worker.name || "עובד"} · ${session && session.role === "admin" ? "צפייה כמנהל" : "עובד"}`);
+  text("helloTitle", `שלום ${worker.name || ""}`);
+  calendarDate = new Date();
+  selectedDate = null;
+  selectedType = null;
+  if($("selfMonthlyGoal")) $("selfMonthlyGoal").value = Number(worker.monthlyGoal || 0);
+  if($("selfNewPassword")) $("selfNewPassword").value = "";
+
+  try{ await loadSettings(); }catch(e){ console.warn("loadSettings skipped in showWorker", e); }
+  if(isStaleNavV180(token)) return;
+  await loadMonth(token);
+}
+
+// טעינת חודש מוגנת: אם המשתמש יצא באמצע — עוצרים בשקט.
+async function loadMonth(token){
+  token = token || currentNavTokenV180();
+  if(!viewedWorker || !viewedWorker.id || isStaleNavV180(token)) return;
+
+  if(isWorkerSessionV177()){
+    const gate = await assertWorkerCanViewV177(viewedWorker);
+    if(isStaleNavV180(token) || !gate.ok) return;
+    viewedWorker = gate.worker;
+  }
+
+  await loadPriceList();
+  if(isStaleNavV180(token) || !viewedWorker) return;
+  await loadTemplates();
+  if(isStaleNavV180(token) || !viewedWorker) return;
+
+  const y=calendarDate.getFullYear(), m=calendarDate.getMonth();
+  const last=new Date(y,m+1,0).getDate();
+  const start=`${y}-${pad(m+1)}-01`, end=`${y}-${pad(m+1)}-${pad(last)}`;
+  if($("calTitle")) text("calTitle",`${months[m]} ${y}`);
+  if($("monthSub")) text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);
+
+  monthEntries=[];
+  renderCalendar(); renderDay(); renderStats();
+
+  const workerId = viewedWorker.id;
+  const snap = await db.collection("workEntries").where("workerId","==",workerId).get();
+  if(isStaleNavV180(token) || !viewedWorker || viewedWorker.id !== workerId) return;
+
+  monthEntries = snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);
+  renderCalendar(); renderDay(); renderStats();
+  try{ renderSmartDashboard(); }catch(e){ console.warn("dashboard render skipped", e); }
+  if($('searchPanel') && !$('searchPanel').classList.contains('hidden')) renderFullSummary();
+}
+
+// startup עם token כדי שלא יהיה מצב ש־session ישן ממשיך אחרי יציאה.
+window.onload = async()=>{
+  const token = nextNavTokenV180();
+  window.__isLoggingOutV180 = false;
+  try{ showStartupV179(); }catch(e){}
+  try{
+    try{ await ensureDefaultPriceList(); await loadSettings(); }catch(e){ console.warn("startup settings skipped", e); }
+    attachLoginFieldCleaner();
+  }catch(e){ console.error(e); }
+  if(isStaleNavV180(token)) return;
+
+  const saved = localStorage.getItem("workSession");
+  if(saved){
+    try{
+      session = JSON.parse(saved);
+      if(session.role === "admin"){
+        clearLoginFields();
+        await waitForAuthReadyV169().catch(()=>{});
+        if(isStaleNavV180(token)) return;
+        return showAdmin();
+      }
+      if(session.role === "worker"){
+        if(isSessionExpired()){
+          localStorage.removeItem("workSession"); session=null; clearLoginFields(); return showWorkerLogin();
+        }
+        clearLoginFields();
+        await waitForAuthReadyV169().catch(()=>{});
+        if(isStaleNavV180(token)) return;
+        return showWorkerById(session.workerId);
+      }
+    }catch(e){
+      console.warn("saved session restore failed", e);
+      localStorage.removeItem("workSession"); session=null;
+    }
+  }
+  if(!isStaleNavV180(token)) showWorkerLogin();
+};
+</script>
+
 </body>
   </html>
