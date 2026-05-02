@@ -340,7 +340,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <h1 class="big-title">כניסת עובד</h1><p style="text-align:center">הכנס שם משתמש וסיסמה שקיבלת מהמנהל.</p>
 <input id="workerUsername" placeholder="שם משתמש"><input id="workerPassword" type="password" placeholder="סיסמה">
 <button class="btn-green" onclick="workerLogin()">כניסה</button><p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.4.8</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.5.4</div>
 </section>
 
 <section id="adminLoginView" class="card login-box hidden">
@@ -552,7 +552,55 @@ const defaultPriceList=[["התקנת שקע סיב חדש - כולל מודם",1
 window.onload=async()=>{try{await ensureDefaultPriceList();await loadSettings()}catch(e){console.error(e)}const saved=localStorage.getItem("workSession");if(saved){try{session=JSON.parse(saved);if(session.role==="admin"){localStorage.removeItem("workSession");session=null;return showWorkerLogin()}if(session.role==="worker")return showWorkerById(session.workerId)}catch(e){localStorage.removeItem("workSession")}}showWorkerLogin()};
 function secretTap(){tapCount++;if(tapCount>=10){tapCount=0;hideAll();show("adminLoginView");$("adminUsername").focus()}}function showWorkerLogin(){hideAll();show("workerLoginView");hide("logoutBtn");text("userLine","לא מחובר");$("workerPassword").value="";text("workerLoginMsg","")}
 async function adminLogin(){await loadSettings();const u=val("adminUsername"),p=val("adminPassword");if(u===ADMIN_USERNAME&&await sha256(p)===ADMIN_PASSWORD_SHA256){session={role:"admin",name:"מנהל"};localStorage.setItem("workSession",JSON.stringify(session));await showAdmin()}else text("adminLoginMsg","שם משתמש או סיסמה לא נכונים.")}
-async function workerLogin(){const username=val("workerUsername"),pass=val("workerPassword");if(!username||!pass)return text("workerLoginMsg","חובה למלא שם משתמש וסיסמה.");const usernameKey=normalize(username),workerDocId=workerIdFromUsername(usernameKey);try{let doc=await db.collection("workers").doc(workerDocId).get();if(!doc.exists){const q=await db.collection("workers").where("usernameKey","==",usernameKey).where("active","==",true).limit(1).get();if(q.empty)return text("workerLoginMsg","שם משתמש לא קיים או לא פעיל.");doc=q.docs[0]}const worker={id:doc.id,...doc.data()};if(worker.active===false)return text("workerLoginMsg","העובד לא פעיל.");if(worker.passwordHash!==await sha256(pass))return text("workerLoginMsg","סיסמה שגויה.");session={role:"worker",workerId:worker.id,name:worker.name};localStorage.setItem("workSession",JSON.stringify(session));await showWorker(worker)}catch(e){text("workerLoginMsg","שגיאה בכניסה: "+e.message)}}
+async function workerLogin(){
+  const username = val("workerUsername"), pass = val("workerPassword");
+  if(!username || !pass) return text("workerLoginMsg","חובה למלא שם משתמש וסיסמה.");
+
+  const usernameKey = normalize(username);
+  const workerDocId = workerIdFromUsername(usernameKey);
+
+  try{
+    let doc = await db.collection("workers").doc(workerDocId).get();
+
+    if(!doc.exists){
+      // fallback 1: query by normalized key
+      let q = await db.collection("workers").where("usernameKey","==",usernameKey).where("active","==",true).limit(1).get();
+
+      // fallback 2: scan all workers and compare lower-case, for older records
+      if(q.empty){
+        const all = await db.collection("workers").get();
+        const found = all.docs.find(d=>{
+          const w = d.data();
+          return w.active !== false && (
+            normalize(w.usernameKey || "") === usernameKey ||
+            normalize(w.username || "") === usernameKey
+          );
+        });
+        if(found) doc = found;
+      }else{
+        doc = q.docs[0];
+      }
+
+      if(!doc.exists){
+        return text("workerLoginMsg","שם משתמש לא קיים או לא פעיל.");
+      }
+    }
+
+    const worker = {id:doc.id, ...doc.data()};
+    if(worker.active === false) return text("workerLoginMsg","העובד לא פעיל.");
+
+    if(worker.passwordHash !== await sha256(pass)){
+      return text("workerLoginMsg","סיסמה שגויה.");
+    }
+
+    session = {role:"worker", workerId:worker.id, name:worker.name};
+    localStorage.setItem("workSession", JSON.stringify(session));
+    await showWorker(worker);
+  }catch(e){
+    text("workerLoginMsg","שגיאה בכניסה: "+e.message);
+  }
+}
+
 function logout(){localStorage.removeItem("workSession");session=null;viewedWorker=null;showWorkerLogin()}
 async function showAdmin(){hideAll();show("adminView");show("logoutBtn");text("userLine","מנהל");await ensureDefaultPriceList();await loadSettings();$("servicePriceInput").value=SERVICE_PRICE;$("adminSetUsername").value=ADMIN_USERNAME;await loadWorkers();await loadPriceListAdmin();await loadTemplatesAdmin();await loadDebugLogs()}
 async function loadSettings(){const doc=await db.collection("settings").doc("main").get();if(doc.exists){const d=doc.data();if(d.servicePrice!==undefined)SERVICE_PRICE=Number(d.servicePrice||65);if(d.adminUsername)ADMIN_USERNAME=d.adminUsername;if(d.adminPasswordHash)ADMIN_PASSWORD_SHA256=d.adminPasswordHash}else{await db.collection("settings").doc("main").set({servicePrice:65,adminUsername:"Eliran",adminPasswordHash:ADMIN_PASSWORD_SHA256,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true})}updateServicePriceLabels()}
@@ -1090,7 +1138,7 @@ async function exportEntriesCSV(){
 }
 async function backupJSON(){
   const collections=["workers","priceList","workEntries","settings","installTemplates"];
-  const data={version:"1.4.8",exportedAt:new Date().toISOString(),collections:{}};
+  const data={version:"1.5.4",exportedAt:new Date().toISOString(),collections:{}};
   for(const c of collections){
     const snap=await db.collection(c).get();
     data.collections[c]=snap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
@@ -1289,7 +1337,7 @@ async function exportMyEntriesCSV(){
 }
 async function backupMyJSON(){
   if(!viewedWorker)return;
-  const data={version:"1.4.8",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
+  const data={version:"1.5.4",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
   const entriesSnap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
   data.collections.workEntries=entriesSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
   const tplSnap=await db.collection("installTemplates").get();
@@ -1379,6 +1427,213 @@ function $(id){return document.getElementById(id)}function show(id){$(id).classL
   document.addEventListener("click", function(){ setTimeout(fixVisibleLineBreaks, 80); });
   document.addEventListener("input", function(){ setTimeout(fixVisibleLineBreaks, 80); });
   setInterval(fixVisibleLineBreaks, 700);
+})();
+</script>
+
+
+<script>
+/* ===== FIX 1.5.3: Template creator display + manual assignment ===== */
+
+function getTemplateOwnerTextV153(t){
+  if(!t) return "לא ידוע";
+  return t.ownerWorkerName ||
+         t.createdByName ||
+         t.workerName ||
+         t.ownerUsername ||
+         t.createdFromWorkerName ||
+         (t.ownerWorkerId ? ("עובד: " + t.ownerWorkerId) : "לא ידוע");
+}
+
+function ensureTemplateDebugBoxV153(){
+  var target = document.getElementById("templatesAdminTop") || document.getElementById("templatesAdmin");
+  if(!target) return null;
+  var box = document.getElementById("templateDebugBox");
+  if(!box){
+    box = document.createElement("div");
+    box.id = "templateDebugBox";
+    box.className = "debug";
+    box.style.marginTop = "10px";
+    target.parentNode.insertBefore(box, target.nextSibling);
+  }
+  return box;
+}
+
+async function enrichTemplateOwnersV153(list){
+  for(const t of list){
+    const hasOwner = t.ownerWorkerName || t.createdByName || t.ownerUsername || t.createdFromWorkerName;
+    if(hasOwner) continue;
+
+    if(t.createdFromEntry){
+      try{
+        const entryDoc = await db.collection("workEntries").doc(t.createdFromEntry).get();
+        if(entryDoc.exists){
+          const e = entryDoc.data();
+          const ownerName = e.workerName || "לא ידוע";
+          t.ownerWorkerName = ownerName;
+          t.createdByName = ownerName;
+          t.ownerWorkerId = e.workerId || t.ownerWorkerId || "";
+          t.createdFromWorkerName = ownerName;
+
+          await db.collection("installTemplates").doc(t.id).set({
+            ownerWorkerName: ownerName,
+            createdByName: ownerName,
+            ownerWorkerId: e.workerId || "",
+            createdFromWorkerName: ownerName,
+            autoOwnerFixedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, {merge:true});
+        }
+      }catch(err){
+        console.error("enrichTemplateOwnersV153 failed", err);
+      }
+    }
+  }
+  return list;
+}
+
+async function assignTemplateOwner(templateId){
+  try{
+    if(!workers || !workers.length){
+      await loadWorkers();
+    }
+    const list = workers.map((w,i)=>`${i+1}. ${w.name} (${w.username})`).join("\n");
+    const choice = prompt("בחר מספר עובד לשיוך התבנית:\n" + list);
+    if(choice === null) return;
+    const worker = workers[Number(choice)-1];
+    if(!worker) return alert("בחירה לא תקינה");
+
+    await db.collection("installTemplates").doc(templateId).set({
+      ownerWorkerId: worker.id,
+      ownerWorkerName: worker.name,
+      ownerUsername: worker.username || "",
+      createdByName: worker.name,
+      manualOwnerFixedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, {merge:true});
+
+    alert("התבנית שויכה ל-" + worker.name);
+    await loadTemplatesAdmin();
+  }catch(e){
+    alert("שגיאה בשיוך תבנית: " + e.message);
+  }
+}
+
+async function loadTemplatesAdmin(){
+  try{
+    if(typeof loadWorkers === "function") await loadWorkers();
+    if(typeof loadTemplates === "function") await loadTemplates();
+
+    templates = await enrichTemplateOwnersV153(templates || []);
+
+    const boxes = [];
+    const b1 = document.getElementById("templatesAdminTop");
+    const b2 = document.getElementById("templatesAdmin");
+    if(b1) boxes.push(b1);
+    if(b2 && b2 !== b1) boxes.push(b2);
+
+    if(!boxes.length){
+      alert("לא נמצא אזור תבניות באדמין. שלח צילום מסך של אזור התבניות.");
+      return;
+    }
+
+    boxes.forEach(box=>{
+      box.innerHTML = templates.length ? "" : "<p class='muted'>אין תבניות עדיין.</p>";
+      templates.forEach(t=>{
+        const owner = getTemplateOwnerTextV153(t);
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+          <div>
+            <div class="item-title">⚡ ${esc(t.name || "")}</div>
+            <div class="item-sub">
+              <b>נוצר על ידי:</b> ${esc(owner)}<br><br>
+              ${(t.items || []).map(i=>`${esc(i.name || "")} × ${i.quantity}`).join("<br>")}
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn-yellow" onclick="assignTemplateOwner('${t.id}')">שייך לעובד</button>
+            <button class="btn-red" onclick="deleteTemplate('${t.id}')">מחק</button>
+          </div>
+        `;
+        box.appendChild(div);
+      });
+    });
+
+    const debug = ensureTemplateDebugBoxV153();
+    if(debug){
+      debug.style.display = "none";
+      debug.innerHTML = "";
+    }
+
+    if(typeof cleanVisibleSlashN === "function") cleanVisibleSlashN();
+  }catch(e){
+    alert("שגיאה בטעינת תבניות: " + e.message);
+    console.error(e);
+  }
+}
+
+async function saveEntryAsTemplate(id){
+  const e = monthEntries.find(x=>x.id===id);
+  if(!e || e.workType !== "install" || !e.items || !e.items.length){
+    alert("אפשר לשמור כתבנית רק התקנה עם פריטים.");
+    return;
+  }
+
+  const defaultName = `תבנית מ-${heDate(e.date)} לקוח ${e.customerNumber || ""}`.trim();
+  const name = prompt("שם לתבנית", defaultName);
+  if(name === null) return;
+  if(!name.trim()) return alert("חובה לתת שם לתבנית");
+
+  const ownerName = viewedWorker ? (viewedWorker.name || "") : (session ? (session.name || "") : "");
+  const ownerId = viewedWorker ? viewedWorker.id : "";
+  const ownerUsername = viewedWorker ? (viewedWorker.username || "") : "";
+
+  await db.collection("installTemplates").add({
+    name: name.trim(),
+    items: e.items.map(i=>({
+      id: i.id,
+      name: i.name,
+      price: Number(i.price || 0),
+      quantity: Number(i.quantity || 0),
+      inputMode: i.inputMode || "qty",
+      total: Number(i.total || 0)
+    })),
+    active: true,
+    ownerWorkerId: ownerId,
+    ownerWorkerName: ownerName || "לא ידוע",
+    ownerUsername: ownerUsername,
+    createdByName: ownerName || "לא ידוע",
+    createdByRole: session ? session.role : "",
+    createdFromEntry: id,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  await db.collection("appLogs").add({
+    action: "templateCreated",
+    pageVersion: "1.5.4",
+    clientTime: new Date().toISOString(),
+    data: {
+      templateName: name.trim(),
+      ownerWorkerId: ownerId,
+      ownerWorkerName: ownerName,
+      ownerUsername: ownerUsername,
+      createdFromEntry: id
+    },
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(()=>{});
+
+  alert("התבנית נשמרה ✅");
+  if(typeof loadTemplates === "function") await loadTemplates();
+}
+
+/* Patch admin after it opens */
+(function(){
+  const oldShowAdmin = window.showAdmin;
+  if(typeof oldShowAdmin === "function"){
+    window.showAdmin = async function(){
+      await oldShowAdmin();
+      setTimeout(()=>loadTemplatesAdmin(), 300);
+    };
+  }
 })();
 </script>
 
