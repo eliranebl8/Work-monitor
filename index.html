@@ -667,7 +667,7 @@ button:focus{
   </div>
 
   <div id="paymentMsg"></div>
-  <button class="btn-light" onclick="showWorkerLogin()">חזרה למסך כניסה</button>
+  <button id="expiredBackToLoginBtn" class="btn-light expired-back-btn" type="button" onclick="returnFromExpiredToLoginV37(event)">חזרה למסך כניסה</button>
 </section>
 
 <section id="adminLoginView" class="card login-box hidden">
@@ -921,7 +921,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "3.6";
+const APP_VERSION = "3.9";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -6628,6 +6628,444 @@ button:active{transform:translateY(0) scale(.99)!important;}
   }
 
   window.addEventListener("load",()=>setTimeout(cleanupDeprecatedAdminToolsV35,250));
+})();
+</script>
+
+
+<style id="v37-expired-back-button-fix-css">
+/* ===== v3.7: Expired subscription back button fix ===== */
+#expiredView .expired-back-wrap{
+  display:flex!important;
+  justify-content:center!important;
+  align-items:center!important;
+  margin:18px auto 4px!important;
+  width:100%!important;
+}
+#expiredView #expiredBackToLoginBtn,
+#expiredView .expired-back-btn{
+  display:block!important;
+  width:min(100%,360px)!important;
+  max-width:360px!important;
+  min-height:56px!important;
+  margin:20px auto 4px!important;
+  padding:15px 24px!important;
+  border-radius:20px!important;
+  font-size:16px!important;
+  font-weight:900!important;
+  text-align:center!important;
+  color:#0f172a!important;
+  background:linear-gradient(135deg,#e2e8f0,#cbd5e1)!important;
+  border:1px solid #94a3b8!important;
+  box-shadow:0 12px 24px rgba(15,23,42,.16)!important;
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+}
+</style>
+
+<script id="v37-expired-back-button-fix-js">
+/* ===== v3.7: Robust return from expired subscription screen ===== */
+(function(){
+  function safeHideV37(id){ try{ var el=document.getElementById(id); if(el) el.classList.add('hidden'); }catch(e){} }
+  function safeShowV37(id){ try{ var el=document.getElementById(id); if(el) el.classList.remove('hidden'); }catch(e){} }
+  function clearExpiredAndSessionV37(){
+    try{ localStorage.removeItem('workSession'); }catch(e){}
+    try{ localStorage.removeItem('workExpiredWorkerSession'); }catch(e){}
+    try{ session=null; viewedWorker=null; window.expiredWorker=null; selectedDate=null; selectedType=null; monthEntries=[]; }catch(e){}
+    try{ if(typeof clearLoginFields === 'function') clearLoginFields(); }catch(e){}
+  }
+  window.returnFromExpiredToLoginV37 = function(ev){
+    try{ if(ev && ev.preventDefault) ev.preventDefault(); }catch(e){}
+    clearExpiredAndSessionV37();
+    try{ if(typeof hideAll === 'function') hideAll(); }catch(e){
+      ['startupView','workerLoginView','registerView','expiredView','adminLoginView','adminView','workerView'].forEach(safeHideV37);
+    }
+    safeShowV37('workerLoginView');
+    safeHideV37('logoutBtn');
+    try{ if(typeof text === 'function') text('userLine','לא מחובר'); }catch(e){
+      var u=document.getElementById('userLine'); if(u) u.textContent='לא מחובר';
+    }
+    try{ var msg=document.getElementById('workerLoginMsg'); if(msg) msg.textContent=''; }catch(e){}
+    try{ var wu=document.getElementById('workerUsername'); if(wu) setTimeout(function(){ wu.focus(); },40); }catch(e){}
+    return false;
+  };
+
+  function upgradeExpiredBackButtonV37(){
+    var view=document.getElementById('expiredView'); if(!view) return;
+    var btn=document.getElementById('expiredBackToLoginBtn');
+    if(!btn){
+      var buttons=[].slice.call(view.querySelectorAll('button'));
+      btn=buttons.find(function(b){ return String(b.textContent||'').includes('חזרה'); });
+      if(btn){ btn.id='expiredBackToLoginBtn'; btn.classList.add('expired-back-btn'); }
+    }
+    if(btn){
+      btn.type='button';
+      btn.classList.add('expired-back-btn');
+      btn.onclick=window.returnFromExpiredToLoginV37;
+    }
+  }
+
+  var baseShowExpiredV37 = window.showExpiredView;
+  if(typeof baseShowExpiredV37 === 'function'){
+    window.showExpiredView = function(){
+      var res = baseShowExpiredV37.apply(this, arguments);
+      setTimeout(upgradeExpiredBackButtonV37, 0);
+      setTimeout(upgradeExpiredBackButtonV37, 120);
+      return res;
+    };
+  }
+  document.addEventListener('DOMContentLoaded', upgradeExpiredBackButtonV37);
+  window.addEventListener('load', function(){ setTimeout(upgradeExpiredBackButtonV37, 100); });
+})();
+</script>
+
+
+
+<style id="v38-mobile-stable-css-and-buttons-final">
+/* ===== v3.8: Stable CSS — fix disappearing buttons while scrolling ===== */
+html,body{
+  overflow-x:hidden!important;
+}
+body:after,
+.live-particles,
+.live-particle{
+  display:none!important;
+}
+body:before{
+  animation:none!important;
+  transform:none!important;
+}
+.card,
+.top,
+.item,
+.stat,
+.dash-card,
+.type-card,
+.plan-card,
+.client-card,
+.payment-row,
+.kpi,
+.day,
+.notice,
+.paywall,
+.recent-box,
+.recent-ok,
+.login-box{
+  animation:none!important;
+  transition:none!important;
+  transform:none!important;
+  opacity:1!important;
+  visibility:visible!important;
+  filter:none!important;
+  contain:none!important;
+}
+.card,
+.item,
+.payment-row,
+.client-card,
+.dash-card{
+  overflow:visible!important;
+}
+.card:before,
+.card:after,
+.logo:after,
+button:before,
+button:after{
+  display:none!important;
+  content:none!important;
+  animation:none!important;
+}
+button,
+.actions button,
+.cal-head button,
+#adminView button,
+#workerView button,
+#workerLoginView button,
+#adminLoginView button,
+#registerView button,
+#expiredView button{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+  position:relative!important;
+  z-index:5!important;
+  transform:none!important;
+  animation:none!important;
+  transition:background-color .12s ease, box-shadow .12s ease, border-color .12s ease!important;
+  filter:none!important;
+  will-change:auto!important;
+  backface-visibility:visible!important;
+  -webkit-transform:none!important;
+  min-height:48px!important;
+  padding:13px 18px!important;
+  border-radius:18px!important;
+  font-weight:900!important;
+  box-shadow:0 10px 20px rgba(15,23,42,.16)!important;
+}
+button:hover,
+button:active,
+button:focus{
+  opacity:1!important;
+  visibility:visible!important;
+  transform:none!important;
+  -webkit-transform:none!important;
+  filter:none!important;
+}
+button:not(.btn-light):not(.btn-green):not(.btn-red):not(.btn-yellow){
+  background:linear-gradient(135deg,#1d4ed8,#2563eb)!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+button.btn-green,.btn-green{
+  background:linear-gradient(135deg,#15803d,#16a34a)!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+button.btn-red,.btn-red{
+  background:linear-gradient(135deg,#b91c1c,#dc2626)!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+button.btn-yellow,.btn-yellow{
+  background:linear-gradient(135deg,#d97706,#f59e0b)!important;
+  color:#111827!important;
+  -webkit-text-fill-color:#111827!important;
+}
+button.btn-light,.btn-light{
+  background:linear-gradient(135deg,#e2e8f0,#f8fafc)!important;
+  color:#0f172a!important;
+  -webkit-text-fill-color:#0f172a!important;
+  border:1px solid #cbd5e1!important;
+}
+.actions{
+  align-items:stretch!important;
+}
+#dayEntries .actions,
+#workerView .search-actions-v22,
+#workerView .actions{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:10px!important;
+  width:100%!important;
+}
+#dayEntries .actions button,
+#workerView .search-actions-v22 button,
+#workerView .actions button{
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+}
+@media(max-width:800px){
+  *:not(#startupView):not(#startupView *){
+    animation:none!important;
+  }
+  .card,.top,.item,.stat,.dash-card,.type-card,.plan-card,.client-card,.payment-row,.kpi,.day{
+    transform:none!important;
+    transition:none!important;
+  }
+  button,
+  #workerView button,
+  #adminView button{
+    width:auto!important;
+    min-width:0!important;
+  }
+  #dayEntries .actions,
+  #workerView .actions,
+  #workerView .search-actions-v22,
+  #adminView .actions{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  #dayEntries .actions button,
+  #workerView .actions button,
+  #workerView .search-actions-v22 button,
+  #adminView .actions button{
+    width:100%!important;
+  }
+}
+/* Search install checklist is visible only when installation is selected */
+#workerPriceSearchBoxV22.hidden{display:none!important;}
+#workerPriceSearchBoxV22:not(.hidden){display:block!important;}
+#workerPriceSearchBoxV22{
+  opacity:1!important;
+  visibility:visible!important;
+  transform:none!important;
+  animation:none!important;
+  overflow:visible!important;
+}
+#priceSearchListV22{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:8px!important;
+  max-height:260px!important;
+  overflow-y:auto!important;
+  padding:8px!important;
+  border:1px solid #e2e8f0!important;
+  border-radius:18px!important;
+  background:#fff!important;
+}
+.price-search-item-v22{
+  display:flex!important;
+  align-items:flex-start!important;
+  gap:10px!important;
+  min-height:48px!important;
+  padding:10px 12px!important;
+  border-radius:16px!important;
+  background:#fff!important;
+  border:1px solid #e2e8f0!important;
+  box-shadow:none!important;
+  transform:none!important;
+  animation:none!important;
+}
+.price-search-item-v22 input{
+  width:22px!important;
+  height:22px!important;
+  margin:0!important;
+  flex:0 0 auto!important;
+  accent-color:#2563eb!important;
+}
+</style>
+
+<script id="v39-search-install-checklist-loader-fix-js">
+/* ===== v3.9: Stable installation item checklist in search, using global let priceList correctly ===== */
+(function(){
+  window.selectedWorkerPriceSearchItemsV38 = window.selectedWorkerPriceSearchItemsV38 || new Set();
+
+  function byId(id){ return document.getElementById(id); }
+  function safeEscV38(s){
+    try{ return typeof esc === 'function' ? esc(s) : String(s||'').replace(/[&<>\"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]||c;}); }
+    catch(e){ return String(s||''); }
+  }
+  function currentSearchTypeV38(){
+    var el=byId('searchType');
+    return el ? String(el.value||'') : '';
+  }
+  function getSelectedPriceNamesV38(){
+    return Array.from(window.selectedWorkerPriceSearchItemsV38 || []);
+  }
+  window.clearWorkerPriceSearchV22 = function(){
+    window.selectedWorkerPriceSearchItemsV38 = new Set();
+    document.querySelectorAll('#priceSearchListV22 input[type="checkbox"]').forEach(function(cb){ cb.checked=false; });
+    updatePriceSearchNoteV38();
+  };
+  function updatePriceSearchNoteV38(){
+    var note=byId('priceSearchNoteV22');
+    if(!note) return;
+    var type=currentSearchTypeV38();
+    if(type !== 'install'){
+      note.textContent='בחר סוג עבודה: התקנות כדי לפתוח את הצ׳קליסט';
+      return;
+    }
+    var count=getSelectedPriceNamesV38().length;
+    note.textContent=count ? ('נבחרו '+count+' פריטי התקנה לסינון') : 'בחר פריטי התקנה לסינון, או השאר ריק כדי לראות את כל ההתקנות';
+  }
+  function getPriceListForSearchV39(){
+    // priceList מוגדר בקובץ הראשי עם let, לכן הוא לא נמצא על window.
+    // לכן קודם קוראים למשתנה הגלובלי עצמו, ורק אם לא קיים נופלים ל-window.
+    try{
+      if(typeof priceList !== 'undefined' && Array.isArray(priceList) && priceList.length){
+        return priceList;
+      }
+    }catch(e){}
+    try{
+      if(Array.isArray(window.priceList) && window.priceList.length){
+        return window.priceList;
+      }
+    }catch(e){}
+    return [];
+  }
+
+  function renderPriceSearchListV38(){
+    var list=byId('priceSearchListV22');
+    if(!list) return;
+    var items=getPriceListForSearchV39().filter(function(p){ return p && p.active !== false; });
+    if(!items.length){
+      list.innerHTML='<div class="muted">לא נטענו פריטי מחירון. סגור ופתח את החיפוש שוב, או רענן את המסך.</div>';
+      return;
+    }
+    list.innerHTML='';
+    items.forEach(function(p){
+      var name=String(p.name||'');
+      var id='priceSearchV38_'+String(p.id||name).replace(/[^a-zA-Z0-9_\-א-ת]/g,'_');
+      var label=document.createElement('label');
+      label.className='price-search-item-v22';
+      label.setAttribute('for', id);
+      label.innerHTML='<input id="'+id+'" type="checkbox" data-price-name="'+safeEscV38(name)+'"> <span>'+safeEscV38(name)+'</span>';
+      var cb=label.querySelector('input');
+      cb.checked=(window.selectedWorkerPriceSearchItemsV38 || new Set()).has(name);
+      cb.addEventListener('change', function(){
+        if(!window.selectedWorkerPriceSearchItemsV38) window.selectedWorkerPriceSearchItemsV38=new Set();
+        if(cb.checked) window.selectedWorkerPriceSearchItemsV38.add(name);
+        else window.selectedWorkerPriceSearchItemsV38.delete(name);
+        updatePriceSearchNoteV38();
+      });
+      list.appendChild(label);
+    });
+    updatePriceSearchNoteV38();
+  }
+  window.renderWorkerPriceSearchV38 = renderPriceSearchListV38;
+
+  window.onWorkerSearchTypeChangeV22 = async function(){
+    var box=byId('workerPriceSearchBoxV22');
+    var type=currentSearchTypeV38();
+    if(!box) return;
+    if(type === 'install'){
+      box.classList.remove('hidden');
+      var list=byId('priceSearchListV22');
+      if(list) list.innerHTML='<div class="muted">טוען פריטי מחירון...</div>';
+      try{
+        if(!getPriceListForSearchV39().length && typeof loadPriceList === 'function'){
+          await loadPriceList();
+        }
+      }catch(e){
+        console.warn('loadPriceList for search failed',e);
+      }
+      renderPriceSearchListV38();
+    }else{
+      box.classList.add('hidden');
+      window.clearWorkerPriceSearchV22();
+    }
+  };
+
+  var originalGetFilteredEntriesV38 = window.getFilteredEntries;
+  window.getFilteredEntries = function(){
+    var arr;
+    if(typeof originalGetFilteredEntriesV38 === 'function') arr = originalGetFilteredEntriesV38.apply(this, arguments);
+    else arr = Array.isArray(window.monthEntries) ? window.monthEntries.slice() : [];
+    if(currentSearchTypeV38() !== 'install') return arr;
+    var selected=getSelectedPriceNamesV38();
+    if(!selected.length) return arr;
+    return arr.filter(function(e){
+      if(!e || e.workType !== 'install') return false;
+      var items=e.items || [];
+      return selected.every(function(name){
+        return items.some(function(i){ return String(i.name||'') === String(name); });
+      });
+    });
+  };
+
+  var originalClearSearchV38 = window.clearSearch;
+  window.clearSearch = function(){
+    if(typeof originalClearSearchV38 === 'function') originalClearSearchV38.apply(this, arguments);
+    window.clearWorkerPriceSearchV22();
+    var box=byId('workerPriceSearchBoxV22');
+    if(box) box.classList.add('hidden');
+  };
+
+  var originalToggleSearchPanelV38 = window.toggleSearchPanel;
+  window.toggleSearchPanel = async function(){
+    if(typeof originalToggleSearchPanelV38 === 'function') originalToggleSearchPanelV38.apply(this, arguments);
+    setTimeout(function(){ window.onWorkerSearchTypeChangeV22 && window.onWorkerSearchTypeChangeV22(); },50);
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    var st=byId('searchType');
+    if(st) st.addEventListener('change', function(){ window.onWorkerSearchTypeChangeV22(); });
+    setTimeout(function(){ window.onWorkerSearchTypeChangeV22 && window.onWorkerSearchTypeChangeV22(); },150);
+  });
+  window.addEventListener('load', function(){ setTimeout(function(){ window.onWorkerSearchTypeChangeV22 && window.onWorkerSearchTypeChangeV22(); },250); });
 })();
 </script>
 
