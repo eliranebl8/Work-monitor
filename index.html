@@ -363,7 +363,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <button class="btn-green" onclick="workerLogin()">כניסה</button>
 <button class="btn-light" onclick="showRegister()">הרשמה לעובד חדש</button>
 <p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.6.7</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.6.8</div>
 </section>
 
 <section id="registerView" class="card login-box hidden">
@@ -371,6 +371,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
   <p style="text-align:center">פתח משתמש חדש לתקופת ניסיון. אחרי סוף התקופה יהיה צורך במנוי.</p>
   <input id="regName" placeholder="שם מלא">
   <input id="regUsername" placeholder="שם משתמש">
+  <input id="regEmail" type="email" placeholder="אימייל לשחזור סיסמה - לא חובה">
   <input id="regPassword" type="password" placeholder="סיסמה">
   <input id="regPassword2" type="password" placeholder="אימות סיסמה">
   <button class="btn-green" onclick="registerWorker()">פתח משתמש ניסיון</button>
@@ -535,12 +536,14 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 
 <div class="card"><h2>➕ יצירת עובד</h2>
 <div class="grid3"><input id="wName" placeholder="שם עובד"><input id="wUser" placeholder="שם משתמש לעובד"><input id="wPass" type="password" placeholder="סיסמה"></div>
+<div class="grid2"><input id="wEmail" type="email" placeholder="אימייל לשחזור / Firebase Auth - לא חובה"><div class="muted" style="padding:13px 4px">הכניסה נשארת עם שם משתמש וסיסמה. האימייל מיועד לשחזור/אבטחה.</div></div>
 <div class="grid2"><input id="wGoal" type="number" placeholder="יעד חודשי למשל 20000"><button id="createWorkerBtn" class="btn-green" onclick="createWorker()">צור עובד</button></div><div id="workerMsg"></div></div>
 
 <div id="editWorkerPanel" class="card panel hidden">
 <div class="cal-head"><h2>עריכת עובד</h2><button class="btn-light" onclick="hide('editWorkerPanel')">סגור</button></div>
 <input id="editWorkerId" type="hidden">
 <div class="grid3"><input id="editWorkerName" placeholder="שם עובד"><input id="editWorkerUsername" placeholder="שם משתמש"><input id="editWorkerPassword" type="password" placeholder="סיסמה חדשה - ריק לא משנה"></div>
+<div class="grid2"><input id="editWorkerRecoveryEmail" type="email" placeholder="אימייל לשחזור - לא חובה"><input id="editWorkerAuthEmail" disabled placeholder="אימייל Auth בפועל - לקריאה בלבד"></div>
 <div class="grid2"><input id="editWorkerGoal" type="number" placeholder="יעד חודשי"><select id="editWorkerActive"><option value="true">פעיל</option><option value="false">לא פעיל</option></select></div>
 <div class="actions"><button class="btn-green" onclick="saveWorkerEdit()">שמור עובד</button><button class="btn-light" onclick="hide('editWorkerPanel')">ביטול</button></div><div id="editWorkerMsg"></div>
 </div>
@@ -1517,7 +1520,7 @@ async function exportEntriesCSV(){
 }
 async function backupJSON(){
   const collections=["workers","priceList","workEntries","settings","installTemplates","paymentRequests"];
-  const data={version:"1.6.7",exportedAt:new Date().toISOString(),collections:{}};
+  const data={version:"1.6.8",exportedAt:new Date().toISOString(),collections:{}};
   for(const c of collections){
     const snap=await db.collection(c).get();
     data.collections[c]=snap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
@@ -1716,7 +1719,7 @@ async function exportMyEntriesCSV(){
 }
 async function backupMyJSON(){
   if(!viewedWorker)return;
-  const data={version:"1.6.7",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
+  const data={version:"1.6.8",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
   const entriesSnap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
   data.collections.workEntries=entriesSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
   const tplSnap=await db.collection("installTemplates").get();
@@ -2174,7 +2177,7 @@ async function saveEntryAsTemplate(id){
 
 <script>
 /* ===== v1.6.6: Firebase Auth creation for new + existing workers ===== */
-const APP_VERSION_166 = "1.6.7";
+const APP_VERSION_166 = "1.6.8";
 
 function authStatusTextV166(w){
   return w && w.authUid ? "מחובר ✅" : "בהכנה ⚠️";
@@ -2202,7 +2205,7 @@ async function createWorker(){
       authEmail:authResult.email||authEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.6.7" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.6.8" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2249,7 +2252,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.6.7",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.6.8",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2264,7 +2267,7 @@ async function createAuthForWorker(workerId){
 
     await db.collection("appLogs").add({
       action:"authLinkedForExistingWorker",
-      pageVersion:"1.6.7",
+      pageVersion:"1.6.8",
       workerId,
       workerName:w.name||"",
       authEmail:authResult.email||"",
@@ -2299,7 +2302,7 @@ async function loadWorkers(){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.6.7";
+    if(secret) secret.textContent="גרסה 1.6.8";
   }catch(e){}
 })();
 </script>
@@ -2307,8 +2310,8 @@ async function loadWorkers(){
 
 
 <script>
-/* ===== v1.6.7: Better Auth diagnostics + copy admin log ===== */
-const APP_VERSION_167 = "1.6.7";
+/* ===== v1.6.8: Better Auth diagnostics + copy admin log ===== */
+const APP_VERSION_167 = "1.6.8";
 
 function safeJsonV167(obj){
   try{return JSON.stringify(obj,null,2)}catch(e){return String(obj)}
@@ -2515,7 +2518,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.6.7",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.6.8",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2555,10 +2558,286 @@ async function createAuthForWorker(workerId){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.6.7";
+    if(secret) secret.textContent="גרסה 1.6.8";
   }catch(e){}
 })();
 </script>
 
+
+<script>
+/* ===== v1.6.8: Username login + optional recovery email ===== */
+const APP_VERSION_168 = "1.6.8";
+
+function isValidEmailV168(email){
+  email=String(email||"").trim();
+  return !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+function cleanEmailV168(email){ return String(email||"").trim().toLowerCase(); }
+function effectiveAuthEmailV168(username, optionalEmail){
+  const e=cleanEmailV168(optionalEmail);
+  return e && isValidEmailV168(e) ? e : authEmailFromUsername(username);
+}
+function updateVersionV168(){
+  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.6.8"; }catch(e){}
+}
+
+// שם המשתמש נשאר שדה ההתחברות הראשי. מאחורי הקלעים Firebase Auth נכנס עם authEmail ששמור לעובד.
+async function tryWorkerAuthLogin(username,pass,worker){
+  if(!firebaseAuthReady())return {ok:false,reason:"auth_not_loaded"};
+  const email=(worker && worker.authEmail) || authEmailFromUsername(username);
+  try{
+    const cred=await auth.signInWithEmailAndPassword(email,pass);
+    const uid=cred && cred.user ? cred.user.uid : "";
+    if(uid && worker && worker.id){
+      await db.collection("workers").doc(worker.id).set({
+        authUid:uid,
+        authEmail:email,
+        authReady:true,
+        lastAuthLoginAt:firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      worker.authUid=uid; worker.authEmail=email; worker.authReady=true;
+    }
+    return {ok:true,uid,email};
+  }catch(e){
+    console.warn("Firebase Auth login fallback:", e.code||e.message);
+    if(typeof writeAppLogV167==="function"){
+      await writeAppLogV167("workerAuthLoginFallback",{username,authEmail:email,errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+    }
+    return {ok:false,reason:e.code||e.message,email};
+  }
+}
+
+async function createOrLoginWorkerAuth(username,pass,name,authEmailOverride){
+  const email=effectiveAuthEmailV168(username, authEmailOverride);
+  const basePayload={username:String(username||""),workerName:String(name||""),authEmail:email,passwordLength:pass?String(pass).length:0,passwordProvided:!!pass};
+  if(typeof writeAppLogV167==="function") await writeAppLogV167("authCreateAttemptStart", basePayload).catch(()=>{});
+  if(!firebaseAuthReady()){
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("authCreateAttemptFailed", {...basePayload,stage:"firebaseAuthReady",reason:"auth_not_loaded"}).catch(()=>{});
+    return {ok:false,reason:"auth_not_loaded",email};
+  }
+  try{
+    const cred=await auth.createUserWithEmailAndPassword(email,pass);
+    const uid=cred && cred.user ? cred.user.uid : "";
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("authCreateUserReturned", {...basePayload,uid,hasUser:!!(cred&&cred.user)}).catch(()=>{});
+    if(uid){
+      try{await cred.user.updateProfile({displayName:name||username})}catch(_e){}
+      await ensureUserRoleDoc(uid,"worker",{username,name,authEmail:email,recoveryEmail:email.includes("@work-monitor.local")?"":email}).catch(()=>{});
+      return {ok:true,uid,email,created:true};
+    }
+    return {ok:false,reason:"no_uid_returned",email};
+  }catch(e){
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("authCreateUserFailed", {...basePayload,errorCode:e.code||"",errorMessage:e.message||String(e),errorName:e.name||""}).catch(()=>{});
+    if(e.code==="auth/email-already-in-use"){
+      try{
+        const cred=await auth.signInWithEmailAndPassword(email,pass);
+        const uid=cred && cred.user ? cred.user.uid : "";
+        if(uid){
+          await ensureUserRoleDoc(uid,"worker",{username,name,authEmail:email,recoveryEmail:email.includes("@work-monitor.local")?"":email}).catch(()=>{});
+          return {ok:true,uid,email,created:false};
+        }
+        return {ok:false,reason:"existing_login_no_uid",email};
+      }catch(loginErr){
+        if(typeof writeAppLogV167==="function") await writeAppLogV167("authLoginExistingFailed", {...basePayload,errorCode:loginErr.code||"",errorMessage:loginErr.message||String(loginErr)}).catch(()=>{});
+        return {ok:false,reason:loginErr.code||loginErr.message,email};
+      }
+    }
+    return {ok:false,reason:e.code||e.message,email};
+  }
+}
+
+async function createWorker(){
+  const btn=$("createWorkerBtn"), msg=$("workerMsg");
+  msg.innerHTML="<div class='notice'>יוצר עובד ומחבר Firebase Auth...</div>";
+  btn.disabled=true;
+  try{
+    const name=val("wName"), username=val("wUser"), pass=val("wPass"), goal=Number(val("wGoal")||0);
+    const recoveryEmail=cleanEmailV168($("wEmail")?val("wEmail"):"");
+    if(!name||!username||!pass) return msg.innerHTML="<p class='danger'>חובה למלא שם, שם משתמש וסיסמה.</p>";
+    if(recoveryEmail && !isValidEmailV168(recoveryEmail)) return msg.innerHTML="<p class='danger'>האימייל לא תקין.</p>";
+    if(pass.length<6) return msg.innerHTML="<p class='danger'>ל־Firebase Auth הסיסמה חייבת להיות לפחות 6 תווים.</p>";
+    const usernameKey=normalize(username), id=workerIdFromUsername(usernameKey), preferredAuthEmail=effectiveAuthEmailV168(username,recoveryEmail);
+
+    let authResult={ok:false,email:preferredAuthEmail,uid:"",reason:"not_attempted"};
+    try{ authResult=await createOrLoginWorkerAuth(username,pass,name,preferredAuthEmail); }
+    catch(authErr){ authResult={ok:false,email:preferredAuthEmail,uid:"",reason:authErr.code||authErr.message}; }
+
+    await db.collection("workers").doc(id).set({
+      name,username,usernameKey,
+      authEmail:authResult.email||preferredAuthEmail,
+      recoveryEmail,
+      authUid:authResult.uid||"",
+      authReady:!!authResult.ok,
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.6.8" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      passwordHash:await sha256(pass),
+      monthlyGoal:goal,
+      active:true,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+
+    if(authResult.uid) await ensureUserRoleDoc(authResult.uid,"worker",{username,name,authEmail:authResult.email||preferredAuthEmail,recoveryEmail,workerId:id}).catch(()=>{});
+    try{ if(firebaseAuthReady()) await auth.signOut(); }catch(e){}
+    ["wName","wUser","wPass","wGoal","wEmail"].forEach(x=>{if($(x))$(x).value=""});
+    msg.innerHTML=`<div class='notice'>העובד ${esc(name)} נוצר/עודכן בהצלחה ✅<br>${authResult.ok?"Firebase Auth חובר ✅":"העובד נשמר, אבל Auth עדיין בהכנה ⚠️"}<br>כניסה נשארת עם שם משתמש וסיסמה.<br>אימייל Auth: ${esc(authResult.email||preferredAuthEmail)}</div>`;
+    await loadWorkers();
+  }catch(e){ msg.innerHTML=`<p class='danger'>שגיאה: ${esc(e.message)}</p>`; }
+  finally{ btn.disabled=false; }
+}
+
+function openWorkerEdit(id){
+  const w=workers.find(x=>x.id===id); if(!w)return;
+  show("editWorkerPanel");
+  $("editWorkerId").value=id;
+  $("editWorkerName").value=w.name||"";
+  $("editWorkerUsername").value=w.username||"";
+  $("editWorkerPassword").value="";
+  $("editWorkerGoal").value=w.monthlyGoal||0;
+  $("editWorkerActive").value=w.active===false?"false":"true";
+  if($("editWorkerRecoveryEmail"))$("editWorkerRecoveryEmail").value=w.recoveryEmail||"";
+  if($("editWorkerAuthEmail"))$("editWorkerAuthEmail").value=w.authEmail||authEmailFromUsername(w.username||w.id||"");
+  $("editWorkerMsg").innerHTML="";
+  window.scrollTo({top:$("editWorkerPanel").offsetTop-20,behavior:"smooth"});
+}
+
+async function saveWorkerEdit(){
+  const id=val("editWorkerId"), name=val("editWorkerName"), username=val("editWorkerUsername"), pass=val("editWorkerPassword"), goal=Number(val("editWorkerGoal")||0), active=$("editWorkerActive").value==="true";
+  const recoveryEmail=cleanEmailV168($("editWorkerRecoveryEmail")?val("editWorkerRecoveryEmail"):"");
+  if(!name||!username)return $("editWorkerMsg").innerHTML="<p class='danger'>חובה למלא שם ושם משתמש.</p>";
+  if(recoveryEmail && !isValidEmailV168(recoveryEmail)) return $("editWorkerMsg").innerHTML="<p class='danger'>האימייל לא תקין.</p>";
+  const usernameKey=normalize(username), newId=workerIdFromUsername(usernameKey);
+  const update={name,username,usernameKey,recoveryEmail,monthlyGoal:goal,active,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  if(pass){
+    if(pass.length<6)return $("editWorkerMsg").innerHTML="<p class='danger'>סיסמה חייבת להיות לפחות 6 תווים.</p>";
+    update.passwordHash=await sha256(pass);
+  }
+  if(newId!==id){
+    const oldDoc=await db.collection("workers").doc(id).get();
+    await db.collection("workers").doc(newId).set({...oldDoc.data(),...update},{merge:true});
+    await db.collection("workers").doc(id).update({active:false,movedTo:newId,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  }else await db.collection("workers").doc(id).update(update);
+  const w=(workers||[]).find(x=>x.id===id);
+  if(w && w.authUid){
+    await ensureUserRoleDoc(w.authUid,"worker",{workerId:id,username,name,authEmail:w.authEmail||"",recoveryEmail}).catch(()=>{});
+  }
+  $("editWorkerMsg").innerHTML="<div class='notice'>העובד נשמר ✅<br>שים לב: שינוי אימייל שחזור לא משנה את אימייל Auth בפועל לעובדים שכבר חוברו.</div>";
+  await loadWorkers();
+}
+
+async function createAuthForWorker(workerId){
+  const w=(workers||[]).find(x=>x.id===workerId);
+  if(!w)return alert("העובד לא נמצא ברשימה. לחץ רענן ונסה שוב.");
+  if(w.authUid)return alert("לעובד הזה כבר יש Firebase Auth מחובר ✅");
+  let emailPrompt=prompt("אימייל לשחזור / Auth לעובד הזה (לא חובה).\nאם תשאיר ריק, ניצור אימייל פנימי לפי שם המשתמש.", w.recoveryEmail||"");
+  if(emailPrompt===null)return;
+  emailPrompt=cleanEmailV168(emailPrompt);
+  if(emailPrompt && !isValidEmailV168(emailPrompt))return alert("האימייל לא תקין.");
+  const pass=prompt("הכנס סיסמה לעובד. מינימום 6 תווים. הסיסמה לא תופיע בלוג.");
+  if(pass===null)return;
+  if(!pass||pass.length<6)return alert("סיסמה חייבת להיות לפחות 6 תווים.");
+  const preferredAuthEmail=effectiveAuthEmailV168(w.username||w.usernameKey||w.id,emailPrompt);
+
+  if(typeof writeAppLogV167==="function") await writeAppLogV167("adminCreateAuthForWorkerClicked",{workerId,workerName:w.name||"",username:w.username||w.usernameKey||w.id,authEmail:preferredAuthEmail,recoveryEmail:emailPrompt,passwordLength:pass.length}).catch(()=>{});
+  try{
+    const authResult=await createOrLoginWorkerAuth(w.username||w.usernameKey||w.id,pass,w.name||"",preferredAuthEmail);
+    if(!authResult.ok||!authResult.uid){
+      if(typeof writeAppLogV167==="function") await writeAppLogV167("adminCreateAuthForWorkerResultFailed",{workerId,workerName:w.name||"",reason:authResult.reason||"לא ידוע",authEmail:authResult.email||""}).catch(()=>{});
+      await loadDebugLogs();
+      return alert("לא הצלחתי ליצור/לחבר Auth: "+(authResult.reason||"לא ידוע")+"\n\nנוסף לוג מפורט. לחץ 'העתק לוג' ושלח לי.");
+    }
+    await db.collection("workers").doc(workerId).set({
+      authUid:authResult.uid,
+      authEmail:authResult.email||preferredAuthEmail,
+      recoveryEmail:emailPrompt,
+      authReady:true,
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.6.8",
+      passwordHash:await sha256(pass),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+    await ensureUserRoleDoc(authResult.uid,"worker",{workerId,username:w.username||w.usernameKey||w.id,name:w.name||"",authEmail:authResult.email||preferredAuthEmail,recoveryEmail:emailPrompt}).catch(()=>{});
+    try{if(firebaseAuthReady())await auth.signOut();}catch(e){}
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("authLinkedForExistingWorker",{workerId,workerName:w.name||"",authUid:authResult.uid,authEmail:authResult.email||preferredAuthEmail,recoveryEmail:emailPrompt}).catch(()=>{});
+    alert("Firebase Auth נוצר וחובר לעובד ✅\nהכניסה עדיין עם שם משתמש וסיסמה.");
+    await loadWorkers(); await loadDebugLogs();
+  }catch(e){
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminCreateAuthForWorkerUnexpectedError",{workerId,workerName:w.name||"",errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+    await loadDebugLogs();
+    alert("שגיאה ביצירת Auth לעובד: "+(e.code||e.message));
+  }
+}
+
+async function updateRecoveryEmailForWorker(workerId){
+  const w=(workers||[]).find(x=>x.id===workerId); if(!w)return alert("העובד לא נמצא.");
+  let email=prompt("אימייל לשחזור לעובד:\n"+(w.name||""), w.recoveryEmail||"");
+  if(email===null)return;
+  email=cleanEmailV168(email);
+  if(email && !isValidEmailV168(email))return alert("האימייל לא תקין.");
+  await db.collection("workers").doc(workerId).set({recoveryEmail:email,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+  if(w.authUid) await ensureUserRoleDoc(w.authUid,"worker",{workerId,username:w.username||"",name:w.name||"",authEmail:w.authEmail||"",recoveryEmail:email}).catch(()=>{});
+  alert("אימייל השחזור נשמר ✅");
+  await loadWorkers();
+}
+
+async function loadWorkers(){
+  const box=$("workersList");
+  box.innerHTML="<p>טוען עובדים...</p>";
+  const snap=await db.collection("workers").get();
+  workers=snap.docs.map(d=>({id:d.id,...d.data()})).filter(w=>!w.movedTo).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+  box.innerHTML=workers.length?"":"<p class='muted'>אין עובדים עדיין.</p>";
+  workers.forEach(w=>{
+    const row=document.createElement("div"); row.className="item";
+    const authTxt=w.authUid?"מחובר ✅":"בהכנה ⚠️";
+    const authBtn=w.authUid?"":`<button class="btn-green" onclick="createAuthForWorker('${w.id}')">צור Auth</button>`;
+    const authEmail=w.authEmail||authEmailFromUsername(w.username||w.id||"");
+    row.innerHTML=`<div><div class="item-title">${esc(w.name)}</div><div class="item-sub">שם משתמש: ${esc(w.username)} · יעד: ${money(w.monthlyGoal||0)} · ${w.active===false?"לא פעיל":"פעיל"} · Auth: ${authTxt}<br>אימייל Auth: ${esc(authEmail)} · אימייל שחזור: ${esc(w.recoveryEmail||"לא הוגדר")}<br>מנוי: ${esc(w.subscriptionStatus||"רגיל")} עד ${esc(w.subscriptionUntil||w.trialUntil||"ללא הגבלה")} · ID: ${w.id}</div></div><div class="actions"><button onclick="showWorkerById('${w.id}')">פתח מעקב</button>${authBtn}<button class="btn-light" onclick="updateRecoveryEmailForWorker('${w.id}')">אימייל שחזור</button><button class="btn-yellow" onclick="openWorkerEdit('${w.id}')">ערוך</button><button onclick="openSubscriptionEdit('${w.id}')">מנוי</button><button class="${w.active===false?"btn-green":"btn-red"}" onclick="toggleWorker('${w.id}', ${w.active===false})">${w.active===false?"הפעל":"בטל"}</button></div>`;
+    box.appendChild(row);
+  });
+  cleanVisibleSlashN();
+}
+
+// הרשמה עצמית: אימייל לא חובה. הכניסה נשארת לפי שם משתמש.
+async function registerWorker(){
+  const name=val("regName"), username=val("regUsername"), recoveryEmail=cleanEmailV168($("regEmail")?val("regEmail"):""), pass=val("regPassword"), pass2=val("regPassword2");
+  const msg=$("registerMsg"); msg.innerHTML="";
+  if(!name||!username||!pass||!pass2){msg.innerHTML="<p class='danger'>חובה למלא שם, שם משתמש וסיסמה.</p>";return}
+  if(recoveryEmail && !isValidEmailV168(recoveryEmail)){msg.innerHTML="<p class='danger'>האימייל לא תקין.</p>";return}
+  if(pass!==pass2){msg.innerHTML="<p class='danger'>הסיסמאות לא תואמות.</p>";return}
+  if(pass.length<6){msg.innerHTML="<p class='danger'>סיסמה חייבת להיות לפחות 6 תווים.</p>";return}
+  const usernameKey=normalize(username), id=workerIdFromUsername(usernameKey), ref=db.collection("workers").doc(id), existing=await ref.get();
+  if(existing.exists){msg.innerHTML="<p class='danger'>שם המשתמש כבר קיים.</p>";return}
+  const preferredAuthEmail=effectiveAuthEmailV168(username,recoveryEmail);
+  const authResult=await createOrLoginWorkerAuth(username,pass,name,preferredAuthEmail);
+  const trialUntil=addDaysToDate(DEFAULT_TRIAL_DAYS);
+  await ref.set({
+    name,username,usernameKey,
+    authEmail:authResult.email||preferredAuthEmail,
+    recoveryEmail,
+    authUid:authResult.uid||"",
+    authReady:!!authResult.ok,
+    passwordHash:await sha256(pass),
+    monthlyGoal:0,
+    active:true,
+    selfRegistered:true,
+    subscriptionStatus:"trial",
+    trialDays:DEFAULT_TRIAL_DAYS,
+    trialUntil,
+    subscriptionUntil:trialUntil,
+    createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  });
+  if(authResult.uid) await ensureUserRoleDoc(authResult.uid,"worker",{workerId:id,username,name,authEmail:authResult.email||preferredAuthEmail,recoveryEmail}).catch(()=>{});
+  try{if(firebaseAuthReady())await auth.signOut();}catch(e){}
+  msg.innerHTML=`<div class='notice'>המשתמש נפתח בהצלחה ✅<br>תקופת ניסיון עד ${heDate(trialUntil)}<br>הכניסה נשארת עם שם משתמש וסיסמה.</div>`;
+}
+
+function showRegister(){
+  clearLoginFields(); hideAll(); show("registerView"); hide("logoutBtn"); text("userLine","הרשמה חדשה");
+  ["regName","regUsername","regEmail","regPassword","regPassword2"].forEach(id=>{if($(id))$(id).value=""});
+  if($("registerMsg"))$("registerMsg").innerHTML="";
+}
+
+(function(){ updateVersionV168(); })();
+</script>
+
 </body>
-    </html> 
+</html>
