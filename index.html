@@ -340,7 +340,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <h1 class="big-title">כניסת עובד</h1><p style="text-align:center">הכנס שם משתמש וסיסמה שקיבלת מהמנהל.</p>
 <input id="workerUsername" placeholder="שם משתמש"><input id="workerPassword" type="password" placeholder="סיסמה">
 <button class="btn-green" onclick="workerLogin()">כניסה</button><p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.4.5</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.4.6</div>
 </section>
 
 <section id="adminLoginView" class="card login-box hidden">
@@ -794,7 +794,7 @@ async function loadClientHistory(){
       const details=e.workType==="install"&&e.items?e.items.map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("<br>"):(e.isReturnCall?"קריאה חוזרת ללא תשלום":"קריאת שירות");
       const div=document.createElement("div");
       div.className="item";
-      div.innerHTML=`<div><div class="item-title">${esc(e.date||"")} · ${esc(e.description||"")}</div><div class="item-sub">כתובת: ${esc(e.address||"")}\\n${nl2br(details)}\\n${nl2br(e.notes||"")}</div></div><div class="money">${money(e.amount||0)}</div>`;
+      div.innerHTML=`<div><div class="item-title">${esc(e.date||"")} · ${esc(e.description||"")}</div><div class="item-sub">כתובת: ${esc(e.address||"")}<br>${nl2br(details)}<br>${nl2br(e.notes||"")}</div></div><div class="money">${money(e.amount||0)}</div>`;
       box.appendChild(div);
     });
   }catch(e){
@@ -888,8 +888,8 @@ function renderSummary(entries,title){
         : (e.isReturnCall?"קריאה חוזרת ללא תשלום":"קריאת שירות");
       const div=document.createElement("div");
       div.className="item";
-      div.innerHTML=`<div><div class="item-title">${esc(e.date||"")} · ${esc(e.description||"")}</div><div class="item-sub">לקוח: ${esc(e.customerNumber||"")}\\nכתובת: ${esc(e.address||"")}\\n${nl2br(details)}\\n${nl2br(e.notes||"")}</div></div><div class="money">${money(e.amount||0)}</div>`;
-      results.appendChild(div);
+      div.innerHTML=`<div><div class="item-title">${esc(e.date||"")} · ${esc(e.description||"")}</div><div class="item-sub">לקוח: ${esc(e.customerNumber||"")}<br>כתובת: ${esc(e.address||"")}<br>${nl2br(details)}<br>${nl2br(e.notes||"")}</div></div><div class="money">${money(e.amount||0)}</div>`;
+      results.appendChild(div);cleanVisibleSlashN();
     });
 }
 function renderMiniTable(obj){
@@ -1090,7 +1090,7 @@ async function exportEntriesCSV(){
 }
 async function backupJSON(){
   const collections=["workers","priceList","workEntries","settings","installTemplates"];
-  const data={version:"1.4.5",exportedAt:new Date().toISOString(),collections:{}};
+  const data={version:"1.4.6",exportedAt:new Date().toISOString(),collections:{}};
   for(const c of collections){
     const snap=await db.collection(c).get();
     data.collections[c]=snap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
@@ -1289,7 +1289,7 @@ async function exportMyEntriesCSV(){
 }
 async function backupMyJSON(){
   if(!viewedWorker)return;
-  const data={version:"1.4.5",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
+  const data={version:"1.4.6",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
   const entriesSnap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
   data.collections.workEntries=entriesSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
   const tplSnap=await db.collection("installTemplates").get();
@@ -1350,17 +1350,25 @@ async function cleanupAndReloadPriceList(){
 async function loadDebugLogs(){const box=$("debugLog");if(!box)return;try{const snap=await db.collection("appLogs").limit(30).get();box.textContent=snap.empty?"אין לוגים":snap.docs.map(d=>JSON.stringify(d.data())).join("<br>")}catch(e){box.textContent="שגיאה בלוג: "+e.message}}
 
 function nl2br(s){
-  return esc(String(s||"")).replaceAll("\\n","<br>").replaceAll("\n","<br>");
+  return esc(String(s||""))
+    .replaceAll("\\n","<br>")
+    .replaceAll("\n","<br>")
+    .replaceAll("/n","<br>")
+    .replaceAll("
+","<br>");
 }
 
 function cleanVisibleSlashN(){
   document.querySelectorAll(".item-sub").forEach(el=>{
-    if(el.innerHTML.includes("\\n")){
-      el.innerHTML = el.innerHTML.replaceAll("\\n","<br>");
-    }
+    el.innerHTML = el.innerHTML
+      .replaceAll("\\n","<br>")
+      .replaceAll("\n","<br>")
+      .replaceAll("/n","<br>")
+      .replaceAll("
+","<br>");
   });
 }
 function $(id){return document.getElementById(id)}function show(id){$(id).classList.remove("hidden")}function hide(id){$(id).classList.add("hidden")}function hideAll(){["workerLoginView","adminLoginView","adminView","workerView"].forEach(hide)}function val(id){return $(id).value.trim()}function text(id,v){$(id).textContent=v}function normalize(s){return String(s||"").trim().toLowerCase()}function workerIdFromUsername(k){return"worker_"+String(k||"").replace(/[^a-z0-9_\-א-ת]/gi,"_")}function pad(n){return String(n).padStart(2,"0")}function formatDate(d){return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}function parseDate(s){const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}function heDate(s){const d=parseDate(s);return`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`}function money(n){return`₪${Number(n||0).toLocaleString("he-IL",{maximumFractionDigits:0})}`}function esc(s){return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}async function sha256(str){const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("")}
 </script>
 </body>
-                                                                              </html>
+</html>
