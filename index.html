@@ -403,7 +403,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 }
 
 
-/* ===== VERSION 1.9.9: Live animated UI layer ===== */
+/* ===== VERSION 1.10.0: Live animated UI layer ===== */
 @keyframes floatSoft{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes popIn{0%{opacity:0;transform:scale(.92)}70%{transform:scale(1.025)}100%{opacity:1;transform:scale(1)}}
@@ -465,13 +465,13 @@ input:focus,textarea:focus,select:focus{animation:popIn .2s ease both}
 }
 
 
-/* ===== VERSION 1.9.9: Worker security hard fix ===== */
+/* ===== VERSION 1.10.0: Worker security hard fix ===== */
 #backAdminBtn{display:none!important;visibility:hidden!important;pointer-events:none!important}
 #workerView button[onclick="showAdmin()"]{display:none!important;visibility:hidden!important;pointer-events:none!important}
 
 
 
-/* ===== VERSION 1.9.9: Mobile horizontal scroll lock ===== */
+/* ===== VERSION 1.10.0: Mobile horizontal scroll lock ===== */
 html, body{
   width:100%;
   max-width:100%;
@@ -543,6 +543,187 @@ input,textarea,select,button{
   }
 }
 </style>
+
+
+<style id="buttonLayoutProV1100">
+/* ===== VERSION 1.10.0: Professional button system rebuild ===== */
+:root{
+  --btn-text:#1e293b;
+  --btn-muted:#475569;
+  --btn-surface:rgba(255,255,255,.94);
+  --btn-surface-2:#f8fafc;
+  --btn-border:#dbe4ef;
+  --btn-shadow:0 8px 18px rgba(15,23,42,.08);
+  --btn-shadow-hover:0 12px 24px rgba(15,23,42,.11);
+  --btn-primary-bg:linear-gradient(135deg,#eef6ff,#f8fbff);
+  --btn-primary-border:#bfdbfe;
+  --btn-primary-text:#1e40af;
+  --btn-green-bg:linear-gradient(135deg,#ecfdf5,#f7fee7);
+  --btn-green-border:#bbf7d0;
+  --btn-green-text:#166534;
+  --btn-red-bg:linear-gradient(135deg,#fff1f2,#fff7f7);
+  --btn-red-border:#fecdd3;
+  --btn-red-text:#9f1239;
+  --btn-yellow-bg:linear-gradient(135deg,#fff7ed,#fffbeb);
+  --btn-yellow-border:#fed7aa;
+  --btn-yellow-text:#92400e;
+}
+
+html,body{max-width:100%!important;overflow-x:hidden!important;touch-action:pan-y!important;}
+.app,.card,.top,.item,.actions,.grid2,.grid3,.grid4,.cal-head{max-width:100%!important;min-width:0!important;}
+*{min-width:0;}
+
+button,
+.btn-light,
+.btn-green,
+.btn-red,
+.btn-yellow,
+.actions button,
+.cal-head button{
+  appearance:none!important;
+  -webkit-appearance:none!important;
+  min-height:46px!important;
+  padding:12px 16px!important;
+  border-radius:16px!important;
+  border:1px solid var(--btn-primary-border)!important;
+  background:var(--btn-primary-bg)!important;
+  color:var(--btn-primary-text)!important;
+  box-shadow:var(--btn-shadow)!important;
+  font-size:14.5px!important;
+  font-weight:850!important;
+  line-height:1.25!important;
+  letter-spacing:-.1px!important;
+  text-align:center!important;
+  white-space:normal!important;
+  word-break:keep-all!important;
+  overflow-wrap:anywhere!important;
+  transform:none!important;
+  filter:none!important;
+  transition:background .12s ease,border-color .12s ease,box-shadow .12s ease!important;
+}
+
+button:before,button:after{display:none!important;content:none!important;animation:none!important;}
+button:hover,
+button:active,
+button:focus,
+button:focus-visible{
+  transform:none!important;
+  filter:none!important;
+  box-shadow:var(--btn-shadow-hover)!important;
+}
+button:focus-visible{outline:2px solid rgba(37,99,235,.20)!important;outline-offset:2px!important;}
+button:disabled{opacity:.55!important;box-shadow:none!important;}
+
+.btn-light{
+  background:linear-gradient(135deg,#ffffff,#f8fafc)!important;
+  color:var(--btn-muted)!important;
+  border-color:var(--btn-border)!important;
+}
+.btn-green{
+  background:var(--btn-green-bg)!important;
+  color:var(--btn-green-text)!important;
+  border-color:var(--btn-green-border)!important;
+}
+.btn-red{
+  background:var(--btn-red-bg)!important;
+  color:var(--btn-red-text)!important;
+  border-color:var(--btn-red-border)!important;
+}
+.btn-yellow{
+  background:var(--btn-yellow-bg)!important;
+  color:var(--btn-yellow-text)!important;
+  border-color:var(--btn-yellow-border)!important;
+}
+
+/* Button layout: neat, equal, no tiny buttons */
+.actions{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(138px,1fr))!important;
+  gap:10px!important;
+  align-items:stretch!important;
+  width:100%!important;
+}
+.actions button{width:100%!important;margin:0!important;}
+
+.cal-head{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  flex-wrap:wrap!important;
+}
+.cal-head h1,.cal-head h2,.cal-head h3{flex:1 1 180px!important;margin:0!important;}
+.cal-head > button,
+.cal-head > .actions{flex:0 1 auto!important;}
+.cal-head > button{width:auto!important;min-width:124px!important;}
+.cal-head > .actions{width:auto!important;min-width:260px!important;}
+
+.grid2,.grid3,.grid4{gap:12px!important;}
+.grid2 button,.grid3 button,.grid4 button{width:100%!important;margin:7px 0!important;}
+
+.card{
+  border-radius:24px!important;
+  overflow:hidden!important;
+}
+.item{
+  align-items:center!important;
+  border-radius:20px!important;
+}
+.item > .actions,
+.item .actions{
+  min-width:260px!important;
+  max-width:360px!important;
+}
+
+.type-card{
+  border-radius:22px!important;
+  border:1px solid #dbeafe!important;
+  background:linear-gradient(135deg,#ffffff,#f8fbff)!important;
+  color:#1e293b!important;
+  box-shadow:var(--btn-shadow)!important;
+  transform:none!important;
+}
+.type-card:hover,.type-card.active{
+  transform:none!important;
+  background:linear-gradient(135deg,#eef6ff,#ffffff)!important;
+  border-color:#93c5fd!important;
+  box-shadow:var(--btn-shadow-hover)!important;
+}
+
+/* Remove heavy live animations from interactive elements */
+button,.card,.item,.stat,.dash-card,.type-card,.plan-card,.client-card,.payment-row,.kpi,.day,.top,.logo{
+  animation:none!important;
+}
+.logo{box-shadow:0 10px 22px rgba(37,99,235,.18)!important;}
+.card:hover,.item:hover,.stat:hover,.dash-card:hover,.type-card:hover,.plan-card:hover,.client-card:hover,.payment-row:hover,.kpi:hover,.day:hover{
+  transform:none!important;
+}
+
+@media(max-width:800px){
+  body{padding:10px!important;}
+  .top{position:sticky!important;top:6px!important;}
+  .card{padding:15px!important;margin-bottom:12px!important;}
+  button{width:100%!important;min-height:48px!important;padding:13px 14px!important;border-radius:16px!important;font-size:14.5px!important;}
+  .actions{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;}
+  .actions button{min-width:0!important;}
+  .cal-head{display:grid!important;grid-template-columns:1fr!important;text-align:center!important;align-items:stretch!important;}
+  .cal-head > button,.cal-head > .actions{width:100%!important;min-width:0!important;}
+  .item{display:grid!important;grid-template-columns:1fr!important;gap:12px!important;align-items:stretch!important;}
+  .item > div{width:100%!important;max-width:100%!important;}
+  .item > .actions,.item .actions{min-width:0!important;max-width:100%!important;}
+  .grid2,.grid3,.grid4{grid-template-columns:1fr!important;}
+  .subscription-plans,.kpi-strip{grid-template-columns:1fr!important;}
+  .work-row-main{width:100%!important;}
+  .money{text-align:inherit!important;white-space:normal!important;}
+}
+
+@media(max-width:430px){
+  .actions{grid-template-columns:1fr!important;}
+  button{font-size:14px!important;}
+  .brand{font-size:18px!important;}
+}
+</style>
+
 </head>
 <body>
 <div class="app">
@@ -567,7 +748,7 @@ input,textarea,select,button{
 <button class="btn-green" onclick="workerLogin()">כניסה</button>
 <button class="btn-light" onclick="showRegister()">הרשמה לעובד חדש</button>
 <p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.9.9</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.10.0</div>
 </section>
 
 <section id="registerView" class="card login-box hidden">
@@ -2409,7 +2590,7 @@ async function createWorker(){
       authEmail:authResult.email||authEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.9.9" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.10.0" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2456,7 +2637,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.9.9",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.10.0",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2506,7 +2687,7 @@ async function loadWorkers(){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.9.9";
+    if(secret) secret.textContent="גרסה 1.10.0";
   }catch(e){}
 })();
 </script>
@@ -2722,7 +2903,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.9.9",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.10.0",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2762,7 +2943,7 @@ async function createAuthForWorker(workerId){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.9.9";
+    if(secret) secret.textContent="גרסה 1.10.0";
   }catch(e){}
 })();
 </script>
@@ -2782,7 +2963,7 @@ function effectiveAuthEmailV168(username, optionalEmail){
   return e && isValidEmailV168(e) ? e : authEmailFromUsername(username);
 }
 function updateVersionV168(){
-  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.9.9"; }catch(e){}
+  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.10.0"; }catch(e){}
 }
 
 // שם המשתמש נשאר שדה ההתחברות הראשי. מאחורי הקלעים Firebase Auth נכנס עם authEmail ששמור לעובד.
@@ -2872,7 +3053,7 @@ async function createWorker(){
       recoveryEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.9.9" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.10.0" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2954,7 +3135,7 @@ async function createAuthForWorker(workerId){
       authEmail:authResult.email||preferredAuthEmail,
       recoveryEmail:emailPrompt,
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.9.9",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.10.0",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -3795,13 +3976,13 @@ async function adminLogin(){
 
 
 <script>
-/* ===== VERSION 1.9.9: Password recovery options =====
+/* ===== VERSION 1.10.0: Password recovery options =====
    - מוסיף מייל שחזור/אימייל Auth אמיתי למנהל במסך אדמין.
    - אחרי 3 ניסיונות שגויים לעובד או למנהל מציג אפשרות שחזור סיסמה.
    - שחזור Firebase עובד רק אם ה-Auth Email הוא אימייל אמיתי, לא @work-monitor.local.
 */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
   function updateVersionV174(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4089,7 +4270,7 @@ window.workerLogin = async function(){
 
 
 <script>
-/* ===== VERSION 1.9.9: Self registration creates Firebase Auth UID + worker automatically =====
+/* ===== VERSION 1.10.0: Self registration creates Firebase Auth UID + worker automatically =====
    תיקון מרכזי:
    1. הרשמה עצמית יוצרת קודם Firebase Auth עם UID אמיתי.
    2. מיד אחרי זה נשמרים users/{uid}, workers/{workerId}, usernameLookup/{usernameKey}.
@@ -4097,7 +4278,7 @@ window.workerLogin = async function(){
    4. כולל Security Rules מעודכנות שמאפשרות יצירת משתמש עצמי בלי להיות מחובר מראש כמנהל.
 */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
   window.APP_VERSION_176=VERSION;
   function updateVersionV176(){
@@ -4106,7 +4287,7 @@ window.workerLogin = async function(){
     const old=document.getElementById("versionBadgeV176");
     if(!old){
       const brand=document.querySelector(".brand .muted");
-      if(brand && !String(brand.textContent||"").includes("1.9.9")){
+      if(brand && !String(brand.textContent||"").includes("1.10.0")){
         // לא משנים את שורת המשתמש, רק שומרים גרסה בכותרת/סוד.
       }
     }
@@ -4199,7 +4380,7 @@ async function registerWorker(){
       recoveryEmail,
       authUid:uid,
       authReady:true,
-      authNote:"נוצר בהרשמה עצמית אוטומטית בגרסה 1.9.9",
+      authNote:"נוצר בהרשמה עצמית אוטומטית בגרסה 1.10.0",
       passwordHash:await sha256(pass),
       monthlyGoal:0,
       active:true,
@@ -4230,7 +4411,7 @@ async function registerWorker(){
     }catch(e){
       if(typeof writeAppLogV167==="function") await writeAppLogV167("registerFirestoreWriteFailedV176",{username,usernameKey,workerId,uid,authEmail:baseWorker.authEmail,errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
       if(isPermissionErrorV176(e)){
-        registrationMsgV176("<p class='danger'>ה־UID נוצר ב־Firebase Auth, אבל Firestore חסם את שמירת העובד בגלל Security Rules ישנות. היכנס כמנהל, לחץ ‘העתק Security Rules’ בגרסה 1.9.9, פרסם אותן ב־Firebase ואז נסה שוב.</p>");
+        registrationMsgV176("<p class='danger'>ה־UID נוצר ב־Firebase Auth, אבל Firestore חסם את שמירת העובד בגלל Security Rules ישנות. היכנס כמנהל, לחץ ‘העתק Security Rules’ בגרסה 1.10.0, פרסם אותן ב־Firebase ואז נסה שוב.</p>");
       }else{
         registrationMsgV176(`<p class='danger'>נוצר Auth אבל שמירת העובד נכשלה: ${esc(e.code||e.message||String(e))}</p>`);
       }
@@ -4262,7 +4443,7 @@ window.workerLogin = async function(){
     await oldWorkerLoginV176();
     if(session && session.role==="worker") return;
   }
-  // fallback אחרון למשתמשים שנוצרו ב-1.9.9 אבל lookup לא הספיק להיכתב.
+  // fallback אחרון למשתמשים שנוצרו ב-1.10.0 אבל lookup לא הספיק להיכתב.
   try{
     const usernameKey=normalize(username);
     const authEmail=authEmailFromUsername(username);
@@ -4391,9 +4572,9 @@ window.copySecurityRulesV169 = async function(){
   try{
     await navigator.clipboard.writeText(FIRESTORE_RULES_V176);
     const msg=document.getElementById("securityToolsMsgV169") || document.getElementById("adminAuthBootstrapMsgV170");
-    if(msg) msg.innerHTML="<div class='notice'>Security Rules של גרסה 1.9.9 הועתקו ✅</div>";
+    if(msg) msg.innerHTML="<div class='notice'>Security Rules של גרסה 1.10.0 הועתקו ✅</div>";
   }catch(e){
-    prompt("העתק את ה־Security Rules של גרסה 1.9.9:", FIRESTORE_RULES_V176);
+    prompt("העתק את ה־Security Rules של גרסה 1.10.0:", FIRESTORE_RULES_V176);
   }
 };
 
@@ -4405,7 +4586,7 @@ function addSelfRegistrationToolsV176(){
   div.id="selfRegistrationToolsV176";
   div.className="card panel";
   div.innerHTML=`
-    <div class="cal-head"><h2>🆕 הרשמה עצמית 1.9.9</h2><button class="btn-light" onclick="copySecurityRulesV169()">העתק Rules 1.9.9</button></div>
+    <div class="cal-head"><h2>🆕 הרשמה עצמית 1.10.0</h2><button class="btn-light" onclick="copySecurityRulesV169()">העתק Rules 1.10.0</button></div>
     <p>הגרסה הזו יוצרת UID אוטומטי בהרשמה מהמסך הראשי, מחברת אותו לעובד, ופותחת תקופת ניסיון לפי ההגדרה באדמין.</p>
     <div class="notice">אחרי העלאה לגיטהאב: בדוק הרשמה חדשה מחלון גלישה בסתר כדי לוודא שאין Session ישן.</div>`;
   const first=admin.querySelector(".card");
@@ -4417,7 +4598,7 @@ function addSelfRegistrationToolsV176(){
     window.showAdmin=async function(){
       await oldShowAdmin.apply(this,arguments);
       addSelfRegistrationToolsV176();
-      document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.9.9");
+      document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.10.0");
     };
   }
 })();
@@ -4426,11 +4607,11 @@ function addSelfRegistrationToolsV176(){
 
 
 <script>
-/* ===== VERSION 1.9.9: Subscription gate BEFORE rendering worker dashboard =====
+/* ===== VERSION 1.10.0: Subscription gate BEFORE rendering worker dashboard =====
    תיקון קריטי: לא מציגים workerView / נתונים / חודש לפני בדיקת מנוי עדכנית מהשרת.
 */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
   function updateVersionV177(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4566,7 +4747,7 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.9.9: Admin password/access recovery for workers =====
+/* ===== VERSION 1.10.0: Admin password/access recovery for workers =====
    שחזור גישה לעובד ששכח סיסמה:
    - לא מוחק workers ולא מוחק workEntries.
    - יוצר Firebase Auth חדש עם UID חדש, בדרך כלל אימייל פנימי חד־פעמי.
@@ -4575,7 +4756,7 @@ window.onload = async()=>{
    - מנטרל users/{oldUid} כדי שלא יישאר קישור ישן לאותו עובד.
 */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
   function updateVersionV178(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4713,7 +4894,7 @@ async function resetWorkerAccessV178(workerId){
       authEmail:authResult.email,
       recoveryEmail: optionalEmail || (w.recoveryEmail || ""),
       authReady:true,
-      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.9.9",
+      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.10.0",
       passwordHash:await sha256(newPassword),
       active:true,
       accessRecoveredAt:firebase.firestore.FieldValue.serverTimestamp(),
@@ -4806,7 +4987,7 @@ function addRecoveryInfoPanelV178(){
   div.id="recoveryInfoPanelV178";
   div.className="card panel";
   div.innerHTML=`
-    <div class="cal-head"><h2>🔑 שחזור גישה לעובד 1.9.9</h2></div>
+    <div class="cal-head"><h2>🔑 שחזור גישה לעובד 1.10.0</h2></div>
     <p>אם עובד שכח סיסמה ואין לו מייל, לחץ ברשימת העובדים על <b>שחזור גישה</b>. זה יוצר UID חדש, שומר סיסמה חדשה, ומחבר אותו לאותו Worker בלי למחוק עבודות.</p>
     <div class="notice">לא מוחקים Worker בשביל איפוס סיסמה. מוחקים/מנטרלים רק קישור Auth ישן אם צריך.</div>`;
   const workersCard=[...admin.querySelectorAll(".card")].find(c=>String(c.textContent||"").includes("עובדים"));
@@ -4829,11 +5010,11 @@ function addRecoveryInfoPanelV178(){
 
 
 <script>
-/* ===== VERSION 1.9.9: No login flicker on refresh =====
+/* ===== VERSION 1.10.0: No login flicker on refresh =====
    מציג מסך טעינה ניטרלי בזמן בדיקת session/Auth, ולא את מסך הכניסה.
 */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
   function updateVersionV179(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4901,12 +5082,12 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.9.9: Safe logout + worker null guard =====
+/* ===== VERSION 1.10.0: Safe logout + worker null guard =====
    תיקון: אם עובד עושה יציאה בזמן שעדיין רצות טעינות async ברקע,
    לא מאפשרים לטעינה הישנה להמשיך לצייר דשבורד או לקרוא monthlyGoal על viewedWorker ריק.
 */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
   window.__appNavTokenV180 = window.__appNavTokenV180 || 0;
   window.__isLoggingOutV180 = false;
@@ -5091,9 +5272,9 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.9.9: polished loader + keep expired subscription screen on refresh ===== */
+/* ===== VERSION 1.10.0: polished loader + keep expired subscription screen on refresh ===== */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
   window.APP_VERSION_181=VERSION;
   function updateVersionV181(){
@@ -5235,12 +5416,12 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.9.9: Loader timeout + reliable startup release =====
+/* ===== VERSION 1.10.0: Loader timeout + reliable startup release =====
    תיקון: שום בדיקת Firebase/Firestore לא יכולה להשאיר את המשתמש תקוע על מסך טעינה.
    יש Timeout קצר לכל שלב, והרצה חד-פעמית גם ב-DOMContentLoaded וגם ב-load.
 */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
   window.__bootStartedV182=false;
   window.__bootFinishedV182=false;
@@ -5402,11 +5583,11 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.9.9: Stable boot controller + no recursive login/logout =====
+/* ===== VERSION 1.10.0: Stable boot controller + no recursive login/logout =====
    תיקון עומק: מבטל recursion שנוצר מעטיפות showWorkerLogin/logout, ומנהל טעינה/כניסה/מסך מנוי ממקום אחד.
 */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
   window.__stableBootV183Started=false;
   window.__stableBootV183Finished=false;
@@ -5575,19 +5756,19 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.9.9: Access recovery permission-denied fix =====
+/* ===== VERSION 1.10.0: Access recovery permission-denied fix =====
    תיקון: שחזור גישה חייב להתבצע כשה-Auth הראשי נשאר מנהל.
    יצירת ה-UID החדש נעשית דרך Firebase App משני ומבודד, ואז חוזרים לוודא שה-main auth הוא אדמין לפני כתיבה ל-Firestore.
 */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
   function forceVersionV184(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
     document.title="מעקב עבודה - גרסה "+VERSION;
     const p=document.getElementById("recoveryInfoPanelV178");
     if(p){
-      p.querySelectorAll("h2").forEach(h=>h.innerHTML="🔑 שחזור גישה לעובד 1.9.9");
+      p.querySelectorAll("h2").forEach(h=>h.innerHTML="🔑 שחזור גישה לעובד 1.10.0");
     }
   }
   window.addEventListener("load",()=>setTimeout(forceVersionV184,150));
@@ -5765,7 +5946,7 @@ async function resetWorkerAccessV178(workerId){
       authEmail:authResult.email,
       recoveryEmail:optionalEmail || (w.recoveryEmail||""),
       authReady:true,
-      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.9.9",
+      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.10.0",
       passwordHash:await sha256(newPassword),
       active:true,
       accessRecoveredAt:now,
@@ -5805,19 +5986,19 @@ async function resetWorkerAccessV178(workerId){
 
 
 <script>
-/* ===== VERSION 1.9.9: Recovery permission-denied final fix =====
+/* ===== VERSION 1.10.0: Recovery permission-denied final fix =====
    הסיבה ל-permission-denied בשחזור גישה היא בדרך כלל Security Rules שלא מזהות את האדמין
    דרך users/{uid}, או שאין עדיין users doc תקין למנהל. בגרסה זו ה-Rules מזהות אדמין גם לפי
-   Firebase Auth email הפנימי admin@work-monitor.local, וכפתור העתקת Rules מעודכן לגרסה 1.9.9.
+   Firebase Auth email הפנימי admin@work-monitor.local, וכפתור העתקת Rules מעודכן לגרסה 1.10.0.
 */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
   function forceVersionV185(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
     document.title="מעקב עבודה - גרסה "+VERSION;
     const p=document.getElementById("recoveryInfoPanelV178");
-    if(p){ p.querySelectorAll("h2").forEach(h=>h.innerHTML="🔑 שחזור גישה לעובד 1.9.9"); }
+    if(p){ p.querySelectorAll("h2").forEach(h=>h.innerHTML="🔑 שחזור גישה לעובד 1.10.0"); }
   }
   window.addEventListener("load",()=>setTimeout(forceVersionV185,120));
   setInterval(forceVersionV185,1200);
@@ -5927,10 +6108,10 @@ async function copySecurityRulesV169(){
   try{
     await navigator.clipboard.writeText(FIRESTORE_RULES_V185);
     const msg=document.getElementById("securityToolsMsgV169") || document.getElementById("adminAuthBootstrapMsgV170");
-    if(msg) msg.innerHTML="<div class='notice'>Security Rules 1.9.9 הועתקו ✅<br>פתח Firebase → Firestore Database → Rules → הדבק → Publish.</div>";
-    alert("Security Rules 1.9.9 הועתקו ✅\nחובה לפרסם אותן ב-Firebase כדי ששחזור גישה יעבוד בלי permission-denied.");
+    if(msg) msg.innerHTML="<div class='notice'>Security Rules 1.10.0 הועתקו ✅<br>פתח Firebase → Firestore Database → Rules → הדבק → Publish.</div>";
+    alert("Security Rules 1.10.0 הועתקו ✅\nחובה לפרסם אותן ב-Firebase כדי ששחזור גישה יעבוד בלי permission-denied.");
   }catch(e){
-    prompt("העתק את ה־Security Rules 1.9.9:", FIRESTORE_RULES_V185);
+    prompt("העתק את ה־Security Rules 1.10.0:", FIRESTORE_RULES_V185);
   }
 }
 
@@ -5941,9 +6122,9 @@ function addRulesWarningV185(){
   div.id="rulesWarningV185";
   div.className="card panel";
   div.innerHTML=`
-    <div class="cal-head"><h2>⚠️ תיקון הרשאות 1.9.9</h2><button class="btn-green" onclick="copySecurityRulesV169()">העתק Rules 1.9.9</button></div>
+    <div class="cal-head"><h2>⚠️ תיקון הרשאות 1.10.0</h2><button class="btn-green" onclick="copySecurityRulesV169()">העתק Rules 1.10.0</button></div>
     <p>אם בשחזור גישה מופיע <b>permission-denied</b>, זה לא באג במסך — ה־Security Rules הישנות לא מזהות את האדמין בזמן כתיבה ל־users/workers.</p>
-    <div class="notice">צריך להעתיק את Rules 1.9.9, להדביק ב־Firebase Firestore Rules וללחוץ Publish פעם אחת.</div>`;
+    <div class="notice">צריך להעתיק את Rules 1.10.0, להדביק ב־Firebase Firestore Rules וללחוץ Publish פעם אחת.</div>`;
   admin.insertBefore(div, admin.firstChild);
 }
 
@@ -5965,7 +6146,7 @@ window.resetWorkerAccessV178 = async function(workerId){
   }catch(e){
     const msg=String(e && (e.code||e.message) || e);
     if(msg.includes("permission-denied")){
-      alert("שחזור הגישה נחסם על ידי Firebase Rules.\n\nהפתרון: באדמין לחץ 'העתק Rules 1.9.9', הדבק ב-Firebase Firestore Rules ולחץ Publish. אחרי זה נסה שוב.");
+      alert("שחזור הגישה נחסם על ידי Firebase Rules.\n\nהפתרון: באדמין לחץ 'העתק Rules 1.10.0', הדבק ב-Firebase Firestore Rules ולחץ Publish. אחרי זה נסה שוב.");
       return;
     }
     throw e;
@@ -5976,12 +6157,12 @@ window.resetWorkerAccessV178 = async function(workerId){
 
 
 <script>
-/* ===== VERSION 1.9.9: Clean admin panel + admin loading screen =====
+/* ===== VERSION 1.10.0: Clean admin panel + admin loading screen =====
    ניקוי פאנלים זמניים מהאדמין בלי למחוק פונקציות שעובדות.
    נשאר: יצירת/תיקון Auth למנהל, עובדים, שחזור גישה דרך כפתור העובד, מנויים, מחירון, תבניות וכלים שימושיים.
 */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
 
   const HIDE_STYLE_ID="cleanAdminV186Style";
@@ -6067,10 +6248,10 @@ window.resetWorkerAccessV178 = async function(workerId){
     removeCardByHeadingTextV186("לוח מנהל");
     removeCardByHeadingTextV186("הכנת Firebase Auth");
     removeCardByHeadingTextV186("הכנת אבטחת Firebase");
-    removeCardByHeadingTextV186("תיקון הרשאות 1.9.9");
-    removeCardByHeadingTextV186("הרשמה עצמית 1.9.9");
-    removeCardByHeadingTextV186("שחזור גישה לעובד 1.9.9");
-    removeCardByHeadingTextV186("שחזור גישה לעובד 1.9.9");
+    removeCardByHeadingTextV186("תיקון הרשאות 1.10.0");
+    removeCardByHeadingTextV186("הרשמה עצמית 1.10.0");
+    removeCardByHeadingTextV186("שחזור גישה לעובד 1.10.0");
+    removeCardByHeadingTextV186("שחזור גישה לעובד 1.10.0");
 
     // להשאיר את יצירת/תיקון Auth למנהל, אבל לנקות ניסוחים טכניים מיותרים אם היא מופיעה
     const adminAuth=document.getElementById("adminAuthBootstrapV170");
@@ -6104,7 +6285,7 @@ window.resetWorkerAccessV178 = async function(workerId){
         cleanAdminPanelV186();
         forceVersionV186();
       }catch(e){
-        console.error("showAdmin V1.9.9 failed",e);
+        console.error("showAdmin V1.10.0 failed",e);
         cleanAdminPanelV186();
         alert("שגיאה בטעינת לוח המנהל: "+(e.code||e.message||String(e)));
       }finally{
@@ -6126,13 +6307,13 @@ window.resetWorkerAccessV178 = async function(workerId){
 
 
 <script>
-/* ===== VERSION 1.9.9: Expired subscription refresh persistence fix =====
+/* ===== VERSION 1.10.0: Expired subscription refresh persistence fix =====
    מטרה: אם עובד הגיע למסך בחירת מנוי ואז עושה רענון, חוזרים לאותו מסך ולא למסך כניסה.
    הפתרון שומר marker של worker פג תוקף, וגם אם קריאת Firestore נחסמת זמנית ב-Rules אחרי refresh,
    מציגים את מסך התשלום לפי המידע השמור במקום למחוק את ה-marker.
 */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
   window.__preserveExpiredMarkerV187=true;
 
@@ -6305,9 +6486,9 @@ window.resetWorkerAccessV178 = async function(workerId){
 
 
 <script>
-/* ===== VERSION 1.9.9: single visible version stabilizer ===== */
+/* ===== VERSION 1.10.0: single visible version stabilizer ===== */
 (function(){
-  const FINAL_VERSION = "1.9.9";
+  const FINAL_VERSION = "1.10.0";
   window.APP_VERSION = FINAL_VERSION;
   function forceFinalVersion(){
     try{
@@ -6334,9 +6515,9 @@ window.resetWorkerAccessV178 = async function(workerId){
 
 
 <script>
-/* ===== VERSION 1.9.9: Live animation bootstrap ===== */
+/* ===== VERSION 1.10.0: Live animation bootstrap ===== */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
   function setVersionEverywhere(){
     document.querySelectorAll('.secret').forEach(el=>el.textContent='גרסה '+VERSION);
@@ -6377,7 +6558,7 @@ window.resetWorkerAccessV178 = async function(workerId){
 
 
 <style id="placeholder-polish-v191">
-/* ===== VERSION 1.9.9: Clear placeholders and field hints ===== */
+/* ===== VERSION 1.10.0: Clear placeholders and field hints ===== */
 .field-hint-v191{
   margin:-2px 6px 8px;
   color:#64748b;
@@ -6400,9 +6581,9 @@ input[type="month"]:focus{
 select option{color:#0f172a}
 </style>
 <script>
-/* ===== VERSION 1.9.9: Add missing placeholders/hints across the app ===== */
+/* ===== VERSION 1.10.0: Add missing placeholders/hints across the app ===== */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
 
   const FIELD_HINTS={
@@ -6523,7 +6704,7 @@ select option{color:#0f172a}
 
 
 <style id="v192-visible-buttons-live-ui-fix">
-/* ===== VERSION 1.9.9: visible buttons fix + richer live UI ===== */
+/* ===== VERSION 1.10.0: visible buttons fix + richer live UI ===== */
 @keyframes v192Breath{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-2px) scale(1.012)}}
 @keyframes v192SoftGlow{0%,100%{filter:drop-shadow(0 10px 18px rgba(37,99,235,.12))}50%{filter:drop-shadow(0 16px 26px rgba(37,99,235,.24))}}
 @keyframes v192WorkerPulse{0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,.0)}50%{box-shadow:0 0 0 5px rgba(37,99,235,.075)}}
@@ -6615,9 +6796,9 @@ button.v192-ripple-host{position:relative;overflow:hidden;}
 </style>
 
 <script id="v192-visible-buttons-live-ui-js">
-/* ===== VERSION 1.9.9: final visible version + button ripple + safe animation cleanup ===== */
+/* ===== VERSION 1.10.0: final visible version + button ripple + safe animation cleanup ===== */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
 
   function forceVersionV192(){
@@ -6681,12 +6862,12 @@ button.v192-ripple-host{position:relative;overflow:hidden;}
 
 
 <script>
-/* ===== VERSION 1.9.9: Full logout state reset =====
+/* ===== VERSION 1.10.0: Full logout state reset =====
    תיקון: יציאה חייבת למחוק כל מצב מקומי ישן, כולל marker של מנוי פג תוקף שנשאר מעובד אחר.
    לא נוגעים בלוגיקת Firebase/מנויים — רק מאפסים state מקומי בזמן יציאה ידנית.
 */
 (function(){
-  const VERSION="1.9.9";
+  const VERSION="1.10.0";
   window.APP_VERSION=VERSION;
 
   function forceVersionV193(){
@@ -6761,7 +6942,7 @@ button.v192-ripple-host{position:relative;overflow:hidden;}
 
 
 <style id="v194-search-buttons-visibility-fix">
-/* ===== VERSION 1.9.9: Search/Summary buttons hard visibility fix =====
+/* ===== VERSION 1.10.0: Search/Summary buttons hard visibility fix =====
    תיקון ממוקד: באזור חיפוש וסיכומים חלק מהכפתורים קיבלו מצב שקוף עד hover/touch.
    כאן מגדירים מצב בסיס גלוי וברור, בלי לפגוע באנימציות.
 */
@@ -6845,9 +7026,9 @@ button.v192-ripple-host{position:relative;overflow:hidden;}
 </style>
 
 <script id="v194-search-buttons-visibility-js">
-/* ===== VERSION 1.9.9: runtime search button visibility guard ===== */
+/* ===== VERSION 1.10.0: runtime search button visibility guard ===== */
 (function(){
-  const VERSION='1.9.9';
+  const VERSION='1.10.0';
   window.APP_VERSION=VERSION;
 
   function forceVersionV194(){
@@ -6896,7 +7077,7 @@ button.v192-ripple-host{position:relative;overflow:hidden;}
 
 
 <style id="v195-stable-button-css-rebuild">
-/* ===== VERSION 1.9.9: Stable button CSS rebuild =====
+/* ===== VERSION 1.10.0: Stable button CSS rebuild =====
    מטרה: כפתורים תמיד גלויים גם בגלילה, בלי opacity animations שיכולות להשאיר אותם שקופים.
    האנימציות נשארות עדינות — תנועה/צל בלבד, לא שקיפות.
 */
@@ -7015,9 +7196,9 @@ button.btn-light:hover{box-shadow:0 12px 24px rgba(15,23,42,.13)!important;}
 </style>
 
 <script id="v195-stable-button-guard">
-/* ===== VERSION 1.9.9: Runtime guard for visible buttons after scroll/render ===== */
+/* ===== VERSION 1.10.0: Runtime guard for visible buttons after scroll/render ===== */
 (function(){
-  const VERSION='1.9.9';
+  const VERSION='1.10.0';
   window.APP_VERSION=VERSION;
   function forceVersion(){
     try{document.title='מעקב עבודה - גרסה '+VERSION;}catch(e){}
@@ -7064,14 +7245,14 @@ button.btn-light:hover{box-shadow:0 12px 24px rgba(15,23,42,.13)!important;}
 
 
 <script>
-/* ===== VERSION 1.9.9: HARD FIX - remove admin return from worker screen =====
+/* ===== VERSION 1.10.0: HARD FIX - remove admin return from worker screen =====
    Worker users must never see or trigger a route back to admin from the worker interface. */
 (function(){
-  window.APP_VERSION = "1.9.9";
+  window.APP_VERSION = "1.10.0";
 
   function setVersionV196(){
-    try{ document.title = "מעקב עבודה - גרסה 1.9.9"; }catch(e){}
-    try{ document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.9.9"); }catch(e){}
+    try{ document.title = "מעקב עבודה - גרסה 1.10.0"; }catch(e){}
+    try{ document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.10.0"); }catch(e){}
   }
 
   window.removeBackAdminButtonV196 = function(){
@@ -7130,9 +7311,9 @@ button.btn-light:hover{box-shadow:0 12px 24px rgba(15,23,42,.13)!important;}
 
 
 <script>
-/* ===== VERSION 1.9.9: final version marker + horizontal scroll guard ===== */
+/* ===== VERSION 1.10.0: final version marker + horizontal scroll guard ===== */
 (function(){
-  const VERSION = "1.9.9";
+  const VERSION = "1.10.0";
   window.APP_VERSION = VERSION;
   function lockHorizontalScrollV197(){
     document.documentElement.style.overflowX = "hidden";
@@ -7155,7 +7336,7 @@ button.btn-light:hover{box-shadow:0 12px 24px rgba(15,23,42,.13)!important;}
 
 
 <style id="v198-button-design-performance-clean">
-/* ===== VERSION 1.9.9: button redesign + mobile performance cleanup =====
+/* ===== VERSION 1.10.0: button redesign + mobile performance cleanup =====
    עיצוב בלבד: בלי שינוי לוגיקה, Firebase, שמירה, עובדים או מנויים. */
 :root{
   --btn-main-a:#111827;
@@ -7328,9 +7509,9 @@ button.btn-light:focus-visible{box-shadow:0 0 0 4px rgba(15,23,42,.09),0 6px 14p
 </style>
 
 <script id="v198-version-and-performance-guard">
-/* ===== VERSION 1.9.9: final version marker + remove click ripple nodes ===== */
+/* ===== VERSION 1.10.0: final version marker + remove click ripple nodes ===== */
 (function(){
-  const VERSION='1.9.9';
+  const VERSION='1.10.0';
   window.APP_VERSION=VERSION;
   function applyV198(){
     try{document.title='מעקב עבודה - גרסה '+VERSION;}catch(e){}
@@ -7358,9 +7539,9 @@ button.btn-light:focus-visible{box-shadow:0 0 0 4px rgba(15,23,42,.09),0 6px 14p
 
 
 <script id="v199-final-version-hard-lock">
-/* ===== VERSION 1.9.9: final visible version hard lock ===== */
+/* ===== VERSION 1.10.0: final visible version hard lock ===== */
 (function(){
-  const VERSION = '1.9.9';
+  const VERSION = '1.10.0';
   window.APP_VERSION = VERSION;
   function applyVersionV199(){
     try{ document.title = 'מעקב עבודה - גרסה ' + VERSION; }catch(e){}
@@ -7389,4 +7570,4 @@ button.btn-light:focus-visible{box-shadow:0 0 0 4px rgba(15,23,42,.09),0 6px 14p
 </script>
 
 </body>
-</html>
+  </html>
