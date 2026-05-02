@@ -340,7 +340,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <h1 class="big-title">כניסת עובד</h1><p style="text-align:center">הכנס שם משתמש וסיסמה שקיבלת מהמנהל.</p>
 <input id="workerUsername" placeholder="שם משתמש"><input id="workerPassword" type="password" placeholder="סיסמה">
 <button class="btn-green" onclick="workerLogin()">כניסה</button><p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.4.4</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.4.5</div>
 </section>
 
 <section id="adminLoginView" class="card login-box hidden">
@@ -558,7 +558,7 @@ async function showAdmin(){hideAll();show("adminView");show("logoutBtn");text("u
 async function loadSettings(){const doc=await db.collection("settings").doc("main").get();if(doc.exists){const d=doc.data();if(d.servicePrice!==undefined)SERVICE_PRICE=Number(d.servicePrice||65);if(d.adminUsername)ADMIN_USERNAME=d.adminUsername;if(d.adminPasswordHash)ADMIN_PASSWORD_SHA256=d.adminPasswordHash}else{await db.collection("settings").doc("main").set({servicePrice:65,adminUsername:"Eliran",adminPasswordHash:ADMIN_PASSWORD_SHA256,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true})}updateServicePriceLabels()}
 async function saveAdminSettings(){const username=val("adminSetUsername"),password=val("adminSetPassword");if(!username)return $("adminSettingsMsg").innerHTML="<p class='danger'>חובה למלא שם משתמש מנהל.</p>";const update={adminUsername:username,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(password.trim())update.adminPasswordHash=await sha256(password.trim());await db.collection("settings").doc("main").set(update,{merge:true});$("adminSetPassword").value="";await loadSettings();$("adminSettingsMsg").innerHTML="<div class='notice'>הגדרות מנהל נשמרו ✅</div>"}
 async function createWorker(){const btn=$("createWorkerBtn"),msg=$("workerMsg");msg.innerHTML="<div class='notice'>יוצר עובד...</div>";btn.disabled=true;try{const name=val("wName"),username=val("wUser"),pass=val("wPass"),goal=Number(val("wGoal")||0),usernameKey=normalize(username),id=workerIdFromUsername(usernameKey);if(!name||!username||!pass)return msg.innerHTML="<p class='danger'>חובה למלא שם, שם משתמש וסיסמה.</p>";await db.collection("workers").doc(id).set({name,username,usernameKey,passwordHash:await sha256(pass),monthlyGoal:goal,active:true,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});["wName","wUser","wPass","wGoal"].forEach(x=>$(x).value="");msg.innerHTML=`<div class='notice'>העובד ${esc(name)} נוצר/עודכן בהצלחה ✅</div>`;await loadWorkers()}catch(e){msg.innerHTML=`<p class='danger'>שגיאה: ${esc(e.message)}</p>`}finally{btn.disabled=false}}
-async function loadWorkers(){const box=$("workersList");box.innerHTML="<p>טוען עובדים...</p>";const snap=await db.collection("workers").get();workers=snap.docs.map(d=>({id:d.id,...d.data()})).filter(w=>!w.movedTo).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));box.innerHTML=workers.length?"":"<p class='muted'>אין עובדים עדיין.</p>";workers.forEach(w=>{const row=document.createElement("div");row.className="item";row.innerHTML=`<div><div class="item-title">${esc(w.name)}</div><div class="item-sub">שם משתמש: ${esc(w.username)} · יעד: ${money(w.monthlyGoal||0)} · ${w.active===false?"לא פעיל":"פעיל"} · ID: ${w.id}</div></div><div class="actions"><button onclick="showWorkerById('${w.id}')">פתח מעקב</button><button class="btn-yellow" onclick="openWorkerEdit('${w.id}')">ערוך</button><button class="${w.active===false?"btn-green":"btn-red"}" onclick="toggleWorker('${w.id}', ${w.active===false})">${w.active===false?"הפעל":"בטל"}</button></div>`;box.appendChild(row)})}
+async function loadWorkers(){const box=$("workersList");box.innerHTML="<p>טוען עובדים...</p>";const snap=await db.collection("workers").get();workers=snap.docs.map(d=>({id:d.id,...d.data()})).filter(w=>!w.movedTo).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));box.innerHTML=workers.length?"":"<p class='muted'>אין עובדים עדיין.</p>";workers.forEach(w=>{const row=document.createElement("div");row.className="item";row.innerHTML=`<div><div class="item-title">${esc(w.name)}</div><div class="item-sub">שם משתמש: ${esc(w.username)} · יעד: ${money(w.monthlyGoal||0)} · ${w.active===false?"לא פעיל":"פעיל"} · ID: ${w.id}</div></div><div class="actions"><button onclick="showWorkerById('${w.id}')">פתח מעקב</button><button class="btn-yellow" onclick="openWorkerEdit('${w.id}')">ערוך</button><button class="${w.active===false?"btn-green":"btn-red"}" onclick="toggleWorker('${w.id}', ${w.active===false})">${w.active===false?"הפעל":"בטל"}</button></div>`;box.appendChild(row)});cleanVisibleSlashN()}
 function openWorkerEdit(id){const w=workers.find(x=>x.id===id);if(!w)return;show("editWorkerPanel");$("editWorkerId").value=id;$("editWorkerName").value=w.name||"";$("editWorkerUsername").value=w.username||"";$("editWorkerPassword").value="";$("editWorkerGoal").value=w.monthlyGoal||0;$("editWorkerActive").value=w.active===false?"false":"true";$("editWorkerMsg").innerHTML="";window.scrollTo({top:$("editWorkerPanel").offsetTop-20,behavior:"smooth"})}
 async function saveWorkerEdit(){const id=val("editWorkerId"),old=workers.find(x=>x.id===id),name=val("editWorkerName"),username=val("editWorkerUsername"),pass=val("editWorkerPassword"),goal=Number(val("editWorkerGoal")||0),active=$("editWorkerActive").value==="true",usernameKey=normalize(username),newId=workerIdFromUsername(usernameKey);if(!name||!username)return $("editWorkerMsg").innerHTML="<p class='danger'>חובה למלא שם ושם משתמש.</p>";const update={name,username,usernameKey,monthlyGoal:goal,active,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(pass)update.passwordHash=await sha256(pass);if(newId!==id){const oldDoc=await db.collection("workers").doc(id).get();await db.collection("workers").doc(newId).set({...oldDoc.data(),...update},{merge:true});await db.collection("workers").doc(id).update({active:false,movedTo:newId,updatedAt:firebase.firestore.FieldValue.serverTimestamp()})}else await db.collection("workers").doc(id).update(update);$("editWorkerMsg").innerHTML="<div class='notice'>העובד נשמר ✅</div>";await loadWorkers()}
 async function toggleWorker(id,active){await db.collection("workers").doc(id).update({active,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});await loadWorkers()}
@@ -791,10 +791,10 @@ async function loadClientHistory(){
       </div>
     `;
     entries.forEach(e=>{
-      const details=e.workType==="install"&&e.items?e.items.map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("\\n"):(e.isReturnCall?"קריאה חוזרת ללא תשלום":"קריאת שירות");
+      const details=e.workType==="install"&&e.items?e.items.map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("<br>"):(e.isReturnCall?"קריאה חוזרת ללא תשלום":"קריאת שירות");
       const div=document.createElement("div");
       div.className="item";
-      div.innerHTML=`<div><div class="item-title">${esc(e.date||"")} · ${esc(e.description||"")}</div><div class="item-sub">כתובת: ${esc(e.address||"")}\\n${esc(details)}\\n${esc(e.notes||"")}</div></div><div class="money">${money(e.amount||0)}</div>`;
+      div.innerHTML=`<div><div class="item-title">${esc(e.date||"")} · ${esc(e.description||"")}</div><div class="item-sub">כתובת: ${esc(e.address||"")}\\n${nl2br(details)}\\n${nl2br(e.notes||"")}</div></div><div class="money">${money(e.amount||0)}</div>`;
       box.appendChild(div);
     });
   }catch(e){
@@ -802,7 +802,7 @@ async function loadClientHistory(){
   }
 }
 
-function toggleSearchPanel(){const p=$("searchPanel");p.classList.toggle("hidden");if(!p.classList.contains("hidden"))renderFullSummary()}
+function toggleSearchPanel(){const p=$("searchPanel");p.classList.toggle("hidden");if(!p.classList.contains("hidden"))renderFullSummary();cleanVisibleSlashN()}
 function getFilteredEntries(){
   const customer=val("searchCustomer");
   const address=val("searchAddress").toLowerCase();
@@ -884,11 +884,11 @@ function renderSummary(entries,title){
     .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")))
     .forEach(e=>{
       const details=e.workType==="install" && e.items
-        ? e.items.map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("\\n")
+        ? e.items.map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("<br>")
         : (e.isReturnCall?"קריאה חוזרת ללא תשלום":"קריאת שירות");
       const div=document.createElement("div");
       div.className="item";
-      div.innerHTML=`<div><div class="item-title">${esc(e.date||"")} · ${esc(e.description||"")}</div><div class="item-sub">לקוח: ${esc(e.customerNumber||"")}\\nכתובת: ${esc(e.address||"")}\\n${esc(details)}\\n${esc(e.notes||"")}</div></div><div class="money">${money(e.amount||0)}</div>`;
+      div.innerHTML=`<div><div class="item-title">${esc(e.date||"")} · ${esc(e.description||"")}</div><div class="item-sub">לקוח: ${esc(e.customerNumber||"")}\\nכתובת: ${esc(e.address||"")}\\n${nl2br(details)}\\n${nl2br(e.notes||"")}</div></div><div class="money">${money(e.amount||0)}</div>`;
       results.appendChild(div);
     });
 }
@@ -924,7 +924,7 @@ async function saveWorkerSelfSettings(){
 async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();await showWorker({id:doc.id,...doc.data()})}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");$("backAdminBtn").classList.toggle("hidden",!(session&&session.role==="admin"));text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=new Date();selectedDate=null;selectedType=null;if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=Number(worker.monthlyGoal||0);if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth()}
 async function loadMonth(){await loadPriceList();await loadTemplates();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);monthEntries=[];renderCalendar();renderDay();renderStats();const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();monthEntries=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats();renderSmartDashboard();if($('searchPanel')&&!$('searchPanel').classList.contains('hidden'))renderFullSummary()}
 function renderCalendar(){const cal=$("calendar");cal.innerHTML="";weekdays.forEach(w=>{const d=document.createElement("div");d.className="weekday";d.textContent=w;cal.appendChild(d)});const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0).getDate(),today=formatDate(new Date());for(let i=0;i<first.getDay();i++){const e=document.createElement("div");e.className="day empty";cal.appendChild(e)}for(let d=1;d<=last;d++){const ds=`${y}-${pad(m+1)}-${pad(d)}`,dt=new Date(y,m,d),sh=dt.getDay()===6,entries=monthEntries.filter(e=>e.date===ds),total=entries.reduce((s,e)=>s+Number(e.amount||0),0),div=document.createElement("div");div.className="day";if(sh)div.classList.add("shabbat");if(ds===today)div.classList.add("today");if(ds===selectedDate)div.classList.add("selected");div.innerHTML=`<div class="day-num">${d}</div>${total?`<div class="day-total">${money(total)}</div>`:""}${entries.length?`<div class="day-count">${entries.length} עבודות</div>`:""}`;if(!sh)div.onclick=()=>selectDay(ds);cal.appendChild(div)}}
-function selectDay(ds){selectedDate=ds;selectedType=null;renderCalendar();renderDay();renderStats();renderSmartDashboard()}function renderDay(){if(!selectedDate){hide("dayPanel");show("selectDayHint");return}show("dayPanel");hide("selectDayHint");text("dateTitle",`יום ${heDate(selectedDate)}`);renderInstallItems();setType(selectedType,false);updateServicePriceLabels();const entries=monthEntries.filter(e=>e.date===selectedDate).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)),box=$("dayEntries");box.innerHTML=entries.length?"":"<p class='muted'>אין עבודות ביום הזה עדיין.</p>";entries.forEach(e=>{const details=e.workType==="service"?`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n${e.notes||""}`:`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("\n")+`\n${e.notes||""}`,row=document.createElement("div");row.className="item";const iconClass=e.workType==="install"?"install":(e.isReturnCall?"return":"service");const icon=e.workType==="install"?"🛠️":(e.isReturnCall?"🔁":"☎️");row.innerHTML=`<div class="work-row-main"><div class="work-icon ${iconClass}">${icon}</div><div><div class="item-title">${esc(e.description)}</div><div class="item-sub">${esc(details)}</div></div></div><div><div class="money">${money(e.amount)}</div><div class="actions" style="margin-top:8px"><button class="btn-yellow" onclick="openEntryEdit('${e.id}')">ערוך</button>${e.workType==="install"?`<button class="btn-light" onclick="saveEntryAsTemplate('${e.id}')">שמור כתבנית</button>`:""}<button class="btn-red" onclick="deleteEntry('${e.id}')">מחק</button></div></div>`;box.appendChild(row)})}
+function selectDay(ds){selectedDate=ds;selectedType=null;renderCalendar();renderDay();renderStats();renderSmartDashboard();cleanVisibleSlashN()}function renderDay(){if(!selectedDate){hide("dayPanel");show("selectDayHint");return}show("dayPanel");hide("selectDayHint");text("dateTitle",`יום ${heDate(selectedDate)}`);renderInstallItems();setType(selectedType,false);updateServicePriceLabels();const entries=monthEntries.filter(e=>e.date===selectedDate).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)),box=$("dayEntries");box.innerHTML=entries.length?"":"<p class='muted'>אין עבודות ביום הזה עדיין.</p>";entries.forEach(e=>{const details=e.workType==="service"?`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n${e.notes||""}`:`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("<br>")+`\n${e.notes||""}`,row=document.createElement("div");row.className="item";const iconClass=e.workType==="install"?"install":(e.isReturnCall?"return":"service");const icon=e.workType==="install"?"🛠️":(e.isReturnCall?"🔁":"☎️");row.innerHTML=`<div class="work-row-main"><div class="work-icon ${iconClass}">${icon}</div><div><div class="item-title">${esc(e.description)}</div><div class="item-sub">${nl2br(details)}</div></div></div><div><div class="money">${money(e.amount)}</div><div class="actions" style="margin-top:8px"><button class="btn-yellow" onclick="openEntryEdit('${e.id}')">ערוך</button>${e.workType==="install"?`<button class="btn-light" onclick="saveEntryAsTemplate('${e.id}')">שמור כתבנית</button>`:""}<button class="btn-red" onclick="deleteEntry('${e.id}')">מחק</button></div></div>`;box.appendChild(row)})}
 function renderStats(){const monthTotal=monthEntries.reduce((s,e)=>s+Number(e.amount||0),0),dayTotal=selectedDate?monthEntries.filter(e=>e.date===selectedDate).reduce((s,e)=>s+Number(e.amount||0),0):0,goal=Number(viewedWorker.monthlyGoal||0),left=Math.max(goal-monthTotal,0);$("monthTotal").textContent=money(monthTotal);$("dayTotal").textContent=money(dayTotal);$("goalTotal").textContent=money(goal);$("leftTotal").textContent=money(left);$("goalBar").style.width=goal?Math.min(monthTotal/goal*100,100)+"%":"0%";text("paceLine",goal?(left<=0?"מעולה — היעד הושג.":`חסר ליעד: ${money(left)}.`):"לא הוגדר יעד חודשי.")}
 function setType(type,clear=true){selectedType=type;$("serviceForm").classList.toggle("hidden",type!=="service");$("installForm").classList.toggle("hidden",type!=="install");$("serviceBtn").classList.toggle("active",type==="service");$("installBtn").classList.toggle("active",type==="install");if(clear)$("entryMsg").innerHTML=""}
 function renderInstallItems(){const box=$("installItems");box.innerHTML="";priceList.forEach(item=>{const row=document.createElement("div");row.className="item";const mode=item.inputMode||"qty",control=mode==="check"?`<label style="display:flex;align-items:center;gap:8px;font-weight:900"><input id="qty_${item.id}" type="checkbox" onchange="updateInstallPreview()" style="width:24px;height:24px;margin:0"> בוצע</label>`:`<input class="qty" id="qty_${item.id}" type="number" min="0" placeholder="כמות" oninput="updateInstallPreview()">`;row.innerHTML=`<div><div class="item-title">${esc(item.name)}</div><div class="item-sub">מחיר: ${money(item.price)} · ${mode==="check"?"סימון כן/לא":"כמות מספרית"}</div></div>${control}`;box.appendChild(row)});updateInstallPreview()}function updateInstallPreview(){let total=0;priceList.forEach(p=>{const el=$("qty_"+p.id);let q=0;if(el)q=(p.inputMode||"qty")==="check"?(el.checked?1:0):Number(el.value||0);if(q>0)total+=q*Number(p.price||0)});$("installPreview").textContent="סה״כ התקנה: "+money(total)}
@@ -963,7 +963,7 @@ async function loadTemplatesAdmin(){
   templates.forEach(t=>{
     const div=document.createElement("div");
     div.className="item";
-    div.innerHTML=`<div><div class="item-title">⚡ ${esc(t.name)}</div><div class="item-sub">${(t.items||[]).map(i=>`${i.name} × ${i.quantity}`).join("\\n")}</div></div><div class="actions"><button class="btn-red" onclick="deleteTemplate('${t.id}')">מחק</button></div>`;
+    div.innerHTML=`<div><div class="item-title">⚡ ${esc(t.name)}</div><div class="item-sub">${(t.items||[]).map(i=>`${i.name} × ${i.quantity}`).join("<br>")}</div></div><div class="actions"><button class="btn-red" onclick="deleteTemplate('${t.id}')">מחק</button></div>`;
     box.appendChild(div);
   });
 }
@@ -1085,12 +1085,12 @@ async function exportEntriesCSV(){
   const csv=[header.join(",")].concat(rows.map(e=>header.map(h=>{
     let v=h==="items"?(e.items||[]).map(i=>`${i.name} x ${i.quantity} = ${i.total}`).join(" | "):(e[h]??"");
     return `"${String(v).replaceAll('"','""')}"`;
-  }).join(","))).join("\n");
+  }).join(","))).join("<br>");
   downloadFile("work_entries.csv","\ufeff"+csv,"text/csv;charset=utf-8");
 }
 async function backupJSON(){
   const collections=["workers","priceList","workEntries","settings","installTemplates"];
-  const data={version:"1.4.4",exportedAt:new Date().toISOString(),collections:{}};
+  const data={version:"1.4.5",exportedAt:new Date().toISOString(),collections:{}};
   for(const c of collections){
     const snap=await db.collection(c).get();
     data.collections[c]=snap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
@@ -1160,7 +1160,7 @@ async function loadTemplatesAdmin(){
     templates.forEach(t=>{
       const div=document.createElement("div");
       div.className="item";
-      div.innerHTML=`<div><div class="item-title">⚡ ${esc(t.name)}</div><div class="item-sub">${(t.items||[]).map(i=>`${i.name} × ${i.quantity}`).join("\\n")}</div></div><div class="actions"><button class="btn-red" onclick="deleteTemplate('${t.id}')">מחק</button></div>`;
+      div.innerHTML=`<div><div class="item-title">⚡ ${esc(t.name)}</div><div class="item-sub">${(t.items||[]).map(i=>`${i.name} × ${i.quantity}`).join("<br>")}</div></div><div class="actions"><button class="btn-red" onclick="deleteTemplate('${t.id}')">מחק</button></div>`;
       box.appendChild(div);
     });
   });
@@ -1283,13 +1283,13 @@ async function exportMyEntriesCSV(){
   const csv=[header.join(",")].concat(rows.map(e=>header.map(h=>{
     let v=h==="items"?(e.items||[]).map(i=>`${i.name} x ${i.quantity} = ${i.total}`).join(" | "):(e[h]??"");
     return `"${String(v).replaceAll('"','""')}"`;
-  }).join(","))).join("\n");
+  }).join(","))).join("<br>");
   downloadFile(`my_work_entries_${viewedWorker.username||viewedWorker.name||"worker"}.csv`,"\ufeff"+csv,"text/csv;charset=utf-8");
   if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>הייצוא ירד למכשיר ✅</div>";
 }
 async function backupMyJSON(){
   if(!viewedWorker)return;
-  const data={version:"1.4.4",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
+  const data={version:"1.4.5",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
   const entriesSnap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
   data.collections.workEntries=entriesSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
   const tplSnap=await db.collection("installTemplates").get();
@@ -1347,8 +1347,20 @@ async function cleanupAndReloadPriceList(){
   alert("ניקוי כפילויות הסתיים ✅");
 }
 
-async function loadDebugLogs(){const box=$("debugLog");if(!box)return;try{const snap=await db.collection("appLogs").limit(30).get();box.textContent=snap.empty?"אין לוגים":snap.docs.map(d=>JSON.stringify(d.data())).join("\n")}catch(e){box.textContent="שגיאה בלוג: "+e.message}}
+async function loadDebugLogs(){const box=$("debugLog");if(!box)return;try{const snap=await db.collection("appLogs").limit(30).get();box.textContent=snap.empty?"אין לוגים":snap.docs.map(d=>JSON.stringify(d.data())).join("<br>")}catch(e){box.textContent="שגיאה בלוג: "+e.message}}
+
+function nl2br(s){
+  return esc(String(s||"")).replaceAll("\\n","<br>").replaceAll("\n","<br>");
+}
+
+function cleanVisibleSlashN(){
+  document.querySelectorAll(".item-sub").forEach(el=>{
+    if(el.innerHTML.includes("\\n")){
+      el.innerHTML = el.innerHTML.replaceAll("\\n","<br>");
+    }
+  });
+}
 function $(id){return document.getElementById(id)}function show(id){$(id).classList.remove("hidden")}function hide(id){$(id).classList.add("hidden")}function hideAll(){["workerLoginView","adminLoginView","adminView","workerView"].forEach(hide)}function val(id){return $(id).value.trim()}function text(id,v){$(id).textContent=v}function normalize(s){return String(s||"").trim().toLowerCase()}function workerIdFromUsername(k){return"worker_"+String(k||"").replace(/[^a-z0-9_\-א-ת]/gi,"_")}function pad(n){return String(n).padStart(2,"0")}function formatDate(d){return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}function parseDate(s){const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}function heDate(s){const d=parseDate(s);return`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`}function money(n){return`₪${Number(n||0).toLocaleString("he-IL",{maximumFractionDigits:0})}`}function esc(s){return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}async function sha256(str){const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("")}
 </script>
 </body>
-</html>
+                                                                              </html>
