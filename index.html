@@ -677,6 +677,18 @@ button:focus{
 </section>
 
 <section id="adminView" class="hidden">
+<div id="securityRulesPanelV45" class="card panel security-rules-panel-v45">
+  <div class="cal-head">
+    <h2>🔒 Security Rules ל־Firebase</h2>
+    <div class="actions">
+      <button class="btn-green" type="button" onclick="copySecurityRulesV169()">העתק Security Rules</button>
+      <button class="btn-light" type="button" onclick="manualSyncSecurityV169 && manualSyncSecurityV169()">סנכרן אבטחה</button>
+    </div>
+  </div>
+  <p>כאן מעתיקים את ה־Rules, מדביקים ב־Firebase → Firestore Database → Rules ולוחצים Publish. זה נדרש כדי שהרשמה עצמית ושמירת עובדים יעבדו בלי חסימת הרשאות.</p>
+  <textarea id="securityRulesPreviewV45" readonly style="direction:ltr;text-align:left;min-height:210px;font-family:monospace;font-size:12px"></textarea>
+  <div id="securityToolsMsgV169"></div>
+</div>
 <div id="adminDataToolsPrimary" class="card">
   <div class="cal-head"><h2>📦 ייצוא, גיבוי, שחזור ותבניות</h2></div>
   <p>כלי ניהול מתקדמים: ייצוא לאקסל, גיבוי מלא, שחזור ותבניות התקנה מוכנות.</p>
@@ -921,7 +933,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.2";
+const APP_VERSION = "4.7";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -7312,6 +7324,983 @@ async function addInstall(){
   resetEntryFormsAfterSaveV42();
   showEntryFeedbackV41('install', total);
 }
+</script>
+
+
+
+<style id="v43-registration-buttons-and-admin-cleanup">
+/* ===== v4.3: הרשמה - כפתור חזרה, כפתור פתיחת ניסיון, וניקוי כלי Security ישנים ===== */
+#registerView .cal-head{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:12px!important;
+  text-align:center!important;
+}
+#registerView .cal-head h1{width:100%!important;text-align:center!important;}
+#registerView .cal-head button{
+  width:min(100%, 520px)!important;
+  min-height:56px!important;
+  margin:0 auto 8px!important;
+  border-radius:24px!important;
+  font-size:18px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+#registerView button[onclick*="registerWorker"]{
+  width:min(100%, 430px)!important;
+  min-height:58px!important;
+  margin:18px auto 8px!important;
+  border-radius:24px!important;
+  font-size:18px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  text-align:center!important;
+}
+#registerMsg{ text-align:center!important; }
+#registerMsg .notice,#registerMsg .paywall,#registerMsg .danger{
+  max-width:620px!important;
+  margin:16px auto!important;
+  line-height:1.55!important;
+}
+</style>
+
+<script id="v43-registration-flow-fix">
+/* ===== v4.4: תיקון הרשמה עצמית וחזרה למסך כניסה =====
+   המטרה: לא להציג שגיאת Security שקרית כשהעובד כבר נוצר,
+   לא להשאיר את המשתמש תקוע במסך הרשמה, ולא להחזיר כלי Security ישנים לאדמין.
+*/
+(function(){
+  window.APP_VERSION = "4.7";
+  try{ if(typeof APP_VERSION !== "undefined"){} }catch(e){}
+  try{ document.title = "מעקב עבודה - גרסה 4.4"; }catch(e){}
+
+  function byId(id){ return document.getElementById(id); }
+  function safeHide(id){ var el=byId(id); if(el) el.classList.add('hidden'); }
+  function safeShow(id){ var el=byId(id); if(el) el.classList.remove('hidden'); }
+  function setHtml(id,html){ var el=byId(id); if(el) el.innerHTML=html; }
+  function setTextSafe(id,t){ var el=byId(id); if(el) el.textContent=t; }
+  function getValSafe(id){ var el=byId(id); return el ? String(el.value||'').trim() : ''; }
+  function normalizeV43(s){ return String(s||'').trim().toLowerCase(); }
+  function workerIdFromUsernameV43(k){ return 'worker_'+String(k||'').replace(/[^a-z0-9_\-א-ת]/gi,'_'); }
+  function isPermissionErrorV43(e){
+    var code=String((e&&e.code)||'').toLowerCase();
+    var msg=String((e&&e.message)||e||'').toLowerCase();
+    return code.includes('permission') || msg.includes('permission') || msg.includes('missing or insufficient permissions');
+  }
+  async function sha256V43(str){
+    if(typeof sha256 === 'function') return await sha256(str);
+    const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  function heDateV43(s){ try{ return typeof heDate==='function'?heDate(s):s; }catch(e){ return s; } }
+  function todayPlusDaysV43(days){
+    try{ if(typeof addDaysToDate==='function') return addDaysToDate(days); }catch(e){}
+    var d=new Date(); d.setDate(d.getDate()+Number(days||90));
+    var p=n=>String(n).padStart(2,'0');
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+  }
+  function cleanEmailV43(email){
+    try{ if(typeof cleanEmailV168==='function') return cleanEmailV168(email); }catch(e){}
+    return String(email||'').trim().toLowerCase();
+  }
+  function validEmailV43(email){
+    try{ if(typeof isValidEmailV168==='function') return isValidEmailV168(email); }catch(e){}
+    return !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+  function authEmailV43(username,recoveryEmail){
+    try{ if(typeof effectiveAuthEmailV168==='function') return effectiveAuthEmailV168(username,recoveryEmail); }catch(e){}
+    if(recoveryEmail) return recoveryEmail;
+    try{ if(typeof authEmailFromUsername==='function') return authEmailFromUsername(username); }catch(e){}
+    return String(username||'worker').replace(/[^a-z0-9_\-]/gi,'_')+'@work-monitor.local';
+  }
+  function firebaseAuthReadyV43(){
+    try{ return !!(window.firebase && firebase.auth && auth); }catch(e){ return false; }
+  }
+  function setRegisterBusyV43(isBusy){
+    var btn=[].slice.call(document.querySelectorAll('#registerView button')).find(function(b){
+      return String(b.getAttribute('onclick')||'').includes('registerWorker');
+    });
+    if(btn){ btn.disabled=!!isBusy; btn.textContent=isBusy?'יוצר משתמש...':'פתח משתמש ניסיון'; }
+  }
+  window.showWorkerLogin = function(){
+    try{ if(typeof clearLoginFields==='function') clearLoginFields(); }catch(e){}
+    ['startupView','workerLoginView','registerView','expiredView','adminLoginView','adminView','workerView'].forEach(safeHide);
+    safeShow('workerLoginView');
+    safeHide('logoutBtn');
+    setTextSafe('userLine','לא מחובר');
+    setTextSafe('workerLoginMsg','');
+    try{ var wu=byId('workerUsername'); if(wu) setTimeout(function(){wu.focus();},30); }catch(e){}
+    return false;
+  };
+  window.showRegister = function(){
+    try{ if(typeof clearLoginFields==='function') clearLoginFields(); }catch(e){}
+    ['startupView','workerLoginView','registerView','expiredView','adminLoginView','adminView','workerView'].forEach(safeHide);
+    safeShow('registerView');
+    safeHide('logoutBtn');
+    setTextSafe('userLine','הרשמה חדשה');
+    ['regName','regUsername','regEmail','regPassword','regPassword2'].forEach(function(id){ var el=byId(id); if(el) el.value=''; });
+    setHtml('registerMsg','');
+    upgradeRegisterButtonsV43();
+    return false;
+  };
+  function upgradeRegisterButtonsV43(){
+    var view=byId('registerView'); if(!view) return;
+    var back=[].slice.call(view.querySelectorAll('button')).find(function(b){ return String(b.textContent||'').trim()==='חזרה'; });
+    if(back){ back.type='button'; back.onclick=function(ev){ if(ev&&ev.preventDefault)ev.preventDefault(); return window.showWorkerLogin(); }; }
+    var reg=[].slice.call(view.querySelectorAll('button')).find(function(b){ return String(b.getAttribute('onclick')||'').includes('registerWorker'); });
+    if(reg){ reg.type='button'; reg.textContent='פתח משתמש ניסיון'; }
+  }
+  window.addEventListener('load', upgradeRegisterButtonsV43);
+  document.addEventListener('click', function(){ setTimeout(upgradeRegisterButtonsV43,30); });
+
+  async function createPrimaryAuthForSelfV43(username,password,name,recoveryEmail){
+    if(!firebaseAuthReadyV43()) throw new Error('Firebase Auth לא נטען. רענן את הדף ונסה שוב.');
+    var email=authEmailV43(username,recoveryEmail);
+    var cred=null, created=false;
+    try{
+      cred=await auth.createUserWithEmailAndPassword(email,password);
+      created=true;
+    }catch(e){
+      if(e && e.code==='auth/email-already-in-use'){
+        cred=await auth.signInWithEmailAndPassword(email,password);
+      }else{
+        throw e;
+      }
+    }
+    var user=(cred&&cred.user)?cred.user:auth.currentUser;
+    if(!user || !user.uid) throw new Error('Firebase Auth לא החזיר UID.');
+    try{ await user.updateProfile({displayName:name||username}); }catch(e){}
+    return {uid:user.uid,email:email,created:created};
+  }
+
+  window.registerWorker = async function(){
+    setHtml('registerMsg','');
+    setRegisterBusyV43(true);
+    try{
+      var name=getValSafe('regName'), username=getValSafe('regUsername'), pass=getValSafe('regPassword'), pass2=getValSafe('regPassword2');
+      var recoveryEmail=cleanEmailV43(getValSafe('regEmail'));
+      if(!name||!username||!pass||!pass2){ setHtml('registerMsg',"<p class='danger'>חובה למלא שם, שם משתמש וסיסמה.</p>"); return; }
+      if(recoveryEmail && !validEmailV43(recoveryEmail)){ setHtml('registerMsg',"<p class='danger'>האימייל לא תקין.</p>"); return; }
+      if(pass!==pass2){ setHtml('registerMsg',"<p class='danger'>הסיסמאות לא תואמות.</p>"); return; }
+      if(pass.length<6){ setHtml('registerMsg',"<p class='danger'>סיסמה חייבת להיות לפחות 6 תווים.</p>"); return; }
+
+      var usernameKey=normalizeV43(username);
+      var workerId=workerIdFromUsernameV43(usernameKey);
+      var preferredEmail=authEmailV43(username,recoveryEmail);
+      setHtml('registerMsg',"<div class='notice'>יוצר משתמש ניסיון...</div>");
+
+      try{
+        var existing=await db.collection('workers').doc(workerId).get();
+        if(existing.exists){ setHtml('registerMsg',"<p class='danger'>שם המשתמש כבר קיים. בחר שם משתמש אחר.</p>"); return; }
+      }catch(e){ /* אחרי Rules קשיחים ייתכן שאין הרשאת בדיקה לפני Auth — ממשיכים. */ }
+
+      var authResult=await createPrimaryAuthForSelfV43(username,pass,name,recoveryEmail);
+      var uid=authResult.uid;
+      var trialDays=(typeof DEFAULT_TRIAL_DAYS!=='undefined' && DEFAULT_TRIAL_DAYS) ? DEFAULT_TRIAL_DAYS : 90;
+      var trialUntil=todayPlusDaysV43(trialDays);
+      var now=firebase.firestore.FieldValue.serverTimestamp();
+      var workerData={
+        name:name, username:username, usernameKey:usernameKey,
+        authEmail:authResult.email||preferredEmail, recoveryEmail:recoveryEmail,
+        authUid:uid, authReady:true,
+        authNote:'נוצר בהרשמה עצמית בגרסה 4.4',
+        passwordHash:await sha256V43(pass), monthlyGoal:0, active:true,
+        selfRegistered:true, subscriptionStatus:'trial', trialDays:trialDays,
+        trialUntil:trialUntil, subscriptionUntil:trialUntil,
+        createdAt:now, updatedAt:now
+      };
+
+      var failed=[];
+      setHtml('registerMsg',"<div class='notice'>שומר את המשתמש במערכת...</div>");
+      try{
+        await db.collection('workers').doc(workerId).set(workerData,{merge:false});
+      }catch(e){
+        failed.push('workers: '+((e&&e.code)||e.message||e));
+      }
+      try{
+        await db.collection('users').doc(uid).set({uid:uid,role:'worker',workerId:workerId,username:username,name:name,authEmail:workerData.authEmail,recoveryEmail:recoveryEmail,selfRegistered:true,createdAt:now,updatedAt:now},{merge:true});
+      }catch(e){ failed.push('users: '+((e&&e.code)||e.message||e)); }
+      try{
+        await db.collection('usernameLookup').doc(usernameKey).set({workerId:workerId,username:username,usernameKey:usernameKey,authEmail:workerData.authEmail,authUid:uid,active:true,selfRegistered:true,createdAt:now,updatedAt:now},{merge:true});
+      }catch(e){ failed.push('usernameLookup: '+((e&&e.code)||e.message||e)); }
+
+      // בדיקה אמיתית: אם מסמך העובד קיים, ההרשמה הצליחה גם אם user/lookup נתקעו חלקית.
+      var workerSaved=false;
+      try{ var verify=await db.collection('workers').doc(workerId).get(); workerSaved=verify.exists; }catch(e){ workerSaved=!failed.some(function(x){return x.indexOf('workers:')===0;}); }
+
+      if(!workerSaved){
+        var txt=failed.join(' | ');
+        if(isPermissionErrorV43(txt)) setHtml('registerMsg',"<p class='danger'>Firebase Auth נוצר, אבל Firestore חסם את יצירת העובד. צריך לעדכן הרשאות Firestore או ליצור את העובד דרך האדמין.</p>");
+        else setHtml('registerMsg',"<p class='danger'>נוצר Auth אבל שמירת העובד נכשלה: "+(typeof esc==='function'?esc(txt):txt)+"</p>");
+        return;
+      }
+
+      try{
+        session={role:'worker',workerId:workerId,name:name,authUid:uid,authEmail:workerData.authEmail,remember:true,loginAt:Date.now(),expiresAt:null};
+        localStorage.setItem('workSession',JSON.stringify(session));
+      }catch(e){}
+
+      if(failed.length){
+        setHtml('registerMsg',"<div class='notice'>המשתמש נפתח ונשמר ✅<br>תקופת ניסיון עד "+heDateV43(trialUntil)+"<br>היו שדות אבטחה משניים שלא נשמרו, אבל העובד קיים. מעביר למסך העבודה...</div>");
+      }else{
+        setHtml('registerMsg',"<div class='notice'>המשתמש נפתח בהצלחה ✅<br>תקופת ניסיון עד "+heDateV43(trialUntil)+"<br>מעביר למסך העבודה...</div>");
+      }
+      setTimeout(function(){
+        try{ if(typeof showWorker==='function') showWorker({id:workerId,...workerData}); }
+        catch(e){ window.showWorkerLogin(); }
+      },650);
+    }catch(e){
+      setHtml('registerMsg',"<p class='danger'>שגיאה בהרשמה: "+(typeof esc==='function'?esc((e&&e.code)||e.message||String(e)):((e&&e.code)||e.message||String(e)))+"</p>");
+    }finally{
+      setRegisterBusyV43(false);
+    }
+  };
+
+  window.cleanupDeprecatedAdminToolsV43 = function(){
+    var admin=byId('adminView'); if(!admin) return;
+    ['securityToolsV169','selfRegistrationToolsV176','recoveryInfoPanelV178','rulesWarningV185','adminAuthBootstrapPanelV170'].forEach(function(id){ var el=byId(id); if(el&&el.parentNode) el.parentNode.removeChild(el); });
+    var bad=['Security Rules','סקיוריטי','סנכרן אבטחה','העתק Rules','העתק Security','תיקון הרשאות','שחזור גישה לעובד','צור/תקן Auth למנהל'];
+    [].slice.call(admin.querySelectorAll('.card,.panel,.paywall')).forEach(function(card){
+      var txt=String(card.textContent||'');
+      if(bad.some(function(t){return txt.includes(t);})){
+        // לא מוחקים לוג מערכת רגיל, רק כרטיסי כלים ישנים שמדברים על Rules/שחזור.
+        if(!txt.includes('לוג מערכת')){ try{ card.parentNode.removeChild(card); }catch(e){} }
+      }
+    });
+    [].slice.call(admin.querySelectorAll('button')).forEach(function(btn){
+      var txt=String(btn.textContent||''); var oc=String(btn.getAttribute('onclick')||'');
+      if(bad.some(function(t){return txt.includes(t);}) || oc.includes('copySecurityRules') || oc.includes('manualSyncSecurity') || oc.includes('resetWorkerAccess')){
+        try{ btn.parentNode.removeChild(btn); }catch(e){}
+      }
+    });
+  };
+  window.addSecurityToolsV169=function(){};
+  window.addSelfRegistrationToolsV176=function(){};
+  window.addRecoveryInfoPanelV178=function(){};
+  window.addRulesWarningV185=function(){};
+
+  var oldShowAdmin=window.showAdmin;
+  if(typeof oldShowAdmin==='function'){
+    window.showAdmin=async function(){
+      var r=await oldShowAdmin.apply(this,arguments);
+      setTimeout(window.cleanupDeprecatedAdminToolsV43,0);
+      setTimeout(window.cleanupDeprecatedAdminToolsV43,250);
+      setTimeout(window.cleanupDeprecatedAdminToolsV43,900);
+      return r;
+    };
+  }
+  setInterval(function(){
+    if(!byId('adminView') || byId('adminView').classList.contains('hidden')) return;
+    window.cleanupDeprecatedAdminToolsV43();
+  },1200);
+})();
+</script>
+
+
+
+<script>
+/* ===== v4.4: delete workers + restore security rules panel + registration cleanup ===== */
+(function(){
+  function el(id){ return document.getElementById(id); }
+  function ehtml(s){ try{return esc(s)}catch(_){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));} }
+  function showMsg(id,html){ var x=el(id); if(x) x.innerHTML=html; }
+  function norm44(s){ try{return normalize(s)}catch(_){return String(s||'').trim().toLowerCase();} }
+  function workerDocId44(username){ try{return workerIdFromUsername(norm44(username))}catch(_){return 'worker_'+String(norm44(username)).replace(/[^a-z0-9_\-א-ת]/gi,'_');} }
+  function authMail44(username,email){ try{return effectiveAuthEmailV168(username,email)}catch(_){ try{return authEmailFromUsername(username)}catch(__){return workerDocId44(username)+'@work-monitor.local';} } }
+  function isAdmin44(){ return session && session.role === 'admin'; }
+
+  window.FIRESTORE_RULES_V44 = `rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    function isAdmin() { return signedIn() && userDoc().data.role == 'admin'; }
+    function isWorker(workerId) { return signedIn() && userDoc().data.workerId == workerId; }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create, update: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow delete: if isAdmin();
+    }
+
+    match /usernameLookup/{usernameKey} {
+      allow read: if true;
+      allow create, update: if isAdmin() || (signedIn() && request.resource.data.authUid == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /workers/{workerId} {
+      allow read: if isAdmin() || isWorker(workerId) || (signedIn() && resource.data.authUid == request.auth.uid);
+      allow create: if isAdmin() || (signedIn() && request.resource.data.authUid == request.auth.uid);
+      allow update: if isAdmin() || (signedIn() && resource.data.authUid == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /workEntries/{entryId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.authUid == request.auth.uid) || isWorker(resource.data.workerId);
+      allow create: if isAdmin() || (signedIn() && request.resource.data.authUid == request.auth.uid) || isWorker(request.resource.data.workerId);
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.authUid == request.auth.uid) || isWorker(resource.data.workerId);
+    }
+
+    match /priceList/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /installTemplates/{docId} {
+      allow read: if signedIn();
+      allow create: if isAdmin() || signedIn();
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.ownerAuthUid == request.auth.uid);
+    }
+
+    match /paymentRequests/{docId} {
+      allow create: if signedIn();
+      allow read, update, delete: if isAdmin() || (signedIn() && resource.data.authUid == request.auth.uid);
+    }
+
+    match /appLogs/{docId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}`;
+
+  window.copySecurityRulesV169 = async function(){
+    var rules = window.FIRESTORE_RULES_V44;
+    try{
+      await navigator.clipboard.writeText(rules);
+      alert('Security Rules v4.4 הועתקו ✅\nFirebase → Firestore Database → Rules → הדבק → Publish');
+    }catch(e){
+      prompt('העתק את Security Rules v4.4:', rules);
+    }
+    showMsg('securityToolsMsgV44', "<div class='notice'>Security Rules v4.4 הועתקו ✅</div>");
+  };
+
+  window.manualSyncSecurityV44 = async function(){
+    if(!isAdmin44()) return alert('צריך להיכנס כאדמין.');
+    var msg=el('securityToolsMsgV44'); if(msg) msg.innerHTML="<div class='notice'>מסנכרן נתוני אבטחה...</div>";
+    try{
+      var snap=await db.collection('workers').get();
+      var batch=db.batch();
+      var count=0;
+      snap.docs.forEach(function(d){
+        var w={id:d.id,...d.data()};
+        if(w.movedTo) return;
+        var usernameKey=norm44(w.usernameKey||w.username||d.id.replace(/^worker_/,''));
+        if(usernameKey){
+          batch.set(db.collection('usernameLookup').doc(usernameKey),{
+            workerId:d.id, username:w.username||usernameKey, usernameKey:usernameKey,
+            authEmail:w.authEmail||authMail44(w.username||usernameKey,w.recoveryEmail||''),
+            authUid:w.authUid||'', active:w.active!==false,
+            updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+          },{merge:true});
+        }
+        if(w.authUid){
+          batch.set(db.collection('users').doc(w.authUid),{
+            uid:w.authUid, role:'worker', workerId:d.id, username:w.username||usernameKey,
+            name:w.name||'', authEmail:w.authEmail||'', recoveryEmail:w.recoveryEmail||'',
+            updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+          },{merge:true});
+        }
+        count++;
+      });
+      await batch.commit();
+      if(msg) msg.innerHTML="<div class='notice'>סנכרון אבטחה הסתיים ✅ עודכנו "+count+" עובדים.</div>";
+      if(typeof loadWorkers==='function') await loadWorkers();
+    }catch(e){
+      if(msg) msg.innerHTML="<p class='danger'>שגיאה בסנכרון אבטחה: "+ehtml((e&&e.code)||e.message||e)+"</p>";
+    }
+  };
+
+  window.cleanupDeprecatedAdminToolsV43 = function(){};
+  window.addSecurityToolsV169 = window.addSecurityToolsV44 = function(){
+    var admin=el('adminView'); if(!admin || el('securityToolsV44')) return;
+    var card=document.createElement('div');
+    card.id='securityToolsV44';
+    card.className='card panel';
+    card.innerHTML=`
+      <div class="cal-head"><h2>🔒 Security Rules והרשאות</h2><button class="btn-green" onclick="manualSyncSecurityV44()">סנכרן אבטחה</button></div>
+      <p>השתמש בזה כשיש שגיאת הרשאות בהרשמה/יצירת עובד. קודם סנכרן אבטחה, אחר כך העתק Rules ופרסם ב־Firebase.</p>
+      <div class="actions"><button class="btn-light" onclick="copySecurityRulesV169()">העתק Security Rules v4.4</button></div>
+      <div id="securityToolsMsgV44"></div>`;
+    var workersCard=el('workersList');
+    if(workersCard && workersCard.closest('.card')) admin.insertBefore(card, workersCard.closest('.card'));
+    else admin.appendChild(card);
+  };
+
+  async function deleteQueryBatch44(collection, field, value){
+    var snap=await db.collection(collection).where(field,'==',value).get();
+    if(snap.empty) return 0;
+    var batch=db.batch(), c=0;
+    snap.docs.forEach(function(d){ batch.delete(d.ref); c++; });
+    await batch.commit();
+    return c;
+  }
+
+  window.deleteWorkerCompletely = async function(workerId){
+    if(!isAdmin44()) return alert('מחיקת עובד מלאה זמינה רק לאדמין.');
+    var w=(workers||[]).find(x=>x.id===workerId);
+    if(!w){
+      try{ var d=await db.collection('workers').doc(workerId).get(); if(d.exists) w={id:d.id,...d.data()}; }catch(e){}
+    }
+    var name=(w&&w.name)||workerId;
+    var usernameKey=norm44((w&&w.usernameKey)||(w&&w.username)||workerId.replace(/^worker_/,''));
+    var msg='למחוק לגמרי את העובד '+name+'?\n\nזה ימחק מהמסד:\n- כרטיס עובד\n- usernameLookup\n- users role אם קיים\n- כל העבודות שלו\n- תבניות פרטיות שלו\n\nהפעולה בלתי הפיכה.';
+    if(!confirm(msg)) return;
+    if(!confirm('אישור אחרון: למחוק לצמיתות?')) return;
+    try{
+      var deletedEntries=0, deletedTemplates=0;
+      try{ deletedEntries=await deleteQueryBatch44('workEntries','workerId',workerId); }catch(e){ console.warn(e); }
+      try{ deletedTemplates=await deleteQueryBatch44('installTemplates','ownerWorkerId',workerId); }catch(e){ console.warn(e); }
+      var batch=db.batch();
+      batch.delete(db.collection('workers').doc(workerId));
+      if(usernameKey) batch.delete(db.collection('usernameLookup').doc(usernameKey));
+      if(w && w.authUid) batch.delete(db.collection('users').doc(w.authUid));
+      await batch.commit();
+      alert('העובד נמחק מהמסד ✅\nעבודות שנמחקו: '+deletedEntries+'\nתבניות פרטיות שנמחקו: '+deletedTemplates+'\nשים לב: משתמש Firebase Auth עצמו לא נמחק מה-Authentication דרך הדפדפן, אבל הוא כבר לא מחובר למסד.');
+      if(typeof loadWorkers==='function') await loadWorkers();
+    }catch(e){
+      alert('שגיאה במחיקת עובד: '+((e&&e.code)||e.message||e));
+    }
+  };
+
+  var oldLoadWorkers44=window.loadWorkers;
+  if(typeof oldLoadWorkers44==='function'){
+    window.loadWorkers=async function(){
+      await oldLoadWorkers44.apply(this,arguments);
+      try{
+        document.querySelectorAll('#workersList .item').forEach(function(row){
+          if(row.querySelector('[data-delete-worker-full="1"]')) return;
+          var txt=row.textContent||'';
+          var m=txt.match(/ID:\s*([^\s]+)/);
+          var workerId=m?m[1]:'';
+          if(!workerId) return;
+          var actions=row.querySelector('.actions')||row;
+          var b=document.createElement('button');
+          b.className='btn-red'; b.dataset.deleteWorkerFull='1'; b.textContent='מחק לגמרי';
+          b.onclick=function(){ deleteWorkerCompletely(workerId); };
+          actions.appendChild(b);
+        });
+      }catch(e){ console.warn('add delete buttons failed',e); }
+    };
+  }
+
+  // הרשמה עצמית: אם Auth נוצר אבל Firestore חסום, נותנים הודעה נכונה ולא משאירים מצב לא ברור.
+  var oldRegister44=window.registerWorker;
+  if(typeof oldRegister44==='function'){
+    window.registerWorker=async function(){
+      await oldRegister44.apply(this,arguments);
+      var msg=el('registerMsg');
+      if(msg && /Firebase Auth נוצר.*Firestore חסם|Firestore חסם את יצירת העובד/.test(msg.textContent||'')){
+        msg.innerHTML = "<p class='danger'>Firebase Auth נוצר, אבל Firestore חסם את יצירת העובד. זה לא בעיה בטופס — צריך להיכנס לאדמין, לפתוח Security Rules והרשאות, להעתיק Rules v4.4, לפרסם ב־Firebase ואז לנסות שוב. אם העובד כבר מופיע באדמין אפשר למחוק אותו לגמרי וליצור מחדש.</p>";
+      }
+    };
+  }
+
+  var oldShowAdmin44=window.showAdmin;
+  if(typeof oldShowAdmin44==='function'){
+    window.showAdmin=async function(){
+      var r=await oldShowAdmin44.apply(this,arguments);
+      setTimeout(function(){ try{ addSecurityToolsV44(); }catch(e){} },50);
+      setTimeout(function(){ try{ addSecurityToolsV44(); if(typeof loadWorkers==='function') loadWorkers(); }catch(e){} },500);
+      return r;
+    };
+  }
+  window.addEventListener('load',function(){
+    try{ if(el('adminView') && !el('adminView').classList.contains('hidden')) addSecurityToolsV44(); }catch(e){}
+  });
+})();
+</script>
+
+
+<script>
+/* ===== v4.5: Static admin Security Rules panel + registration permission helper ===== */
+(function(){
+  function fillSecurityRulesPreviewV45(){
+    try{
+      var ta=document.getElementById("securityRulesPreviewV45");
+      if(ta){
+        ta.value=(window.FIRESTORE_RULES_V185 || (typeof FIRESTORE_RULES_V185!=="undefined" ? FIRESTORE_RULES_V185 : ""));
+      }
+    }catch(e){}
+  }
+
+  window.addSecurityRulesPanelV45=function(){
+    var admin=document.getElementById("adminView");
+    if(!admin)return;
+    var panel=document.getElementById("securityRulesPanelV45");
+    if(!panel){
+      panel=document.createElement("div");
+      panel.id="securityRulesPanelV45";
+      panel.className="card panel security-rules-panel-v45";
+      panel.innerHTML='\
+        <div class="cal-head">\
+          <h2>🔒 Security Rules ל־Firebase</h2>\
+          <div class="actions">\
+            <button class="btn-green" type="button" onclick="copySecurityRulesV169()">העתק Security Rules</button>\
+            <button class="btn-light" type="button" onclick="manualSyncSecurityV169 && manualSyncSecurityV169()">סנכרן אבטחה</button>\
+          </div>\
+        </div>\
+        <p>כאן מעתיקים את ה־Rules, מדביקים ב־Firebase → Firestore Database → Rules ולוחצים Publish.</p>\
+        <textarea id="securityRulesPreviewV45" readonly style="direction:ltr;text-align:left;min-height:210px;font-family:monospace;font-size:12px"></textarea>\
+        <div id="securityToolsMsgV169"></div>';
+      admin.insertBefore(panel, admin.firstChild);
+    }
+    panel.classList.remove("hidden");
+    fillSecurityRulesPreviewV45();
+  };
+
+  var oldShowAdminV45=window.showAdmin;
+  if(typeof oldShowAdminV45==="function"){
+    window.showAdmin=async function(){
+      await oldShowAdminV45.apply(this,arguments);
+      window.addSecurityRulesPanelV45();
+    };
+  }
+
+  var oldCopyRulesV45=window.copySecurityRulesV169;
+  window.copySecurityRulesV169=async function(){
+    var rules=(window.FIRESTORE_RULES_V185 || (typeof FIRESTORE_RULES_V185!=="undefined" ? FIRESTORE_RULES_V185 : ""));
+    if(!rules && typeof FIRESTORE_RULES_V176!=="undefined") rules=FIRESTORE_RULES_V176;
+    try{
+      await navigator.clipboard.writeText(rules);
+      var msg=document.getElementById("securityToolsMsgV169") || document.getElementById("adminAuthBootstrapMsgV170");
+      if(msg) msg.innerHTML="<div class='notice'>Security Rules הועתקו ✅<br>עכשיו הדבק ב־Firebase → Firestore Database → Rules ולחץ Publish.</div>";
+      alert("Security Rules הועתקו ✅\nהדבק ב־Firebase Firestore Rules ולחץ Publish.");
+    }catch(e){
+      prompt("העתק את ה־Security Rules:", rules);
+    }
+  };
+
+  document.addEventListener("DOMContentLoaded", fillSecurityRulesPreviewV45);
+  window.addEventListener("load", function(){ fillSecurityRulesPreviewV45(); if(document.getElementById("adminView") && !document.getElementById("adminView").classList.contains("hidden")) window.addSecurityRulesPanelV45(); });
+})();
+</script>
+
+
+<style id="v46-force-security-rules-visible">
+/* ===== v4.6: Security Rules panel must stay visible in admin ===== */
+#adminView #securityRulesPanelV45,
+#adminView #securityRulesPanelV46{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  height:auto!important;
+  max-height:none!important;
+  overflow:visible!important;
+  position:relative!important;
+  z-index:30!important;
+  margin-bottom:14px!important;
+}
+#adminView #securityRulesPanelV45.hidden,
+#adminView #securityRulesPanelV46.hidden{
+  display:block!important;
+}
+#securityRulesPreviewV45,
+#securityRulesPreviewV46{
+  display:block!important;
+  width:100%!important;
+  min-height:260px!important;
+  direction:ltr!important;
+  text-align:left!important;
+  font-family:monospace!important;
+  font-size:12px!important;
+  white-space:pre!important;
+}
+</style>
+<script id="v46-security-rules-final-fix">
+/* ===== v4.6: restore Security Rules panel after old cleanup removed it ===== */
+(function(){
+  function getRulesV46(){
+    try{
+      if(window.FIRESTORE_RULES_V185) return window.FIRESTORE_RULES_V185;
+    }catch(e){}
+    try{
+      if(typeof FIRESTORE_RULES_V185 !== "undefined") return FIRESTORE_RULES_V185;
+    }catch(e){}
+    try{
+      if(window.FIRESTORE_RULES_V176) return window.FIRESTORE_RULES_V176;
+    }catch(e){}
+    try{
+      if(typeof FIRESTORE_RULES_V176 !== "undefined") return FIRESTORE_RULES_V176;
+    }catch(e){}
+    return `rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.email == "admin@work-monitor.local" ||
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"
+      );
+    }
+    function isWorker(workerId) {
+      return signedIn() && (
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.workerId == workerId
+      );
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /usernameLookup/{usernameKey} {
+      allow read: if true;
+      allow write: if isAdmin() || signedIn();
+    }
+
+    match /users/{uid} {
+      allow read, write: if isAdmin() || (signedIn() && request.auth.uid == uid);
+    }
+
+    match /workers/{workerId} {
+      allow create: if signedIn();
+      allow read: if isAdmin() || isWorker(workerId);
+      allow update: if isAdmin() || isWorker(workerId);
+      allow delete: if isAdmin();
+    }
+
+    match /workEntries/{entryId} {
+      allow create: if isAdmin() || isWorker(request.resource.data.workerId);
+      allow read, update, delete: if isAdmin() || isWorker(resource.data.workerId);
+    }
+
+    match /priceList/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /installTemplates/{docId} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if isAdmin() || isWorker(resource.data.ownerWorkerId);
+    }
+
+    match /paymentRequests/{docId} {
+      allow create: if signedIn();
+      allow read, update, delete: if isAdmin() || isWorker(resource.data.workerId);
+    }
+
+    match /appLogs/{docId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}`;
+  }
+
+  function panelHtmlV46(){
+    return '<div class="cal-head">'+
+      '<h2>🔒 Security Rules ל־Firebase</h2>'+
+      '<div class="actions">'+
+      '<button class="btn-green" type="button" onclick="copySecurityRulesV169()">העתק Security Rules</button>'+
+      '<button class="btn-light" type="button" onclick="manualSyncSecurityV169 && manualSyncSecurityV169()">סנכרן אבטחה</button>'+
+      '</div></div>'+
+      '<p><b>זה הפאנל שצריך:</b> העתק את ה־Rules, הדבק ב־Firebase → Firestore Database → Rules ולחץ Publish.</p>'+
+      '<textarea id="securityRulesPreviewV46" readonly></textarea>'+
+      '<div id="securityToolsMsgV169"></div>';
+  }
+
+  window.ensureSecurityRulesPanelV46=function(){
+    var admin=document.getElementById('adminView');
+    if(!admin) return;
+    var old=document.getElementById('securityRulesPanelV45');
+    if(old && old.parentNode) old.parentNode.removeChild(old);
+    var panel=document.getElementById('securityRulesPanelV46');
+    if(!panel){
+      panel=document.createElement('div');
+      panel.id='securityRulesPanelV46';
+      panel.className='card panel security-rules-panel-v46';
+      panel.innerHTML=panelHtmlV46();
+      admin.insertBefore(panel, admin.firstChild);
+    }
+    panel.classList.remove('hidden');
+    panel.style.display='block';
+    panel.style.visibility='visible';
+    panel.style.opacity='1';
+    var ta=document.getElementById('securityRulesPreviewV46');
+    if(ta) ta.value=getRulesV46();
+  };
+
+  // ביטול הניקוי הישן שמחק כל כפתור/פאנל שכתוב עליו Security Rules.
+  window.cleanupDeprecatedAdminToolsV35=function(){
+    ['selfRegistrationToolsV176','recoveryInfoPanelV178','rulesWarningV185','adminAuthBootstrapPanelV170','securityToolsV169'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el && el.parentNode) el.parentNode.removeChild(el);
+    });
+    try{ window.ensureSecurityRulesPanelV46(); }catch(e){}
+  };
+
+  window.copySecurityRulesV169=async function(){
+    var rules=getRulesV46();
+    try{
+      await navigator.clipboard.writeText(rules);
+      var msg=document.getElementById('securityToolsMsgV169');
+      if(msg) msg.innerHTML='<div class="notice">Security Rules הועתקו ✅<br>עכשיו הדבק ב־Firebase → Firestore Database → Rules ולחץ Publish.</div>';
+      alert('Security Rules הועתקו ✅');
+    }catch(e){
+      prompt('העתק את ה־Security Rules:', rules);
+    }
+  };
+
+  var oldShowAdminV46=window.showAdmin;
+  if(typeof oldShowAdminV46==='function'){
+    window.showAdmin=async function(){
+      var result=await oldShowAdminV46.apply(this,arguments);
+      setTimeout(window.ensureSecurityRulesPanelV46,0);
+      setTimeout(window.ensureSecurityRulesPanelV46,150);
+      setTimeout(window.ensureSecurityRulesPanelV46,700);
+      return result;
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(window.ensureSecurityRulesPanelV46,100); });
+  window.addEventListener('load',function(){ setTimeout(window.ensureSecurityRulesPanelV46,300); setTimeout(window.ensureSecurityRulesPanelV46,1000); });
+})();
+</script>
+
+
+
+<style id="v47-security-registration-fix-style">
+#adminView #securityRulesPanelV47{
+  display:block!important; visibility:visible!important; opacity:1!important;
+  height:auto!important; max-height:none!important; overflow:visible!important;
+  position:relative!important; z-index:80!important; margin-bottom:14px!important;
+}
+#securityRulesPreviewV47{
+  display:block!important; width:100%!important; min-height:330px!important;
+  direction:ltr!important; text-align:left!important; font-family:monospace!important;
+  font-size:12px!important; white-space:pre!important;
+}
+</style>
+<script id="v47-self-registration-rules-final">
+/* ===== v4.7: Final self-registration Security Rules + stronger registration message ===== */
+(function(){
+  try{ window.APP_VERSION = "4.7"; document.title = "מעקב עבודה - גרסה 4.7"; }catch(e){}
+
+  window.FIRESTORE_RULES_V47 = String.raw`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function hasUserDoc() {
+      return signedIn() && exists(userPath(request.auth.uid));
+    }
+
+    function userDoc() {
+      return get(userPath(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.email == "admin@work-monitor.local" ||
+        (hasUserDoc() && userDoc().data.role == "admin")
+      );
+    }
+
+    function myWorkerId() {
+      return hasUserDoc() ? userDoc().data.workerId : "";
+    }
+
+    function isOwnWorker(workerId) {
+      return signedIn() && (
+        myWorkerId() == workerId ||
+        (exists(/databases/$(database)/documents/workers/$(workerId)) &&
+         get(/databases/$(database)/documents/workers/$(workerId)).data.authUid == request.auth.uid)
+      );
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /usernameLookup/{usernameKey} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.authUid == request.auth.uid
+        && request.resource.data.active == true
+        && request.resource.data.usernameKey == usernameKey
+        && request.resource.data.workerId is string;
+      allow update: if isAdmin() || (signedIn()
+        && resource.data.authUid == request.auth.uid
+        && request.resource.data.authUid == request.auth.uid
+        && request.resource.data.workerId == resource.data.workerId);
+      allow delete: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role == "worker"
+        && request.resource.data.workerId is string;
+      allow update: if isAdmin() || (signedIn()
+        && request.auth.uid == uid
+        && resource.data.role == "worker"
+        && request.resource.data.role == "worker"
+        && request.resource.data.workerId == resource.data.workerId);
+      allow delete: if isAdmin();
+    }
+
+    match /workers/{workerId} {
+      allow read: if isAdmin() || isOwnWorker(workerId);
+
+      // חשוב: זה התיקון. בהרשמה עצמית אין עדיין הרשאת אדמין,
+      // לכן העובד רשאי ליצור רק מסמך עובד שמחובר ל-UID שלו.
+      allow create: if isAdmin() || (signedIn()
+        && request.resource.data.authUid == request.auth.uid
+        && request.resource.data.authReady == true
+        && request.resource.data.active == true
+        && request.resource.data.selfRegistered == true
+        && request.resource.data.usernameKey is string);
+
+      allow update: if isAdmin() || (isOwnWorker(workerId)
+        && request.resource.data.authUid == resource.data.authUid
+        && request.resource.data.usernameKey == resource.data.usernameKey);
+      allow delete: if isAdmin();
+    }
+
+    match /workEntries/{entryId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create: if isAdmin() || (signedIn() && request.resource.data.workerId == myWorkerId());
+      allow update, delete: if isAdmin() || (signedIn()
+        && resource.data.workerId == myWorkerId()
+        && request.resource.data.workerId == resource.data.workerId);
+    }
+
+    match /priceList/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /installTemplates/{docId} {
+      allow read: if isAdmin() || signedIn();
+      allow create: if signedIn();
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.ownerWorkerId == myWorkerId());
+    }
+
+    match /paymentRequests/{docId} {
+      allow create: if signedIn();
+      allow read, update, delete: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+    }
+
+    match /payments/{docId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /appLogs/{docId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}`;
+
+  function v47Rules(){ return window.FIRESTORE_RULES_V47; }
+
+  window.copySecurityRulesV169 = async function(){
+    var rules=v47Rules();
+    try{
+      await navigator.clipboard.writeText(rules);
+      var msg=document.getElementById('securityToolsMsgV169') || document.getElementById('securityToolsMsgV47');
+      if(msg) msg.innerHTML='<div class="notice">Security Rules v4.7 הועתקו ✅<br>Firebase → Firestore Database → Rules → הדבק → Publish.</div>';
+      alert('Security Rules v4.7 הועתקו ✅');
+    }catch(e){
+      prompt('העתק את Security Rules v4.7:', rules);
+    }
+  };
+
+  window.ensureSecurityRulesPanelV47 = function(){
+    var admin=document.getElementById('adminView');
+    if(!admin) return;
+    ['securityRulesPanelV45','securityRulesPanelV46','securityToolsV169','selfRegistrationToolsV176'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el && el.parentNode) el.parentNode.removeChild(el);
+    });
+    var panel=document.getElementById('securityRulesPanelV47');
+    if(!panel){
+      panel=document.createElement('div');
+      panel.id='securityRulesPanelV47';
+      panel.className='card panel';
+      panel.innerHTML=''+
+        '<div class="cal-head"><h2>🔒 Security Rules v4.7</h2><div class="actions">'+
+        '<button class="btn-green" type="button" onclick="copySecurityRulesV169()">העתק Security Rules v4.7</button>'+
+        '<button class="btn-light" type="button" onclick="manualSyncSecurityV169 && manualSyncSecurityV169()">סנכרן אבטחה</button>'+
+        '</div></div>'+
+        '<p><b>זה התיקון להרשמה:</b> ה־Rules האלה מאפשרים למשתמש חדש ליצור את עצמו ב־Firestore אחרי שנוצר לו UID ב־Firebase Auth.</p>'+
+        '<textarea id="securityRulesPreviewV47" readonly></textarea>'+
+        '<div id="securityToolsMsgV169"></div>';
+      admin.insertBefore(panel, admin.firstChild);
+    }
+    panel.classList.remove('hidden');
+    panel.style.display='block';
+    var ta=document.getElementById('securityRulesPreviewV47');
+    if(ta) ta.value=v47Rules();
+  };
+
+  // לא לאפשר לקוד ניקוי ישן למחוק שוב את הפאנל הזה.
+  window.cleanupDeprecatedAdminToolsV35=function(){
+    try{ window.ensureSecurityRulesPanelV47(); }catch(e){}
+  };
+
+  var oldShowAdmin=window.showAdmin;
+  if(typeof oldShowAdmin==='function'){
+    window.showAdmin=async function(){
+      var r=await oldShowAdmin.apply(this,arguments);
+      setTimeout(window.ensureSecurityRulesPanelV47,0);
+      setTimeout(window.ensureSecurityRulesPanelV47,200);
+      setTimeout(window.ensureSecurityRulesPanelV47,900);
+      return r;
+    };
+  }
+
+  // הודעה מדויקת יותר בהרשמה אם Auth כבר נוצר אבל Firestore עדיין חסום.
+  var oldReg=window.registerWorker;
+  if(typeof oldReg==='function'){
+    window.registerWorker=async function(){
+      await oldReg.apply(this,arguments);
+      setTimeout(function(){
+        var msg=document.getElementById('registerMsg');
+        if(!msg) return;
+        var txt=msg.textContent||'';
+        if(txt.includes('Firestore חסם') || txt.includes('Security Rules ישנות') || txt.includes('חסם את שמירת העובד')){
+          msg.innerHTML='<p class="danger">Firebase Auth נוצר, אבל Firestore חסם את יצירת העובד. צריך להיכנס כאדמין, להעתיק <b>Security Rules v4.7</b>, לפרסם אותם ב־Firebase ואז לנסות שוב. אם העובד כבר מופיע באדמין — מחק אותו לגמרי וצור מחדש.</p>';
+        }
+      },50);
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(window.ensureSecurityRulesPanelV47,200); });
+  window.addEventListener('load',function(){ setTimeout(window.ensureSecurityRulesPanelV47,500); });
+})();
 </script>
 
 </body>
