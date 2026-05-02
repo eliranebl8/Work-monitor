@@ -310,6 +310,25 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
   text-align:center;
 }
 .kpi b{display:block;font-size:20px;margin-top:4px}
+
+.subscription-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0}
+.plan-card{
+  background:linear-gradient(180deg,#fff,#f8fafc);
+  border:2px solid var(--line);
+  border-radius:24px;
+  padding:18px;
+  box-shadow:var(--soft-shadow);
+  text-align:center;
+}
+.plan-card.featured{border-color:var(--green);background:#ecfdf5}
+.plan-price{font-size:30px;font-weight:900;color:var(--blue);margin:8px 0}
+.plan-small{color:var(--muted);font-weight:900}
+.payment-row{background:#fff;border:1px solid var(--line);border-radius:18px;padding:12px;margin:8px 0;box-shadow:0 8px 16px rgba(15,23,42,.055)}
+.payment-status-pending{color:#9a3412;font-weight:900}
+.payment-status-paid{color:#166534;font-weight:900}
+.payment-status-cancelled{color:#991b1b;font-weight:900}
+@media(max-width:800px){.subscription-plans{grid-template-columns:1fr}}
+
 @media(max-width:800px){.kpi-strip{grid-template-columns:repeat(2,1fr)}
 
   body{padding:10px}
@@ -360,7 +379,38 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <section id="expiredView" class="card login-box hidden">
   <h1 class="big-title">המנוי הסתיים</h1>
   <div class="paywall">תקופת הניסיון או המנוי שלך הסתיימו. הנתונים שמורים, אבל הגישה נעולה עד חידוש מנוי.</div>
-  <p>בשלב הבא נחבר כאן מסך תשלום. כרגע פנה למנהל כדי להאריך מנוי.</p>
+
+  <div class="card panel" style="box-shadow:none">
+    <h3>פרטי משתמש לפני תשלום</h3>
+    <p class="muted">כדי שנדע לשייך את התשלום לחשבון שלך, הפרטים האלה יישמרו עם בקשת התשלום.</p>
+    <input id="paymentWorkerName" disabled placeholder="שם עובד">
+    <input id="paymentWorkerUsername" disabled placeholder="שם משתמש">
+    <input id="paymentWorkerId" disabled placeholder="מזהה משתמש במערכת">
+  </div>
+
+  <h2 style="text-align:center;margin-top:16px">בחר מסלול מנוי</h2>
+  <div class="subscription-plans">
+    <div class="plan-card">
+      <h3>מנוי חודשי</h3>
+      <div class="plan-price">₪19</div>
+      <div class="plan-small">מתחדש כל חודש</div>
+      <button class="btn-green" onclick="startPaymentPlan('monthly')">בחר מנוי חודשי</button>
+    </div>
+    <div class="plan-card featured">
+      <h3>מנוי 3 חודשים</h3>
+      <div class="plan-price">₪45</div>
+      <div class="plan-small">₪15 לחודש · מתחדש כל 3 חודשים</div>
+      <button class="btn-green" onclick="startPaymentPlan('quarterly')">בחר 3 חודשים</button>
+    </div>
+    <div class="plan-card">
+      <h3>מנוי חצי שנה</h3>
+      <div class="plan-price">₪60</div>
+      <div class="plan-small">₪10 לחודש · מתחדש כל 6 חודשים</div>
+      <button class="btn-green" onclick="startPaymentPlan('halfyear')">בחר חצי שנה</button>
+    </div>
+  </div>
+
+  <div id="paymentMsg"></div>
   <button class="btn-light" onclick="showWorkerLogin()">חזרה למסך כניסה</button>
 </section>
 
@@ -409,6 +459,13 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
     <button class="btn-green" onclick="saveTrialSettings()">שמור ימי ניסיון</button>
   </div>
   <div id="trialSettingsMsg"></div>
+</div>
+
+
+<div class="card">
+  <div class="cal-head"><h2>💳 מעקב תשלומים ומנויים</h2><button class="btn-light" onclick="loadPaymentRequests()">רענן תשלומים</button></div>
+  <p>כאן תראה מי בחר מסלול, כמה הוא אמור לשלם, מתי הוא לחץ לתשלום, ומה סטטוס הבקשה. עד שנחבר סליקה אוטומטית, אפשר לסמן ידנית כתשלום שהתקבל ולעדכן מנוי.</p>
+  <div id="paymentRequestsAdmin"></div>
 </div>
 
 <div id="subscriptionEditPanel" class="card panel hidden">
@@ -642,7 +699,7 @@ async function workerLogin(){
     if(isSubscriptionExpired(worker)){
       localStorage.removeItem("workSession");
       session=null;
-      showExpiredView();
+      showExpiredView(worker);
       return;
     }
 
@@ -663,7 +720,7 @@ async function workerLogin(){
 }
 
 function logout(){localStorage.removeItem("workSession");session=null;viewedWorker=null;showWorkerLogin()}
-async function showAdmin(){hideAll();show("adminView");show("logoutBtn");text("userLine","מנהל");await ensureDefaultPriceList();await loadSettings();$("servicePriceInput").value=SERVICE_PRICE;$("adminSetUsername").value=ADMIN_USERNAME;if($("trialDaysInput"))$("trialDaysInput").value=DEFAULT_TRIAL_DAYS;await loadWorkers();await loadPriceListAdmin();await loadTemplatesAdmin();await loadDebugLogs()}
+async function showAdmin(){hideAll();show("adminView");show("logoutBtn");text("userLine","מנהל");await ensureDefaultPriceList();await loadSettings();$("servicePriceInput").value=SERVICE_PRICE;$("adminSetUsername").value=ADMIN_USERNAME;if($("trialDaysInput"))$("trialDaysInput").value=DEFAULT_TRIAL_DAYS;await loadWorkers();await loadPriceListAdmin();await loadTemplatesAdmin();await loadPaymentRequests();await loadDebugLogs()}
 async function loadSettings(){const doc=await db.collection("settings").doc("main").get();if(doc.exists){const d=doc.data();if(d.servicePrice!==undefined)SERVICE_PRICE=Number(d.servicePrice||65);if(d.defaultTrialDays!==undefined)DEFAULT_TRIAL_DAYS=Number(d.defaultTrialDays||90);if(d.adminUsername)ADMIN_USERNAME=d.adminUsername;if(d.adminPasswordHash)ADMIN_PASSWORD_SHA256=d.adminPasswordHash}else{await db.collection("settings").doc("main").set({servicePrice:65,defaultTrialDays:90,adminUsername:"Eliran",adminPasswordHash:ADMIN_PASSWORD_SHA256,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true})}updateServicePriceLabels()}
 async function saveAdminSettings(){const username=val("adminSetUsername"),password=val("adminSetPassword");if(!username)return $("adminSettingsMsg").innerHTML="<p class='danger'>חובה למלא שם משתמש מנהל.</p>";const update={adminUsername:username,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(password.trim())update.adminPasswordHash=await sha256(password.trim());await db.collection("settings").doc("main").set(update,{merge:true});$("adminSetPassword").value="";await loadSettings();$("adminSettingsMsg").innerHTML="<div class='notice'>הגדרות מנהל נשמרו ✅</div>"}
 async function createWorker(){const btn=$("createWorkerBtn"),msg=$("workerMsg");msg.innerHTML="<div class='notice'>יוצר עובד...</div>";btn.disabled=true;try{const name=val("wName"),username=val("wUser"),pass=val("wPass"),goal=Number(val("wGoal")||0),usernameKey=normalize(username),id=workerIdFromUsername(usernameKey);if(!name||!username||!pass)return msg.innerHTML="<p class='danger'>חובה למלא שם, שם משתמש וסיסמה.</p>";await db.collection("workers").doc(id).set({name,username,usernameKey,passwordHash:await sha256(pass),monthlyGoal:goal,active:true,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});["wName","wUser","wPass","wGoal"].forEach(x=>$(x).value="");msg.innerHTML=`<div class='notice'>העובד ${esc(name)} נוצר/עודכן בהצלחה ✅</div>`;await loadWorkers()}catch(e){msg.innerHTML=`<p class='danger'>שגיאה: ${esc(e.message)}</p>`}finally{btn.disabled=false}}
@@ -1032,7 +1089,16 @@ async function saveWorkerSelfSettings(){
 
 
 function showRegister(){hideAll();show("registerView");hide("logoutBtn");text("userLine","הרשמה חדשה");["regName","regUsername","regPassword","regPassword2"].forEach(id=>{if($(id))$(id).value=""});if($("registerMsg"))$("registerMsg").innerHTML=""}
-function showExpiredView(){hideAll();show("expiredView");hide("logoutBtn");text("userLine","המנוי הסתיים")}
+function showExpiredView(worker=null){
+  hideAll();show("expiredView");hide("logoutBtn");text("userLine","המנוי הסתיים");
+  window.expiredWorker = worker || window.expiredWorker || null;
+  if(window.expiredWorker){
+    if($("paymentWorkerName"))$("paymentWorkerName").value=window.expiredWorker.name||"";
+    if($("paymentWorkerUsername"))$("paymentWorkerUsername").value=window.expiredWorker.username||"";
+    if($("paymentWorkerId"))$("paymentWorkerId").value=window.expiredWorker.id||"";
+  }
+  if($("paymentMsg"))$("paymentMsg").innerHTML="";
+}
 function addDaysToDate(days){const d=new Date();d.setDate(d.getDate()+Number(days||0));return formatDate(d)}
 function isSubscriptionExpired(worker){
   if(!worker) return true;
@@ -1118,7 +1184,7 @@ async function extendSubscriptionDays(days){
   await saveSubscriptionEdit();
 }
 
-async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();const worker={id:doc.id,...doc.data()};if(session&&session.role==="worker"&&isSubscriptionExpired(worker)){localStorage.removeItem("workSession");session=null;showExpiredView();return;}await showWorker(worker)}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");$("backAdminBtn").classList.toggle("hidden",!(session&&session.role==="admin"));text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=new Date();selectedDate=null;selectedType=null;if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=Number(worker.monthlyGoal||0);if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth()}
+async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();const worker={id:doc.id,...doc.data()};if(session&&session.role==="worker"&&isSubscriptionExpired(worker)){localStorage.removeItem("workSession");session=null;showExpiredView(worker);return;}await showWorker(worker)}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");$("backAdminBtn").classList.toggle("hidden",!(session&&session.role==="admin"));text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=new Date();selectedDate=null;selectedType=null;if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=Number(worker.monthlyGoal||0);if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth()}
 async function loadMonth(){await loadPriceList();await loadTemplates();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);monthEntries=[];renderCalendar();renderDay();renderStats();const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();monthEntries=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats();renderSmartDashboard();if($('searchPanel')&&!$('searchPanel').classList.contains('hidden'))renderFullSummary()}
 function renderCalendar(){const cal=$("calendar");cal.innerHTML="";weekdays.forEach(w=>{const d=document.createElement("div");d.className="weekday";d.textContent=w;cal.appendChild(d)});const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0).getDate(),today=formatDate(new Date());for(let i=0;i<first.getDay();i++){const e=document.createElement("div");e.className="day empty";cal.appendChild(e)}for(let d=1;d<=last;d++){const ds=`${y}-${pad(m+1)}-${pad(d)}`,dt=new Date(y,m,d),sh=dt.getDay()===6,entries=monthEntries.filter(e=>e.date===ds),total=entries.reduce((s,e)=>s+Number(e.amount||0),0),div=document.createElement("div");div.className="day";if(sh)div.classList.add("shabbat");if(ds===today)div.classList.add("today");if(ds===selectedDate)div.classList.add("selected");div.innerHTML=`<div class="day-num">${d}</div>${total?`<div class="day-total">${money(total)}</div>`:""}${entries.length?`<div class="day-count">${entries.length} עבודות</div>`:""}`;if(!sh)div.onclick=()=>selectDay(ds);cal.appendChild(div)}}
 function selectDay(ds){selectedDate=ds;selectedType=null;renderCalendar();renderDay();renderStats();renderSmartDashboard();cleanVisibleSlashN()}function renderDay(){if(!selectedDate){hide("dayPanel");show("selectDayHint");return}show("dayPanel");hide("selectDayHint");text("dateTitle",`יום ${heDate(selectedDate)}`);renderInstallItems();setType(selectedType,false);updateServicePriceLabels();const entries=monthEntries.filter(e=>e.date===selectedDate).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)),box=$("dayEntries");box.innerHTML=entries.length?"":"<p class='muted'>אין עבודות ביום הזה עדיין.</p>";entries.forEach(e=>{const details=e.workType==="service"?`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n${e.notes||""}`:`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("<br>")+`\n${e.notes||""}`,row=document.createElement("div");row.className="item";const iconClass=e.workType==="install"?"install":(e.isReturnCall?"return":"service");const icon=e.workType==="install"?"🛠️":(e.isReturnCall?"🔁":"☎️");row.innerHTML=`<div class="work-row-main"><div class="work-icon ${iconClass}">${icon}</div><div><div class="item-title">${esc(e.description)}</div><div class="item-sub">${nl2br(details)}</div></div></div><div><div class="money">${money(e.amount)}</div><div class="actions" style="margin-top:8px"><button class="btn-yellow" onclick="openEntryEdit('${e.id}')">ערוך</button>${e.workType==="install"?`<button class="btn-light" onclick="saveEntryAsTemplate('${e.id}')">שמור כתבנית</button>`:""}<button class="btn-red" onclick="deleteEntry('${e.id}')">מחק</button></div></div>`;box.appendChild(row)})}
@@ -1286,7 +1352,7 @@ async function exportEntriesCSV(){
   downloadFile("work_entries.csv","\ufeff"+csv,"text/csv;charset=utf-8");
 }
 async function backupJSON(){
-  const collections=["workers","priceList","workEntries","settings","installTemplates"];
+  const collections=["workers","priceList","workEntries","settings","installTemplates","paymentRequests"];
   const data={version:"1.6.0",exportedAt:new Date().toISOString(),collections:{}};
   for(const c of collections){
     const snap=await db.collection(c).get();
@@ -1544,6 +1610,150 @@ async function cleanupAndReloadPriceList(){
   alert("ניקוי כפילויות הסתיים ✅");
 }
 
+
+const SUBSCRIPTION_PLANS={
+  monthly:{key:"monthly",name:"מנוי חודשי",amount:19,months:1,days:30,paymentLink:"PAYMENT_LINK_MONTHLY_19_NIS"},
+  quarterly:{key:"quarterly",name:"מנוי 3 חודשים",amount:45,months:3,days:90,paymentLink:"PAYMENT_LINK_QUARTERLY_45_NIS"},
+  halfyear:{key:"halfyear",name:"מנוי חצי שנה",amount:60,months:6,days:180,paymentLink:"PAYMENT_LINK_HALFYEAR_60_NIS"}
+};
+
+function buildPaymentLink(plan, paymentId, worker){
+  const base=plan.paymentLink;
+  const params=new URLSearchParams({
+    paymentId:paymentId,
+    workerId:worker.id||"",
+    username:worker.username||"",
+    plan:plan.key,
+    amount:String(plan.amount)
+  });
+  if(!base || base.startsWith("PAYMENT_LINK_")) return "";
+  return base + (base.includes("?")?"&":"?") + params.toString();
+}
+
+async function startPaymentPlan(planKey){
+  const plan=SUBSCRIPTION_PLANS[planKey];
+  const worker=window.expiredWorker;
+  const msg=$("paymentMsg");
+  if(!plan || !worker || !worker.id){
+    msg.innerHTML="<p class='danger'>לא נמצאו פרטי משתמש לשיוך התשלום. חזור למסך הכניסה ונסה שוב.</p>";
+    return;
+  }
+  try{
+    msg.innerHTML="<div class='notice'>יוצר בקשת תשלום...</div>";
+    const ref=await db.collection("paymentRequests").add({
+      workerId:worker.id,
+      workerName:worker.name||"",
+      workerUsername:worker.username||"",
+      planKey:plan.key,
+      planName:plan.name,
+      amount:plan.amount,
+      months:plan.months,
+      days:plan.days,
+      status:"pending",
+      source:"expired_screen",
+      clientTime:new Date().toISOString(),
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    const link=buildPaymentLink(plan, ref.id, worker);
+    if(link){
+      msg.innerHTML=`<div class='notice'>בקשת התשלום נשמרה ✅<br>מזהה תשלום: ${esc(ref.id)}<br>מעביר אותך לסליקה...</div>`;
+      setTimeout(()=>{window.location.href=link},900);
+    }else{
+      msg.innerHTML=`<div class='paywall'>בקשת התשלום נשמרה בהצלחה ✅<br><br><b>מזהה תשלום:</b> ${esc(ref.id)}<br><b>שם משתמש:</b> ${esc(worker.username||"")}<br><b>מסלול:</b> ${esc(plan.name)}<br><b>סכום:</b> ₪${plan.amount}<br><br>כרגע זה פלייסהולדר. אחרי שנחבר משולם, הכפתור יעביר לעמוד סליקה אמיתי.</div>`;
+    }
+  }catch(e){
+    msg.innerHTML=`<p class='danger'>שגיאה ביצירת בקשת תשלום: ${esc(e.message)}</p>`;
+  }
+}
+
+function paymentStatusText(status){
+  if(status==="paid")return "שולם";
+  if(status==="cancelled")return "בוטל";
+  return "ממתין לתשלום";
+}
+
+async function loadPaymentRequests(){
+  const box=$("paymentRequestsAdmin");
+  if(!box)return;
+  box.innerHTML="<p>טוען תשלומים...</p>";
+  try{
+    const snap=await db.collection("paymentRequests").get();
+    const rows=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    if(!rows.length){box.innerHTML="<p class='muted'>אין בקשות תשלום עדיין.</p>";return;}
+    const totalPaid=rows.filter(r=>r.status==="paid").reduce((s,r)=>s+Number(r.amount||0),0);
+    const totalPending=rows.filter(r=>r.status!=="paid"&&r.status!=="cancelled").reduce((s,r)=>s+Number(r.amount||0),0);
+    box.innerHTML=`<div class="kpi-strip"><div class="kpi">שולם בפועל<b>${money(totalPaid)}</b></div><div class="kpi">ממתין<b>${money(totalPending)}</b></div><div class="kpi">בקשות<b>${rows.length}</b></div><div class="kpi">שולמו<b>${rows.filter(r=>r.status==="paid").length}</b></div></div>`;
+    rows.forEach(r=>{
+      const div=document.createElement("div");
+      div.className="payment-row";
+      const created=r.clientTime ? new Date(r.clientTime).toLocaleString("he-IL") : "";
+      const statusClass=r.status==="paid"?"payment-status-paid":(r.status==="cancelled"?"payment-status-cancelled":"payment-status-pending");
+      div.innerHTML=`
+        <div class="client-head">
+          <div>
+            <div class="item-title">${esc(r.workerName||"")} · ${esc(r.workerUsername||"")}</div>
+            <div class="item-sub">
+              מזהה עובד: ${esc(r.workerId||"")}<br>
+              מסלול: ${esc(r.planName||r.planKey||"")} · סכום: ${money(r.amount||0)}<br>
+              נוצר: ${esc(created)}<br>
+              מזהה תשלום: ${esc(r.id)}<br>
+              עדכון מנוי עד: ${esc(r.subscriptionUntil||"עדיין לא עודכן")}
+            </div>
+          </div>
+          <div>
+            <div class="${statusClass}">${paymentStatusText(r.status)}</div>
+            <div class="actions" style="margin-top:8px">
+              <button class="btn-green" onclick="markPaymentPaid('${r.id}')">סמן שולם ועדכן מנוי</button>
+              <button class="btn-red" onclick="cancelPaymentRequest('${r.id}')">בטל</button>
+            </div>
+          </div>
+        </div>`;
+      box.appendChild(div);
+    });
+  }catch(e){
+    box.innerHTML=`<p class='danger'>שגיאה בטעינת תשלומים: ${esc(e.message)}</p>`;
+  }
+}
+
+async function markPaymentPaid(paymentId){
+  const doc=await db.collection("paymentRequests").doc(paymentId).get();
+  if(!doc.exists)return alert("בקשת התשלום לא נמצאה");
+  const p={id:doc.id,...doc.data()};
+  if(!p.workerId)return alert("אין מזהה עובד בבקשת התשלום");
+  const workerDoc=await db.collection("workers").doc(p.workerId).get();
+  if(!workerDoc.exists)return alert("העובד לא נמצא");
+  const worker={id:workerDoc.id,...workerDoc.data()};
+  const baseStr=worker.subscriptionUntil || worker.trialUntil || formatDate(new Date());
+  let base=parseDate(baseStr);
+  const today=new Date();
+  if(base<today)base=today;
+  base.setDate(base.getDate()+Number(p.days||30));
+  const until=formatDate(base);
+  await db.collection("workers").doc(p.workerId).set({
+    subscriptionUntil:until,
+    subscriptionStatus:"active",
+    active:true,
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+  await db.collection("paymentRequests").doc(paymentId).set({
+    status:"paid",
+    paidAt:new Date().toISOString(),
+    subscriptionUntil:until,
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+  alert("התשלום סומן כשולם והמנוי הוארך עד " + heDate(until));
+  await loadWorkers();
+  await loadPaymentRequests();
+}
+
+async function cancelPaymentRequest(paymentId){
+  if(!confirm("לבטל את בקשת התשלום?"))return;
+  await db.collection("paymentRequests").doc(paymentId).set({status:"cancelled",cancelledAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+  await loadPaymentRequests();
+}
+
 async function loadDebugLogs(){const box=$("debugLog");if(!box)return;try{const snap=await db.collection("appLogs").limit(30).get();box.textContent=snap.empty?"אין לוגים":snap.docs.map(d=>JSON.stringify(d.data())).join("<br>")}catch(e){box.textContent="שגיאה בלוג: "+e.message}}
 
 function nl2br(s){
@@ -1787,4 +1997,4 @@ async function saveEntryAsTemplate(id){
 </script>
 
 </body>
-</html>
+                                                                                                                                                                                                                                                                                                                                                                                      </html>
