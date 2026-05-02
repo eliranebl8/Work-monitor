@@ -469,6 +469,79 @@ input:focus,textarea:focus,select:focus{animation:popIn .2s ease both}
 #backAdminBtn{display:none!important;visibility:hidden!important;pointer-events:none!important}
 #workerView button[onclick="showAdmin()"]{display:none!important;visibility:hidden!important;pointer-events:none!important}
 
+
+
+/* ===== VERSION 1.9.7: Mobile horizontal scroll lock ===== */
+html, body{
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden!important;
+  overscroll-behavior-x:none;
+}
+body{
+  position:relative;
+  touch-action:pan-y;
+}
+.app{
+  width:100%;
+  max-width:min(1120px,100%);
+  overflow-x:clip;
+}
+.top,.card,.item,.stat,.dash-card,.type-card,.plan-card,.client-card,.payment-row,.kpi,.notice,.paywall,.recent-box,.recent-ok{
+  max-width:100%;
+  min-width:0;
+}
+.grid2,.grid3,.grid4,.kpi-strip,.subscription-plans,.cal{
+  width:100%;
+  max-width:100%;
+  grid-template-columns:repeat(var(--cols,1),minmax(0,1fr));
+}
+.grid2{--cols:2}.grid3{--cols:3}.grid4{--cols:4}.kpi-strip{--cols:4}.subscription-plans{--cols:3}.cal{grid-template-columns:repeat(7,minmax(0,1fr))}
+input,textarea,select,button{
+  max-width:100%;
+  min-width:0;
+}
+.actions{
+  max-width:100%;
+  min-width:0;
+}
+.actions>*{
+  min-width:0;
+}
+.item-sub,.item-title,.muted,p,h1,h2,h3,.badge,.money{
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+.live-particles, body:before, body:after{
+  max-width:100vw;
+  overflow:hidden;
+}
+.card:before, button:before{
+  contain:paint;
+}
+@supports (overflow: clip){
+  html,body{overflow-x:clip!important}
+}
+@media(max-width:800px){
+  .grid2,.grid3,.grid4,.kpi-strip,.subscription-plans{
+    grid-template-columns:1fr!important;
+  }
+  .top{
+    left:0;
+    right:0;
+    width:100%;
+  }
+  .item,.client-head,.work-row-main{
+    width:100%;
+    max-width:100%;
+  }
+  .cal{
+    grid-template-columns:repeat(7,minmax(0,1fr))!important;
+  }
+  .day{
+    min-width:0;
+  }
+}
 </style>
 </head>
 <body>
@@ -7055,5 +7128,29 @@ button.btn-light:hover{box-shadow:0 12px 24px rgba(15,23,42,.13)!important;}
 })();
 </script>
 
+
+<script>
+/* ===== VERSION 1.9.7: final version marker + horizontal scroll guard ===== */
+(function(){
+  const VERSION = "1.9.7";
+  window.APP_VERSION = VERSION;
+  function lockHorizontalScrollV197(){
+    document.documentElement.style.overflowX = "hidden";
+    document.body.style.overflowX = "hidden";
+    document.documentElement.style.maxWidth = "100%";
+    document.body.style.maxWidth = "100%";
+    if(window.scrollX !== 0) window.scrollTo(0, window.scrollY);
+    document.querySelectorAll(".secret").forEach(el => el.textContent = "גרסה " + VERSION);
+    document.title = "מעקב עבודה - גרסה " + VERSION;
+  }
+  window.addEventListener("load", lockHorizontalScrollV197);
+  window.addEventListener("resize", lockHorizontalScrollV197);
+  window.addEventListener("orientationchange", function(){ setTimeout(lockHorizontalScrollV197, 250); });
+  window.addEventListener("scroll", function(){ if(window.scrollX !== 0) window.scrollTo(0, window.scrollY); }, {passive:true});
+  document.addEventListener("touchmove", function(){ if(window.scrollX !== 0) window.scrollTo(0, window.scrollY); }, {passive:true});
+  setTimeout(lockHorizontalScrollV197, 50);
+  setInterval(lockHorizontalScrollV197, 1200);
+})();
+</script>
 </body>
   </html>
