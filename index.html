@@ -6982,5 +6982,143 @@ window.resetWorkerAccessV178 = async function(workerId){
   setTimeout(updateVersionV1107,1000);
 })();
 </script>
+
+
+<script>
+/* ===== VERSION 1.10.8: HARD FIX admin screen blank/redirect =====
+   Fixes: admin login no longer depends on Firebase Auth/bootstrap wrappers.
+   Also safe-loads admin panels one by one so a single failing panel cannot blank the admin screen.
+*/
+(function(){
+  const VERSION = "1.10.8";
+  window.APP_VERSION = VERSION;
+
+  function setVersionV1108(){
+    try{ document.title = "מעקב עבודה - גרסה " + VERSION; }catch(e){}
+    try{ document.querySelectorAll(".secret").forEach(el => el.textContent = "גרסה " + VERSION); }catch(e){}
+  }
+
+  function setMsgV1108(id, html){
+    try{ const el=document.getElementById(id); if(el) el.innerHTML=html; }catch(e){}
+  }
+
+  async function safeRunV1108(label, fn){
+    try{
+      if(typeof fn === "function") return await fn();
+    }catch(e){
+      console.error("Admin safe load failed:", label, e);
+      const box = document.getElementById("adminSafeLoadErrorsV1108");
+      if(box){
+        box.classList.remove("hidden");
+        const div=document.createElement("div");
+        div.className="payment-row";
+        div.innerHTML = `<b>${label}</b><br><span class="danger">${esc(e.message || e)}</span>`;
+        box.appendChild(div);
+      }
+    }
+  }
+
+  function hideMainViewsV1108(){
+    ["startupView","workerLoginView","registerView","expiredView","adminLoginView","workerView"].forEach(id=>{
+      try{ const el=document.getElementById(id); if(el) el.classList.add("hidden"); }catch(e){}
+    });
+  }
+
+  window.showAdmin = async function(){
+    try{
+      hideMainViewsV1108();
+      const adminView=document.getElementById("adminView");
+      if(adminView) adminView.classList.remove("hidden");
+      const logoutBtn=document.getElementById("logoutBtn");
+      if(logoutBtn) logoutBtn.classList.remove("hidden");
+      const userLine=document.getElementById("userLine");
+      if(userLine) userLine.textContent="מנהל";
+      setVersionV1108();
+
+      if(adminView && !document.getElementById("adminSafeLoadErrorsV1108")){
+        const info=document.createElement("div");
+        info.id="adminSafeLoadInfoV1108";
+        info.className="notice";
+        info.innerHTML="כניסת מנהל פעילה ✅";
+        adminView.insertBefore(info, adminView.firstChild);
+
+        const errors=document.createElement("div");
+        errors.id="adminSafeLoadErrorsV1108";
+        errors.className="card hidden";
+        errors.innerHTML="<h2>⚠️ שגיאות טעינה שלא הפילו את המסך</h2><p class='muted'>המסך נטען. אם משהו חסר, שלח לי את השגיאה כאן.</p>";
+        adminView.insertBefore(errors, info.nextSibling);
+      }else{
+        const errors=document.getElementById("adminSafeLoadErrorsV1108");
+        if(errors){ errors.classList.add("hidden"); errors.innerHTML="<h2>⚠️ שגיאות טעינה שלא הפילו את המסך</h2><p class='muted'>המסך נטען. אם משהו חסר, שלח לי את השגיאה כאן.</p>"; }
+      }
+
+      await safeRunV1108("טעינת הגדרות", async()=>{ if(typeof loadSettings==="function") await loadSettings(); });
+      try{ if(document.getElementById("servicePriceInput")) document.getElementById("servicePriceInput").value = SERVICE_PRICE; }catch(e){}
+      try{ if(document.getElementById("adminSetUsername")) document.getElementById("adminSetUsername").value = ADMIN_USERNAME; }catch(e){}
+      try{ if(document.getElementById("trialDaysInput")) document.getElementById("trialDaysInput").value = DEFAULT_TRIAL_DAYS; }catch(e){}
+
+      await safeRunV1108("מחירון ברירת מחדל", window.ensureDefaultPriceList);
+      await safeRunV1108("טעינת עובדים", window.loadWorkers);
+      await safeRunV1108("סנכרון אבטחה", window.syncAuthSecurityDataV169);
+      await safeRunV1108("טעינת מחירון", window.loadPriceListAdmin);
+      await safeRunV1108("טעינת תבניות", window.loadTemplatesAdmin);
+      await safeRunV1108("טעינת תשלומים", window.loadPaymentRequests);
+      await safeRunV1108("טעינת לוג", window.loadDebugLogs);
+      await safeRunV1108("כלי אבטחה", window.addSecurityToolsV169);
+      await safeRunV1108("כלי Auth מנהל", window.addAdminAuthBootstrapToolsV170);
+      setVersionV1108();
+    }catch(e){
+      console.error("showAdmin hard failure", e);
+      hideMainViewsV1108();
+      const adminView=document.getElementById("adminView");
+      if(adminView){
+        adminView.classList.remove("hidden");
+        adminView.innerHTML = `<div class="card"><h2>לוח מנהל</h2><div class="notice">כניסת מנהל הצליחה ✅</div><p class="danger">שגיאה בהצגת מסך מנהל: ${esc(e.message || e)}</p></div>` + adminView.innerHTML;
+      }
+    }
+  };
+
+  window.adminLogin = async function(){
+    await safeRunV1108("טעינת הגדרות לפני כניסה", async()=>{ if(typeof loadSettings==="function") await loadSettings(); });
+    const u = (document.getElementById("adminUsername")?.value || "").trim();
+    const p = (document.getElementById("adminPassword")?.value || "").trim();
+    if(!u || !p){ const m=document.getElementById("adminLoginMsg"); if(m) m.textContent="חובה למלא שם משתמש וסיסמה."; return; }
+    if(u !== ADMIN_USERNAME || (await sha256(p)) !== ADMIN_PASSWORD_SHA256){
+      const m=document.getElementById("adminLoginMsg"); if(m) m.textContent="שם משתמש או סיסמה לא נכונים."; return;
+    }
+    try{
+      session = {role:"admin", name:"מנהל", loginAt:Date.now(), adminLegacyMode:true};
+      localStorage.setItem("workSession", JSON.stringify(session));
+    }catch(e){}
+    try{ if(typeof clearLoginFields==="function") clearLoginFields(); }catch(e){}
+    await window.showAdmin();
+  };
+
+  // Prevent old boot/session code from throwing an existing admin session back to worker login.
+  const originalShowWorkerLoginV1108 = window.showWorkerLogin;
+  window.showWorkerLogin = function(force){
+    try{
+      const saved = JSON.parse(localStorage.getItem("workSession") || "null");
+      if(force !== true && saved && saved.role === "admin"){
+        window.showAdmin();
+        return;
+      }
+    }catch(e){}
+    return originalShowWorkerLoginV1108 ? originalShowWorkerLoginV1108() : undefined;
+  };
+
+  const originalLogoutV1108 = window.logout;
+  window.logout = async function(){
+    try{ localStorage.removeItem("workSession"); }catch(e){}
+    try{ session=null; }catch(e){}
+    if(originalLogoutV1108) return await originalLogoutV1108();
+    if(originalShowWorkerLoginV1108) return originalShowWorkerLoginV1108(true);
+  };
+
+  window.addEventListener("load", function(){ setTimeout(setVersionV1108, 80); setTimeout(setVersionV1108, 600); });
+  setVersionV1108();
+})();
+</script>
+
 </body>
 </html>
