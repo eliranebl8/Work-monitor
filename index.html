@@ -363,7 +363,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <button class="btn-green" onclick="workerLogin()">כניסה</button>
 <button class="btn-light" onclick="showRegister()">הרשמה לעובד חדש</button>
 <p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.7.0</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.7.1</div>
 </section>
 
 <section id="registerView" class="card login-box hidden">
@@ -2205,7 +2205,7 @@ async function createWorker(){
       authEmail:authResult.email||authEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.7.0" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.7.1" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2252,7 +2252,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.7.0",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.7.1",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2302,7 +2302,7 @@ async function loadWorkers(){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.7.0";
+    if(secret) secret.textContent="גרסה 1.7.1";
   }catch(e){}
 })();
 </script>
@@ -2518,7 +2518,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.7.0",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.7.1",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2558,7 +2558,7 @@ async function createAuthForWorker(workerId){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.7.0";
+    if(secret) secret.textContent="גרסה 1.7.1";
   }catch(e){}
 })();
 </script>
@@ -2578,7 +2578,7 @@ function effectiveAuthEmailV168(username, optionalEmail){
   return e && isValidEmailV168(e) ? e : authEmailFromUsername(username);
 }
 function updateVersionV168(){
-  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.7.0"; }catch(e){}
+  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.7.1"; }catch(e){}
 }
 
 // שם המשתמש נשאר שדה ההתחברות הראשי. מאחורי הקלעים Firebase Auth נכנס עם authEmail ששמור לעובד.
@@ -2668,7 +2668,7 @@ async function createWorker(){
       recoveryEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.7.0" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.7.1" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2750,7 +2750,7 @@ async function createAuthForWorker(workerId){
       authEmail:authResult.email||preferredAuthEmail,
       recoveryEmail:emailPrompt,
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.7.0",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.7.1",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2844,7 +2844,7 @@ function showRegister(){
 <script>
 /* ===== VERSION 1.6.9: Firebase Auth login + Security Rules ready ===== */
 (function(){
-  const VERSION="1.7.0";
+  const VERSION="1.7.1";
   window.APP_VERSION=VERSION;
   function updateVersion(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -3219,7 +3219,7 @@ if(typeof oldRegisterWorkerV169==="function"){
    קודם מאמתים סיסמת אדמין ישנה. אם Auth לא קיים/נכשל — נכנסים במצב הכנה ומציגים כפתור יצירת Auth למנהל.
 */
 (function(){
-  const VERSION="1.7.0";
+  const VERSION="1.7.1";
   window.APP_VERSION=VERSION;
   function updateVersion(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -3374,5 +3374,513 @@ async function createOrFixAdminAuthV170(){
 })();
 </script>
 
+
+
+<script>
+/* ===== VERSION 1.7.1: Admin login after Security Rules fix =====
+   אחרי פרסום Rules, אי אפשר לקרוא settings לפני Firebase Auth.
+   לכן הכניסה למנהל מתחברת קודם ל-Firebase Auth לפי הערכים המקומיים שבקובץ,
+   ורק אחרי שהמשתמש מחובר נטען settings והאדמין נפתח.
+*/
+(function(){
+  const VERSION="1.7.1";
+  window.APP_VERSION=VERSION;
+  function updateVersionV171(){
+    document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
+    document.title="מעקב עבודה - גרסה "+VERSION;
+  }
+  window.addEventListener("load",()=>setTimeout(updateVersionV171,80));
+  setTimeout(updateVersionV171,80);
+})();
+
+async function adminLogin(){
+  const msgEl = $("adminLoginMsg");
+  try{
+    if(msgEl) msgEl.textContent = "בודק כניסת מנהל...";
+    const u=val("adminUsername"), p=val("adminPassword");
+    if(!u||!p){ if(msgEl) msgEl.textContent="חובה למלא שם משתמש וסיסמה."; return; }
+
+    // לא קוראים loadSettings כאן — אחרי Security Rules זה ייחסם לפני Auth.
+    if(u!==ADMIN_USERNAME || await sha256(p)!==ADMIN_PASSWORD_SHA256){
+      if(msgEl) msgEl.textContent="שם משתמש או סיסמה לא נכונים.";
+      return;
+    }
+
+    if(!firebaseAuthReady()){
+      if(msgEl) msgEl.textContent="Firebase Auth לא נטען. רענן את הדף ונסה שוב.";
+      return;
+    }
+
+    const authResult = await tryAdminFirebaseAuthV170(p);
+    if(!authResult.ok){
+      if(typeof writeAppLogV167==="function") await writeAppLogV167("adminLoginFailedV171",{
+        reason:authResult.reason||"unknown",
+        authEmail:authResult.email||adminAuthEmailV170(),
+        location: location.href
+      }).catch(()=>{});
+      if(msgEl) msgEl.textContent="Firebase Auth לאדמין נכשל: "+(authResult.reason||"לא ידוע")+". אם כבר יצרת אדמין עם סיסמה אחרת, צריך לאפס את הסיסמה שלו ב־Firebase Authentication.";
+      return;
+    }
+
+    await ensureAdminRoleDocV170(authResult.uid, authResult.email);
+    session={role:"admin",name:"מנהל",authUid:authResult.uid,authEmail:authResult.email,adminAuthReady:true};
+    localStorage.setItem("workSession",JSON.stringify(session));
+    clearLoginFields();
+    await showAdmin();
+  }catch(e){
+    console.error("adminLogin V1.7.1 failed", e);
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminLoginExceptionV171",{
+      errorCode:e.code||"",
+      errorMessage:e.message||String(e),
+      location: location.href
+    }).catch(()=>{});
+    if(msgEl) msgEl.textContent="שגיאה בכניסת מנהל: "+(e.code||e.message||String(e));
+  }
+}
+</script>
+
+
+
+<script>
+/* ===== VERSION 1.7.3: Admin Login Separate Auth Fix =====
+   תיקון חשוב:
+   מסך מנהל משתמש תמיד באימייל הפנימי של האדמין: admin@work-monitor.local
+   ולא באימייל/שם משתמש של עובד בשם Eliran.
+   בנוסף, קודם מנסים Firebase Auth לאדמין, ורק אם נכשל עוברים לגיבוי legacy.
+*/
+(function(){
+  const VERSION="1.7.3";
+  window.APP_VERSION=VERSION;
+  function updateVersionV173(){
+    document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
+    document.title="מעקב עבודה - גרסה "+VERSION;
+  }
+  window.addEventListener("load",()=>setTimeout(updateVersionV173,80));
+  setTimeout(updateVersionV173,80);
+})();
+
+function adminAuthEmailV173(){
+  return "admin@work-monitor.local";
+}
+
+async function tryAdminFirebaseAuthV173(password){
+  const email = adminAuthEmailV173();
+  try{
+    if(!firebase.auth) return {ok:false, reason:"firebase_auth_sdk_missing", email};
+    const cred = await firebase.auth().signInWithEmailAndPassword(email, password);
+    const user = cred && cred.user;
+    if(!user) return {ok:false, reason:"no_user_returned", email};
+    return {ok:true, uid:user.uid, email:user.email || email};
+  }catch(e){
+    if(typeof writeAppLogV167 === "function"){
+      await writeAppLogV167("adminAuthLoginFailedV173",{
+        errorCode:e.code||"",
+        errorMessage:e.message||String(e),
+        authEmail:email,
+        location:location.href
+      }).catch(()=>{});
+    }
+    return {ok:false, reason:e.code || e.message || String(e), email};
+  }
+}
+
+async function ensureAdminRoleDocV173(uid,email){
+  if(!uid) return;
+  await db.collection("users").doc(uid).set({
+    uid,
+    email: email || adminAuthEmailV173(),
+    role:"admin",
+    name:"מנהל",
+    active:true,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+  await db.collection("settings").doc("main").set({
+    adminAuthUid:uid,
+    adminAuthEmail: email || adminAuthEmailV173(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+}
+
+async function adminLogin(){
+  const msgEl = $("adminLoginMsg");
+  try{
+    if(msgEl) msgEl.textContent = "בודק כניסת מנהל...";
+    const u = val("adminUsername"), p = val("adminPassword");
+    if(!u || !p){ if(msgEl) msgEl.textContent="חובה למלא שם משתמש וסיסמה."; return; }
+
+    // טוענים הגדרות אם אפשר. אם Rules חוסמים, לא נופלים כאן.
+    try{ await loadSettings(); }catch(_e){}
+
+    // במסך מנהל השם Eliran הוא שם המנהל בלבד. לא מחפשים עובד בשם Eliran.
+    if(normalize(u) !== normalize(ADMIN_USERNAME)){
+      if(msgEl) msgEl.textContent="שם משתמש מנהל לא נכון.";
+      return;
+    }
+
+    // קודם מנסים Firebase Auth של מנהל בלבד: admin@work-monitor.local.
+    // זה פותר מצב שבו יש גם עובד בשם Eliran עם סיסמה אחרת.
+    const authResult = await tryAdminFirebaseAuthV173(p);
+    if(authResult && authResult.ok){
+      await ensureAdminRoleDocV173(authResult.uid, authResult.email);
+
+      // מסנכרנים גם את hash הישן כדי שלא תיתקע שוב במצב חילוץ.
+      try{
+        const newHash = await sha256(p);
+        await db.collection("settings").doc("main").set({
+          adminPasswordHash:newHash,
+          adminUsername:ADMIN_USERNAME,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        },{merge:true});
+        ADMIN_PASSWORD_SHA256 = newHash;
+      }catch(_e){}
+
+      session={role:"admin",name:"מנהל",authUid:authResult.uid,authEmail:authResult.email,adminAuthReady:true};
+      localStorage.setItem("workSession",JSON.stringify(session));
+      clearLoginFields();
+      await showAdmin();
+      return;
+    }
+
+    // גיבוי זמני: אם Auth נכשל אבל הסיסמה הישנה של האדמין נכונה, נכנסים למצב חילוץ.
+    let legacyOk=false;
+    try{ legacyOk = (await sha256(p)) === ADMIN_PASSWORD_SHA256; }catch(_e){ legacyOk=false; }
+    if(!legacyOk){
+      if(msgEl) msgEl.innerHTML=`Firebase Auth לאדמין נכשל:<br>${esc(authResult.reason||"לא ידוע")}<br>וגם הסיסמה הישנה לא תואמת.`;
+      return;
+    }
+
+    if(typeof writeAppLogV167==="function"){
+      await writeAppLogV167("adminLoginAuthFailedButLegacyAllowedV173",{
+        reason:(authResult&&authResult.reason)||"unknown",
+        authEmail:adminAuthEmailV173(),
+        note:"Entered admin in rescue mode. Admin username is separated from worker username."
+      }).catch(()=>{});
+    }
+
+    session={
+      role:"admin",
+      name:"מנהל",
+      authUid:"",
+      authEmail:adminAuthEmailV173(),
+      adminAuthReady:false,
+      adminRescueMode:true,
+      adminAuthError:(authResult&&authResult.reason)||"unknown"
+    };
+    localStorage.setItem("workSession",JSON.stringify(session));
+    clearLoginFields();
+    await showAdmin();
+
+    const msg = document.getElementById("adminAuthBootstrapMsgV170") || document.getElementById("securityToolsMsgV169") || msgEl;
+    if(msg){
+      msg.innerHTML = `<div class="paywall">נכנסת לאדמין במצב חילוץ זמני ✅<br>
+      ה־Firebase Auth של המנהל עדיין לא תקין: ${esc((authResult&&authResult.reason)||"לא ידוע")}<br>
+      לחץ <b>צור/תקן Auth למנהל</b>, הזן סיסמה של 6 תווים לפחות, ורק אחרי הצלחה לחץ <b>סנכרן אבטחה</b>.</div>`;
+    }
+  }catch(e){
+    console.error("adminLogin V1.7.3 failed", e);
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminLoginExceptionV173",{
+      errorCode:e.code||"",
+      errorMessage:e.message||String(e),
+      location:location.href
+    }).catch(()=>{});
+    if(msgEl) msgEl.textContent="שגיאה בכניסת מנהל: "+(e.code||e.message||String(e));
+  }
+}
+</script>
+
+
+
+<script>
+/* ===== VERSION 1.7.4: Password recovery options =====
+   - מוסיף מייל שחזור/אימייל Auth אמיתי למנהל במסך אדמין.
+   - אחרי 3 ניסיונות שגויים לעובד או למנהל מציג אפשרות שחזור סיסמה.
+   - שחזור Firebase עובד רק אם ה-Auth Email הוא אימייל אמיתי, לא @work-monitor.local.
+*/
+(function(){
+  const VERSION="1.7.4";
+  window.APP_VERSION=VERSION;
+  function updateVersionV174(){
+    document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
+    document.title="מעקב עבודה - גרסה "+VERSION;
+  }
+  window.addEventListener("load",()=>setTimeout(updateVersionV174,120));
+  setTimeout(updateVersionV174,120);
+})();
+
+let ADMIN_RECOVERY_EMAIL_V174="";
+let ADMIN_AUTH_EMAIL_V174="admin@work-monitor.local";
+function isRealEmailV174(email){
+  email=String(email||"").trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !email.endsWith("@work-monitor.local");
+}
+function cleanEmailV174(email){ return String(email||"").trim().toLowerCase(); }
+
+// מעכשיו פונקציות האדמין ישתמשו באימייל מה-settings אם הגדרת אימייל אמיתי.
+function adminAuthEmailV173(){ return ADMIN_AUTH_EMAIL_V174 || "admin@work-monitor.local"; }
+function adminAuthEmailV170(){ return ADMIN_AUTH_EMAIL_V174 || "admin@work-monitor.local"; }
+
+const oldLoadSettingsV174 = window.loadSettings;
+window.loadSettings = async function(){
+  if(typeof oldLoadSettingsV174 === "function") await oldLoadSettingsV174();
+  try{
+    const doc=await db.collection("settings").doc("main").get();
+    if(doc.exists){
+      const d=doc.data()||{};
+      ADMIN_RECOVERY_EMAIL_V174 = cleanEmailV174(d.adminRecoveryEmail || "");
+      ADMIN_AUTH_EMAIL_V174 = cleanEmailV174(d.adminAuthEmail || "") || "admin@work-monitor.local";
+    }
+  }catch(e){ console.warn("loadSettings V174 recovery fields failed", e); }
+};
+
+function addAdminRecoveryPanelV174(){
+  const settingsMsg=document.getElementById("adminSettingsMsg");
+  if(!settingsMsg || document.getElementById("adminRecoveryPanelV174")) return;
+  const box=document.createElement("div");
+  box.id="adminRecoveryPanelV174";
+  box.className="card panel";
+  box.style.boxShadow="none";
+  box.style.marginTop="12px";
+  box.innerHTML=`
+    <h3>📧 שחזור סיסמה למנהל</h3>
+    <p class="muted">כדי ששחזור סיסמה יעבוד באמת, ה־Firebase Auth של המנהל חייב להיות על אימייל אמיתי. אימייל פנימי כמו <b>admin@work-monitor.local</b> לא יכול לקבל מייל איפוס.</p>
+    <div class="grid2">
+      <input id="adminRecoveryEmailInputV174" type="email" placeholder="אימייל אמיתי לשחזור מנהל">
+      <button class="btn-green" onclick="saveAdminRecoveryEmailV174()">שמור אימייל שחזור</button>
+    </div>
+    <div class="actions">
+      <button class="btn-yellow" onclick="createOrSwitchAdminAuthEmailV174()">חבר Auth של מנהל לאימייל הזה</button>
+      <button class="btn-light" onclick="sendAdminPasswordResetV174()">שלח איפוס סיסמה למנהל</button>
+    </div>
+    <div id="adminRecoveryMsgV174"></div>
+  `;
+  settingsMsg.parentNode.insertBefore(box, settingsMsg.nextSibling);
+  const input=document.getElementById("adminRecoveryEmailInputV174");
+  if(input) input.value=ADMIN_RECOVERY_EMAIL_V174 || (isRealEmailV174(ADMIN_AUTH_EMAIL_V174)?ADMIN_AUTH_EMAIL_V174:"");
+}
+
+const oldShowAdminV174 = window.showAdmin;
+window.showAdmin = async function(){
+  if(typeof oldShowAdminV174 === "function") await oldShowAdminV174();
+  try{ await loadSettings(); }catch(e){}
+  addAdminRecoveryPanelV174();
+  const input=document.getElementById("adminRecoveryEmailInputV174");
+  if(input) input.value=ADMIN_RECOVERY_EMAIL_V174 || (isRealEmailV174(ADMIN_AUTH_EMAIL_V174)?ADMIN_AUTH_EMAIL_V174:"");
+};
+
+async function saveAdminRecoveryEmailV174(){
+  const msg=document.getElementById("adminRecoveryMsgV174");
+  const email=cleanEmailV174(document.getElementById("adminRecoveryEmailInputV174")?.value||"");
+  if(!email || !isRealEmailV174(email)){
+    if(msg) msg.innerHTML="<p class='danger'>חובה להזין אימייל אמיתי, לא אימייל פנימי.</p>";
+    return;
+  }
+  await db.collection("settings").doc("main").set({
+    adminRecoveryEmail:email,
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+  ADMIN_RECOVERY_EMAIL_V174=email;
+  if(msg) msg.innerHTML="<div class='notice'>אימייל שחזור מנהל נשמר ✅<br>כדי שאיפוס סיסמה יישלח לשם, לחץ גם: חבר Auth של מנהל לאימייל הזה.</div>";
+}
+
+async function createOrSwitchAdminAuthEmailV174(){
+  const msg=document.getElementById("adminRecoveryMsgV174");
+  const email=cleanEmailV174(document.getElementById("adminRecoveryEmailInputV174")?.value||ADMIN_RECOVERY_EMAIL_V174||"");
+  if(!email || !isRealEmailV174(email)){
+    if(msg) msg.innerHTML="<p class='danger'>חובה להזין אימייל אמיתי לפני חיבור Auth.</p>";
+    return;
+  }
+  const pass=prompt("הכנס סיסמת מנהל ל-Firebase Auth. זו תהיה גם הסיסמה שתשתמש בה לכניסת מנהל. מינימום 6 תווים.");
+  if(pass===null) return;
+  if(!pass || pass.length<6){ alert("סיסמה חייבת להיות לפחות 6 תווים."); return; }
+  try{
+    if(msg) msg.innerHTML="<div class='notice'>יוצר/מחבר Auth למנהל עם אימייל אמיתי...</div>";
+    let cred=null, created=false;
+    try{
+      cred=await auth.createUserWithEmailAndPassword(email,pass);
+      created=true;
+    }catch(e){
+      if(e.code==="auth/email-already-in-use"){
+        cred=await auth.signInWithEmailAndPassword(email,pass);
+      }else throw e;
+    }
+    const user=cred&&cred.user;
+    if(!user||!user.uid) throw new Error("no_admin_uid");
+    try{ await user.updateProfile({displayName:"מנהל"}); }catch(_e){}
+    await db.collection("users").doc(user.uid).set({
+      uid:user.uid,
+      role:"admin",
+      name:"מנהל",
+      username:ADMIN_USERNAME,
+      authEmail:email,
+      recoveryEmail:email,
+      active:true,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+    const hash=await sha256(pass);
+    await db.collection("settings").doc("main").set({
+      adminAuthUid:user.uid,
+      adminAuthEmail:email,
+      adminRecoveryEmail:email,
+      adminPasswordHash:hash,
+      adminUsername:ADMIN_USERNAME,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+    ADMIN_AUTH_EMAIL_V174=email;
+    ADMIN_RECOVERY_EMAIL_V174=email;
+    ADMIN_PASSWORD_SHA256=hash;
+    session={...(session||{}),role:"admin",name:"מנהל",authUid:user.uid,authEmail:email,adminAuthReady:true};
+    localStorage.setItem("workSession",JSON.stringify(session));
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminAuthRealEmailConnectedV174",{uid:user.uid,email,created}).catch(()=>{});
+    if(msg) msg.innerHTML="<div class='notice'>Auth מנהל חובר לאימייל אמיתי ✅ מעכשיו שחזור סיסמה יכול להישלח לאימייל הזה.</div>";
+  }catch(e){
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminAuthRealEmailConnectFailedV174",{email,errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+    if(msg) msg.innerHTML=`<p class='danger'>שגיאה בחיבור Auth לאימייל אמיתי: ${esc(e.code||e.message||String(e))}</p>`;
+  }
+}
+
+async function sendPasswordResetSafeV174(email, targetMsgId){
+  const msg=targetMsgId?document.getElementById(targetMsgId):null;
+  email=cleanEmailV174(email);
+  if(!isRealEmailV174(email)){
+    const text="אי אפשר לשלוח איפוס לאימייל פנימי. צריך לחבר את המשתמש ל-Auth Email אמיתי.";
+    if(msg) msg.innerHTML=`<p class='danger'>${text}</p>`; else alert(text);
+    return false;
+  }
+  try{
+    await auth.sendPasswordResetEmail(email);
+    const text="נשלח מייל איפוס סיסמה ל־"+email+" ✅";
+    if(msg) msg.innerHTML=`<div class='notice'>${esc(text)}</div>`; else alert(text);
+    return true;
+  }catch(e){
+    const text="שגיאה בשליחת איפוס: "+(e.code||e.message||String(e));
+    if(msg) msg.innerHTML=`<p class='danger'>${esc(text)}</p>`; else alert(text);
+    return false;
+  }
+}
+
+async function sendAdminPasswordResetV174(){
+  try{ await loadSettings(); }catch(e){}
+  const email=isRealEmailV174(ADMIN_AUTH_EMAIL_V174)?ADMIN_AUTH_EMAIL_V174:ADMIN_RECOVERY_EMAIL_V174;
+  await sendPasswordResetSafeV174(email,"adminRecoveryMsgV174");
+}
+
+// שומר גם אימייל שחזור מתוך כרטיס הגדרות המנהל.
+const oldSaveAdminSettingsV174 = window.saveAdminSettings;
+window.saveAdminSettings = async function(){
+  const username=val("adminSetUsername"), password=val("adminSetPassword");
+  const recovery=cleanEmailV174(document.getElementById("adminRecoveryEmailInputV174")?.value||ADMIN_RECOVERY_EMAIL_V174||"");
+  if(!username){ $("adminSettingsMsg").innerHTML="<p class='danger'>חובה למלא שם משתמש מנהל.</p>"; return; }
+  if(recovery && !isRealEmailV174(recovery)){ $("adminSettingsMsg").innerHTML="<p class='danger'>אימייל שחזור מנהל לא תקין.</p>"; return; }
+  const update={adminUsername:username,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  if(recovery) update.adminRecoveryEmail=recovery;
+  if(password.trim()){
+    update.adminPasswordHash=await sha256(password.trim());
+    try{
+      if(auth.currentUser && session && session.authUid && auth.currentUser.uid===session.authUid){
+        await auth.currentUser.updatePassword(password.trim());
+        update.adminAuthEmail=auth.currentUser.email || ADMIN_AUTH_EMAIL_V174;
+      }
+    }catch(e){
+      // לא נכשיל שמירה בגלל צורך בכניסה מחדש, אבל נציג הודעה.
+      await writeAppLogV167?.("adminUpdatePasswordAuthFailedV174",{errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+    }
+  }
+  await db.collection("settings").doc("main").set(update,{merge:true});
+  if(password.trim()) ADMIN_PASSWORD_SHA256=update.adminPasswordHash;
+  if(recovery) ADMIN_RECOVERY_EMAIL_V174=recovery;
+  ADMIN_USERNAME=username;
+  if($("adminSetPassword"))$("adminSetPassword").value="";
+  $("adminSettingsMsg").innerHTML="<div class='notice'>הגדרות מנהל נשמרו ✅</div>";
+};
+
+function failKeyV174(type,key){ return "workFail_"+type+"_"+normalize(key||""); }
+function getFailCountV174(type,key){ return Number(localStorage.getItem(failKeyV174(type,key))||0); }
+function setFailCountV174(type,key,n){ localStorage.setItem(failKeyV174(type,key),String(n)); }
+function clearFailCountV174(type,key){ localStorage.removeItem(failKeyV174(type,key)); }
+
+function renderAdminResetOptionV174(reason){
+  const msg=document.getElementById("adminLoginMsg");
+  if(!msg) return;
+  const email=isRealEmailV174(ADMIN_AUTH_EMAIL_V174)?ADMIN_AUTH_EMAIL_V174:ADMIN_RECOVERY_EMAIL_V174;
+  const canReset=isRealEmailV174(email);
+  msg.innerHTML=`שם משתמש או סיסמה לא נכונים.<br>
+    ${reason?`<span class="muted">${esc(reason)}</span><br>`:""}
+    ${canReset?`<button class="btn-light" style="margin-top:10px" onclick="sendAdminPasswordResetFromLoginV174()">שחזר סיסמת מנהל</button>`:`<span class="muted">לא מוגדר למנהל Auth Email אמיתי לשחזור.</span>`}`;
+}
+async function sendAdminPasswordResetFromLoginV174(){
+  try{ await loadSettings(); }catch(e){}
+  const email=isRealEmailV174(ADMIN_AUTH_EMAIL_V174)?ADMIN_AUTH_EMAIL_V174:ADMIN_RECOVERY_EMAIL_V174;
+  await sendPasswordResetSafeV174(email,"adminLoginMsg");
+}
+
+const oldAdminLoginV174 = window.adminLogin;
+window.adminLogin = async function(){
+  const u=val("adminUsername");
+  const before=session&&session.role;
+  if(typeof oldAdminLoginV174 === "function") await oldAdminLoginV174();
+  setTimeout(()=>{
+    const success=session&&session.role==="admin";
+    if(success){ clearFailCountV174("admin",u||"admin"); return; }
+    const currentMsg=(document.getElementById("adminLoginMsg")?.textContent||"");
+    if(currentMsg && !currentMsg.includes("בודק")){
+      const c=getFailCountV174("admin",u||"admin")+1;
+      setFailCountV174("admin",u||"admin",c);
+      if(c>=3) renderAdminResetOptionV174(currentMsg);
+    }
+  },350);
+};
+
+function renderWorkerResetOptionV174(usernameKey, detail){
+  const msg=document.getElementById("workerLoginMsg");
+  if(!msg) return;
+  msg.innerHTML=`שם משתמש או סיסמה לא נכונים.<br>
+    <span class="muted">אחרי 3 ניסיונות שגויים אפשר לנסות שחזור סיסמה אם מוגדר למשתמש אימייל Auth אמיתי.</span><br>
+    <button class="btn-light" style="margin-top:10px" onclick="sendWorkerPasswordResetV174('${String(usernameKey||"").replaceAll("'","\\'")}')">שחזר סיסמה</button>`;
+}
+async function sendWorkerPasswordResetV174(usernameKey){
+  const msgId="workerLoginMsg";
+  usernameKey=normalize(usernameKey || val("workerUsername"));
+  if(!usernameKey){ document.getElementById(msgId).innerHTML="<p class='danger'>חובה למלא שם משתמש קודם.</p>"; return; }
+  try{
+    let lookup=null;
+    const lookupDoc=await db.collection("usernameLookup").doc(usernameKey).get();
+    if(lookupDoc.exists) lookup={id:lookupDoc.id,...lookupDoc.data()};
+    let email=lookup && lookup.authEmail ? lookup.authEmail : "";
+    if(!email){
+      const workerDoc=await db.collection("workers").doc(workerIdFromUsername(usernameKey)).get();
+      if(workerDoc.exists){
+        const w=workerDoc.data()||{};
+        email=w.authEmail||"";
+      }
+    }
+    if(!isRealEmailV174(email)){
+      document.getElementById(msgId).innerHTML="<p class='danger'>לעובד הזה אין עדיין Auth Email אמיתי. מנהל צריך להגדיר לו אימייל אמיתי ולחבר אותו ל־Firebase Auth.</p>";
+      return;
+    }
+    await sendPasswordResetSafeV174(email,msgId);
+  }catch(e){
+    document.getElementById(msgId).innerHTML=`<p class='danger'>שגיאה בשחזור סיסמה: ${esc(e.code||e.message||String(e))}</p>`;
+  }
+}
+
+const oldWorkerLoginV174 = window.workerLogin;
+window.workerLogin = async function(){
+  const username=val("workerUsername");
+  const key=normalize(username);
+  if(typeof oldWorkerLoginV174 === "function") await oldWorkerLoginV174();
+  setTimeout(()=>{
+    const success=session&&session.role==="worker";
+    if(success){ clearFailCountV174("worker",key); return; }
+    const txt=document.getElementById("workerLoginMsg")?.textContent||"";
+    const failed=txt.includes("סיסמה")||txt.includes("לא נכונים")||txt.includes("Auth נכשל")||txt.includes("שגיאה בכניסה");
+    if(failed && key){
+      const c=getFailCountV174("worker",key)+1;
+      setFailCountV174("worker",key,c);
+      if(c>=3) renderWorkerResetOptionV174(key,txt);
+    }
+  },350);
+};
+</script>
+
 </body>
-                                                                                                                            </html>
+  </html>
