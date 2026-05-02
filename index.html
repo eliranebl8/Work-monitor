@@ -363,7 +363,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <button class="btn-green" onclick="workerLogin()">כניסה</button>
 <button class="btn-light" onclick="showRegister()">הרשמה לעובד חדש</button>
 <p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.7.7</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.7.8</div>
 </section>
 
 <section id="registerView" class="card login-box hidden">
@@ -2205,7 +2205,7 @@ async function createWorker(){
       authEmail:authResult.email||authEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.7.7" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.7.8" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2252,7 +2252,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.7.7",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.7.8",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2302,7 +2302,7 @@ async function loadWorkers(){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.7.7";
+    if(secret) secret.textContent="גרסה 1.7.8";
   }catch(e){}
 })();
 </script>
@@ -2518,7 +2518,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.7.7",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.7.8",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2558,7 +2558,7 @@ async function createAuthForWorker(workerId){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.7.7";
+    if(secret) secret.textContent="גרסה 1.7.8";
   }catch(e){}
 })();
 </script>
@@ -2578,7 +2578,7 @@ function effectiveAuthEmailV168(username, optionalEmail){
   return e && isValidEmailV168(e) ? e : authEmailFromUsername(username);
 }
 function updateVersionV168(){
-  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.7.7"; }catch(e){}
+  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.7.8"; }catch(e){}
 }
 
 // שם המשתמש נשאר שדה ההתחברות הראשי. מאחורי הקלעים Firebase Auth נכנס עם authEmail ששמור לעובד.
@@ -2668,7 +2668,7 @@ async function createWorker(){
       recoveryEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.7.7" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.7.8" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2750,7 +2750,7 @@ async function createAuthForWorker(workerId){
       authEmail:authResult.email||preferredAuthEmail,
       recoveryEmail:emailPrompt,
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.7.7",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.7.8",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -3591,13 +3591,13 @@ async function adminLogin(){
 
 
 <script>
-/* ===== VERSION 1.7.7: Password recovery options =====
+/* ===== VERSION 1.7.8: Password recovery options =====
    - מוסיף מייל שחזור/אימייל Auth אמיתי למנהל במסך אדמין.
    - אחרי 3 ניסיונות שגויים לעובד או למנהל מציג אפשרות שחזור סיסמה.
    - שחזור Firebase עובד רק אם ה-Auth Email הוא אימייל אמיתי, לא @work-monitor.local.
 */
 (function(){
-  const VERSION="1.7.7";
+  const VERSION="1.7.8";
   window.APP_VERSION=VERSION;
   function updateVersionV174(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -3885,7 +3885,7 @@ window.workerLogin = async function(){
 
 
 <script>
-/* ===== VERSION 1.7.7: Self registration creates Firebase Auth UID + worker automatically =====
+/* ===== VERSION 1.7.8: Self registration creates Firebase Auth UID + worker automatically =====
    תיקון מרכזי:
    1. הרשמה עצמית יוצרת קודם Firebase Auth עם UID אמיתי.
    2. מיד אחרי זה נשמרים users/{uid}, workers/{workerId}, usernameLookup/{usernameKey}.
@@ -3893,7 +3893,7 @@ window.workerLogin = async function(){
    4. כולל Security Rules מעודכנות שמאפשרות יצירת משתמש עצמי בלי להיות מחובר מראש כמנהל.
 */
 (function(){
-  const VERSION="1.7.7";
+  const VERSION="1.7.8";
   window.APP_VERSION=VERSION;
   window.APP_VERSION_176=VERSION;
   function updateVersionV176(){
@@ -3902,7 +3902,7 @@ window.workerLogin = async function(){
     const old=document.getElementById("versionBadgeV176");
     if(!old){
       const brand=document.querySelector(".brand .muted");
-      if(brand && !String(brand.textContent||"").includes("1.7.7")){
+      if(brand && !String(brand.textContent||"").includes("1.7.8")){
         // לא משנים את שורת המשתמש, רק שומרים גרסה בכותרת/סוד.
       }
     }
@@ -3995,7 +3995,7 @@ async function registerWorker(){
       recoveryEmail,
       authUid:uid,
       authReady:true,
-      authNote:"נוצר בהרשמה עצמית אוטומטית בגרסה 1.7.7",
+      authNote:"נוצר בהרשמה עצמית אוטומטית בגרסה 1.7.8",
       passwordHash:await sha256(pass),
       monthlyGoal:0,
       active:true,
@@ -4026,7 +4026,7 @@ async function registerWorker(){
     }catch(e){
       if(typeof writeAppLogV167==="function") await writeAppLogV167("registerFirestoreWriteFailedV176",{username,usernameKey,workerId,uid,authEmail:baseWorker.authEmail,errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
       if(isPermissionErrorV176(e)){
-        registrationMsgV176("<p class='danger'>ה־UID נוצר ב־Firebase Auth, אבל Firestore חסם את שמירת העובד בגלל Security Rules ישנות. היכנס כמנהל, לחץ ‘העתק Security Rules’ בגרסה 1.7.7, פרסם אותן ב־Firebase ואז נסה שוב.</p>");
+        registrationMsgV176("<p class='danger'>ה־UID נוצר ב־Firebase Auth, אבל Firestore חסם את שמירת העובד בגלל Security Rules ישנות. היכנס כמנהל, לחץ ‘העתק Security Rules’ בגרסה 1.7.8, פרסם אותן ב־Firebase ואז נסה שוב.</p>");
       }else{
         registrationMsgV176(`<p class='danger'>נוצר Auth אבל שמירת העובד נכשלה: ${esc(e.code||e.message||String(e))}</p>`);
       }
@@ -4058,7 +4058,7 @@ window.workerLogin = async function(){
     await oldWorkerLoginV176();
     if(session && session.role==="worker") return;
   }
-  // fallback אחרון למשתמשים שנוצרו ב-1.7.7 אבל lookup לא הספיק להיכתב.
+  // fallback אחרון למשתמשים שנוצרו ב-1.7.8 אבל lookup לא הספיק להיכתב.
   try{
     const usernameKey=normalize(username);
     const authEmail=authEmailFromUsername(username);
@@ -4187,9 +4187,9 @@ window.copySecurityRulesV169 = async function(){
   try{
     await navigator.clipboard.writeText(FIRESTORE_RULES_V176);
     const msg=document.getElementById("securityToolsMsgV169") || document.getElementById("adminAuthBootstrapMsgV170");
-    if(msg) msg.innerHTML="<div class='notice'>Security Rules של גרסה 1.7.7 הועתקו ✅</div>";
+    if(msg) msg.innerHTML="<div class='notice'>Security Rules של גרסה 1.7.8 הועתקו ✅</div>";
   }catch(e){
-    prompt("העתק את ה־Security Rules של גרסה 1.7.7:", FIRESTORE_RULES_V176);
+    prompt("העתק את ה־Security Rules של גרסה 1.7.8:", FIRESTORE_RULES_V176);
   }
 };
 
@@ -4201,7 +4201,7 @@ function addSelfRegistrationToolsV176(){
   div.id="selfRegistrationToolsV176";
   div.className="card panel";
   div.innerHTML=`
-    <div class="cal-head"><h2>🆕 הרשמה עצמית 1.7.7</h2><button class="btn-light" onclick="copySecurityRulesV169()">העתק Rules 1.7.7</button></div>
+    <div class="cal-head"><h2>🆕 הרשמה עצמית 1.7.8</h2><button class="btn-light" onclick="copySecurityRulesV169()">העתק Rules 1.7.8</button></div>
     <p>הגרסה הזו יוצרת UID אוטומטי בהרשמה מהמסך הראשי, מחברת אותו לעובד, ופותחת תקופת ניסיון לפי ההגדרה באדמין.</p>
     <div class="notice">אחרי העלאה לגיטהאב: בדוק הרשמה חדשה מחלון גלישה בסתר כדי לוודא שאין Session ישן.</div>`;
   const first=admin.querySelector(".card");
@@ -4213,7 +4213,7 @@ function addSelfRegistrationToolsV176(){
     window.showAdmin=async function(){
       await oldShowAdmin.apply(this,arguments);
       addSelfRegistrationToolsV176();
-      document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.7.7");
+      document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.7.8");
     };
   }
 })();
@@ -4222,11 +4222,11 @@ function addSelfRegistrationToolsV176(){
 
 
 <script>
-/* ===== VERSION 1.7.7: Subscription gate BEFORE rendering worker dashboard =====
+/* ===== VERSION 1.7.8: Subscription gate BEFORE rendering worker dashboard =====
    תיקון קריטי: לא מציגים workerView / נתונים / חודש לפני בדיקת מנוי עדכנית מהשרת.
 */
 (function(){
-  const VERSION="1.7.7";
+  const VERSION="1.7.8";
   window.APP_VERSION=VERSION;
   function updateVersionV177(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4359,5 +4359,268 @@ window.onload = async()=>{
 };
 </script>
 
+
+
+<script>
+/* ===== VERSION 1.7.8: Admin password/access recovery for workers =====
+   שחזור גישה לעובד ששכח סיסמה:
+   - לא מוחק workers ולא מוחק workEntries.
+   - יוצר Firebase Auth חדש עם UID חדש, בדרך כלל אימייל פנימי חד־פעמי.
+   - מעדכן workers/{workerId}.authUid/authEmail/passwordHash.
+   - מעדכן users/{newUid} ו־usernameLookup/{usernameKey}.
+   - מנטרל users/{oldUid} כדי שלא יישאר קישור ישן לאותו עובד.
+*/
+(function(){
+  const VERSION="1.7.8";
+  window.APP_VERSION=VERSION;
+  function updateVersionV178(){
+    document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
+    document.title="מעקב עבודה - גרסה "+VERSION;
+    const brand=document.querySelector(".brand > div:last-child");
+    if(brand && !String(brand.textContent||"").includes(VERSION)){
+      // לא משנה את מבנה הכותרת, רק מבטיח שהגרסה תופיע באזור הסודי ובכותרת הדפדפן.
+    }
+  }
+  window.addEventListener("load",()=>setTimeout(updateVersionV178,120));
+  setTimeout(updateVersionV178,120);
+})();
+
+function recoveryInternalEmailV178(username){
+  const clean = safeAuthUsernamePart(username || "worker");
+  return `${clean}.reset.${Date.now()}@${AUTH_DOMAIN}`;
+}
+
+function recoveryUsernameKeyV178(w){
+  return normalize((w && (w.usernameKey || w.username)) || "");
+}
+
+function recoveryWorkerIdV178(w){
+  if(!w) return "";
+  return w.id || workerIdFromUsername(recoveryUsernameKeyV178(w));
+}
+
+function recoveryPasswordValidV178(pass){
+  return !!pass && String(pass).length >= 6;
+}
+
+async function createFreshWorkerAuthV178(w, newPassword, authEmail){
+  if(!firebaseAuthReady()) throw new Error("Firebase Auth לא נטען");
+  const username = (w.username || w.usernameKey || w.id || "worker");
+  const name = w.name || username;
+  const email = authEmail || recoveryInternalEmailV178(username);
+  const a = (typeof secondaryAuthV169 === "function") ? secondaryAuthV169() : auth;
+  let cred = null;
+  try{
+    cred = await a.createUserWithEmailAndPassword(email, newPassword);
+  }catch(e){
+    // בשחזור גישה אנחנו מעדיפים UID חדש נקי. אם האימייל תפוס, נזרוק הודעה ברורה.
+    if(e && e.code === "auth/email-already-in-use"){
+      throw new Error("האימייל שבחרת כבר קיים ב-Firebase Auth. השאר אימייל ריק כדי ליצור אימייל פנימי חדש, או בחר אימייל אחר.");
+    }
+    throw e;
+  }
+  const uid = cred && cred.user ? cred.user.uid : "";
+  if(!uid) throw new Error("Firebase Auth לא החזיר UID חדש");
+  try{ await cred.user.updateProfile({displayName:name}); }catch(_e){}
+  try{ if(a && a !== auth) await a.signOut(); }catch(_e){}
+  return {uid,email};
+}
+
+async function resetWorkerAccessV178(workerId){
+  try{
+    let w = (workers || []).find(x=>x.id===workerId);
+    if(!w){
+      const doc = await db.collection("workers").doc(workerId).get();
+      if(!doc.exists) return alert("העובד לא נמצא.");
+      w = {id:doc.id, ...doc.data()};
+    }
+
+    const newPassword = prompt(
+      "שחזור גישה לעובד:\n\n"+
+      "עובד: " + (w.name || "") + "\n"+
+      "שם משתמש: " + (w.username || "") + "\n\n"+
+      "הכנס סיסמה חדשה לעובד. מינימום 6 תווים.\n"+
+      "הנתונים שלו לא יימחקו. רק הגישה תתחבר מחדש."
+    );
+    if(newPassword === null) return;
+    if(!recoveryPasswordValidV178(newPassword)) return alert("סיסמה חדשה חייבת להיות לפחות 6 תווים.");
+
+    let optionalEmail = prompt(
+      "אימייל Auth חדש לעובד - לא חובה.\n\n"+
+      "לעובד בלי מייל מומלץ להשאיר ריק. המערכת תיצור אימייל פנימי חדש אוטומטית.\n"+
+      "הכניסה תישאר עם שם המשתמש והסיסמה החדשה.",
+      ""
+    );
+    if(optionalEmail === null) return;
+    optionalEmail = cleanEmailV168 ? cleanEmailV168(optionalEmail) : String(optionalEmail||"").trim().toLowerCase();
+    if(optionalEmail && typeof isValidEmailV168 === "function" && !isValidEmailV168(optionalEmail)){
+      return alert("האימייל שהזנת לא תקין.");
+    }
+
+    if(!confirm(
+      "לאשר שחזור גישה?\n\n"+
+      "המערכת תיצור UID חדש, תחבר אותו לעובד הקיים, ותשמור סיסמה חדשה.\n"+
+      "העבודות והנתונים של העובד לא יימחקו."
+    )) return;
+
+    const oldUid = w.authUid || "";
+    const usernameKey = recoveryUsernameKeyV178(w);
+    const id = recoveryWorkerIdV178(w);
+    const newAuthEmail = optionalEmail || recoveryInternalEmailV178(w.username || usernameKey || id);
+
+    await writeAppLogV167?.("workerAccessRecoveryStartV178",{
+      workerId:id,
+      workerName:w.name||"",
+      username:w.username||usernameKey,
+      oldUid:oldUid||"",
+      newAuthEmail,
+      usedInternalEmail:!optionalEmail,
+      passwordLength:String(newPassword||"").length
+    }).catch(()=>{});
+
+    const authResult = await createFreshWorkerAuthV178(w, newPassword, newAuthEmail);
+
+    // מנטרלים את קישור ההרשאות הישן, בלי למחוק נתונים.
+    if(oldUid && oldUid !== authResult.uid){
+      await db.collection("users").doc(oldUid).set({
+        role:"disabled",
+        disabled:true,
+        disabledReason:"worker_access_recovered_new_uid",
+        previousWorkerId:id,
+        replacedByUid:authResult.uid,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true}).catch(()=>{});
+    }
+
+    await db.collection("users").doc(authResult.uid).set({
+      uid:authResult.uid,
+      role:"worker",
+      workerId:id,
+      username:w.username || usernameKey,
+      name:w.name || "",
+      authEmail:authResult.email,
+      recoveryEmail: optionalEmail || (w.recoveryEmail || ""),
+      accessRecoveredAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+
+    await db.collection("workers").doc(id).set({
+      authUid:authResult.uid,
+      authEmail:authResult.email,
+      recoveryEmail: optionalEmail || (w.recoveryEmail || ""),
+      authReady:true,
+      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.7.8",
+      passwordHash:await sha256(newPassword),
+      active:true,
+      accessRecoveredAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+
+    if(usernameKey){
+      await db.collection("usernameLookup").doc(usernameKey).set({
+        workerId:id,
+        username:w.username || usernameKey,
+        usernameKey,
+        authEmail:authResult.email,
+        authUid:authResult.uid,
+        active:true,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+    }
+
+    await writeAppLogV167?.("workerAccessRecoverySuccessV178",{
+      workerId:id,
+      workerName:w.name||"",
+      username:w.username||usernameKey,
+      oldUid:oldUid||"",
+      newUid:authResult.uid,
+      newAuthEmail:authResult.email
+    }).catch(()=>{});
+
+    try{ if(firebaseAuthReady() && auth.currentUser && session && session.role==="admin" && session.authEmail && auth.currentUser.email !== session.authEmail){ await auth.signOut(); } }catch(_e){}
+
+    alert(
+      "שחזור הגישה הושלם ✅\n\n"+
+      "העובד ייכנס עם אותו שם משתמש וסיסמה חדשה.\n"+
+      "הנתונים שלו נשארו במקום.\n\n"+
+      "אימייל Auth חדש: " + authResult.email
+    );
+    await loadWorkers();
+    await loadDebugLogs?.();
+  }catch(e){
+    await writeAppLogV167?.("workerAccessRecoveryFailedV178",{
+      workerId,
+      errorCode:e.code||"",
+      errorMessage:e.message||String(e)
+    }).catch(()=>{});
+    alert("שחזור הגישה נכשל: " + (e.code || e.message || String(e)));
+    await loadDebugLogs?.().catch(()=>{});
+  }
+}
+
+// מחליף את רשימת העובדים כדי להוסיף כפתור שחזור גישה בצורה קבועה.
+async function loadWorkers(){
+  const box=$("workersList");
+  if(!box) return;
+  box.innerHTML="<p>טוען עובדים...</p>";
+  const snap=await db.collection("workers").get();
+  workers=snap.docs.map(d=>({id:d.id,...d.data()})).filter(w=>!w.movedTo).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+  box.innerHTML=workers.length?"":"<p class='muted'>אין עובדים עדיין.</p>";
+  workers.forEach(w=>{
+    const row=document.createElement("div"); row.className="item";
+    const authTxt=w.authUid?"מחובר ✅":"בהכנה ⚠️";
+    const authBtn=w.authUid?"":`<button class="btn-green" onclick="createAuthForWorker('${w.id}')">צור Auth</button>`;
+    const recoverBtn=`<button class="btn-yellow" onclick="resetWorkerAccessV178('${w.id}')">שחזור גישה</button>`;
+    const authEmail=w.authEmail||authEmailFromUsername(w.username||w.id||"");
+    row.innerHTML=`
+      <div>
+        <div class="item-title">${esc(w.name)}</div>
+        <div class="item-sub">
+          שם משתמש: ${esc(w.username)} · יעד: ${money(w.monthlyGoal||0)} · ${w.active===false?"לא פעיל":"פעיל"} · Auth: ${authTxt}<br>
+          אימייל Auth: ${esc(authEmail)} · אימייל שחזור: ${esc(w.recoveryEmail||"לא הוגדר")}<br>
+          מנוי: ${esc(w.subscriptionStatus||"רגיל")} עד ${esc(w.subscriptionUntil||w.trialUntil||"ללא הגבלה")} · ID: ${w.id}
+        </div>
+      </div>
+      <div class="actions">
+        <button onclick="showWorkerById('${w.id}')">פתח מעקב</button>
+        ${authBtn}
+        ${recoverBtn}
+        <button class="btn-light" onclick="updateRecoveryEmailForWorker('${w.id}')">אימייל שחזור</button>
+        <button class="btn-yellow" onclick="openWorkerEdit('${w.id}')">ערוך</button>
+        <button onclick="openSubscriptionEdit('${w.id}')">מנוי</button>
+        <button class="${w.active===false?"btn-green":"btn-red"}" onclick="toggleWorker('${w.id}', ${w.active===false})">${w.active===false?"הפעל":"בטל"}</button>
+      </div>`;
+    box.appendChild(row);
+  });
+  cleanVisibleSlashN();
+}
+
+function addRecoveryInfoPanelV178(){
+  const admin=document.getElementById("adminView");
+  if(!admin || document.getElementById("recoveryInfoPanelV178")) return;
+  const div=document.createElement("div");
+  div.id="recoveryInfoPanelV178";
+  div.className="card panel";
+  div.innerHTML=`
+    <div class="cal-head"><h2>🔑 שחזור גישה לעובד 1.7.8</h2></div>
+    <p>אם עובד שכח סיסמה ואין לו מייל, לחץ ברשימת העובדים על <b>שחזור גישה</b>. זה יוצר UID חדש, שומר סיסמה חדשה, ומחבר אותו לאותו Worker בלי למחוק עבודות.</p>
+    <div class="notice">לא מוחקים Worker בשביל איפוס סיסמה. מוחקים/מנטרלים רק קישור Auth ישן אם צריך.</div>`;
+  const workersCard=[...admin.querySelectorAll(".card")].find(c=>String(c.textContent||"").includes("עובדים"));
+  if(workersCard) admin.insertBefore(div, workersCard);
+  else admin.appendChild(div);
+}
+
+(function(){
+  const oldShowAdmin=window.showAdmin;
+  if(typeof oldShowAdmin==="function"){
+    window.showAdmin=async function(){
+      await oldShowAdmin.apply(this,arguments);
+      addRecoveryInfoPanelV178();
+      setTimeout(()=>{ try{ loadWorkers(); }catch(_e){} },150);
+    };
+  }
+})();
+</script>
+
 </body>
-</html>
+  </html>
