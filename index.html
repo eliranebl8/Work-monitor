@@ -426,7 +426,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <button class="btn-green" onclick="workerLogin()">כניסה</button>
 <button class="btn-light" onclick="showRegister()">הרשמה לעובד חדש</button>
 <p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.8.4</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.8.8</div>
 </section>
 
 <section id="registerView" class="card login-box hidden">
@@ -2268,7 +2268,7 @@ async function createWorker(){
       authEmail:authResult.email||authEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.8.4" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.8.8" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2315,7 +2315,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.8.4",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.8.8",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2365,7 +2365,7 @@ async function loadWorkers(){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.8.4";
+    if(secret) secret.textContent="גרסה 1.8.8";
   }catch(e){}
 })();
 </script>
@@ -2581,7 +2581,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.8.4",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.8.8",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2621,7 +2621,7 @@ async function createAuthForWorker(workerId){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.8.4";
+    if(secret) secret.textContent="גרסה 1.8.8";
   }catch(e){}
 })();
 </script>
@@ -2641,7 +2641,7 @@ function effectiveAuthEmailV168(username, optionalEmail){
   return e && isValidEmailV168(e) ? e : authEmailFromUsername(username);
 }
 function updateVersionV168(){
-  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.8.4"; }catch(e){}
+  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.8.8"; }catch(e){}
 }
 
 // שם המשתמש נשאר שדה ההתחברות הראשי. מאחורי הקלעים Firebase Auth נכנס עם authEmail ששמור לעובד.
@@ -2731,7 +2731,7 @@ async function createWorker(){
       recoveryEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.8.4" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.8.8" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2813,7 +2813,7 @@ async function createAuthForWorker(workerId){
       authEmail:authResult.email||preferredAuthEmail,
       recoveryEmail:emailPrompt,
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.8.4",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.8.8",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -3654,13 +3654,13 @@ async function adminLogin(){
 
 
 <script>
-/* ===== VERSION 1.8.4: Password recovery options =====
+/* ===== VERSION 1.8.8: Password recovery options =====
    - מוסיף מייל שחזור/אימייל Auth אמיתי למנהל במסך אדמין.
    - אחרי 3 ניסיונות שגויים לעובד או למנהל מציג אפשרות שחזור סיסמה.
    - שחזור Firebase עובד רק אם ה-Auth Email הוא אימייל אמיתי, לא @work-monitor.local.
 */
 (function(){
-  const VERSION="1.8.4";
+  const VERSION="1.8.8";
   window.APP_VERSION=VERSION;
   function updateVersionV174(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -3948,7 +3948,7 @@ window.workerLogin = async function(){
 
 
 <script>
-/* ===== VERSION 1.8.4: Self registration creates Firebase Auth UID + worker automatically =====
+/* ===== VERSION 1.8.8: Self registration creates Firebase Auth UID + worker automatically =====
    תיקון מרכזי:
    1. הרשמה עצמית יוצרת קודם Firebase Auth עם UID אמיתי.
    2. מיד אחרי זה נשמרים users/{uid}, workers/{workerId}, usernameLookup/{usernameKey}.
@@ -3956,7 +3956,7 @@ window.workerLogin = async function(){
    4. כולל Security Rules מעודכנות שמאפשרות יצירת משתמש עצמי בלי להיות מחובר מראש כמנהל.
 */
 (function(){
-  const VERSION="1.8.4";
+  const VERSION="1.8.8";
   window.APP_VERSION=VERSION;
   window.APP_VERSION_176=VERSION;
   function updateVersionV176(){
@@ -3965,7 +3965,7 @@ window.workerLogin = async function(){
     const old=document.getElementById("versionBadgeV176");
     if(!old){
       const brand=document.querySelector(".brand .muted");
-      if(brand && !String(brand.textContent||"").includes("1.8.4")){
+      if(brand && !String(brand.textContent||"").includes("1.8.8")){
         // לא משנים את שורת המשתמש, רק שומרים גרסה בכותרת/סוד.
       }
     }
@@ -4058,7 +4058,7 @@ async function registerWorker(){
       recoveryEmail,
       authUid:uid,
       authReady:true,
-      authNote:"נוצר בהרשמה עצמית אוטומטית בגרסה 1.8.4",
+      authNote:"נוצר בהרשמה עצמית אוטומטית בגרסה 1.8.8",
       passwordHash:await sha256(pass),
       monthlyGoal:0,
       active:true,
@@ -4089,7 +4089,7 @@ async function registerWorker(){
     }catch(e){
       if(typeof writeAppLogV167==="function") await writeAppLogV167("registerFirestoreWriteFailedV176",{username,usernameKey,workerId,uid,authEmail:baseWorker.authEmail,errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
       if(isPermissionErrorV176(e)){
-        registrationMsgV176("<p class='danger'>ה־UID נוצר ב־Firebase Auth, אבל Firestore חסם את שמירת העובד בגלל Security Rules ישנות. היכנס כמנהל, לחץ ‘העתק Security Rules’ בגרסה 1.8.4, פרסם אותן ב־Firebase ואז נסה שוב.</p>");
+        registrationMsgV176("<p class='danger'>ה־UID נוצר ב־Firebase Auth, אבל Firestore חסם את שמירת העובד בגלל Security Rules ישנות. היכנס כמנהל, לחץ ‘העתק Security Rules’ בגרסה 1.8.8, פרסם אותן ב־Firebase ואז נסה שוב.</p>");
       }else{
         registrationMsgV176(`<p class='danger'>נוצר Auth אבל שמירת העובד נכשלה: ${esc(e.code||e.message||String(e))}</p>`);
       }
@@ -4121,7 +4121,7 @@ window.workerLogin = async function(){
     await oldWorkerLoginV176();
     if(session && session.role==="worker") return;
   }
-  // fallback אחרון למשתמשים שנוצרו ב-1.8.4 אבל lookup לא הספיק להיכתב.
+  // fallback אחרון למשתמשים שנוצרו ב-1.8.8 אבל lookup לא הספיק להיכתב.
   try{
     const usernameKey=normalize(username);
     const authEmail=authEmailFromUsername(username);
@@ -4250,9 +4250,9 @@ window.copySecurityRulesV169 = async function(){
   try{
     await navigator.clipboard.writeText(FIRESTORE_RULES_V176);
     const msg=document.getElementById("securityToolsMsgV169") || document.getElementById("adminAuthBootstrapMsgV170");
-    if(msg) msg.innerHTML="<div class='notice'>Security Rules של גרסה 1.8.4 הועתקו ✅</div>";
+    if(msg) msg.innerHTML="<div class='notice'>Security Rules של גרסה 1.8.8 הועתקו ✅</div>";
   }catch(e){
-    prompt("העתק את ה־Security Rules של גרסה 1.8.4:", FIRESTORE_RULES_V176);
+    prompt("העתק את ה־Security Rules של גרסה 1.8.8:", FIRESTORE_RULES_V176);
   }
 };
 
@@ -4264,7 +4264,7 @@ function addSelfRegistrationToolsV176(){
   div.id="selfRegistrationToolsV176";
   div.className="card panel";
   div.innerHTML=`
-    <div class="cal-head"><h2>🆕 הרשמה עצמית 1.8.4</h2><button class="btn-light" onclick="copySecurityRulesV169()">העתק Rules 1.8.4</button></div>
+    <div class="cal-head"><h2>🆕 הרשמה עצמית 1.8.8</h2><button class="btn-light" onclick="copySecurityRulesV169()">העתק Rules 1.8.8</button></div>
     <p>הגרסה הזו יוצרת UID אוטומטי בהרשמה מהמסך הראשי, מחברת אותו לעובד, ופותחת תקופת ניסיון לפי ההגדרה באדמין.</p>
     <div class="notice">אחרי העלאה לגיטהאב: בדוק הרשמה חדשה מחלון גלישה בסתר כדי לוודא שאין Session ישן.</div>`;
   const first=admin.querySelector(".card");
@@ -4276,7 +4276,7 @@ function addSelfRegistrationToolsV176(){
     window.showAdmin=async function(){
       await oldShowAdmin.apply(this,arguments);
       addSelfRegistrationToolsV176();
-      document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.8.4");
+      document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.8.8");
     };
   }
 })();
@@ -4285,11 +4285,11 @@ function addSelfRegistrationToolsV176(){
 
 
 <script>
-/* ===== VERSION 1.8.4: Subscription gate BEFORE rendering worker dashboard =====
+/* ===== VERSION 1.8.8: Subscription gate BEFORE rendering worker dashboard =====
    תיקון קריטי: לא מציגים workerView / נתונים / חודש לפני בדיקת מנוי עדכנית מהשרת.
 */
 (function(){
-  const VERSION="1.8.4";
+  const VERSION="1.8.8";
   window.APP_VERSION=VERSION;
   function updateVersionV177(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4425,7 +4425,7 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.8.4: Admin password/access recovery for workers =====
+/* ===== VERSION 1.8.8: Admin password/access recovery for workers =====
    שחזור גישה לעובד ששכח סיסמה:
    - לא מוחק workers ולא מוחק workEntries.
    - יוצר Firebase Auth חדש עם UID חדש, בדרך כלל אימייל פנימי חד־פעמי.
@@ -4434,7 +4434,7 @@ window.onload = async()=>{
    - מנטרל users/{oldUid} כדי שלא יישאר קישור ישן לאותו עובד.
 */
 (function(){
-  const VERSION="1.8.4";
+  const VERSION="1.8.8";
   window.APP_VERSION=VERSION;
   function updateVersionV178(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4572,7 +4572,7 @@ async function resetWorkerAccessV178(workerId){
       authEmail:authResult.email,
       recoveryEmail: optionalEmail || (w.recoveryEmail || ""),
       authReady:true,
-      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.8.4",
+      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.8.8",
       passwordHash:await sha256(newPassword),
       active:true,
       accessRecoveredAt:firebase.firestore.FieldValue.serverTimestamp(),
@@ -4665,7 +4665,7 @@ function addRecoveryInfoPanelV178(){
   div.id="recoveryInfoPanelV178";
   div.className="card panel";
   div.innerHTML=`
-    <div class="cal-head"><h2>🔑 שחזור גישה לעובד 1.8.4</h2></div>
+    <div class="cal-head"><h2>🔑 שחזור גישה לעובד 1.8.8</h2></div>
     <p>אם עובד שכח סיסמה ואין לו מייל, לחץ ברשימת העובדים על <b>שחזור גישה</b>. זה יוצר UID חדש, שומר סיסמה חדשה, ומחבר אותו לאותו Worker בלי למחוק עבודות.</p>
     <div class="notice">לא מוחקים Worker בשביל איפוס סיסמה. מוחקים/מנטרלים רק קישור Auth ישן אם צריך.</div>`;
   const workersCard=[...admin.querySelectorAll(".card")].find(c=>String(c.textContent||"").includes("עובדים"));
@@ -4688,11 +4688,11 @@ function addRecoveryInfoPanelV178(){
 
 
 <script>
-/* ===== VERSION 1.8.4: No login flicker on refresh =====
+/* ===== VERSION 1.8.8: No login flicker on refresh =====
    מציג מסך טעינה ניטרלי בזמן בדיקת session/Auth, ולא את מסך הכניסה.
 */
 (function(){
-  const VERSION="1.8.4";
+  const VERSION="1.8.8";
   window.APP_VERSION=VERSION;
   function updateVersionV179(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4760,12 +4760,12 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.8.4: Safe logout + worker null guard =====
+/* ===== VERSION 1.8.8: Safe logout + worker null guard =====
    תיקון: אם עובד עושה יציאה בזמן שעדיין רצות טעינות async ברקע,
    לא מאפשרים לטעינה הישנה להמשיך לצייר דשבורד או לקרוא monthlyGoal על viewedWorker ריק.
 */
 (function(){
-  const VERSION="1.8.4";
+  const VERSION="1.8.8";
   window.APP_VERSION=VERSION;
   window.__appNavTokenV180 = window.__appNavTokenV180 || 0;
   window.__isLoggingOutV180 = false;
@@ -4950,9 +4950,9 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.8.4: polished loader + keep expired subscription screen on refresh ===== */
+/* ===== VERSION 1.8.8: polished loader + keep expired subscription screen on refresh ===== */
 (function(){
-  const VERSION="1.8.4";
+  const VERSION="1.8.8";
   window.APP_VERSION=VERSION;
   window.APP_VERSION_181=VERSION;
   function updateVersionV181(){
@@ -5094,12 +5094,12 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.8.4: Loader timeout + reliable startup release =====
+/* ===== VERSION 1.8.8: Loader timeout + reliable startup release =====
    תיקון: שום בדיקת Firebase/Firestore לא יכולה להשאיר את המשתמש תקוע על מסך טעינה.
    יש Timeout קצר לכל שלב, והרצה חד-פעמית גם ב-DOMContentLoaded וגם ב-load.
 */
 (function(){
-  const VERSION="1.8.4";
+  const VERSION="1.8.8";
   window.APP_VERSION=VERSION;
   window.__bootStartedV182=false;
   window.__bootFinishedV182=false;
@@ -5261,11 +5261,11 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.8.4: Stable boot controller + no recursive login/logout =====
+/* ===== VERSION 1.8.8: Stable boot controller + no recursive login/logout =====
    תיקון עומק: מבטל recursion שנוצר מעטיפות showWorkerLogin/logout, ומנהל טעינה/כניסה/מסך מנוי ממקום אחד.
 */
 (function(){
-  const VERSION="1.8.4";
+  const VERSION="1.8.8";
   window.APP_VERSION=VERSION;
   window.__stableBootV183Started=false;
   window.__stableBootV183Finished=false;
@@ -5434,19 +5434,19 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.8.4: Access recovery permission-denied fix =====
+/* ===== VERSION 1.8.8: Access recovery permission-denied fix =====
    תיקון: שחזור גישה חייב להתבצע כשה-Auth הראשי נשאר מנהל.
    יצירת ה-UID החדש נעשית דרך Firebase App משני ומבודד, ואז חוזרים לוודא שה-main auth הוא אדמין לפני כתיבה ל-Firestore.
 */
 (function(){
-  const VERSION="1.8.4";
+  const VERSION="1.8.8";
   window.APP_VERSION=VERSION;
   function forceVersionV184(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
     document.title="מעקב עבודה - גרסה "+VERSION;
     const p=document.getElementById("recoveryInfoPanelV178");
     if(p){
-      p.querySelectorAll("h2").forEach(h=>h.innerHTML="🔑 שחזור גישה לעובד 1.8.4");
+      p.querySelectorAll("h2").forEach(h=>h.innerHTML="🔑 שחזור גישה לעובד 1.8.8");
     }
   }
   window.addEventListener("load",()=>setTimeout(forceVersionV184,150));
@@ -5624,7 +5624,7 @@ async function resetWorkerAccessV178(workerId){
       authEmail:authResult.email,
       recoveryEmail:optionalEmail || (w.recoveryEmail||""),
       authReady:true,
-      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.8.4",
+      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.8.8",
       passwordHash:await sha256(newPassword),
       active:true,
       accessRecoveredAt:now,
@@ -5664,19 +5664,19 @@ async function resetWorkerAccessV178(workerId){
 
 
 <script>
-/* ===== VERSION 1.8.5: Recovery permission-denied final fix =====
+/* ===== VERSION 1.8.8: Recovery permission-denied final fix =====
    הסיבה ל-permission-denied בשחזור גישה היא בדרך כלל Security Rules שלא מזהות את האדמין
    דרך users/{uid}, או שאין עדיין users doc תקין למנהל. בגרסה זו ה-Rules מזהות אדמין גם לפי
-   Firebase Auth email הפנימי admin@work-monitor.local, וכפתור העתקת Rules מעודכן לגרסה 1.8.5.
+   Firebase Auth email הפנימי admin@work-monitor.local, וכפתור העתקת Rules מעודכן לגרסה 1.8.8.
 */
 (function(){
-  const VERSION="1.8.5";
+  const VERSION="1.8.8";
   window.APP_VERSION=VERSION;
   function forceVersionV185(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
     document.title="מעקב עבודה - גרסה "+VERSION;
     const p=document.getElementById("recoveryInfoPanelV178");
-    if(p){ p.querySelectorAll("h2").forEach(h=>h.innerHTML="🔑 שחזור גישה לעובד 1.8.5"); }
+    if(p){ p.querySelectorAll("h2").forEach(h=>h.innerHTML="🔑 שחזור גישה לעובד 1.8.8"); }
   }
   window.addEventListener("load",()=>setTimeout(forceVersionV185,120));
   setInterval(forceVersionV185,1200);
@@ -5786,10 +5786,10 @@ async function copySecurityRulesV169(){
   try{
     await navigator.clipboard.writeText(FIRESTORE_RULES_V185);
     const msg=document.getElementById("securityToolsMsgV169") || document.getElementById("adminAuthBootstrapMsgV170");
-    if(msg) msg.innerHTML="<div class='notice'>Security Rules 1.8.5 הועתקו ✅<br>פתח Firebase → Firestore Database → Rules → הדבק → Publish.</div>";
-    alert("Security Rules 1.8.5 הועתקו ✅\nחובה לפרסם אותן ב-Firebase כדי ששחזור גישה יעבוד בלי permission-denied.");
+    if(msg) msg.innerHTML="<div class='notice'>Security Rules 1.8.8 הועתקו ✅<br>פתח Firebase → Firestore Database → Rules → הדבק → Publish.</div>";
+    alert("Security Rules 1.8.8 הועתקו ✅\nחובה לפרסם אותן ב-Firebase כדי ששחזור גישה יעבוד בלי permission-denied.");
   }catch(e){
-    prompt("העתק את ה־Security Rules 1.8.5:", FIRESTORE_RULES_V185);
+    prompt("העתק את ה־Security Rules 1.8.8:", FIRESTORE_RULES_V185);
   }
 }
 
@@ -5800,9 +5800,9 @@ function addRulesWarningV185(){
   div.id="rulesWarningV185";
   div.className="card panel";
   div.innerHTML=`
-    <div class="cal-head"><h2>⚠️ תיקון הרשאות 1.8.5</h2><button class="btn-green" onclick="copySecurityRulesV169()">העתק Rules 1.8.5</button></div>
+    <div class="cal-head"><h2>⚠️ תיקון הרשאות 1.8.8</h2><button class="btn-green" onclick="copySecurityRulesV169()">העתק Rules 1.8.8</button></div>
     <p>אם בשחזור גישה מופיע <b>permission-denied</b>, זה לא באג במסך — ה־Security Rules הישנות לא מזהות את האדמין בזמן כתיבה ל־users/workers.</p>
-    <div class="notice">צריך להעתיק את Rules 1.8.5, להדביק ב־Firebase Firestore Rules וללחוץ Publish פעם אחת.</div>`;
+    <div class="notice">צריך להעתיק את Rules 1.8.8, להדביק ב־Firebase Firestore Rules וללחוץ Publish פעם אחת.</div>`;
   admin.insertBefore(div, admin.firstChild);
 }
 
@@ -5824,7 +5824,7 @@ window.resetWorkerAccessV178 = async function(workerId){
   }catch(e){
     const msg=String(e && (e.code||e.message) || e);
     if(msg.includes("permission-denied")){
-      alert("שחזור הגישה נחסם על ידי Firebase Rules.\n\nהפתרון: באדמין לחץ 'העתק Rules 1.8.5', הדבק ב-Firebase Firestore Rules ולחץ Publish. אחרי זה נסה שוב.");
+      alert("שחזור הגישה נחסם על ידי Firebase Rules.\n\nהפתרון: באדמין לחץ 'העתק Rules 1.8.8', הדבק ב-Firebase Firestore Rules ולחץ Publish. אחרי זה נסה שוב.");
       return;
     }
     throw e;
@@ -5835,12 +5835,12 @@ window.resetWorkerAccessV178 = async function(workerId){
 
 
 <script>
-/* ===== VERSION 1.8.6: Clean admin panel + admin loading screen =====
+/* ===== VERSION 1.8.8: Clean admin panel + admin loading screen =====
    ניקוי פאנלים זמניים מהאדמין בלי למחוק פונקציות שעובדות.
    נשאר: יצירת/תיקון Auth למנהל, עובדים, שחזור גישה דרך כפתור העובד, מנויים, מחירון, תבניות וכלים שימושיים.
 */
 (function(){
-  const VERSION="1.8.6";
+  const VERSION="1.8.8";
   window.APP_VERSION=VERSION;
 
   const HIDE_STYLE_ID="cleanAdminV186Style";
@@ -5926,10 +5926,10 @@ window.resetWorkerAccessV178 = async function(workerId){
     removeCardByHeadingTextV186("לוח מנהל");
     removeCardByHeadingTextV186("הכנת Firebase Auth");
     removeCardByHeadingTextV186("הכנת אבטחת Firebase");
-    removeCardByHeadingTextV186("תיקון הרשאות 1.8.5");
-    removeCardByHeadingTextV186("הרשמה עצמית 1.8.4");
-    removeCardByHeadingTextV186("שחזור גישה לעובד 1.8.5");
-    removeCardByHeadingTextV186("שחזור גישה לעובד 1.8.4");
+    removeCardByHeadingTextV186("תיקון הרשאות 1.8.8");
+    removeCardByHeadingTextV186("הרשמה עצמית 1.8.8");
+    removeCardByHeadingTextV186("שחזור גישה לעובד 1.8.8");
+    removeCardByHeadingTextV186("שחזור גישה לעובד 1.8.8");
 
     // להשאיר את יצירת/תיקון Auth למנהל, אבל לנקות ניסוחים טכניים מיותרים אם היא מופיעה
     const adminAuth=document.getElementById("adminAuthBootstrapV170");
@@ -5963,7 +5963,7 @@ window.resetWorkerAccessV178 = async function(workerId){
         cleanAdminPanelV186();
         forceVersionV186();
       }catch(e){
-        console.error("showAdmin V1.8.6 failed",e);
+        console.error("showAdmin V1.8.8 failed",e);
         cleanAdminPanelV186();
         alert("שגיאה בטעינת לוח המנהל: "+(e.code||e.message||String(e)));
       }finally{
@@ -5982,5 +5982,213 @@ window.resetWorkerAccessV178 = async function(workerId){
 })();
 </script>
 
+
+
+<script>
+/* ===== VERSION 1.8.8: Expired subscription refresh persistence fix =====
+   מטרה: אם עובד הגיע למסך בחירת מנוי ואז עושה רענון, חוזרים לאותו מסך ולא למסך כניסה.
+   הפתרון שומר marker של worker פג תוקף, וגם אם קריאת Firestore נחסמת זמנית ב-Rules אחרי refresh,
+   מציגים את מסך התשלום לפי המידע השמור במקום למחוק את ה-marker.
+*/
+(function(){
+  const VERSION="1.8.8";
+  window.APP_VERSION=VERSION;
+  window.__preserveExpiredMarkerV187=true;
+
+  function forceVersionV187(){
+    try{ document.title="מעקב עבודה - גרסה "+VERSION; }catch(e){}
+    try{ document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION); }catch(e){}
+    try{ document.querySelectorAll("[data-app-version],#appVersion,#versionLabel").forEach(el=>el.textContent=VERSION); }catch(e){}
+  }
+
+  function expiredKeyV187(){ return "workExpiredWorkerSession"; }
+  function readExpiredMarkerV187(){
+    try{ const raw=localStorage.getItem(expiredKeyV187()); return raw?JSON.parse(raw):null; }catch(e){ return null; }
+  }
+  function writeExpiredMarkerV187(worker){
+    if(!worker || !worker.id) return;
+    try{
+      localStorage.setItem(expiredKeyV187(), JSON.stringify({
+        workerId:worker.id,
+        id:worker.id,
+        name:worker.name||"",
+        username:worker.username||"",
+        usernameKey:worker.usernameKey||"",
+        authUid:worker.authUid||"",
+        authEmail:worker.authEmail||"",
+        recoveryEmail:worker.recoveryEmail||"",
+        subscriptionStatus:worker.subscriptionStatus||"expired",
+        trialUntil:worker.trialUntil||"",
+        subscriptionUntil:worker.subscriptionUntil||worker.trialUntil||"",
+        active:worker.active!==false,
+        savedAt:Date.now(),
+        version:VERSION
+      }));
+    }catch(e){}
+  }
+  function clearExpiredMarkerV187(){
+    try{ localStorage.removeItem(expiredKeyV187()); }catch(e){}
+  }
+  function markerToWorkerV187(marker){
+    if(!marker) return null;
+    return {
+      id:marker.workerId||marker.id,
+      name:marker.name||"",
+      username:marker.username||"",
+      usernameKey:marker.usernameKey||"",
+      authUid:marker.authUid||"",
+      authEmail:marker.authEmail||"",
+      recoveryEmail:marker.recoveryEmail||"",
+      subscriptionStatus:marker.subscriptionStatus||"expired",
+      trialUntil:marker.trialUntil||"",
+      subscriptionUntil:marker.subscriptionUntil||marker.trialUntil||"",
+      active:marker.active!==false,
+      selfRegistered:true
+    };
+  }
+
+  const oldRemember=window.rememberExpiredWorkerV181;
+  window.rememberExpiredWorkerV181=function(worker){
+    writeExpiredMarkerV187(worker);
+    try{ if(typeof oldRemember==="function") oldRemember(worker); }catch(e){}
+  };
+
+  const oldClear=window.clearExpiredWorkerV181;
+  window.clearExpiredWorkerV181=function(){
+    // בזמן boot לא מוחקים marker בגלל permission-denied רגעי; אחרת refresh יזרוק למסך כניסה.
+    if(window.__preserveExpiredMarkerV187) return;
+    clearExpiredMarkerV187();
+    try{ if(typeof oldClear==="function") oldClear(); }catch(e){}
+  };
+
+  const oldShowExpired=window.showExpiredView;
+  window.showExpiredView=function(worker){
+    if(worker && worker.id) writeExpiredMarkerV187(worker);
+    else {
+      const m=readExpiredMarkerV187();
+      if(m) worker=markerToWorkerV187(m);
+    }
+    if(typeof oldShowExpired==="function") return oldShowExpired(worker);
+    try{
+      hideAll(); show("expiredView"); hide("logoutBtn"); text("userLine","המנוי הסתיים");
+      window.expiredWorker=worker||null;
+      if(worker){
+        if($("paymentWorkerName"))$("paymentWorkerName").value=worker.name||"";
+        if($("paymentWorkerUsername"))$("paymentWorkerUsername").value=worker.username||"";
+        if($("paymentWorkerId"))$("paymentWorkerId").value=worker.id||"";
+      }
+    }catch(e){ console.warn("showExpiredView fallback failed",e); }
+  };
+
+  const oldStop=window.stopExpiredWorkerSessionV177;
+  window.stopExpiredWorkerSessionV177=function(worker){
+    writeExpiredMarkerV187(worker);
+    try{ localStorage.removeItem("workSession"); }catch(e){}
+    session=null; viewedWorker=null;
+    return window.showExpiredView(worker);
+  };
+
+  async function fetchWorkerV187(workerId){
+    if(!workerId || typeof db==="undefined") return null;
+    const doc=await db.collection("workers").doc(workerId).get();
+    return doc.exists ? {id:doc.id,...doc.data()} : null;
+  }
+
+  function shouldShowExpiredByMarkerV187(marker){
+    if(!marker || !(marker.workerId||marker.id)) return false;
+    // marker נשמר רק כשהמשתמש כבר הגיע למסך תשלום, לכן ברירת המחדל היא להחזיר אותו לשם.
+    return true;
+  }
+
+  async function restoreExpiredScreenV187(){
+    const marker=readExpiredMarkerV187();
+    if(!shouldShowExpiredByMarkerV187(marker)) return false;
+    const workerId=marker.workerId||marker.id;
+    let worker=null;
+    try{
+      worker=await Promise.race([
+        fetchWorkerV187(workerId),
+        new Promise(resolve=>setTimeout(()=>resolve(null),3500))
+      ]);
+    }catch(e){
+      // לא מוחקים marker על permission-denied; מציגים תשלום לפי marker.
+      console.warn("restore expired fetch skipped", e.code||e.message||e);
+    }
+
+    if(worker){
+      // אם בינתיים המנהל האריך מנוי — רק אז מנקים marker וממשיכים למסך כניסה/דשבורד.
+      if(worker.active!==false && typeof isSubscriptionExpired==="function" && !isSubscriptionExpired(worker)){
+        window.__preserveExpiredMarkerV187=false;
+        clearExpiredMarkerV187();
+        return false;
+      }
+      writeExpiredMarkerV187(worker);
+      window.showExpiredView(worker);
+      return true;
+    }
+
+    window.showExpiredView(markerToWorkerV187(marker));
+    return true;
+  }
+
+  async function bootExpiredFirstV187(){
+    forceVersionV187();
+    const hasExpired=!!readExpiredMarkerV187();
+    const hasSession=!!localStorage.getItem("workSession");
+    if(!hasExpired || hasSession) return false;
+    try{ if(typeof showStartupV179==="function") showStartupV179(); }catch(e){}
+    const ok=await restoreExpiredScreenV187();
+    return ok;
+  }
+
+  // מריץ אחרי הסקריפטים הישנים ומתקן מצב שבו הם כבר זרקו למסך כניסה.
+  async function repairAfterOldBootV187(){
+    forceVersionV187();
+    const marker=readExpiredMarkerV187();
+    if(!marker || localStorage.getItem("workSession")) return;
+    const loginVisible=document.getElementById("workerLoginView") && !document.getElementById("workerLoginView").classList.contains("hidden");
+    const startupVisible=document.getElementById("startupView") && !document.getElementById("startupView").classList.contains("hidden");
+    const expiredVisible=document.getElementById("expiredView") && !document.getElementById("expiredView").classList.contains("hidden");
+    if(!expiredVisible && (loginVisible || startupVisible)) await restoreExpiredScreenV187();
+  }
+
+  window.addEventListener("DOMContentLoaded",()=>{ setTimeout(bootExpiredFirstV187,0); setTimeout(repairAfterOldBootV187,1200); setTimeout(repairAfterOldBootV187,4200); });
+  window.addEventListener("load",()=>{ setTimeout(bootExpiredFirstV187,0); setTimeout(repairAfterOldBootV187,1200); setTimeout(repairAfterOldBootV187,4200); });
+  setTimeout(()=>{ if(document.readyState!=="loading") bootExpiredFirstV187(); },30);
+  setInterval(forceVersionV187,1200);
+
+  // אחרי שהאתחול נגמר, פעולה ידנית של חזרה למסך כניסה/יציאה כן תוכל לנקות marker.
+  setTimeout(()=>{ window.__preserveExpiredMarkerV187=false; },15000);
+})();
+</script>
+
+
+<script>
+/* ===== VERSION 1.8.8: single visible version stabilizer ===== */
+(function(){
+  const FINAL_VERSION = "1.8.8";
+  window.APP_VERSION = FINAL_VERSION;
+  function forceFinalVersion(){
+    try{
+      document.title = "מעקב עבודה - גרסה " + FINAL_VERSION;
+      document.querySelectorAll(".secret, #secretTap").forEach(el=>{
+        el.textContent = "גרסה " + FINAL_VERSION;
+      });
+      document.querySelectorAll("[data-app-version]").forEach(el=>{
+        el.textContent = FINAL_VERSION;
+      });
+    }catch(e){}
+  }
+  window.addEventListener("load",()=>{
+    forceFinalVersion();
+    setTimeout(forceFinalVersion,100);
+    setTimeout(forceFinalVersion,500);
+    setTimeout(forceFinalVersion,1200);
+  });
+  document.addEventListener("DOMContentLoaded",forceFinalVersion);
+  setTimeout(forceFinalVersion,0);
+})();
+</script>
+
 </body>
-</html>
+  </html>
