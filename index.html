@@ -404,7 +404,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 }
 
 
-/* ===== v1.10.10: functional file + restored v1.8.9 design ===== */
+/* ===== v1.10.11: restored functional admin + search multi price items ===== */
 html,body{max-width:100%;overflow-x:hidden;}
 *{max-width:100%;}
 .app{width:100%;}
@@ -412,82 +412,18 @@ img,video,canvas,svg,table{max-width:100%;}
 #backAdminBtn{display:none!important;}
 
 
+/* ===== v1.10.11: subtle spacing between action buttons ===== */
+.actions{gap:12px;}
+.actions button{margin:3px;}
+.cal-head button{margin:3px;}
+.grid2 button,.grid3 button,.grid4 button{margin:3px;}
+.price-search-box-v1111{background:rgba(248,250,252,.92);border:1px solid var(--line);border-radius:18px;padding:12px;margin:8px 0 12px;}
+.price-search-title-v1111{font-weight:900;margin-bottom:8px;color:#0f172a;}
+.price-search-list-v1111{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.price-search-option-v1111{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:9px;font-weight:800;font-size:14px;}
+.price-search-option-v1111 input{width:20px;height:20px;margin:0;flex:0 0 auto;}
+@media(max-width:800px){.price-search-list-v1111{grid-template-columns:1fr;}.actions{gap:10px;}}
 
-/* ===== v1.10.10: subtle button spacing ===== */
-.actions{
-  gap:12px;
-  row-gap:10px;
-}
-.cal-head .actions{gap:10px;row-gap:8px;}
-.grid2 > button,.grid3 > button,.grid4 > button{
-  margin-block:4px;
-}
-#searchPanel .grid3{
-  margin-bottom:8px;
-}
-.search-price-filter{
-  width:100%;
-  border:1px solid var(--line);
-  border-radius:18px;
-  padding:12px;
-  margin:7px 0;
-  background:rgba(255,255,255,.96);
-}
-.search-price-filter.disabled{
-  opacity:.58;
-  background:#f8fafc;
-}
-.search-price-filter-title{
-  font-weight:900;
-  margin-bottom:8px;
-}
-.search-price-hint{
-  color:var(--muted);
-  font-size:13px;
-  line-height:1.45;
-}
-.search-price-list{
-  max-height:220px;
-  overflow:auto;
-  display:grid;
-  gap:7px;
-  padding-inline:2px;
-}
-.search-price-option{
-  display:flex;
-  align-items:flex-start;
-  gap:9px;
-  padding:9px 10px;
-  border:1px solid #e5e7eb;
-  border-radius:14px;
-  background:#fff;
-  font-weight:900;
-  cursor:pointer;
-}
-.search-price-option input{
-  width:20px;
-  height:20px;
-  margin:0;
-  flex:0 0 auto;
-}
-.search-price-option span{
-  line-height:1.35;
-}
-.search-price-tools{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  margin-top:10px;
-}
-.search-price-tools button{
-  padding:9px 12px;
-  font-size:13px;
-  box-shadow:none;
-}
-@media(max-width:800px){
-  .actions{gap:10px;row-gap:9px;}
-  #searchPanel .grid3{margin-bottom:10px;}
-}
 </style>
 
 
@@ -524,7 +460,7 @@ img,video,canvas,svg,table{max-width:100%;}
 <button class="btn-green" onclick="workerLogin()">כניסה</button>
 <button class="btn-light" onclick="showRegister()">הרשמה לעובד חדש</button>
 <p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.10.10</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.10.11</div>
 </section>
 
 <section id="registerView" class="card login-box hidden">
@@ -780,19 +716,16 @@ img,video,canvas,svg,table{max-width:100%;}
 <div class="card">
 <div class="cal-head"><h2>🔎 חיפוש וסיכומים</h2><button class="btn-light" onclick="toggleSearchPanel()">פתח / סגור</button></div>
 <div id="searchPanel" class="hidden">
-<p>אפשר לחפש לפי מספר לקוח, כתובת, יום, חודש, סוג עבודה וגם פריט ספציפי מהמחירון. הסיכום מתעדכן לפי התוצאות.</p>
+<p>אפשר לחפש לפי מספר לקוח, כתובת, יום, חודש או סוג עבודה. הסיכום מתעדכן לפי התוצאות.</p>
 <div class="grid3">
 <input id="searchCustomer" placeholder="חיפוש לפי מספר לקוח">
 <input id="searchAddress" placeholder="חיפוש לפי כתובת">
-<select id="searchType" onchange="renderSearchPriceItemOptions()"><option value="">כל סוגי העבודה</option><option value="service">קריאות שירות</option><option value="install">התקנות</option></select>
-<div id="searchPriceFilter" class="search-price-filter disabled">
-  <div class="search-price-filter-title">פריטי מחירון להתקנה</div>
-  <div id="searchPriceHint" class="search-price-hint">בחר “התקנות” בסוג העבודה כדי לפתוח חיפוש לפי מחירון.</div>
-  <div id="searchPriceItemsBox" class="search-price-list hidden"></div>
-  <div id="searchPriceTools" class="search-price-tools hidden">
-    <button type="button" class="btn-light" onclick="clearSearchPriceItems()">נקה פריטי מחירון</button>
-  </div>
+<select id="searchType" onchange="updateSearchPriceFilterV1111()"><option value="">כל סוגי העבודה</option><option value="service">קריאות שירות</option><option value="install">התקנות</option></select>
 </div>
+<div id="searchPriceItemsWrap" class="price-search-box-v1111 hidden">
+  <div class="price-search-title-v1111">בחר פריטי מחירון לחיפוש בהתקנות</div>
+  <div class="muted" style="margin-bottom:8px">אפשר לסמן כמה פריטים. החיפוש יציג התקנות שמכילות את כל הפריטים שסומנו.</div>
+  <div id="searchPriceItemsList" class="price-search-list-v1111"></div>
 </div>
 <div class="grid3">
 <input id="searchDate" type="date" placeholder="יום מסוים">
@@ -1238,61 +1171,11 @@ async function loadClientHistory(){
   }
 }
 
-function toggleSearchPanel(){const p=$("searchPanel");p.classList.toggle("hidden");if(!p.classList.contains("hidden")){renderSearchPriceItemOptions();renderFullSummary();}cleanVisibleSlashN()}
-function searchPriceItemsEnabled(){return val("searchType")==="install"}
-function clearSearchPriceItems(){
-  document.querySelectorAll(".searchPriceItemCheck").forEach(cb=>cb.checked=false);
-}
-function renderSearchPriceItemOptions(){
-  const wrap=$("searchPriceFilter"), box=$("searchPriceItemsBox"), hint=$("searchPriceHint"), tools=$("searchPriceTools");
-  if(!wrap||!box||!hint)return;
-
-  const enabled=searchPriceItemsEnabled();
-  wrap.classList.toggle("disabled",!enabled);
-  box.classList.toggle("hidden",!enabled);
-  if(tools)tools.classList.toggle("hidden",!enabled);
-
-  if(!enabled){
-    clearSearchPriceItems();
-    hint.textContent=val("searchType")==="service" ? "קריאת שירות לא משתמשת במחירון, לכן החיפוש לפי מחירון סגור." : "בחר “התקנות” בסוג העבודה כדי לפתוח חיפוש לפי מחירון.";
-    box.innerHTML="";
-    return;
-  }
-
-  const selected=new Set(Array.from(document.querySelectorAll(".searchPriceItemCheck:checked")).map(cb=>cb.value));
-  const items=[...(priceList||[])].sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"he"));
-  box.innerHTML="";
-  if(!items.length){
-    hint.textContent="אין פריטים פעילים במחירון כרגע.";
-    return;
-  }
-  hint.textContent="סמן פריט אחד או כמה פריטים. התוצאות יציגו התקנות שמכילות את כל הפריטים שסימנת.";
-  items.forEach(item=>{
-    const id=String(item.id || item.name || "");
-    const label=document.createElement("label");
-    label.className="search-price-option";
-    label.innerHTML=`<input class="searchPriceItemCheck" type="checkbox" value="${esc(id)}" data-name="${esc(item.name||"")}" ${selected.has(id)?"checked":""} onchange="runSearch()"><span>${esc(item.name||"פריט ללא שם")} · ${money(item.price||0)}</span>`;
-    box.appendChild(label);
-  });
-}
-function getSelectedSearchPriceItems(){
-  if(!searchPriceItemsEnabled())return [];
-  return Array.from(document.querySelectorAll(".searchPriceItemCheck:checked")).map(cb=>({id:String(cb.value||""),name:String(cb.dataset.name||"").trim()}));
-}
-function entryHasAllSelectedPriceItems(entry, selectedItems){
-  if(!selectedItems.length)return true;
-  if(!entry || entry.workType!=="install")return false;
-  const items=entry.items||[];
-  return selectedItems.every(sel=>items.some(i=>
-    String(i.id||"")===sel.id ||
-    String(i.name||"").trim()===sel.name
-  ));
-}
+function toggleSearchPanel(){const p=$("searchPanel");p.classList.toggle("hidden");if(!p.classList.contains("hidden"))renderFullSummary();cleanVisibleSlashN()}
 function getFilteredEntries(){
   const customer=val("searchCustomer");
   const address=val("searchAddress").toLowerCase();
   const type=val("searchType");
-  const selectedPriceItems=getSelectedSearchPriceItems();
   const date=val("searchDate");
   const month=val("searchMonth");
   let arr=[...monthEntries];
@@ -1300,7 +1183,6 @@ function getFilteredEntries(){
   if(customer) arr=arr.filter(e=>String(e.customerNumber||"").includes(customer));
   if(address) arr=arr.filter(e=>String(e.address||"").toLowerCase().includes(address));
   if(type) arr=arr.filter(e=>e.workType===type);
-  if(selectedPriceItems.length) arr=arr.filter(e=>entryHasAllSelectedPriceItems(e,selectedPriceItems));
   if(date) arr=arr.filter(e=>e.date===date);
   if(month) arr=arr.filter(e=>String(e.date||"").startsWith(month));
 
@@ -1310,8 +1192,6 @@ function runSearch(){renderSummary(getFilteredEntries(), "תוצאות חיפו�
 function clearSearch(){
   ["searchCustomer","searchAddress","searchDate","searchMonth"].forEach(id=>$(id).value="");
   $("searchType").value="";
-  clearSearchPriceItems();
-  renderSearchPriceItemOptions();
   renderFullSummary();
 }
 function renderFullSummary(){renderSummary(monthEntries, "סיכום חודש בתצוגה")}
@@ -1574,7 +1454,7 @@ async function extendSubscriptionDays(days){
 }
 
 async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();const worker={id:doc.id,...doc.data()};if(session&&session.role==="worker"&&isSubscriptionExpired(worker)){localStorage.removeItem("workSession");session=null;showExpiredView(worker);return;}await showWorker(worker)}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");if(typeof removeBackAdminButtonV196==="function") removeBackAdminButtonV196();text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=new Date();selectedDate=null;selectedType=null;if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=Number(worker.monthlyGoal||0);if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth()}
-async function loadMonth(){await loadPriceList();renderSearchPriceItemOptions();await loadTemplates();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);monthEntries=[];renderCalendar();renderDay();renderStats();const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();monthEntries=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats();renderSmartDashboard();if($('searchPanel')&&!$('searchPanel').classList.contains('hidden')){renderSearchPriceItemOptions();renderFullSummary()}}
+async function loadMonth(){await loadPriceList();await loadTemplates();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);monthEntries=[];renderCalendar();renderDay();renderStats();const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();monthEntries=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats();renderSmartDashboard();if($('searchPanel')&&!$('searchPanel').classList.contains('hidden'))renderFullSummary()}
 function renderCalendar(){const cal=$("calendar");cal.innerHTML="";weekdays.forEach(w=>{const d=document.createElement("div");d.className="weekday";d.textContent=w;cal.appendChild(d)});const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0).getDate(),today=formatDate(new Date());for(let i=0;i<first.getDay();i++){const e=document.createElement("div");e.className="day empty";cal.appendChild(e)}for(let d=1;d<=last;d++){const ds=`${y}-${pad(m+1)}-${pad(d)}`,dt=new Date(y,m,d),sh=dt.getDay()===6,entries=monthEntries.filter(e=>e.date===ds),total=entries.reduce((s,e)=>s+Number(e.amount||0),0),div=document.createElement("div");div.className="day";if(sh)div.classList.add("shabbat");if(ds===today)div.classList.add("today");if(ds===selectedDate)div.classList.add("selected");div.innerHTML=`<div class="day-num">${d}</div>${total?`<div class="day-total">${money(total)}</div>`:""}${entries.length?`<div class="day-count">${entries.length} עבודות</div>`:""}`;if(!sh)div.onclick=()=>selectDay(ds);cal.appendChild(div)}}
 function selectDay(ds){selectedDate=ds;selectedType=null;renderCalendar();renderDay();renderStats();renderSmartDashboard();cleanVisibleSlashN()}function renderDay(){if(!selectedDate){hide("dayPanel");show("selectDayHint");return}show("dayPanel");hide("selectDayHint");text("dateTitle",`יום ${heDate(selectedDate)}`);renderInstallItems();setType(selectedType,false);updateServicePriceLabels();const entries=monthEntries.filter(e=>e.date===selectedDate).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)),box=$("dayEntries");box.innerHTML=entries.length?"":"<p class='muted'>אין עבודות ביום הזה עדיין.</p>";entries.forEach(e=>{const details=e.workType==="service"?`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n${e.notes||""}`:`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("<br>")+`\n${e.notes||""}`,row=document.createElement("div");row.className="item";const iconClass=e.workType==="install"?"install":(e.isReturnCall?"return":"service");const icon=e.workType==="install"?"🛠️":(e.isReturnCall?"🔁":"☎️");row.innerHTML=`<div class="work-row-main"><div class="work-icon ${iconClass}">${icon}</div><div><div class="item-title">${esc(e.description)}</div><div class="item-sub">${nl2br(details)}</div></div></div><div><div class="money">${money(e.amount)}</div><div class="actions" style="margin-top:8px"><button class="btn-yellow" onclick="openEntryEdit('${e.id}')">ערוך</button>${e.workType==="install"?`<button class="btn-light" onclick="saveEntryAsTemplate('${e.id}')">שמור כתבנית</button>`:""}<button class="btn-red" onclick="deleteEntry('${e.id}')">מחק</button></div></div>`;box.appendChild(row)})}
 function renderStats(){const monthTotal=monthEntries.reduce((s,e)=>s+Number(e.amount||0),0),dayTotal=selectedDate?monthEntries.filter(e=>e.date===selectedDate).reduce((s,e)=>s+Number(e.amount||0),0):0,goal=Number(viewedWorker.monthlyGoal||0),left=Math.max(goal-monthTotal,0);$("monthTotal").textContent=money(monthTotal);$("dayTotal").textContent=money(dayTotal);$("goalTotal").textContent=money(goal);$("leftTotal").textContent=money(left);$("goalBar").style.width=goal?Math.min(monthTotal/goal*100,100)+"%":"0%";text("paceLine",goal?(left<=0?"מעולה — היעד הושג.":`חסר ליעד: ${money(left)}.`):"לא הוגדר יעד חודשי.")}
@@ -2427,7 +2307,7 @@ async function createWorker(){
       authEmail:authResult.email||authEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.10.10" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.10.11" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2474,7 +2354,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.10.10",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.10.11",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2524,7 +2404,7 @@ async function loadWorkers(){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.10.10";
+    if(secret) secret.textContent="גרסה 1.10.11";
   }catch(e){}
 })();
 </script>
@@ -2740,7 +2620,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.10.10",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.10.11",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2780,7 +2660,7 @@ async function createAuthForWorker(workerId){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.10.10";
+    if(secret) secret.textContent="גרסה 1.10.11";
   }catch(e){}
 })();
 </script>
@@ -2800,7 +2680,7 @@ function effectiveAuthEmailV168(username, optionalEmail){
   return e && isValidEmailV168(e) ? e : authEmailFromUsername(username);
 }
 function updateVersionV168(){
-  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.10.10"; }catch(e){}
+  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.10.11"; }catch(e){}
 }
 
 // שם המשתמש נשאר שדה ההתחברות הראשי. מאחורי הקלעים Firebase Auth נכנס עם authEmail ששמור לעובד.
@@ -2890,7 +2770,7 @@ async function createWorker(){
       recoveryEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.10.10" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.10.11" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2972,7 +2852,7 @@ async function createAuthForWorker(workerId){
       authEmail:authResult.email||preferredAuthEmail,
       recoveryEmail:emailPrompt,
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.10.10",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.10.11",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -3819,7 +3699,7 @@ async function adminLogin(){
    - שחזור Firebase עובד רק אם ה-Auth Email הוא אימייל אמיתי, לא @work-monitor.local.
 */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   function updateVersionV174(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4115,7 +3995,7 @@ window.workerLogin = async function(){
    4. כולל Security Rules מעודכנות שמאפשרות יצירת משתמש עצמי בלי להיות מחובר מראש כמנהל.
 */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   window.APP_VERSION_176=VERSION;
   function updateVersionV176(){
@@ -4217,7 +4097,7 @@ async function registerWorker(){
       recoveryEmail,
       authUid:uid,
       authReady:true,
-      authNote:"נוצר בהרשמה עצמית אוטומטית בגרסה 1.10.10",
+      authNote:"נוצר בהרשמה עצמית אוטומטית בגרסה 1.10.11",
       passwordHash:await sha256(pass),
       monthlyGoal:0,
       active:true,
@@ -4248,7 +4128,7 @@ async function registerWorker(){
     }catch(e){
       if(typeof writeAppLogV167==="function") await writeAppLogV167("registerFirestoreWriteFailedV176",{username,usernameKey,workerId,uid,authEmail:baseWorker.authEmail,errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
       if(isPermissionErrorV176(e)){
-        registrationMsgV176("<p class='danger'>ה־UID נוצר ב־Firebase Auth, אבל Firestore חסם את שמירת העובד בגלל Security Rules ישנות. היכנס כמנהל, לחץ ‘העתק Security Rules’ בגרסה 1.10.10, פרסם אותן ב־Firebase ואז נסה שוב.</p>");
+        registrationMsgV176("<p class='danger'>ה־UID נוצר ב־Firebase Auth, אבל Firestore חסם את שמירת העובד בגלל Security Rules ישנות. היכנס כמנהל, לחץ ‘העתק Security Rules’ בגרסה 1.10.11, פרסם אותן ב־Firebase ואז נסה שוב.</p>");
       }else{
         registrationMsgV176(`<p class='danger'>נוצר Auth אבל שמירת העובד נכשלה: ${esc(e.code||e.message||String(e))}</p>`);
       }
@@ -4409,9 +4289,9 @@ window.copySecurityRulesV169 = async function(){
   try{
     await navigator.clipboard.writeText(FIRESTORE_RULES_V176);
     const msg=document.getElementById("securityToolsMsgV169") || document.getElementById("adminAuthBootstrapMsgV170");
-    if(msg) msg.innerHTML="<div class='notice'>Security Rules של גרסה 1.10.10 הועתקו ✅</div>";
+    if(msg) msg.innerHTML="<div class='notice'>Security Rules של גרסה 1.10.11 הועתקו ✅</div>";
   }catch(e){
-    prompt("העתק את ה־Security Rules של גרסה 1.10.10:", FIRESTORE_RULES_V176);
+    prompt("העתק את ה־Security Rules של גרסה 1.10.11:", FIRESTORE_RULES_V176);
   }
 };
 
@@ -4435,7 +4315,7 @@ function addSelfRegistrationToolsV176(){
     window.showAdmin=async function(){
       await oldShowAdmin.apply(this,arguments);
       addSelfRegistrationToolsV176();
-      document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.10.10");
+      document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.10.11");
     };
   }
 })();
@@ -4448,7 +4328,7 @@ function addSelfRegistrationToolsV176(){
    תיקון קריטי: לא מציגים workerView / נתונים / חודש לפני בדיקת מנוי עדכנית מהשרת.
 */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   function updateVersionV177(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4593,7 +4473,7 @@ window.onload = async()=>{
    - מנטרל users/{oldUid} כדי שלא יישאר קישור ישן לאותו עובד.
 */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   function updateVersionV178(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4731,7 +4611,7 @@ async function resetWorkerAccessV178(workerId){
       authEmail:authResult.email,
       recoveryEmail: optionalEmail || (w.recoveryEmail || ""),
       authReady:true,
-      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.10.10",
+      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.10.11",
       passwordHash:await sha256(newPassword),
       active:true,
       accessRecoveredAt:firebase.firestore.FieldValue.serverTimestamp(),
@@ -4851,7 +4731,7 @@ function addRecoveryInfoPanelV178(){
    מציג מסך טעינה ניטרלי בזמן בדיקת session/Auth, ולא את מסך הכניסה.
 */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   function updateVersionV179(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4924,7 +4804,7 @@ window.onload = async()=>{
    לא מאפשרים לטעינה הישנה להמשיך לצייר דשבורד או לקרוא monthlyGoal על viewedWorker ריק.
 */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   window.__appNavTokenV180 = window.__appNavTokenV180 || 0;
   window.__isLoggingOutV180 = false;
@@ -5111,7 +4991,7 @@ window.onload = async()=>{
 <script>
 /* ===== VERSION 1.10.3: polished loader + keep expired subscription screen on refresh ===== */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   window.APP_VERSION_181=VERSION;
   function updateVersionV181(){
@@ -5258,7 +5138,7 @@ window.onload = async()=>{
    יש Timeout קצר לכל שלב, והרצה חד-פעמית גם ב-DOMContentLoaded וגם ב-load.
 */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   window.__bootStartedV182=false;
   window.__bootFinishedV182=false;
@@ -5424,7 +5304,7 @@ window.onload = async()=>{
    תיקון עומק: מבטל recursion שנוצר מעטיפות showWorkerLogin/logout, ומנהל טעינה/כניסה/מסך מנוי ממקום אחד.
 */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   window.__stableBootV183Started=false;
   window.__stableBootV183Finished=false;
@@ -5598,7 +5478,7 @@ window.onload = async()=>{
    יצירת ה-UID החדש נעשית דרך Firebase App משני ומבודד, ואז חוזרים לוודא שה-main auth הוא אדמין לפני כתיבה ל-Firestore.
 */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   function forceVersionV184(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -5783,7 +5663,7 @@ async function resetWorkerAccessV178(workerId){
       authEmail:authResult.email,
       recoveryEmail:optionalEmail || (w.recoveryEmail||""),
       authReady:true,
-      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.10.10",
+      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.10.11",
       passwordHash:await sha256(newPassword),
       active:true,
       accessRecoveredAt:now,
@@ -5826,10 +5706,10 @@ async function resetWorkerAccessV178(workerId){
 /* ===== VERSION 1.10.3: Recovery permission-denied final fix =====
    הסיבה ל-permission-denied בשחזור גישה היא בדרך כלל Security Rules שלא מזהות את האדמין
    דרך users/{uid}, או שאין עדיין users doc תקין למנהל. בגרסה זו ה-Rules מזהות אדמין גם לפי
-   Firebase Auth email הפנימי admin@work-monitor.local, וכפתור העתקת Rules מעודכן לגרסה 1.10.10.
+   Firebase Auth email הפנימי admin@work-monitor.local, וכפתור העתקת Rules מעודכן לגרסה 1.10.11.
 */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   function forceVersionV185(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -5999,7 +5879,7 @@ window.resetWorkerAccessV178 = async function(workerId){
    נשאר: יצירת/תיקון Auth למנהל, עובדים, שחזור גישה דרך כפתור העובד, מנויים, מחירון, תבניות וכלים שימושיים.
 */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
 
   const HIDE_STYLE_ID="cleanAdminV186Style";
@@ -6150,7 +6030,7 @@ window.resetWorkerAccessV178 = async function(workerId){
    מציגים את מסך התשלום לפי המידע השמור במקום למחוק את ה-marker.
 */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   window.__preserveExpiredMarkerV187=true;
 
@@ -6325,7 +6205,7 @@ window.resetWorkerAccessV178 = async function(workerId){
 <script>
 /* ===== VERSION 1.10.3: single visible version stabilizer ===== */
 (function(){
-  const FINAL_VERSION = "1.10.10";
+  const FINAL_VERSION = "1.10.3";
   window.APP_VERSION = FINAL_VERSION;
   function forceFinalVersion(){
     try{
@@ -6355,7 +6235,7 @@ window.resetWorkerAccessV178 = async function(workerId){
 <script>
 /* ===== VERSION 1.10.3: Add missing placeholders/hints across the app ===== */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
 
   const FIELD_HINTS={
@@ -6480,7 +6360,7 @@ window.resetWorkerAccessV178 = async function(workerId){
 <script id="v192-visible-buttons-live-ui-js">
 /* ===== VERSION 1.10.3: final visible version + button ripple + safe animation cleanup ===== */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
 
   function forceVersionV192(){
@@ -6549,7 +6429,7 @@ window.resetWorkerAccessV178 = async function(workerId){
    לא נוגעים בלוגיקת Firebase/מנויים — רק מאפסים state מקומי בזמן יציאה ידנית.
 */
 (function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
 
   function forceVersionV193(){
@@ -6628,7 +6508,7 @@ window.resetWorkerAccessV178 = async function(workerId){
 <script id="v194-search-buttons-visibility-js">
 /* ===== VERSION 1.10.3: runtime search button visibility guard ===== */
 (function(){
-  const VERSION='1.10.10';
+  const VERSION='1.10.3';
   window.APP_VERSION=VERSION;
 
   function forceVersionV194(){
@@ -6681,7 +6561,7 @@ window.resetWorkerAccessV178 = async function(workerId){
 <script id="v195-stable-button-guard">
 /* ===== VERSION 1.10.3: Runtime guard for visible buttons after scroll/render ===== */
 (function(){
-  const VERSION='1.10.10';
+  const VERSION='1.10.3';
   window.APP_VERSION=VERSION;
   function forceVersion(){
     try{document.title='מעקב עבודה - גרסה '+VERSION;}catch(e){}
@@ -6731,11 +6611,11 @@ window.resetWorkerAccessV178 = async function(workerId){
 /* ===== VERSION 1.10.3: HARD FIX - remove admin return from worker screen =====
    Worker users must never see or trigger a route back to admin from the worker interface. */
 (function(){
-  window.APP_VERSION = "1.10.10";
+  window.APP_VERSION = "1.10.3";
 
   function setVersionV196(){
-    try{ document.title = "מעקב עבודה - גרסה 1.10.10"; }catch(e){}
-    try{ document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.10.10"); }catch(e){}
+    try{ document.title = "מעקב עבודה - גרסה 1.10.11"; }catch(e){}
+    try{ document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.10.11"); }catch(e){}
   }
 
   window.removeBackAdminButtonV196 = function(){
@@ -6796,7 +6676,7 @@ window.resetWorkerAccessV178 = async function(workerId){
 <script>
 /* ===== VERSION 1.10.3: final version marker + horizontal scroll guard ===== */
 (function(){
-  const VERSION = "1.10.10";
+  const VERSION = "1.10.3";
   window.APP_VERSION = VERSION;
   function lockHorizontalScrollV197(){
     document.documentElement.style.overflowX = "hidden";
@@ -6827,7 +6707,7 @@ window.resetWorkerAccessV178 = async function(workerId){
 <script id="v1103-single-version-and-scroll-guard">
 /* ===== VERSION 1.10.3: single lightweight runtime guard ===== */
 (function(){
-  const VERSION='1.10.10';
+  const VERSION='1.10.3';
   window.APP_VERSION=VERSION;
   function apply(){
     try{document.title='מעקב עבודה - גרסה '+VERSION;}catch(e){}
@@ -6850,9 +6730,9 @@ window.resetWorkerAccessV178 = async function(workerId){
 
 
 <script>
-/* ===== VERSION 1.10.10: final UI version sync + worker admin-button hard block ===== */
+/* ===== VERSION 1.10.4: final UI version sync + worker admin-button hard block ===== */
 (function(){
-  var VERSION = "1.10.10";
+  var VERSION = "1.10.4";
   window.APP_VERSION = VERSION;
   function syncVersionAndSecurityUI(){
     try{ document.title = "מעקב עבודה - גרסה " + VERSION; }catch(e){}
@@ -6878,504 +6758,118 @@ window.resetWorkerAccessV178 = async function(workerId){
 
 
 <script>
-/* ===== VERSION 1.10.10: Admin login redirect fix =====
-   תיקון: בוט/פולבק ישן לא רשאי להחזיר למסך עובד אחרי כניסת מנהל מוצלחת.
-   בנוסף שומר את כל תיקוני החיפוש לפי כמה פריטי מחירון מגרסה 1.10.10.
-*/
+/* ===== VERSION 1.10.11: Search by multiple price-list items, restored admin-safe patch ===== */
 (function(){
-  const VERSION="1.10.10";
-  window.APP_VERSION=VERSION;
-  window.__adminLoginInProgressV1107=false;
-  window.__adminLoggedInV1107=false;
-
-  function updateVersionV1107(){
-    try{
-      document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
-      document.title="מעקב עבודה - גרסה "+VERSION;
-    }catch(e){}
-  }
-
-  function adminSessionActiveV1107(){
-    try{
-      if(window.__adminLoginInProgressV1107 || window.__adminLoggedInV1107) return true;
-      if(typeof session !== "undefined" && session && session.role === "admin") return true;
-      const saved = localStorage.getItem("workSession");
-      if(saved){
-        const s = JSON.parse(saved);
-        if(s && s.role === "admin") return true;
-      }
-    }catch(e){}
-    return false;
-  }
-
-  // עוצר פולבקים של מסכי טעינה ישנים בזמן כניסת מנהל.
-  function freezeBootRedirectsForAdminV1107(){
-    try{ window.__stableBootV183Finished=true; }catch(e){}
-    try{ window.__bootFinishedV182=true; window.__bootStartedV182=true; }catch(e){}
-    try{ window.__bootFinishedV181=true; window.__bootStartedV181=true; }catch(e){}
-    try{ window.__isLoggingOutV180=false; }catch(e){}
-  }
-
-  const baseShowWorkerLoginV1107 = window.showWorkerLogin;
-  window.showWorkerLogin = function(force){
-    // אם כבר יש סשן מנהל או כניסת מנהל בעיצומה — לא מחזירים למסך עובד בטעות.
-    // force=true משמש רק ליציאה יזומה או כפתור חזרה לפני התחברות.
-    if(force !== true && adminSessionActiveV1107()){
-      freezeBootRedirectsForAdminV1107();
-      const adminView=document.getElementById("adminView");
-      if(adminView && !adminView.classList.contains("hidden")) return;
-      if(typeof showAdmin === "function"){
-        try{ showAdmin(); return; }catch(e){ console.warn("showAdmin guard failed", e); }
-      }
-      return;
-    }
-    return baseShowWorkerLoginV1107 ? baseShowWorkerLoginV1107() : undefined;
-  };
-
-  const baseLogoutV1107 = window.logout;
-  window.logout = async function(){
-    window.__adminLoginInProgressV1107=false;
-    window.__adminLoggedInV1107=false;
-    try{ localStorage.removeItem("workSession"); }catch(e){}
-    try{ session=null; }catch(e){}
-    if(baseLogoutV1107) return await baseLogoutV1107();
-    if(baseShowWorkerLoginV1107) return baseShowWorkerLoginV1107();
-  };
-
-  const baseAdminLoginV1107 = window.adminLogin;
-  window.adminLogin = async function(){
-    window.__adminLoginInProgressV1107=true;
-    freezeBootRedirectsForAdminV1107();
-    try{
-      const result = await baseAdminLoginV1107.apply(this, arguments);
-      if(typeof session !== "undefined" && session && session.role === "admin"){
-        window.__adminLoggedInV1107=true;
-        freezeBootRedirectsForAdminV1107();
-        try{ localStorage.setItem("workSession", JSON.stringify(session)); }catch(e){}
-        try{
-          const adminView=document.getElementById("adminView");
-          if(adminView && adminView.classList.contains("hidden") && typeof showAdmin === "function") await showAdmin();
-        }catch(e){ console.warn("admin post-login show failed", e); }
-      }
-      return result;
-    }finally{
-      window.__adminLoginInProgressV1107=false;
-      updateVersionV1107();
-    }
-  };
-
-  // גם אם פולבק ישן ירוץ שנייה אחרי הכניסה — מחזירים אותו למסך מנהל.
-  setInterval(function(){
-    try{
-      if(!adminSessionActiveV1107()) return;
-      const workerLogin=document.getElementById("workerLoginView");
-      const adminView=document.getElementById("adminView");
-      if(workerLogin && adminView && !workerLogin.classList.contains("hidden") && adminView.classList.contains("hidden")){
-        freezeBootRedirectsForAdminV1107();
-        showAdmin();
-      }
-    }catch(e){}
-  }, 700);
-
-  window.addEventListener("load",()=>setTimeout(updateVersionV1107,100));
-  setTimeout(updateVersionV1107,100);
-  setTimeout(updateVersionV1107,1000);
-})();
-</script>
-
-
-<script>
-/* ===== VERSION 1.10.10: HARD FIX admin screen blank/redirect =====
-   Fixes: admin login no longer depends on Firebase Auth/bootstrap wrappers.
-   Also safe-loads admin panels one by one so a single failing panel cannot blank the admin screen.
-*/
-(function(){
-  const VERSION = "1.10.10";
-  window.APP_VERSION = VERSION;
-
-  function setVersionV1108(){
-    try{ document.title = "מעקב עבודה - גרסה " + VERSION; }catch(e){}
-    try{ document.querySelectorAll(".secret").forEach(el => el.textContent = "גרסה " + VERSION); }catch(e){}
-  }
-
-  function setMsgV1108(id, html){
-    try{ const el=document.getElementById(id); if(el) el.innerHTML=html; }catch(e){}
-  }
-
-  async function safeRunV1108(label, fn){
-    try{
-      if(typeof fn === "function") return await fn();
-    }catch(e){
-      console.error("Admin safe load failed:", label, e);
-      const box = document.getElementById("adminSafeLoadErrorsV1108");
-      if(box){
-        box.classList.remove("hidden");
-        const div=document.createElement("div");
-        div.className="payment-row";
-        div.innerHTML = `<b>${label}</b><br><span class="danger">${esc(e.message || e)}</span>`;
-        box.appendChild(div);
-      }
-    }
-  }
-
-  function hideMainViewsV1108(){
-    ["startupView","workerLoginView","registerView","expiredView","adminLoginView","workerView"].forEach(id=>{
-      try{ const el=document.getElementById(id); if(el) el.classList.add("hidden"); }catch(e){}
-    });
-  }
-
-  window.showAdmin = async function(){
-    try{
-      hideMainViewsV1108();
-      const adminView=document.getElementById("adminView");
-      if(adminView) adminView.classList.remove("hidden");
-      const logoutBtn=document.getElementById("logoutBtn");
-      if(logoutBtn) logoutBtn.classList.remove("hidden");
-      const userLine=document.getElementById("userLine");
-      if(userLine) userLine.textContent="מנהל";
-      setVersionV1108();
-
-      if(adminView && !document.getElementById("adminSafeLoadErrorsV1108")){
-        const info=document.createElement("div");
-        info.id="adminSafeLoadInfoV1108";
-        info.className="notice";
-        info.innerHTML="כניסת מנהל פעילה ✅";
-        adminView.insertBefore(info, adminView.firstChild);
-
-        const errors=document.createElement("div");
-        errors.id="adminSafeLoadErrorsV1108";
-        errors.className="card hidden";
-        errors.innerHTML="<h2>⚠️ שגיאות טעינה שלא הפילו את המסך</h2><p class='muted'>המסך נטען. אם משהו חסר, שלח לי את השגיאה כאן.</p>";
-        adminView.insertBefore(errors, info.nextSibling);
-      }else{
-        const errors=document.getElementById("adminSafeLoadErrorsV1108");
-        if(errors){ errors.classList.add("hidden"); errors.innerHTML="<h2>⚠️ שגיאות טעינה שלא הפילו את המסך</h2><p class='muted'>המסך נטען. אם משהו חסר, שלח לי את השגיאה כאן.</p>"; }
-      }
-
-      await safeRunV1108("טעינת הגדרות", async()=>{ if(typeof loadSettings==="function") await loadSettings(); });
-      try{ if(document.getElementById("servicePriceInput")) document.getElementById("servicePriceInput").value = SERVICE_PRICE; }catch(e){}
-      try{ if(document.getElementById("adminSetUsername")) document.getElementById("adminSetUsername").value = ADMIN_USERNAME; }catch(e){}
-      try{ if(document.getElementById("trialDaysInput")) document.getElementById("trialDaysInput").value = DEFAULT_TRIAL_DAYS; }catch(e){}
-
-      await safeRunV1108("מחירון ברירת מחדל", window.ensureDefaultPriceList);
-      await safeRunV1108("טעינת עובדים", window.loadWorkers);
-      await safeRunV1108("סנכרון אבטחה", window.syncAuthSecurityDataV169);
-      await safeRunV1108("טעינת מחירון", window.loadPriceListAdmin);
-      await safeRunV1108("טעינת תבניות", window.loadTemplatesAdmin);
-      await safeRunV1108("טעינת תשלומים", window.loadPaymentRequests);
-      await safeRunV1108("טעינת לוג", window.loadDebugLogs);
-      await safeRunV1108("כלי אבטחה", window.addSecurityToolsV169);
-      await safeRunV1108("כלי Auth מנהל", window.addAdminAuthBootstrapToolsV170);
-      setVersionV1108();
-    }catch(e){
-      console.error("showAdmin hard failure", e);
-      hideMainViewsV1108();
-      const adminView=document.getElementById("adminView");
-      if(adminView){
-        adminView.classList.remove("hidden");
-        adminView.innerHTML = `<div class="card"><h2>לוח מנהל</h2><div class="notice">כניסת מנהל הצליחה ✅</div><p class="danger">שגיאה בהצגת מסך מנהל: ${esc(e.message || e)}</p></div>` + adminView.innerHTML;
-      }
-    }
-  };
-
-  window.adminLogin = async function(){
-    await safeRunV1108("טעינת הגדרות לפני כניסה", async()=>{ if(typeof loadSettings==="function") await loadSettings(); });
-    const u = (document.getElementById("adminUsername")?.value || "").trim();
-    const p = (document.getElementById("adminPassword")?.value || "").trim();
-    if(!u || !p){ const m=document.getElementById("adminLoginMsg"); if(m) m.textContent="חובה למלא שם משתמש וסיסמה."; return; }
-    if(u !== ADMIN_USERNAME || (await sha256(p)) !== ADMIN_PASSWORD_SHA256){
-      const m=document.getElementById("adminLoginMsg"); if(m) m.textContent="שם משתמש או סיסמה לא נכונים."; return;
-    }
-    try{
-      session = {role:"admin", name:"מנהל", loginAt:Date.now(), adminLegacyMode:true};
-      localStorage.setItem("workSession", JSON.stringify(session));
-    }catch(e){}
-    try{ if(typeof clearLoginFields==="function") clearLoginFields(); }catch(e){}
-    await window.showAdmin();
-  };
-
-  // Prevent old boot/session code from throwing an existing admin session back to worker login.
-  const originalShowWorkerLoginV1108 = window.showWorkerLogin;
-  window.showWorkerLogin = function(force){
-    try{
-      const saved = JSON.parse(localStorage.getItem("workSession") || "null");
-      if(force !== true && saved && saved.role === "admin"){
-        window.showAdmin();
-        return;
-      }
-    }catch(e){}
-    return originalShowWorkerLoginV1108 ? originalShowWorkerLoginV1108() : undefined;
-  };
-
-  const originalLogoutV1108 = window.logout;
-  window.logout = async function(){
-    try{ localStorage.removeItem("workSession"); }catch(e){}
-    try{ session=null; }catch(e){}
-    if(originalLogoutV1108) return await originalLogoutV1108();
-    if(originalShowWorkerLoginV1108) return originalShowWorkerLoginV1108(true);
-  };
-
-  window.addEventListener("load", function(){ setTimeout(setVersionV1108, 80); setTimeout(setVersionV1108, 600); });
-  setVersionV1108();
-})();
-</script>
-
-
-
-<style id="adminCssVisibilityFixV1109">
-/* ===== VERSION 1.10.10: admin CSS visibility hard fix ===== */
-body.admin-mode #startupView,
-body.admin-mode #workerLoginView,
-body.admin-mode #registerView,
-body.admin-mode #expiredView,
-body.admin-mode #adminLoginView,
-body.admin-mode #workerView{
-  display:none!important;
-  visibility:hidden!important;
-  opacity:0!important;
-}
-body.admin-mode #adminView,
-#adminView.admin-force-visible{
-  display:block!important;
-  visibility:visible!important;
-  opacity:1!important;
-  height:auto!important;
-  min-height:300px!important;
-  overflow:visible!important;
-  position:relative!important;
-  z-index:5!important;
-}
-body.admin-mode #adminView .card,
-#adminView.admin-force-visible .card{
-  display:block!important;
-  visibility:visible!important;
-  opacity:1!important;
-}
-body.admin-mode #logoutBtn{display:inline-flex!important;visibility:visible!important;opacity:1!important;}
-.actions{gap:10px!important;row-gap:10px!important;}
-.actions button{margin:3px!important;}
-button{margin:3px;}
-</style>
-
-<script>
-/* ===== VERSION 1.10.10: FINAL admin login + CSS visibility repair =====
-   Fixes the real issue: admin screen can be authenticated but still not displayed because old CSS/hidden/runtime guards hide it.
-   Keeps all previous logic and search changes intact.
-*/
-(function(){
-  const VERSION="1.10.10";
+  const VERSION="1.10.11";
   window.APP_VERSION=VERSION;
 
-  function setVersionV1109(){
+  function forceVisibleVersionV1111(){
     try{ document.title="מעקב עבודה - גרסה "+VERSION; }catch(e){}
     try{ document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION); }catch(e){}
     try{ document.querySelectorAll("[data-app-version],#appVersion,#versionLabel").forEach(el=>el.textContent=VERSION); }catch(e){}
     try{
-      const userLine=document.getElementById("userLine");
-      if(userLine && document.body.classList.contains("admin-mode")) userLine.textContent="מנהל · גרסה "+VERSION;
+      const line=document.getElementById("userLine");
+      if(line && !line.dataset.versionPatchedV1111){
+        line.dataset.versionPatchedV1111="1";
+      }
     }catch(e){}
   }
 
-  function isAdminSessionV1109(){
-    try{ if(typeof session!=="undefined" && session && session.role==="admin") return true; }catch(e){}
-    try{ const s=JSON.parse(localStorage.getItem("workSession")||"null"); return !!(s && s.role==="admin"); }catch(e){ return false; }
+  function selectedSearchPriceIdsV1111(){
+    return Array.from(document.querySelectorAll("#searchPriceItemsList input[type='checkbox']:checked")).map(x=>String(x.value||""));
   }
 
-  function hideNonAdminViewsV1109(){
-    ["startupView","workerLoginView","registerView","expiredView","adminLoginView","workerView"].forEach(id=>{
-      const el=document.getElementById(id);
-      if(!el) return;
-      el.classList.add("hidden");
-      el.style.setProperty("display","none","important");
-      el.style.setProperty("visibility","hidden","important");
-      el.style.setProperty("opacity","0","important");
-    });
-  }
-
-  function hardShowAdminV1109(){
-    try{ window.__adminLoggedInV1107=true; window.__adminLoginInProgressV1107=false; }catch(e){}
-    try{ document.body.classList.add("admin-mode"); }catch(e){}
-    hideNonAdminViewsV1109();
-
-    const adminView=document.getElementById("adminView");
-    if(adminView){
-      adminView.classList.remove("hidden");
-      adminView.classList.add("admin-force-visible");
-      adminView.removeAttribute("hidden");
-      adminView.style.setProperty("display","block","important");
-      adminView.style.setProperty("visibility","visible","important");
-      adminView.style.setProperty("opacity","1","important");
-      adminView.style.setProperty("height","auto","important");
-      adminView.style.setProperty("overflow","visible","important");
-
-      let banner=document.getElementById("adminVisibleBannerV1109");
-      if(!banner){
-        banner=document.createElement("div");
-        banner.id="adminVisibleBannerV1109";
-        banner.className="notice";
-        banner.style.marginBottom="12px";
-        adminView.insertBefore(banner, adminView.firstChild);
-      }
-      banner.innerHTML="כניסת מנהל פעילה ✅ · גרסה "+VERSION;
-
-      // Fallback visible card if CSS/JS still hides child panels.
-      if(!document.getElementById("adminFallbackCardV1109")){
-        const fallback=document.createElement("div");
-        fallback.id="adminFallbackCardV1109";
-        fallback.className="card panel";
-        fallback.innerHTML='<h2>לוח מנהל</h2><p class="muted">אם אתה רואה את ההודעה הזאת, מסך המנהל עלה תקין והתקלה הייתה הסתרה של CSS/hidden. שאר הפאנלים ייטענו מתחת.</p>';
-        adminView.insertBefore(fallback, banner.nextSibling);
-      }
-    }
-
-    const logoutBtn=document.getElementById("logoutBtn");
-    if(logoutBtn){
-      logoutBtn.classList.remove("hidden");
-      logoutBtn.style.setProperty("display","inline-flex","important");
-      logoutBtn.style.setProperty("visibility","visible","important");
-      logoutBtn.style.setProperty("opacity","1","important");
-    }
-    const userLine=document.getElementById("userLine");
-    if(userLine) userLine.textContent="מנהל · גרסה "+VERSION;
-    setVersionV1109();
-  }
-
-  async function safeAdminLoadV1109(label, fn){
-    try{ if(typeof fn==="function") return await fn(); }
-    catch(e){
-      console.error("Admin load failed V1109:", label, e);
-      try{
-        const adminView=document.getElementById("adminView");
-        let box=document.getElementById("adminLoadErrorsV1109");
-        if(adminView && !box){
-          box=document.createElement("div");
-          box.id="adminLoadErrorsV1109";
-          box.className="card";
-          box.innerHTML="<h2>⚠️ שגיאות טעינה</h2><p class='muted'>המסך לא נפל. אלו פאנלים שלא נטענו:</p>";
-          adminView.insertBefore(box, adminView.children[2] || adminView.firstChild);
-        }
-        if(box){
-          const row=document.createElement("div");
-          row.className="payment-row";
-          row.innerHTML="<b>"+String(label)+"</b><br><span class='danger'>"+String(e.message||e)+"</span>";
-          box.appendChild(row);
-        }
-      }catch(_e){}
-    }
-  }
-
-  async function loadAdminPanelsV1109(){
-    hardShowAdminV1109();
-    await safeAdminLoadV1109("טעינת הגדרות", async()=>{ if(typeof loadSettings==="function") await loadSettings(); });
-    try{ if(document.getElementById("servicePriceInput")) document.getElementById("servicePriceInput").value=SERVICE_PRICE; }catch(e){}
-    try{ if(document.getElementById("adminSetUsername")) document.getElementById("adminSetUsername").value=ADMIN_USERNAME; }catch(e){}
-    try{ if(document.getElementById("trialDaysInput")) document.getElementById("trialDaysInput").value=DEFAULT_TRIAL_DAYS; }catch(e){}
-    await safeAdminLoadV1109("מחירון ברירת מחדל", window.ensureDefaultPriceList);
-    await safeAdminLoadV1109("טעינת עובדים", window.loadWorkers);
-    await safeAdminLoadV1109("טעינת מחירון", window.loadPriceListAdmin);
-    await safeAdminLoadV1109("טעינת תבניות", window.loadTemplatesAdmin);
-    await safeAdminLoadV1109("טעינת תשלומים", window.loadPaymentRequests);
-    await safeAdminLoadV1109("טעינת לוג", window.loadDebugLogs);
-    await safeAdminLoadV1109("סנכרון אבטחה", window.syncAuthSecurityDataV169);
-    await safeAdminLoadV1109("כלי אבטחה", window.addSecurityToolsV169);
-    await safeAdminLoadV1109("כלי Auth מנהל", window.addAdminAuthBootstrapToolsV170);
-    hardShowAdminV1109();
-  }
-
-  window.showAdmin = async function(){
-    hardShowAdminV1109();
-    await loadAdminPanelsV1109();
-  };
-
-  window.adminLogin = async function(){
-    const msg=document.getElementById("adminLoginMsg");
-    try{ if(typeof loadSettings==="function") await loadSettings(); }catch(e){}
-    const u=(document.getElementById("adminUsername")?.value||"").trim();
-    const p=(document.getElementById("adminPassword")?.value||"").trim();
-    if(!u || !p){ if(msg) msg.textContent="חובה למלא שם משתמש וסיסמה."; return; }
-    let passOk=false;
-    try{ passOk = (await sha256(p)) === ADMIN_PASSWORD_SHA256; }catch(e){}
-    if(u !== ADMIN_USERNAME || !passOk){ if(msg) msg.textContent="שם משתמש או סיסמה לא נכונים."; return; }
-    try{ session={role:"admin",name:"מנהל",loginAt:Date.now(),adminLegacyMode:true,appVersion:VERSION}; }catch(e){}
-    try{ localStorage.setItem("workSession", JSON.stringify(session)); }catch(e){}
-    try{ if(typeof clearLoginFields==="function") clearLoginFields(); }catch(e){}
-    hardShowAdminV1109();
-    await loadAdminPanelsV1109();
-  };
-
-  const originalShowWorkerLoginV1109=window.showWorkerLogin;
-  window.showWorkerLogin=function(force){
-    if(force!==true && isAdminSessionV1109()){
-      hardShowAdminV1109();
-      setTimeout(loadAdminPanelsV1109, 80);
+  window.renderSearchPriceItemsV1111=function(){
+    const list=document.getElementById("searchPriceItemsList");
+    if(!list) return;
+    const current=new Set(selectedSearchPriceIdsV1111());
+    list.innerHTML="";
+    const items=(window.priceList || priceList || []).filter(p=>p && p.active!==false);
+    if(!items.length){
+      list.innerHTML="<p class='muted'>המחירון ייטען אחרי טעינת הנתונים.</p>";
       return;
     }
-    try{ document.body.classList.remove("admin-mode"); }catch(e){}
-    return originalShowWorkerLoginV1109 ? originalShowWorkerLoginV1109(force) : undefined;
+    items.forEach(p=>{
+      const label=document.createElement("label");
+      label.className="price-search-option-v1111";
+      const checked=current.has(String(p.id)) ? "checked" : "";
+      label.innerHTML=`<input type="checkbox" value="${esc(p.id||"")}" ${checked}> <span>${esc(p.name||"")} · ${money(p.price||0)}</span>`;
+      list.appendChild(label);
+    });
   };
 
-  const originalLogoutV1109=window.logout;
-  window.logout=async function(){
-    try{ document.body.classList.remove("admin-mode"); }catch(e){}
-    try{ localStorage.removeItem("workSession"); }catch(e){}
-    try{ session=null; }catch(e){}
-    if(originalLogoutV1109) return await originalLogoutV1109();
-    if(originalShowWorkerLoginV1109) return originalShowWorkerLoginV1109(true);
-  };
-
-  // On reload: old base code deletes admin session. This restores the admin screen as long as a valid admin session still exists before old redirects run.
-  window.addEventListener("load", function(){
-    setVersionV1109();
-    setTimeout(function(){ if(isAdminSessionV1109()) loadAdminPanelsV1109(); }, 150);
-    setTimeout(function(){ if(isAdminSessionV1109()) hardShowAdminV1109(); }, 700);
-  });
-
-  setInterval(function(){
-    if(isAdminSessionV1109()){
-      const adminView=document.getElementById("adminView");
-      const workerLogin=document.getElementById("workerLoginView");
-      if((adminView && adminView.classList.contains("hidden")) || (workerLogin && !workerLogin.classList.contains("hidden"))){
-        hardShowAdminV1109();
-      }
-      setVersionV1109();
+  window.updateSearchPriceFilterV1111=function(){
+    const wrap=document.getElementById("searchPriceItemsWrap");
+    const typeEl=document.getElementById("searchType");
+    if(!wrap || !typeEl) return;
+    const isInstall=typeEl.value==="install";
+    wrap.classList.toggle("hidden", !isInstall);
+    if(isInstall){
+      renderSearchPriceItemsV1111();
+    }else{
+      document.querySelectorAll("#searchPriceItemsList input[type='checkbox']").forEach(cb=>cb.checked=false);
     }
-  }, 600);
+  };
 
-  setVersionV1109();
-})();
-</script>
-
-
-<script>
-/* ===== VERSION 1.10.10: absolute final version sync ===== */
-(function(){
-  const VERSION = "1.10.10";
-  window.APP_VERSION = VERSION;
-  window.FINAL_VISIBLE_VERSION = VERSION;
-  function forceVersionVisible(){
-    try{ document.title = "מעקב עבודה - גרסה " + VERSION; }catch(e){}
-    try{ document.querySelectorAll(".secret").forEach(el=>{ el.textContent = "גרסה " + VERSION; }); }catch(e){}
-    try{
-      const userLine=document.getElementById("userLine");
-      if(userLine && String(userLine.textContent||"").includes("גרסה")){
-        userLine.textContent = userLine.textContent.replace(/גרסה\s+[0-9.]+/g, "גרסה " + VERSION);
-      }
-    }catch(e){}
-    try{
-      document.querySelectorAll("*").forEach(el=>{
-        if(el.childNodes && el.childNodes.length===1 && el.childNodes[0].nodeType===3){
-          const t=el.textContent || "";
-          if(/גרסה\s+1\.10\.[0-9]+/.test(t)) el.textContent=t.replace(/גרסה\s+1\.10\.[0-9]+/g,"גרסה "+VERSION);
-        }
-      });
-    }catch(e){}
+  const oldToggleSearchPanel=window.toggleSearchPanel;
+  if(typeof oldToggleSearchPanel==="function"){
+    window.toggleSearchPanel=function(){
+      oldToggleSearchPanel.apply(this,arguments);
+      setTimeout(()=>{ renderSearchPriceItemsV1111(); updateSearchPriceFilterV1111(); },30);
+    };
   }
-  window.forceVersionVisibleV11010 = forceVersionVisible;
-  window.addEventListener("load",()=>{forceVersionVisible(); setTimeout(forceVersionVisible,100); setTimeout(forceVersionVisible,600); setTimeout(forceVersionVisible,1500);});
-  setInterval(forceVersionVisible, 1000);
-  forceVersionVisible();
+
+  window.getFilteredEntries=function(){
+    const customer=val("searchCustomer");
+    const address=val("searchAddress").toLowerCase();
+    const type=val("searchType");
+    const date=val("searchDate");
+    const month=val("searchMonth");
+    let arr=[...monthEntries];
+
+    if(customer) arr=arr.filter(e=>String(e.customerNumber||"").includes(customer));
+    if(address) arr=arr.filter(e=>String(e.address||"").toLowerCase().includes(address));
+    if(type) arr=arr.filter(e=>e.workType===type);
+    if(date) arr=arr.filter(e=>e.date===date);
+    if(month) arr=arr.filter(e=>String(e.date||"").startsWith(month));
+
+    const selectedIds=selectedSearchPriceIdsV1111();
+    if(type==="install" && selectedIds.length){
+      arr=arr.filter(e=>{
+        if(e.workType!=="install") return false;
+        const entryIds=new Set((e.items||[]).map(i=>String(i.id||"")));
+        return selectedIds.every(id=>entryIds.has(String(id)));
+      });
+    }
+    return arr;
+  };
+
+  window.clearSearch=function(){
+    ["searchCustomer","searchAddress","searchDate","searchMonth"].forEach(id=>{ if($(id)) $(id).value=""; });
+    if($("searchType")) $("searchType").value="";
+    document.querySelectorAll("#searchPriceItemsList input[type='checkbox']").forEach(cb=>cb.checked=false);
+    updateSearchPriceFilterV1111();
+    renderFullSummary();
+  };
+
+  const oldLoadMonth=window.loadMonth;
+  if(typeof oldLoadMonth==="function"){
+    window.loadMonth=async function(){
+      const result=await oldLoadMonth.apply(this,arguments);
+      try{ renderSearchPriceItemsV1111(); updateSearchPriceFilterV1111(); }catch(e){}
+      forceVisibleVersionV1111();
+      return result;
+    };
+  }
+
+  window.addEventListener("load",()=>{
+    forceVisibleVersionV1111();
+    setTimeout(()=>{ forceVisibleVersionV1111(); renderSearchPriceItemsV1111(); updateSearchPriceFilterV1111(); },250);
+    setTimeout(forceVisibleVersionV1111,1200);
+  });
+  setTimeout(forceVisibleVersionV1111,50);
 })();
 </script>
 
 </body>
-  </html>
+</html>
