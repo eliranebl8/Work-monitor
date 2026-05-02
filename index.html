@@ -362,7 +362,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <button class="btn-green" onclick="workerLogin()">כניסה</button>
 <button class="btn-light" onclick="showRegister()">הרשמה לעובד חדש</button>
 <p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.6.3</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.6.4</div>
 </section>
 
 <section id="registerView" class="card login-box hidden">
@@ -473,14 +473,15 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
   <input id="subWorkerId" type="hidden">
   <div class="grid3">
     <input id="subWorkerName" disabled placeholder="עובד">
-    <input id="subUntilDate" type="date" placeholder="תוקף מנוי עד">
-    <select id="subStatus">
+    <input id="subUntilDate" type="date" placeholder="תוקף מנוי עד" onchange="updateSubscriptionStatusHint()">
+    <select id="subStatus" onchange="updateSubscriptionStatusHint()">
       <option value="trial">ניסיון</option>
       <option value="active">מנוי פעיל</option>
       <option value="blocked">חסום</option>
       <option value="expired">פג תוקף</option>
     </select>
   </div>
+  <p id="subscriptionStatusHint" class="muted"></p>
   <div class="actions">
     <button class="btn-green" onclick="saveSubscriptionEdit()">שמור מנוי</button>
     <button class="btn-yellow" onclick="extendSubscriptionDays(30)">הוסף 30 יום</button>
@@ -1121,12 +1122,43 @@ function showExpiredView(worker=null){
   if($("paymentMsg"))$("paymentMsg").innerHTML="";
 }
 function addDaysToDate(days){const d=new Date();d.setDate(d.getDate()+Number(days||0));return formatDate(d)}
+function todayStr(){return formatDate(new Date())}
+function isPastDate(dateStr){
+  if(!dateStr) return false;
+  return String(dateStr) < todayStr();
+}
+function getSubscriptionStatus(worker){
+  if(!worker) return "expired";
+  return worker.subscriptionStatus || (worker.selfRegistered ? "trial" : "active");
+}
 function isSubscriptionExpired(worker){
   if(!worker) return true;
-  if(worker.subscriptionStatus==="blocked") return true;
-  const until = worker.subscriptionUntil || worker.trialUntil;
+  const status = getSubscriptionStatus(worker);
+
+  // חסימה ידנית תמיד גוברת על הכול
+  if(status === "blocked") return true;
+
+  // פג תוקף ידני תמיד שולח למסך רכישה
+  if(status === "expired") return true;
+
+  // מנוי פעיל: בודקים רק תאריך מנוי. אם אין תאריך — פתוח ללא הגבלת זמן
+  if(status === "active"){
+    const until = worker.subscriptionUntil || "";
+    if(!until) return false;
+    return isPastDate(until);
+  }
+
+  // ניסיון: בודקים תאריך ניסיון, ואם אין — תאריך מנוי כגיבוי
+  if(status === "trial"){
+    const until = worker.trialUntil || worker.subscriptionUntil || "";
+    if(!until) return false;
+    return isPastDate(until);
+  }
+
+  // ברירת מחדל בטוחה לעובדים ישנים בלי סטטוס ברור
+  const until = worker.subscriptionUntil || worker.trialUntil || "";
   if(!until) return false;
-  return String(until) < formatDate(new Date());
+  return isPastDate(until);
 }
 function isSessionExpired(){
   if(!session) return true;
@@ -1180,20 +1212,50 @@ function openSubscriptionEdit(workerId){
   $("subWorkerId").value=w.id;
   $("subWorkerName").value=`${w.name} (${w.username})`;
   $("subUntilDate").value=w.subscriptionUntil||w.trialUntil||"";
-  $("subStatus").value=w.subscriptionStatus||"active";
+  $("subStatus").value=getSubscriptionStatus(w);
   $("subscriptionMsg").innerHTML="";
+  updateSubscriptionStatusHint();
   window.scrollTo({top:$("subscriptionEditPanel").offsetTop-20,behavior:"smooth"});
+}
+function updateSubscriptionStatusHint(){
+  const hint=$("subscriptionStatusHint");
+  if(!hint)return;
+  const status=val("subStatus"), until=val("subUntilDate");
+  if(status==="blocked"){hint.innerHTML="🔒 חסום: העובד לא יוכל להיכנס, בלי קשר לתאריך.";return}
+  if(status==="expired"){hint.innerHTML="❌ פג תוקף: העובד יועבר למסך רכישת מנוי, בלי קשר לתאריך.";return}
+  if(status==="trial"){hint.innerHTML=until?`🧪 ניסיון פעיל עד ${heDate(until)}. אחרי התאריך העובד יעבור למסך רכישה.`:"🧪 ניסיון בלי תאריך — כרגע לא ייחסם אוטומטית. מומלץ להגדיר תאריך.";return}
+  if(status==="active" && !until){hint.innerHTML="✅ מנוי פעיל ללא תאריך — גישה פתוחה ללא הגבלת זמן.";return}
+  if(status==="active" && isPastDate(until)){hint.innerHTML="⚠️ מנוי פעיל עם תאריך שעבר — אי אפשר לשמור כך. בחר תאריך עתידי או נקה את התאריך.";return}
+  if(status==="active"){hint.innerHTML=`✅ מנוי פעיל עד ${heDate(until)}.`;return}
 }
 async function saveSubscriptionEdit(){
   const id=val("subWorkerId"),until=val("subUntilDate"),status=val("subStatus");
   if(!id)return;
-  await db.collection("workers").doc(id).set({
+
+  if(status==="active" && until && isPastDate(until)){
+    $("subscriptionMsg").innerHTML="<p class='danger'>התאריך שבחרת כבר עבר. למנוי פעיל בחר תאריך עתידי או נקה את התאריך כדי לתת גישה ללא הגבלה.</p>";
+    updateSubscriptionStatusHint();
+    return;
+  }
+
+  if(status==="trial" && until && isPastDate(until)){
+    $("subscriptionMsg").innerHTML="<p class='danger'>תאריך הניסיון כבר עבר. בחר תאריך עתידי או שנה את הסטטוס לפג תוקף.</p>";
+    updateSubscriptionStatusHint();
+    return;
+  }
+
+  const update={
     subscriptionUntil:until,
     subscriptionStatus:status,
     active:status!=="blocked",
     updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-  },{merge:true});
+  };
+
+  if(status==="trial") update.trialUntil=until;
+
+  await db.collection("workers").doc(id).set(update,{merge:true});
   $("subscriptionMsg").innerHTML="<div class='notice'>המנוי נשמר ✅</div>";
+  updateSubscriptionStatusHint();
   await loadWorkers();
 }
 async function extendSubscriptionDays(days){
@@ -1374,7 +1436,7 @@ async function exportEntriesCSV(){
 }
 async function backupJSON(){
   const collections=["workers","priceList","workEntries","settings","installTemplates","paymentRequests"];
-  const data={version:"1.6.3",exportedAt:new Date().toISOString(),collections:{}};
+  const data={version:"1.6.4",exportedAt:new Date().toISOString(),collections:{}};
   for(const c of collections){
     const snap=await db.collection(c).get();
     data.collections[c]=snap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
@@ -1573,7 +1635,7 @@ async function exportMyEntriesCSV(){
 }
 async function backupMyJSON(){
   if(!viewedWorker)return;
-  const data={version:"1.6.3",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
+  const data={version:"1.6.4",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
   const entriesSnap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
   data.collections.workEntries=entriesSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
   const tplSnap=await db.collection("installTemplates").get();
@@ -1996,7 +2058,7 @@ async function saveEntryAsTemplate(id){
 
   await db.collection("appLogs").add({
     action: "templateCreated",
-    pageVersion: "1.6.3",
+    pageVersion: "1.6.4",
     clientTime: new Date().toISOString(),
     data: {
       templateName: name.trim(),
