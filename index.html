@@ -340,7 +340,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <h1 class="big-title">כניסת עובד</h1><p style="text-align:center">הכנס שם משתמש וסיסמה שקיבלת מהמנהל.</p>
 <input id="workerUsername" placeholder="שם משתמש"><input id="workerPassword" type="password" placeholder="סיסמה">
 <button class="btn-green" onclick="workerLogin()">כניסה</button><p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.4.2</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.4.3</div>
 </section>
 
 <section id="adminLoginView" class="card login-box hidden">
@@ -350,7 +350,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 </section>
 
 <section id="adminView" class="hidden">
-<div class="card">
+<div id="adminDataToolsPrimary" class="card">
   <div class="cal-head"><h2>📦 ייצוא, גיבוי, שחזור ותבניות</h2></div>
   <p>כלי ניהול מתקדמים: ייצוא לאקסל, גיבוי מלא, שחזור ותבניות התקנה מוכנות.</p>
   <div class="actions">
@@ -380,7 +380,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 
 <div class="card"><h2>לוח מנהל</h2><p>ניהול עובדים, מחירון, הגדרות מנהל וצפייה בדוחות.</p></div>
 
-<div class="card">
+<div class="card hidden">
   <div class="cal-head"><h2>📦 ייצוא, גיבוי ושחזור</h2></div>
   <p>ייצוא לאקסל, גיבוי מלא ל־JSON ושחזור גיבוי. לפני שחזור מומלץ להוריד גיבוי חדש.</p>
   <div class="actions">
@@ -392,7 +392,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
   <div id="backupMsg"></div>
 </div>
 
-<div class="card">
+<div class="card hidden">
   <div class="cal-head"><h2>⚡ תבניות התקנה</h2></div>
   <p>כאן אפשר לשמור סט פעולות קבוע. לדוגמה: “התקנת אינטרנט בלבד” תסמן אוטומטית את הפריטים הרלוונטיים.</p>
   <div class="grid3">
@@ -433,7 +433,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 </div>
 
 <div class="card">
-<div class="cal-head"><h2>🧾 מחירון התקנות</h2><button class="btn-light" onclick="loadPriceListAdmin()">רענן</button></div>
+<div class="cal-head"><h2>🧾 מחירון התקנות</h2><div class="actions"><button class="btn-light" onclick="loadPriceListAdmin()">רענן</button><button class="btn-yellow" onclick="cleanupAndReloadPriceList()">נקה כפילויות</button></div></div>
 <p>אפשר להוסיף פריטים, לערוך שם/מחיר/סוג בחירה, או להסיר פריט מהרשימה. פריט שהוסר נשאר במסד הנתונים אבל לא מוצג יותר.</p>
 <div class="grid3"><input id="pName" placeholder="שם פעולה"><input id="pPrice" type="number" placeholder="מחיר ₪"><select id="pMode"><option value="qty">כמות מספרית</option><option value="check">סימון כן/לא</option></select></div>
 <button class="btn-green" onclick="addPriceItem()">הוסף פריט</button>
@@ -565,9 +565,61 @@ async function toggleWorker(id,active){await db.collection("workers").doc(id).up
 async function saveServicePrice(){const price=Number(val("servicePriceInput"));if(Number.isNaN(price)||price<0)return $("servicePriceMsg").innerHTML="<p class='danger'>מחיר לא תקין.</p>";SERVICE_PRICE=price;await db.collection("settings").doc("main").set({servicePrice:price,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});updateServicePriceLabels();$("servicePriceMsg").innerHTML=`<div class='notice'>מחיר קריאת שירות עודכן ל־${money(price)} ✅</div>`}
 function updateServicePriceLabels(){if($("servicePriceLabel"))$("servicePriceLabel").textContent=`${money(SERVICE_PRICE)} קבוע`;updateServicePreview()}
 function updateServicePreview(){if(!$("servicePreview"))return;const isReturn=$("sReturnCall")&&$("sReturnCall").checked;$("servicePreview").textContent=isReturn?"סה״כ: ₪0 - קריאה חוזרת ללא תשלום":`סה״כ: ${money(SERVICE_PRICE)}`}
-async function ensureDefaultPriceList(){const snap=await db.collection("priceList").limit(1).get();if(!snap.empty)return;const batch=db.batch();defaultPriceList.forEach(item=>{const ref=db.collection("priceList").doc();batch.set(ref,{...item,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()})});await batch.commit()}
-async function loadPriceList(){const snap=await db.collection("priceList").get();priceList=snap.docs.map(d=>({id:d.id,...d.data()})).map(x=>({...x,inputMode:x.inputMode||"qty"})).filter(x=>x.active!==false).sort((a,b)=>Number(a.order||0)-Number(b.order||0))}
-async function loadPriceListAdmin(){const box=$("priceAdmin");box.innerHTML="<p>טוען מחירון...</p>";const snap=await db.collection("priceList").get();const items=snap.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.active!==false).sort((a,b)=>Number(a.order||0)-Number(b.order||0));box.innerHTML=items.length?"":"<p class='muted'>אין פריטים פעילים במחירון.</p>";items.forEach(item=>{const row=document.createElement("div");row.className="item";row.innerHTML=`<div><div class="item-title">${esc(item.name)}</div><div class="item-sub">מחיר: ${money(item.price)} · סוג: ${(item.inputMode||"qty")==="check"?"סימון כן/לא":"כמות מספרית"}</div></div><div class="actions"><button class="btn-yellow" onclick="openPriceEdit('${item.id}')">ערוך</button><button class="btn-red" onclick="togglePrice('${item.id}', false)">הסר מהרשימה</button></div>`;box.appendChild(row)})}
+async function ensureDefaultPriceList(){
+  // יוצר מחירון ברירת מחדל רק אם אין פריטים פעילים בכלל.
+  // לא מוסיף שוב אם כבר קיימים פריטים, כדי למנוע כפילויות.
+  const snap = await db.collection("priceList").limit(1).get();
+  if(!snap.empty) {
+    await cleanupDuplicatePriceList();
+    return;
+  }
+  const batch=db.batch();
+  defaultPriceList.forEach(item=>{
+    const ref=db.collection("priceList").doc();
+    batch.set(ref,{...item,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  });
+  await batch.commit();
+}
+
+async function cleanupDuplicatePriceList(){
+  try{
+    const snap = await db.collection("priceList").get();
+    const seen = {};
+    const duplicates = [];
+    snap.docs.forEach(doc=>{
+      const d = doc.data();
+      const key = `${String(d.name||"").trim()}|${Number(d.price||0)}|${d.inputMode||"qty"}`;
+      if(!seen[key]){
+        seen[key] = doc;
+      }else{
+        duplicates.push(doc);
+      }
+    });
+    if(!duplicates.length) return;
+    const batch = db.batch();
+    duplicates.forEach(doc=>{
+      batch.update(doc.ref,{active:false,duplicateHidden:true,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    });
+    await batch.commit();
+  }catch(e){
+    console.error("cleanupDuplicatePriceList failed", e);
+  }
+}
+
+async function loadPriceList(){const snap=await db.collection("priceList").get();priceList=snap.docs.map(d=>({id:d.id,...d.data()})).map(x=>({...x,inputMode:x.inputMode||"qty"})).filter(x=>x.active!==false);
+    const uniqueMap={};
+    priceList.forEach(item=>{
+      const key=`${String(item.name||"").trim()}|${Number(item.price||0)}|${item.inputMode||"qty"}`;
+      if(!uniqueMap[key]) uniqueMap[key]=item;
+    });
+    priceList=Object.values(uniqueMap).sort((a,b)=>Number(a.order||0)-Number(b.order||0))}
+async function loadPriceListAdmin(){const box=$("priceAdmin");box.innerHTML="<p>טוען מחירון...</p>";const snap=await db.collection("priceList").get();let items=snap.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.active!==false);
+  const uniqueMap={};
+  items.forEach(item=>{
+    const key=`${String(item.name||"").trim()}|${Number(item.price||0)}|${item.inputMode||"qty"}`;
+    if(!uniqueMap[key]) uniqueMap[key]=item;
+  });
+  items=Object.values(uniqueMap).sort((a,b)=>Number(a.order||0)-Number(b.order||0));box.innerHTML=items.length?"":"<p class='muted'>אין פריטים פעילים במחירון.</p>";items.forEach(item=>{const row=document.createElement("div");row.className="item";row.innerHTML=`<div><div class="item-title">${esc(item.name)}</div><div class="item-sub">מחיר: ${money(item.price)} · סוג: ${(item.inputMode||"qty")==="check"?"סימון כן/לא":"כמות מספרית"}</div></div><div class="actions"><button class="btn-yellow" onclick="openPriceEdit('${item.id}')">ערוך</button><button class="btn-red" onclick="togglePrice('${item.id}', false)">הסר מהרשימה</button></div>`;box.appendChild(row)})}
 async function addPriceItem(){const name=val("pName"),price=Number(val("pPrice")),inputMode=$("pMode").value;if(!name||Number.isNaN(price)||price<0)return $("priceMsg").innerHTML="<p class='danger'>שם או מחיר לא תקינים.</p>";const snap=await db.collection("priceList").get();await db.collection("priceList").add({name,price,inputMode,active:true,order:snap.size+1000,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});$("pName").value="";$("pPrice").value="";$("pMode").value="qty";$("priceMsg").innerHTML="<div class='notice'>הפריט נוסף ✅</div>";await loadPriceListAdmin()}
 async function openPriceEdit(id){const doc=await db.collection("priceList").doc(id).get();if(!doc.exists)return;const p={id:doc.id,...doc.data()};show("editPricePanel");$("editPriceId").value=id;$("editPriceName").value=p.name||"";$("editPriceValue").value=p.price||0;$("editPriceMode").value=p.inputMode||"qty";$("editPriceActive").value=p.active===false?"false":"true";$("editPriceMsg").innerHTML="";window.scrollTo({top:$("editPricePanel").offsetTop-20,behavior:"smooth"})}
 async function savePriceEdit(){const id=val("editPriceId"),name=val("editPriceName"),price=Number(val("editPriceValue")),inputMode=$("editPriceMode").value,active=$("editPriceActive").value==="true";if(!name||Number.isNaN(price)||price<0)return $("editPriceMsg").innerHTML="<p class='danger'>שם או מחיר לא תקינים.</p>";await db.collection("priceList").doc(id).update({name,price,inputMode,active,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});$("editPriceMsg").innerHTML="<div class='notice'>הפריט נשמר ✅</div>";await loadPriceListAdmin()}
@@ -1025,7 +1077,7 @@ async function exportEntriesCSV(){
 }
 async function backupJSON(){
   const collections=["workers","priceList","workEntries","settings","installTemplates"];
-  const data={version:"1.4.2",exportedAt:new Date().toISOString(),collections:{}};
+  const data={version:"1.4.3",exportedAt:new Date().toISOString(),collections:{}};
   for(const c of collections){
     const snap=await db.collection(c).get();
     data.collections[c]=snap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
@@ -1224,7 +1276,7 @@ async function exportMyEntriesCSV(){
 }
 async function backupMyJSON(){
   if(!viewedWorker)return;
-  const data={version:"1.4.2",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
+  const data={version:"1.4.3",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
   const entriesSnap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
   data.collections.workEntries=entriesSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
   const tplSnap=await db.collection("installTemplates").get();
@@ -1273,6 +1325,13 @@ async function saveEntryAsTemplate(id){
   });
   alert("התבנית נשמרה ✅ בפעם הבאה בהתקנה תוכל לבחור אותה מהרשימה.");
   await loadTemplates();
+}
+
+
+async function cleanupAndReloadPriceList(){
+  await cleanupDuplicatePriceList();
+  await loadPriceListAdmin();
+  alert("ניקוי כפילויות הסתיים ✅");
 }
 
 async function loadDebugLogs(){const box=$("debugLog");if(!box)return;try{const snap=await db.collection("appLogs").limit(30).get();box.textContent=snap.empty?"אין לוגים":snap.docs.map(d=>JSON.stringify(d.data())).join("\n")}catch(e){box.textContent="שגיאה בלוג: "+e.message}}
