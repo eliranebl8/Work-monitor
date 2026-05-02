@@ -340,7 +340,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <h1 class="big-title">כניסת עובד</h1><p style="text-align:center">הכנס שם משתמש וסיסמה שקיבלת מהמנהל.</p>
 <input id="workerUsername" placeholder="שם משתמש"><input id="workerPassword" type="password" placeholder="סיסמה">
 <button class="btn-green" onclick="workerLogin()">כניסה</button><p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.4.5</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.4.8</div>
 </section>
 
 <section id="adminLoginView" class="card login-box hidden">
@@ -1090,7 +1090,7 @@ async function exportEntriesCSV(){
 }
 async function backupJSON(){
   const collections=["workers","priceList","workEntries","settings","installTemplates"];
-  const data={version:"1.4.5",exportedAt:new Date().toISOString(),collections:{}};
+  const data={version:"1.4.8",exportedAt:new Date().toISOString(),collections:{}};
   for(const c of collections){
     const snap=await db.collection(c).get();
     data.collections[c]=snap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
@@ -1289,7 +1289,7 @@ async function exportMyEntriesCSV(){
 }
 async function backupMyJSON(){
   if(!viewedWorker)return;
-  const data={version:"1.4.5",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
+  const data={version:"1.4.8",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
   const entriesSnap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
   data.collections.workEntries=entriesSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
   const tplSnap=await db.collection("installTemplates").get();
@@ -1362,5 +1362,25 @@ function cleanVisibleSlashN(){
 }
 function $(id){return document.getElementById(id)}function show(id){$(id).classList.remove("hidden")}function hide(id){$(id).classList.add("hidden")}function hideAll(){["workerLoginView","adminLoginView","adminView","workerView"].forEach(hide)}function val(id){return $(id).value.trim()}function text(id,v){$(id).textContent=v}function normalize(s){return String(s||"").trim().toLowerCase()}function workerIdFromUsername(k){return"worker_"+String(k||"").replace(/[^a-z0-9_\-א-ת]/gi,"_")}function pad(n){return String(n).padStart(2,"0")}function formatDate(d){return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}function parseDate(s){const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}function heDate(s){const d=parseDate(s);return`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`}function money(n){return`₪${Number(n||0).toLocaleString("he-IL",{maximumFractionDigits:0})}`}function esc(s){return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}async function sha256(str){const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("")}
 </script>
+
+<script>
+(function(){
+  function fixVisibleLineBreaks(){
+    document.querySelectorAll(".item-sub").forEach(function(el){
+      var h = el.innerHTML;
+      var fixed = h
+        .replace(/&lt;br\s*\/?&gt;/gi, "<br>")
+        .replace(/\\n/g, "<br>")
+        .replace(/\/n/g, "<br>");
+      if (fixed !== h) el.innerHTML = fixed;
+    });
+  }
+  window.addEventListener("load", fixVisibleLineBreaks);
+  document.addEventListener("click", function(){ setTimeout(fixVisibleLineBreaks, 80); });
+  document.addEventListener("input", function(){ setTimeout(fixVisibleLineBreaks, 80); });
+  setInterval(fixVisibleLineBreaks, 700);
+})();
+</script>
+
 </body>
 </html>
