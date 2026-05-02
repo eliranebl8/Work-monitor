@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <style>
+
 :root{
   --bg-a:#e0f2fe;
   --bg-b:#fdf2f8;
@@ -16,8 +17,8 @@
   --text:#0f172a;
   --muted:#64748b;
   --line:#e2e8f0;
-  --blue:#64748b;
-  --blue2:#334155;
+  --blue:#2563eb;
+  --blue2:#1d4ed8;
   --green:#16a34a;
   --red:#dc2626;
   --yellow:#f59e0b;
@@ -403,511 +404,24 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 }
 
 
-/* ===== VERSION 1.10.1: Live animated UI layer ===== */
-@keyframes floatSoft{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-@keyframes fadeUp{from{opacity:0;transform:translateY(16px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes popIn{0%{opacity:0;transform:scale(.92)}70%{transform:scale(1.025)}100%{opacity:1;transform:scale(1)}}
-@keyframes shimmerMove{0%{background-position:-220% 0}100%{background-position:220% 0}}
-@keyframes glowPulse{0%,100%{box-shadow:0 12px 26px rgba(37,99,235,.20)}50%{box-shadow:0 18px 38px rgba(37,99,235,.36)}}
-@keyframes rotateSlow{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-@keyframes slideLight{0%{left:-120%;opacity:0}18%{opacity:.55}48%{opacity:.22}100%{left:120%;opacity:0}}
-@keyframes bgDrift{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(18px,-14px,0) scale(1.03)}}
-@keyframes particleRise{0%{transform:translateY(18px) scale(.75);opacity:0}20%{opacity:.55}100%{transform:translateY(-110vh) scale(1.25);opacity:0}}
+/* ===== v1.10.4: functional file + restored v1.8.9 design ===== */
+html,body{max-width:100%;overflow-x:hidden;}
+*{max-width:100%;}
+.app{width:100%;}
+img,video,canvas,svg,table{max-width:100%;}
+#backAdminBtn{display:none!important;}
 
-body:after{
-  content:"";
-  position:fixed;
-  inset:-20%;
-  z-index:-1;
-  pointer-events:none;
-  background:
-    radial-gradient(circle at 18% 22%,rgba(37,99,235,.16),transparent 23%),
-    radial-gradient(circle at 82% 26%,rgba(147,51,234,.13),transparent 25%),
-    radial-gradient(circle at 50% 82%,rgba(34,197,94,.10),transparent 25%);
-  animation:bgDrift 11s ease-in-out infinite;
-}
-
-.logo{animation:floatSoft 3.8s ease-in-out infinite, glowPulse 3.2s ease-in-out infinite;position:relative;overflow:hidden}
-.logo:after{content:"";position:absolute;inset:-40%;background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.58),transparent 70%);animation:rotateSlow 6s linear infinite}
-.top{animation:fadeUp .42s ease both}
-.card{animation:fadeUp .42s ease both;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease,background .22s ease;position:relative;overflow:hidden}
-.card:hover{transform:translateY(-3px);box-shadow:0 22px 52px rgba(15,23,42,.16);border-color:rgba(147,197,253,.75)}
-.card:before{content:"";position:absolute;top:0;bottom:0;width:90px;left:-120%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);animation:slideLight 6.5s ease-in-out infinite;pointer-events:none}
-.card:nth-of-type(2n){animation-delay:.04s}.card:nth-of-type(3n){animation-delay:.08s}.card:nth-of-type(4n){animation-delay:.12s}
-
-button{position:relative;overflow:hidden;will-change:transform;transition:transform .18s ease,filter .18s ease,box-shadow .18s ease}
-button:before{content:"";position:absolute;inset:0;left:-140%;background:linear-gradient(110deg,transparent,rgba(255,255,255,.34),transparent);transition:left .42s ease;pointer-events:none}
-button:hover:before{left:140%}
-button:hover{box-shadow:0 15px 30px rgba(37,99,235,.25)}
-.btn-green:hover{box-shadow:0 15px 30px rgba(22,163,74,.25)}
-.btn-red:hover{box-shadow:0 15px 30px rgba(220,38,38,.25)}
-.btn-yellow:hover{box-shadow:0 15px 30px rgba(245,158,11,.25)}
-.btn-light:hover{box-shadow:0 10px 24px rgba(15,23,42,.10)}
-
-.item,.stat,.dash-card,.type-card,.plan-card,.client-card,.payment-row,.kpi{animation:popIn .34s ease both;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
-.item:hover,.stat:hover,.dash-card:hover,.type-card:hover,.plan-card:hover,.client-card:hover,.payment-row:hover,.kpi:hover{transform:translateY(-2px);box-shadow:0 14px 28px rgba(15,23,42,.105);border-color:#bfdbfe}
-.stat .value,.dash-value,.money{background:linear-gradient(90deg,#16a34a,#2563eb,#7c3aed,#16a34a);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmerMove 4.5s linear infinite}
-.progress{position:relative;overflow:hidden}.bar{position:relative}.bar:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);animation:shimmerMove 1.8s linear infinite}
-.day{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease;animation:popIn .28s ease both}.day:hover{box-shadow:0 14px 26px rgba(37,99,235,.13)}.today{animation:popIn .28s ease both, glowPulse 2.7s ease-in-out infinite}.selected{transform:translateY(-2px);box-shadow:0 14px 28px rgba(37,99,235,.18)}
-input:focus,textarea:focus,select:focus{animation:popIn .2s ease both}
-.notice,.paywall,.recent-box,.recent-ok{animation:fadeUp .28s ease both}
-
-.live-particles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}.live-particle{position:absolute;bottom:-20px;width:8px;height:8px;border-radius:999px;background:rgba(37,99,235,.18);animation:particleRise var(--dur,9s) linear infinite;animation-delay:var(--delay,0s);filter:blur(.1px)}.live-particle:nth-child(3n){background:rgba(147,51,234,.16);width:11px;height:11px}.live-particle:nth-child(4n){background:rgba(34,197,94,.14);width:7px;height:7px}.live-particle:nth-child(5n){background:rgba(245,158,11,.14);width:10px;height:10px}
-.app{z-index:1}
-
-/* polished loader animation upgrade */
-#bootLoader,.boot-loader,.loading-screen{animation:fadeUp .28s ease both}
-#bootLoader .logo,.boot-loader .logo,.loading-screen .logo{animation:floatSoft 2.4s ease-in-out infinite, glowPulse 2.2s ease-in-out infinite}
-
-@media (prefers-reduced-motion: reduce){
-  *,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
-  .live-particles{display:none!important}
-}
-
-
-/* ===== VERSION 1.10.1: Worker security hard fix ===== */
-#backAdminBtn{display:none!important;visibility:hidden!important;pointer-events:none!important}
-#workerView button[onclick="showAdmin()"]{display:none!important;visibility:hidden!important;pointer-events:none!important}
-
-
-
-/* ===== VERSION 1.10.1: Mobile horizontal scroll lock ===== */
-html, body{
-  width:100%;
-  max-width:100%;
-  overflow-x:hidden!important;
-  overscroll-behavior-x:none;
-}
-body{
-  position:relative;
-  touch-action:pan-y;
-}
-.app{
-  width:100%;
-  max-width:min(1120px,100%);
-  overflow-x:clip;
-}
-.top,.card,.item,.stat,.dash-card,.type-card,.plan-card,.client-card,.payment-row,.kpi,.notice,.paywall,.recent-box,.recent-ok{
-  max-width:100%;
-  min-width:0;
-}
-.grid2,.grid3,.grid4,.kpi-strip,.subscription-plans,.cal{
-  width:100%;
-  max-width:100%;
-  grid-template-columns:repeat(var(--cols,1),minmax(0,1fr));
-}
-.grid2{--cols:2}.grid3{--cols:3}.grid4{--cols:4}.kpi-strip{--cols:4}.subscription-plans{--cols:3}.cal{grid-template-columns:repeat(7,minmax(0,1fr))}
-input,textarea,select,button{
-  max-width:100%;
-  min-width:0;
-}
-.actions{
-  max-width:100%;
-  min-width:0;
-}
-.actions>*{
-  min-width:0;
-}
-.item-sub,.item-title,.muted,p,h1,h2,h3,.badge,.money{
-  overflow-wrap:anywhere;
-  word-break:break-word;
-}
-.live-particles, body:before, body:after{
-  max-width:100vw;
-  overflow:hidden;
-}
-.card:before, button:before{
-  contain:paint;
-}
-@supports (overflow: clip){
-  html,body{overflow-x:clip!important}
-}
-@media(max-width:800px){
-  .grid2,.grid3,.grid4,.kpi-strip,.subscription-plans{
-    grid-template-columns:1fr!important;
-  }
-  .top{
-    left:0;
-    right:0;
-    width:100%;
-  }
-  .item,.client-head,.work-row-main{
-    width:100%;
-    max-width:100%;
-  }
-  .cal{
-    grid-template-columns:repeat(7,minmax(0,1fr))!important;
-  }
-  .day{
-    min-width:0;
-  }
-}
-</style>
-
-
-<style id="buttonLayoutProV1100">
-/* ===== VERSION 1.10.1: Professional button system rebuild ===== */
-:root{
-  --btn-text:#1e293b;
-  --btn-muted:#475569;
-  --btn-surface:rgba(255,255,255,.94);
-  --btn-surface-2:#f8fafc;
-  --btn-border:#dbe4ef;
-  --btn-shadow:0 8px 18px rgba(15,23,42,.08);
-  --btn-shadow-hover:0 12px 24px rgba(15,23,42,.11);
-  --btn-primary-bg:linear-gradient(135deg,#eef6ff,#f8fbff);
-  --btn-primary-border:#bfdbfe;
-  --btn-primary-text:#1e40af;
-  --btn-green-bg:linear-gradient(135deg,#ecfdf5,#f7fee7);
-  --btn-green-border:#bbf7d0;
-  --btn-green-text:#166534;
-  --btn-red-bg:linear-gradient(135deg,#fff1f2,#fff7f7);
-  --btn-red-border:#fecdd3;
-  --btn-red-text:#9f1239;
-  --btn-yellow-bg:linear-gradient(135deg,#fff7ed,#fffbeb);
-  --btn-yellow-border:#fed7aa;
-  --btn-yellow-text:#92400e;
-}
-
-html,body{max-width:100%!important;overflow-x:hidden!important;touch-action:pan-y!important;}
-.app,.card,.top,.item,.actions,.grid2,.grid3,.grid4,.cal-head{max-width:100%!important;min-width:0!important;}
-*{min-width:0;}
-
-button,
-.btn-light,
-.btn-green,
-.btn-red,
-.btn-yellow,
-.actions button,
-.cal-head button{
-  appearance:none!important;
-  -webkit-appearance:none!important;
-  min-height:46px!important;
-  padding:12px 16px!important;
-  border-radius:16px!important;
-  border:1px solid var(--btn-primary-border)!important;
-  background:var(--btn-primary-bg)!important;
-  color:var(--btn-primary-text)!important;
-  box-shadow:var(--btn-shadow)!important;
-  font-size:14.5px!important;
-  font-weight:850!important;
-  line-height:1.25!important;
-  letter-spacing:-.1px!important;
-  text-align:center!important;
-  white-space:normal!important;
-  word-break:keep-all!important;
-  overflow-wrap:anywhere!important;
-  transform:none!important;
-  filter:none!important;
-  transition:background .12s ease,border-color .12s ease,box-shadow .12s ease!important;
-}
-
-button:before,button:after{display:none!important;content:none!important;animation:none!important;}
-button:hover,
-button:active,
-button:focus,
-button:focus-visible{
-  transform:none!important;
-  filter:none!important;
-  box-shadow:var(--btn-shadow-hover)!important;
-}
-button:focus-visible{outline:2px solid rgba(37,99,235,.20)!important;outline-offset:2px!important;}
-button:disabled{opacity:.55!important;box-shadow:none!important;}
-
-.btn-light{
-  background:linear-gradient(135deg,#ffffff,#f8fafc)!important;
-  color:var(--btn-muted)!important;
-  border-color:var(--btn-border)!important;
-}
-.btn-green{
-  background:var(--btn-green-bg)!important;
-  color:var(--btn-green-text)!important;
-  border-color:var(--btn-green-border)!important;
-}
-.btn-red{
-  background:var(--btn-red-bg)!important;
-  color:var(--btn-red-text)!important;
-  border-color:var(--btn-red-border)!important;
-}
-.btn-yellow{
-  background:var(--btn-yellow-bg)!important;
-  color:var(--btn-yellow-text)!important;
-  border-color:var(--btn-yellow-border)!important;
-}
-
-/* Button layout: neat, equal, no tiny buttons */
-.actions{
-  display:grid!important;
-  grid-template-columns:repeat(auto-fit,minmax(138px,1fr))!important;
-  gap:10px!important;
-  align-items:stretch!important;
-  width:100%!important;
-}
-.actions button{width:100%!important;margin:0!important;}
-
-.cal-head{
-  display:flex!important;
-  align-items:center!important;
-  justify-content:space-between!important;
-  gap:12px!important;
-  flex-wrap:wrap!important;
-}
-.cal-head h1,.cal-head h2,.cal-head h3{flex:1 1 180px!important;margin:0!important;}
-.cal-head > button,
-.cal-head > .actions{flex:0 1 auto!important;}
-.cal-head > button{width:auto!important;min-width:124px!important;}
-.cal-head > .actions{width:auto!important;min-width:260px!important;}
-
-.grid2,.grid3,.grid4{gap:12px!important;}
-.grid2 button,.grid3 button,.grid4 button{width:100%!important;margin:7px 0!important;}
-
-.card{
-  border-radius:24px!important;
-  overflow:hidden!important;
-}
-.item{
-  align-items:center!important;
-  border-radius:20px!important;
-}
-.item > .actions,
-.item .actions{
-  min-width:260px!important;
-  max-width:360px!important;
-}
-
-.type-card{
-  border-radius:22px!important;
-  border:1px solid #dbeafe!important;
-  background:linear-gradient(135deg,#ffffff,#f8fbff)!important;
-  color:#1e293b!important;
-  box-shadow:var(--btn-shadow)!important;
-  transform:none!important;
-}
-.type-card:hover,.type-card.active{
-  transform:none!important;
-  background:linear-gradient(135deg,#eef6ff,#ffffff)!important;
-  border-color:#93c5fd!important;
-  box-shadow:var(--btn-shadow-hover)!important;
-}
-
-/* Remove heavy live animations from interactive elements */
-button,.card,.item,.stat,.dash-card,.type-card,.plan-card,.client-card,.payment-row,.kpi,.day,.top,.logo{
-  animation:none!important;
-}
-.logo{box-shadow:0 10px 22px rgba(37,99,235,.18)!important;}
-.card:hover,.item:hover,.stat:hover,.dash-card:hover,.type-card:hover,.plan-card:hover,.client-card:hover,.payment-row:hover,.kpi:hover,.day:hover{
-  transform:none!important;
-}
-
-@media(max-width:800px){
-  body{padding:10px!important;}
-  .top{position:sticky!important;top:6px!important;}
-  .card{padding:15px!important;margin-bottom:12px!important;}
-  button{width:100%!important;min-height:48px!important;padding:13px 14px!important;border-radius:16px!important;font-size:14.5px!important;}
-  .actions{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;}
-  .actions button{min-width:0!important;}
-  .cal-head{display:grid!important;grid-template-columns:1fr!important;text-align:center!important;align-items:stretch!important;}
-  .cal-head > button,.cal-head > .actions{width:100%!important;min-width:0!important;}
-  .item{display:grid!important;grid-template-columns:1fr!important;gap:12px!important;align-items:stretch!important;}
-  .item > div{width:100%!important;max-width:100%!important;}
-  .item > .actions,.item .actions{min-width:0!important;max-width:100%!important;}
-  .grid2,.grid3,.grid4{grid-template-columns:1fr!important;}
-  .subscription-plans,.kpi-strip{grid-template-columns:1fr!important;}
-  .work-row-main{width:100%!important;}
-  .money{text-align:inherit!important;white-space:normal!important;}
-}
-
-@media(max-width:430px){
-  .actions{grid-template-columns:1fr!important;}
-  button{font-size:14px!important;}
-  .brand{font-size:18px!important;}
-}
 </style>
 
 
 
-<style id="v1_10_1_no_blue_button_system_final_override">
-/* ===== VERSION 1.10.1: FINAL NO-BLUE BUTTON + MOBILE LAYOUT REBUILD ===== */
-:root{
-  --action-bg:#ffffff;
-  --action-bg-2:#f8fafc;
-  --action-text:#18202f;
-  --action-border:#d8e0ea;
-  --action-shadow:0 8px 18px rgba(15,23,42,.10);
-  --action-shadow-soft:0 4px 10px rgba(15,23,42,.07);
-  --action-radius:18px;
-  --action-primary-a:#f7fee7;
-  --action-primary-b:#dcfce7;
-  --action-primary-text:#14532d;
-  --action-save-a:#ecfdf5;
-  --action-save-b:#bbf7d0;
-  --action-save-text:#14532d;
-  --action-warn-a:#fffbeb;
-  --action-warn-b:#fde68a;
-  --action-warn-text:#78350f;
-  --action-danger-a:#fff1f2;
-  --action-danger-b:#fecdd3;
-  --action-danger-text:#881337;
-  --action-neutral-a:#ffffff;
-  --action-neutral-b:#f1f5f9;
-  --action-neutral-text:#1e293b;
-}
 
-html,body{
-  width:100% !important;
-  max-width:100% !important;
-  overflow-x:hidden !important;
-  touch-action:pan-y !important;
-}
-body{overscroll-behavior-x:none !important;}
-.app,.card,.panel,.item,.actions,.grid2,.grid3,.grid4,.cal-head,.subscription-plans,.kpi-strip{
-  max-width:100% !important;
-  min-width:0 !important;
-  box-sizing:border-box !important;
-}
 
-/* remove old heavy movement effects from all clickable UI */
-button,button:before,button:after,.btn-light,.btn-green,.btn-red,.btn-yellow,.type-card,.plan-card,.item,.card{
-  animation:none !important;
-}
-button:hover,button:active,.btn-light:hover,.btn-green:hover,.btn-red:hover,.btn-yellow:hover{
-  transform:none !important;
-  filter:none !important;
-}
-button:before,button:after{
-  content:none !important;
-  display:none !important;
-}
 
-/* GLOBAL BUTTON RESET - wins over the old blue CSS */
-button,
-button.btn-light,
-button.btn-green,
-button.btn-red,
-button.btn-yellow,
-.actions button,
-.cal-head button,
-.subscription-plans button,
-.plan-card button,
-.item button,
-.card button,
-#logoutBtn,
-#backAdminBtn{
-  appearance:none !important;
-  -webkit-appearance:none !important;
-  border:1px solid var(--action-border) !important;
-  outline:0 !important;
-  color:var(--action-neutral-text) !important;
-  background:linear-gradient(180deg,var(--action-neutral-a),var(--action-neutral-b)) !important;
-  box-shadow:var(--action-shadow-soft) !important;
-  border-radius:var(--action-radius) !important;
-  min-height:48px !important;
-  height:auto !important;
-  padding:12px 16px !important;
-  margin:4px 0 !important;
-  font-size:15px !important;
-  line-height:1.25 !important;
-  font-weight:900 !important;
-  text-align:center !important;
-  letter-spacing:0 !important;
-  font-family:Arial,"Noto Sans Hebrew",sans-serif !important;
-  box-sizing:border-box !important;
-  white-space:normal !important;
-  overflow-wrap:anywhere !important;
-  user-select:none !important;
-  -webkit-tap-highlight-color:transparent !important;
-}
 
-button:not(.btn-light):not(.btn-green):not(.btn-red):not(.btn-yellow){
-  background:linear-gradient(180deg,var(--action-primary-a),var(--action-primary-b)) !important;
-  color:var(--action-primary-text) !important;
-  border-color:#bbf7d0 !important;
-  box-shadow:var(--action-shadow) !important;
-}
-button.btn-green{
-  background:linear-gradient(180deg,var(--action-save-a),var(--action-save-b)) !important;
-  color:var(--action-save-text) !important;
-  border-color:#86efac !important;
-  box-shadow:0 8px 18px rgba(22,101,52,.12) !important;
-}
-button.btn-yellow{
-  background:linear-gradient(180deg,var(--action-warn-a),var(--action-warn-b)) !important;
-  color:var(--action-warn-text) !important;
-  border-color:#fcd34d !important;
-  box-shadow:0 8px 18px rgba(146,64,14,.12) !important;
-}
-button.btn-red{
-  background:linear-gradient(180deg,var(--action-danger-a),var(--action-danger-b)) !important;
-  color:var(--action-danger-text) !important;
-  border-color:#fda4af !important;
-  box-shadow:0 8px 18px rgba(136,19,55,.12) !important;
-}
-button.btn-light{
-  background:linear-gradient(180deg,#ffffff,#f8fafc) !important;
-  color:#334155 !important;
-  border-color:#d8e0ea !important;
-  box-shadow:var(--action-shadow-soft) !important;
-}
-button:disabled{
-  opacity:.5 !important;
-  cursor:not-allowed !important;
-  box-shadow:none !important;
-}
-button:focus-visible{
-  outline:3px solid rgba(20,83,45,.22) !important;
-  outline-offset:2px !important;
-}
 
-/* Button layout - exact, clean, responsive */
-.actions{
-  display:grid !important;
-  grid-template-columns:repeat(auto-fit,minmax(128px,1fr)) !important;
-  gap:10px !important;
-  align-items:stretch !important;
-  width:100% !important;
-}
-.actions button{width:100% !important; min-width:0 !important; margin:0 !important;}
-.cal-head{align-items:center !important; gap:12px !important;}
-.cal-head > button{flex:0 0 auto !important; width:auto !important; min-width:118px !important; margin:0 !important;}
-.login-box button,.subscription-plans button,.plan-card button,#workerLoginView button,#registerView button,#expiredView button,#adminLoginView button{
-  width:100% !important;
-  display:block !important;
-  margin:10px 0 !important;
-}
 
-/* Cards and rows get cleaner spacing so the buttons do not feel tiny */
-.card{border-radius:24px !important;}
-.item{gap:14px !important;}
-.item > .actions,.item .actions{margin-top:10px !important;}
-.type-card{
-  background:linear-gradient(180deg,#ffffff,#f8fafc) !important;
-  border:1px solid #d8e0ea !important;
-  border-radius:22px !important;
-  box-shadow:var(--action-shadow-soft) !important;
-  color:#1e293b !important;
-}
-.type-card.active{
-  background:linear-gradient(180deg,#f7fee7,#dcfce7) !important;
-  border-color:#86efac !important;
-  color:#14532d !important;
-}
 
-/* Mobile: stable two-column where possible, full width for narrow screens */
-@media(max-width:800px){
-  body{padding:10px !important;}
-  .grid2,.grid3,.grid4,.subscription-plans{grid-template-columns:1fr !important;}
-  .actions{grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:9px !important;}
-  .actions button{min-height:46px !important; padding:11px 10px !important; font-size:14px !important;}
-  .cal-head{display:grid !important; grid-template-columns:1fr !important; text-align:center !important;}
-  .cal-head > button{width:100% !important; min-width:0 !important;}
-  .item{overflow:hidden !important;}
-  .item > div{max-width:100% !important; min-width:0 !important;}
-}
-@media(max-width:420px){
-  .actions{grid-template-columns:1fr !important;}
-  button,.actions button{font-size:14px !important; min-height:46px !important;}
-}
-</style>
 
 </head>
 <body>
@@ -933,7 +447,7 @@ button:focus-visible{
 <button class="btn-green" onclick="workerLogin()">כניסה</button>
 <button class="btn-light" onclick="showRegister()">הרשמה לעובד חדש</button>
 <p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.10.1</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.10.4</div>
 </section>
 
 <section id="registerView" class="card login-box hidden">
@@ -2531,7 +2045,7 @@ function $(id){return document.getElementById(id)}function show(id){$(id).classL
   window.addEventListener("load", fixVisibleLineBreaks);
   document.addEventListener("click", function(){ setTimeout(fixVisibleLineBreaks, 80); });
   document.addEventListener("input", function(){ setTimeout(fixVisibleLineBreaks, 80); });
-  setInterval(fixVisibleLineBreaks, 700);
+  setTimeout(fixVisibleLineBreaks, 700);
 })();
 </script>
 
@@ -2775,7 +2289,7 @@ async function createWorker(){
       authEmail:authResult.email||authEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.10.1" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.10.4" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2822,7 +2336,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.10.1",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.10.4",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2872,7 +2386,7 @@ async function loadWorkers(){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.10.1";
+    if(secret) secret.textContent="גרסה 1.10.4";
   }catch(e){}
 })();
 </script>
@@ -3088,7 +2602,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.10.1",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.10.4",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -3128,7 +2642,7 @@ async function createAuthForWorker(workerId){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.10.1";
+    if(secret) secret.textContent="גרסה 1.10.4";
   }catch(e){}
 })();
 </script>
@@ -3148,7 +2662,7 @@ function effectiveAuthEmailV168(username, optionalEmail){
   return e && isValidEmailV168(e) ? e : authEmailFromUsername(username);
 }
 function updateVersionV168(){
-  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.10.1"; }catch(e){}
+  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.10.4"; }catch(e){}
 }
 
 // שם המשתמש נשאר שדה ההתחברות הראשי. מאחורי הקלעים Firebase Auth נכנס עם authEmail ששמור לעובד.
@@ -3238,7 +2752,7 @@ async function createWorker(){
       recoveryEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.10.1" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.10.4" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -3320,7 +2834,7 @@ async function createAuthForWorker(workerId){
       authEmail:authResult.email||preferredAuthEmail,
       recoveryEmail:emailPrompt,
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.10.1",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.10.4",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -4161,13 +3675,13 @@ async function adminLogin(){
 
 
 <script>
-/* ===== VERSION 1.10.1: Password recovery options =====
+/* ===== VERSION 1.10.3: Password recovery options =====
    - מוסיף מייל שחזור/אימייל Auth אמיתי למנהל במסך אדמין.
    - אחרי 3 ניסיונות שגויים לעובד או למנהל מציג אפשרות שחזור סיסמה.
    - שחזור Firebase עובד רק אם ה-Auth Email הוא אימייל אמיתי, לא @work-monitor.local.
 */
 (function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   function updateVersionV174(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4455,7 +3969,7 @@ window.workerLogin = async function(){
 
 
 <script>
-/* ===== VERSION 1.10.1: Self registration creates Firebase Auth UID + worker automatically =====
+/* ===== VERSION 1.10.3: Self registration creates Firebase Auth UID + worker automatically =====
    תיקון מרכזי:
    1. הרשמה עצמית יוצרת קודם Firebase Auth עם UID אמיתי.
    2. מיד אחרי זה נשמרים users/{uid}, workers/{workerId}, usernameLookup/{usernameKey}.
@@ -4463,7 +3977,7 @@ window.workerLogin = async function(){
    4. כולל Security Rules מעודכנות שמאפשרות יצירת משתמש עצמי בלי להיות מחובר מראש כמנהל.
 */
 (function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   window.APP_VERSION_176=VERSION;
   function updateVersionV176(){
@@ -4472,7 +3986,7 @@ window.workerLogin = async function(){
     const old=document.getElementById("versionBadgeV176");
     if(!old){
       const brand=document.querySelector(".brand .muted");
-      if(brand && !String(brand.textContent||"").includes("1.10.1")){
+      if(brand && !String(brand.textContent||"").includes("1.10.3")){
         // לא משנים את שורת המשתמש, רק שומרים גרסה בכותרת/סוד.
       }
     }
@@ -4565,7 +4079,7 @@ async function registerWorker(){
       recoveryEmail,
       authUid:uid,
       authReady:true,
-      authNote:"נוצר בהרשמה עצמית אוטומטית בגרסה 1.10.1",
+      authNote:"נוצר בהרשמה עצמית אוטומטית בגרסה 1.10.4",
       passwordHash:await sha256(pass),
       monthlyGoal:0,
       active:true,
@@ -4596,7 +4110,7 @@ async function registerWorker(){
     }catch(e){
       if(typeof writeAppLogV167==="function") await writeAppLogV167("registerFirestoreWriteFailedV176",{username,usernameKey,workerId,uid,authEmail:baseWorker.authEmail,errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
       if(isPermissionErrorV176(e)){
-        registrationMsgV176("<p class='danger'>ה־UID נוצר ב־Firebase Auth, אבל Firestore חסם את שמירת העובד בגלל Security Rules ישנות. היכנס כמנהל, לחץ ‘העתק Security Rules’ בגרסה 1.10.1, פרסם אותן ב־Firebase ואז נסה שוב.</p>");
+        registrationMsgV176("<p class='danger'>ה־UID נוצר ב־Firebase Auth, אבל Firestore חסם את שמירת העובד בגלל Security Rules ישנות. היכנס כמנהל, לחץ ‘העתק Security Rules’ בגרסה 1.10.4, פרסם אותן ב־Firebase ואז נסה שוב.</p>");
       }else{
         registrationMsgV176(`<p class='danger'>נוצר Auth אבל שמירת העובד נכשלה: ${esc(e.code||e.message||String(e))}</p>`);
       }
@@ -4628,7 +4142,7 @@ window.workerLogin = async function(){
     await oldWorkerLoginV176();
     if(session && session.role==="worker") return;
   }
-  // fallback אחרון למשתמשים שנוצרו ב-1.10.1 אבל lookup לא הספיק להיכתב.
+  // fallback אחרון למשתמשים שנוצרו ב-1.10.3 אבל lookup לא הספיק להיכתב.
   try{
     const usernameKey=normalize(username);
     const authEmail=authEmailFromUsername(username);
@@ -4757,9 +4271,9 @@ window.copySecurityRulesV169 = async function(){
   try{
     await navigator.clipboard.writeText(FIRESTORE_RULES_V176);
     const msg=document.getElementById("securityToolsMsgV169") || document.getElementById("adminAuthBootstrapMsgV170");
-    if(msg) msg.innerHTML="<div class='notice'>Security Rules של גרסה 1.10.1 הועתקו ✅</div>";
+    if(msg) msg.innerHTML="<div class='notice'>Security Rules של גרסה 1.10.4 הועתקו ✅</div>";
   }catch(e){
-    prompt("העתק את ה־Security Rules של גרסה 1.10.1:", FIRESTORE_RULES_V176);
+    prompt("העתק את ה־Security Rules של גרסה 1.10.4:", FIRESTORE_RULES_V176);
   }
 };
 
@@ -4771,7 +4285,7 @@ function addSelfRegistrationToolsV176(){
   div.id="selfRegistrationToolsV176";
   div.className="card panel";
   div.innerHTML=`
-    <div class="cal-head"><h2>🆕 הרשמה עצמית 1.10.1</h2><button class="btn-light" onclick="copySecurityRulesV169()">העתק Rules 1.10.1</button></div>
+    <div class="cal-head"><h2>🆕 הרשמה עצמית 1.10.3</h2><button class="btn-light" onclick="copySecurityRulesV169()">העתק Rules 1.10.3</button></div>
     <p>הגרסה הזו יוצרת UID אוטומטי בהרשמה מהמסך הראשי, מחברת אותו לעובד, ופותחת תקופת ניסיון לפי ההגדרה באדמין.</p>
     <div class="notice">אחרי העלאה לגיטהאב: בדוק הרשמה חדשה מחלון גלישה בסתר כדי לוודא שאין Session ישן.</div>`;
   const first=admin.querySelector(".card");
@@ -4783,7 +4297,7 @@ function addSelfRegistrationToolsV176(){
     window.showAdmin=async function(){
       await oldShowAdmin.apply(this,arguments);
       addSelfRegistrationToolsV176();
-      document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.10.1");
+      document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.10.4");
     };
   }
 })();
@@ -4792,11 +4306,11 @@ function addSelfRegistrationToolsV176(){
 
 
 <script>
-/* ===== VERSION 1.10.1: Subscription gate BEFORE rendering worker dashboard =====
+/* ===== VERSION 1.10.3: Subscription gate BEFORE rendering worker dashboard =====
    תיקון קריטי: לא מציגים workerView / נתונים / חודש לפני בדיקת מנוי עדכנית מהשרת.
 */
 (function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   function updateVersionV177(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4932,7 +4446,7 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.10.1: Admin password/access recovery for workers =====
+/* ===== VERSION 1.10.3: Admin password/access recovery for workers =====
    שחזור גישה לעובד ששכח סיסמה:
    - לא מוחק workers ולא מוחק workEntries.
    - יוצר Firebase Auth חדש עם UID חדש, בדרך כלל אימייל פנימי חד־פעמי.
@@ -4941,7 +4455,7 @@ window.onload = async()=>{
    - מנטרל users/{oldUid} כדי שלא יישאר קישור ישן לאותו עובד.
 */
 (function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   function updateVersionV178(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -5079,7 +4593,7 @@ async function resetWorkerAccessV178(workerId){
       authEmail:authResult.email,
       recoveryEmail: optionalEmail || (w.recoveryEmail || ""),
       authReady:true,
-      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.10.1",
+      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.10.4",
       passwordHash:await sha256(newPassword),
       active:true,
       accessRecoveredAt:firebase.firestore.FieldValue.serverTimestamp(),
@@ -5172,7 +4686,7 @@ function addRecoveryInfoPanelV178(){
   div.id="recoveryInfoPanelV178";
   div.className="card panel";
   div.innerHTML=`
-    <div class="cal-head"><h2>🔑 שחזור גישה לעובד 1.10.1</h2></div>
+    <div class="cal-head"><h2>🔑 שחזור גישה לעובד 1.10.3</h2></div>
     <p>אם עובד שכח סיסמה ואין לו מייל, לחץ ברשימת העובדים על <b>שחזור גישה</b>. זה יוצר UID חדש, שומר סיסמה חדשה, ומחבר אותו לאותו Worker בלי למחוק עבודות.</p>
     <div class="notice">לא מוחקים Worker בשביל איפוס סיסמה. מוחקים/מנטרלים רק קישור Auth ישן אם צריך.</div>`;
   const workersCard=[...admin.querySelectorAll(".card")].find(c=>String(c.textContent||"").includes("עובדים"));
@@ -5195,11 +4709,11 @@ function addRecoveryInfoPanelV178(){
 
 
 <script>
-/* ===== VERSION 1.10.1: No login flicker on refresh =====
+/* ===== VERSION 1.10.3: No login flicker on refresh =====
    מציג מסך טעינה ניטרלי בזמן בדיקת session/Auth, ולא את מסך הכניסה.
 */
 (function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   function updateVersionV179(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -5267,12 +4781,12 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.10.1: Safe logout + worker null guard =====
+/* ===== VERSION 1.10.3: Safe logout + worker null guard =====
    תיקון: אם עובד עושה יציאה בזמן שעדיין רצות טעינות async ברקע,
    לא מאפשרים לטעינה הישנה להמשיך לצייר דשבורד או לקרוא monthlyGoal על viewedWorker ריק.
 */
 (function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   window.__appNavTokenV180 = window.__appNavTokenV180 || 0;
   window.__isLoggingOutV180 = false;
@@ -5457,9 +4971,9 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.10.1: polished loader + keep expired subscription screen on refresh ===== */
+/* ===== VERSION 1.10.3: polished loader + keep expired subscription screen on refresh ===== */
 (function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   window.APP_VERSION_181=VERSION;
   function updateVersionV181(){
@@ -5601,12 +5115,12 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.10.1: Loader timeout + reliable startup release =====
+/* ===== VERSION 1.10.3: Loader timeout + reliable startup release =====
    תיקון: שום בדיקת Firebase/Firestore לא יכולה להשאיר את המשתמש תקוע על מסך טעינה.
    יש Timeout קצר לכל שלב, והרצה חד-פעמית גם ב-DOMContentLoaded וגם ב-load.
 */
 (function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   window.__bootStartedV182=false;
   window.__bootFinishedV182=false;
@@ -5768,11 +5282,11 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.10.1: Stable boot controller + no recursive login/logout =====
+/* ===== VERSION 1.10.3: Stable boot controller + no recursive login/logout =====
    תיקון עומק: מבטל recursion שנוצר מעטיפות showWorkerLogin/logout, ומנהל טעינה/כניסה/מסך מנוי ממקום אחד.
 */
 (function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   window.__stableBootV183Started=false;
   window.__stableBootV183Finished=false;
@@ -5941,23 +5455,23 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.10.1: Access recovery permission-denied fix =====
+/* ===== VERSION 1.10.3: Access recovery permission-denied fix =====
    תיקון: שחזור גישה חייב להתבצע כשה-Auth הראשי נשאר מנהל.
    יצירת ה-UID החדש נעשית דרך Firebase App משני ומבודד, ואז חוזרים לוודא שה-main auth הוא אדמין לפני כתיבה ל-Firestore.
 */
 (function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   function forceVersionV184(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
     document.title="מעקב עבודה - גרסה "+VERSION;
     const p=document.getElementById("recoveryInfoPanelV178");
     if(p){
-      p.querySelectorAll("h2").forEach(h=>h.innerHTML="🔑 שחזור גישה לעובד 1.10.1");
+      p.querySelectorAll("h2").forEach(h=>h.innerHTML="🔑 שחזור גישה לעובד 1.10.3");
     }
   }
   window.addEventListener("load",()=>setTimeout(forceVersionV184,150));
-  setInterval(forceVersionV184,1200);
+  setTimeout(forceVersionV184,1200);
   forceVersionV184();
 })();
 
@@ -6131,7 +5645,7 @@ async function resetWorkerAccessV178(workerId){
       authEmail:authResult.email,
       recoveryEmail:optionalEmail || (w.recoveryEmail||""),
       authReady:true,
-      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.10.1",
+      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.10.4",
       passwordHash:await sha256(newPassword),
       active:true,
       accessRecoveredAt:now,
@@ -6171,22 +5685,22 @@ async function resetWorkerAccessV178(workerId){
 
 
 <script>
-/* ===== VERSION 1.10.1: Recovery permission-denied final fix =====
+/* ===== VERSION 1.10.3: Recovery permission-denied final fix =====
    הסיבה ל-permission-denied בשחזור גישה היא בדרך כלל Security Rules שלא מזהות את האדמין
    דרך users/{uid}, או שאין עדיין users doc תקין למנהל. בגרסה זו ה-Rules מזהות אדמין גם לפי
-   Firebase Auth email הפנימי admin@work-monitor.local, וכפתור העתקת Rules מעודכן לגרסה 1.10.1.
+   Firebase Auth email הפנימי admin@work-monitor.local, וכפתור העתקת Rules מעודכן לגרסה 1.10.4.
 */
 (function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   function forceVersionV185(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
     document.title="מעקב עבודה - גרסה "+VERSION;
     const p=document.getElementById("recoveryInfoPanelV178");
-    if(p){ p.querySelectorAll("h2").forEach(h=>h.innerHTML="🔑 שחזור גישה לעובד 1.10.1"); }
+    if(p){ p.querySelectorAll("h2").forEach(h=>h.innerHTML="🔑 שחזור גישה לעובד 1.10.3"); }
   }
   window.addEventListener("load",()=>setTimeout(forceVersionV185,120));
-  setInterval(forceVersionV185,1200);
+  setTimeout(forceVersionV185,1200);
   forceVersionV185();
 })();
 
@@ -6293,10 +5807,10 @@ async function copySecurityRulesV169(){
   try{
     await navigator.clipboard.writeText(FIRESTORE_RULES_V185);
     const msg=document.getElementById("securityToolsMsgV169") || document.getElementById("adminAuthBootstrapMsgV170");
-    if(msg) msg.innerHTML="<div class='notice'>Security Rules 1.10.1 הועתקו ✅<br>פתח Firebase → Firestore Database → Rules → הדבק → Publish.</div>";
-    alert("Security Rules 1.10.1 הועתקו ✅\nחובה לפרסם אותן ב-Firebase כדי ששחזור גישה יעבוד בלי permission-denied.");
+    if(msg) msg.innerHTML="<div class='notice'>Security Rules 1.10.3 הועתקו ✅<br>פתח Firebase → Firestore Database → Rules → הדבק → Publish.</div>";
+    alert("Security Rules 1.10.3 הועתקו ✅\nחובה לפרסם אותן ב-Firebase כדי ששחזור גישה יעבוד בלי permission-denied.");
   }catch(e){
-    prompt("העתק את ה־Security Rules 1.10.1:", FIRESTORE_RULES_V185);
+    prompt("העתק את ה־Security Rules 1.10.3:", FIRESTORE_RULES_V185);
   }
 }
 
@@ -6307,9 +5821,9 @@ function addRulesWarningV185(){
   div.id="rulesWarningV185";
   div.className="card panel";
   div.innerHTML=`
-    <div class="cal-head"><h2>⚠️ תיקון הרשאות 1.10.1</h2><button class="btn-green" onclick="copySecurityRulesV169()">העתק Rules 1.10.1</button></div>
+    <div class="cal-head"><h2>⚠️ תיקון הרשאות 1.10.3</h2><button class="btn-green" onclick="copySecurityRulesV169()">העתק Rules 1.10.3</button></div>
     <p>אם בשחזור גישה מופיע <b>permission-denied</b>, זה לא באג במסך — ה־Security Rules הישנות לא מזהות את האדמין בזמן כתיבה ל־users/workers.</p>
-    <div class="notice">צריך להעתיק את Rules 1.10.1, להדביק ב־Firebase Firestore Rules וללחוץ Publish פעם אחת.</div>`;
+    <div class="notice">צריך להעתיק את Rules 1.10.3, להדביק ב־Firebase Firestore Rules וללחוץ Publish פעם אחת.</div>`;
   admin.insertBefore(div, admin.firstChild);
 }
 
@@ -6331,7 +5845,7 @@ window.resetWorkerAccessV178 = async function(workerId){
   }catch(e){
     const msg=String(e && (e.code||e.message) || e);
     if(msg.includes("permission-denied")){
-      alert("שחזור הגישה נחסם על ידי Firebase Rules.\n\nהפתרון: באדמין לחץ 'העתק Rules 1.10.1', הדבק ב-Firebase Firestore Rules ולחץ Publish. אחרי זה נסה שוב.");
+      alert("שחזור הגישה נחסם על ידי Firebase Rules.\n\nהפתרון: באדמין לחץ 'העתק Rules 1.10.3', הדבק ב-Firebase Firestore Rules ולחץ Publish. אחרי זה נסה שוב.");
       return;
     }
     throw e;
@@ -6342,12 +5856,12 @@ window.resetWorkerAccessV178 = async function(workerId){
 
 
 <script>
-/* ===== VERSION 1.10.1: Clean admin panel + admin loading screen =====
+/* ===== VERSION 1.10.3: Clean admin panel + admin loading screen =====
    ניקוי פאנלים זמניים מהאדמין בלי למחוק פונקציות שעובדות.
    נשאר: יצירת/תיקון Auth למנהל, עובדים, שחזור גישה דרך כפתור העובד, מנויים, מחירון, תבניות וכלים שימושיים.
 */
 (function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
 
   const HIDE_STYLE_ID="cleanAdminV186Style";
@@ -6433,10 +5947,10 @@ window.resetWorkerAccessV178 = async function(workerId){
     removeCardByHeadingTextV186("לוח מנהל");
     removeCardByHeadingTextV186("הכנת Firebase Auth");
     removeCardByHeadingTextV186("הכנת אבטחת Firebase");
-    removeCardByHeadingTextV186("תיקון הרשאות 1.10.1");
-    removeCardByHeadingTextV186("הרשמה עצמית 1.10.1");
-    removeCardByHeadingTextV186("שחזור גישה לעובד 1.10.1");
-    removeCardByHeadingTextV186("שחזור גישה לעובד 1.10.1");
+    removeCardByHeadingTextV186("תיקון הרשאות 1.10.3");
+    removeCardByHeadingTextV186("הרשמה עצמית 1.10.3");
+    removeCardByHeadingTextV186("שחזור גישה לעובד 1.10.3");
+    removeCardByHeadingTextV186("שחזור גישה לעובד 1.10.3");
 
     // להשאיר את יצירת/תיקון Auth למנהל, אבל לנקות ניסוחים טכניים מיותרים אם היא מופיעה
     const adminAuth=document.getElementById("adminAuthBootstrapV170");
@@ -6470,7 +5984,7 @@ window.resetWorkerAccessV178 = async function(workerId){
         cleanAdminPanelV186();
         forceVersionV186();
       }catch(e){
-        console.error("showAdmin V1.10.1 failed",e);
+        console.error("showAdmin V1.10.3 failed",e);
         cleanAdminPanelV186();
         alert("שגיאה בטעינת לוח המנהל: "+(e.code||e.message||String(e)));
       }finally{
@@ -6485,20 +5999,20 @@ window.resetWorkerAccessV178 = async function(workerId){
     forceVersionV186();
     setTimeout(cleanAdminPanelV186,500);
   });
-  setInterval(()=>{ forceVersionV186(); if(!document.getElementById("adminView")?.classList.contains("hidden")) cleanAdminPanelV186(); },1500);
+  setTimeout(()=>{ forceVersionV186(); if(!document.getElementById("adminView")?.classList.contains("hidden")) cleanAdminPanelV186(); },1500);
 })();
 </script>
 
 
 
 <script>
-/* ===== VERSION 1.10.1: Expired subscription refresh persistence fix =====
+/* ===== VERSION 1.10.3: Expired subscription refresh persistence fix =====
    מטרה: אם עובד הגיע למסך בחירת מנוי ואז עושה רענון, חוזרים לאותו מסך ולא למסך כניסה.
    הפתרון שומר marker של worker פג תוקף, וגם אם קריאת Firestore נחסמת זמנית ב-Rules אחרי refresh,
    מציגים את מסך התשלום לפי המידע השמור במקום למחוק את ה-marker.
 */
 (function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
   window.__preserveExpiredMarkerV187=true;
 
@@ -6662,7 +6176,7 @@ window.resetWorkerAccessV178 = async function(workerId){
   window.addEventListener("DOMContentLoaded",()=>{ setTimeout(bootExpiredFirstV187,0); setTimeout(repairAfterOldBootV187,1200); setTimeout(repairAfterOldBootV187,4200); });
   window.addEventListener("load",()=>{ setTimeout(bootExpiredFirstV187,0); setTimeout(repairAfterOldBootV187,1200); setTimeout(repairAfterOldBootV187,4200); });
   setTimeout(()=>{ if(document.readyState!=="loading") bootExpiredFirstV187(); },30);
-  setInterval(forceVersionV187,1200);
+  setTimeout(forceVersionV187,1200);
 
   // אחרי שהאתחול נגמר, פעולה ידנית של חזרה למסך כניסה/יציאה כן תוכל לנקות marker.
   setTimeout(()=>{ window.__preserveExpiredMarkerV187=false; },15000);
@@ -6671,9 +6185,9 @@ window.resetWorkerAccessV178 = async function(workerId){
 
 
 <script>
-/* ===== VERSION 1.10.1: single visible version stabilizer ===== */
+/* ===== VERSION 1.10.3: single visible version stabilizer ===== */
 (function(){
-  const FINAL_VERSION = "1.10.1";
+  const FINAL_VERSION = "1.10.3";
   window.APP_VERSION = FINAL_VERSION;
   function forceFinalVersion(){
     try{
@@ -6699,76 +6213,11 @@ window.resetWorkerAccessV178 = async function(workerId){
 
 
 
+
 <script>
-/* ===== VERSION 1.10.1: Live animation bootstrap ===== */
+/* ===== VERSION 1.10.3: Add missing placeholders/hints across the app ===== */
 (function(){
-  const VERSION="1.10.1";
-  window.APP_VERSION=VERSION;
-  function setVersionEverywhere(){
-    document.querySelectorAll('.secret').forEach(el=>el.textContent='גרסה '+VERSION);
-    document.title='מעקב עבודה - גרסה '+VERSION;
-  }
-  function addParticles(){
-    if(document.querySelector('.live-particles')) return;
-    const wrap=document.createElement('div');
-    wrap.className='live-particles';
-    for(let i=0;i<22;i++){
-      const p=document.createElement('span');
-      p.className='live-particle';
-      p.style.left=(Math.random()*100).toFixed(2)+'%';
-      p.style.setProperty('--dur',(7+Math.random()*8).toFixed(2)+'s');
-      p.style.setProperty('--delay',(-Math.random()*10).toFixed(2)+'s');
-      wrap.appendChild(p);
-    }
-    document.body.prepend(wrap);
-  }
-  function animateNewNodes(){
-    const nodes=document.querySelectorAll('.item,.stat,.dash-card,.type-card,.plan-card,.client-card,.payment-row,.kpi,.day');
-    nodes.forEach((el,i)=>{
-      if(el.dataset.anim190) return;
-      el.dataset.anim190='1';
-      el.style.animationDelay=Math.min(i*0.018,.22)+'s';
-    });
-  }
-  function boot(){setVersionEverywhere();addParticles();animateNewNodes();}
-  window.addEventListener('load',()=>setTimeout(boot,60));
-  document.addEventListener('click',()=>setTimeout(animateNewNodes,80));
-  document.addEventListener('input',()=>setTimeout(animateNewNodes,80));
-  setInterval(setVersionEverywhere,1000);
-  setInterval(animateNewNodes,1200);
-  setTimeout(boot,60);
-})();
-</script>
-
-
-
-<style id="placeholder-polish-v191">
-/* ===== VERSION 1.10.1: Clear placeholders and field hints ===== */
-.field-hint-v191{
-  margin:-2px 6px 8px;
-  color:#64748b;
-  font-size:12px;
-  font-weight:800;
-  line-height:1.35;
-  text-align:right;
-  opacity:.92;
-}
-select.empty-select-v191,
-input[type="date"].empty-date-v191,
-input[type="month"].empty-date-v191{
-  color:#64748b;
-}
-select:focus.empty-select-v191,
-input[type="date"]:focus,
-input[type="month"]:focus{
-  color:#0f172a;
-}
-select option{color:#0f172a}
-</style>
-<script>
-/* ===== VERSION 1.10.1: Add missing placeholders/hints across the app ===== */
-(function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
 
   const FIELD_HINTS={
@@ -6882,108 +6331,18 @@ select option{color:#0f172a}
   window.addEventListener('load',()=>setTimeout(applyPlaceholdersV191,120));
   document.addEventListener('click',()=>setTimeout(applyPlaceholdersV191,120));
   document.addEventListener('change',()=>setTimeout(applyPlaceholdersV191,120));
-  setInterval(applyPlaceholdersV191,1200);
+  setTimeout(applyPlaceholdersV191,1200);
 })();
 </script>
 
 
 
-<style id="v192-visible-buttons-live-ui-fix">
-/* ===== VERSION 1.10.1: visible buttons fix + richer live UI ===== */
-@keyframes v192Breath{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-2px) scale(1.012)}}
-@keyframes v192SoftGlow{0%,100%{filter:drop-shadow(0 10px 18px rgba(37,99,235,.12))}50%{filter:drop-shadow(0 16px 26px rgba(37,99,235,.24))}}
-@keyframes v192WorkerPulse{0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,.0)}50%{box-shadow:0 0 0 5px rgba(37,99,235,.075)}}
-@keyframes v192Ripple{to{transform:scale(18);opacity:0}}
-@keyframes v192SlideInRight{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
 
-/* FIX: כפתורים שקיימים אבל נראים שקופים אחרי אנימציות */
-button,
-button.btn-light,
-.actions button,
-.card button,
-.login-box button,
-.type-card,
-.plan-card button{
-  opacity:1!important;
-  visibility:visible!important;
-  transform:none;
-  animation-fill-mode:both!important;
-  pointer-events:auto;
-}
-button:not(.btn-light):not(.btn-yellow){color:#fff!important;-webkit-text-fill-color:#fff!important;}
-button.btn-light{color:#111827!important;-webkit-text-fill-color:#111827!important;background:#f8fafc!important;}
-button.btn-yellow{color:#111827!important;-webkit-text-fill-color:#111827!important;}
-button:disabled{opacity:.58!important;visibility:visible!important;}
-
-/* FIX: מצב סופי ברור לכל רכיבי האנימציה */
-.card,.top,.item,.stat,.dash-card,.type-card,.plan-card,.client-card,.payment-row,.kpi,.day,.notice,.paywall,.recent-box,.recent-ok{
-  animation-fill-mode:both!important;
-}
-.item,.stat,.dash-card,.type-card,.plan-card,.client-card,.payment-row,.kpi,.day{opacity:1;}
-
-/* כסף/מספרים: אם background-clip לא נתמך שלא ייעלם */
-.stat .value,.dash-value,.money{
-  -webkit-text-fill-color:transparent;
-}
-@supports not (-webkit-background-clip:text){
-  .stat .value,.dash-value,.money{color:#16a34a!important;background:none!important;}
-}
-
-/* חיים עדינים בכפתורים בכל האפליקציה */
-button:not(:disabled){
-  transform:translateZ(0);
-}
-button:not(:disabled):hover{transform:translateY(-2px) scale(1.015)!important;}
-button:not(:disabled):active{transform:translateY(0) scale(.985)!important;}
-button.v192-ripple-host{position:relative;overflow:hidden;}
-.v192-ripple-dot{position:absolute;width:12px;height:12px;border-radius:999px;background:rgba(255,255,255,.48);transform:scale(0);animation:v192Ripple .58s ease-out;pointer-events:none;}
-.btn-light .v192-ripple-dot,.btn-yellow .v192-ripple-dot{background:rgba(37,99,235,.20);}
-
-/* מסך התחברות יותר חי, אבל לא מוגזם */
-.login-box{animation:v192SlideInRight .42s ease both, v192SoftGlow 4.8s ease-in-out infinite!important;}
-.login-box .big-title{animation:v192Breath 3.8s ease-in-out infinite;}
-.login-box button.btn-green{animation:v192WorkerPulse 2.8s ease-in-out infinite;}
-
-/* גם כשהעובד בפנים — הממשק מקבל חיים */
-#workerView .stat:nth-child(1){animation:popIn .34s ease both, v192WorkerPulse 4.4s ease-in-out infinite!important;}
-#workerView .stat:nth-child(2){animation:popIn .34s ease .05s both, v192WorkerPulse 4.8s ease-in-out infinite!important;}
-#workerView .stat:nth-child(3){animation:popIn .34s ease .10s both, v192WorkerPulse 5.2s ease-in-out infinite!important;}
-#workerView .stat:nth-child(4){animation:popIn .34s ease .15s both, v192WorkerPulse 5.6s ease-in-out infinite!important;}
-#workerView .card h2{position:relative;display:inline-block;}
-#workerView .card h2:after{
-  content:"";
-  position:absolute;
-  right:0;
-  bottom:-5px;
-  width:42%;
-  height:3px;
-  border-radius:999px;
-  background:linear-gradient(90deg,#2563eb,#22c55e,#9333ea);
-  opacity:.32;
-  animation:shimmerMove 4.2s linear infinite;
-}
-#workerView .type-card{animation:popIn .35s ease both, v192Breath 6.5s ease-in-out infinite!important;}
-#workerView .type-card.active{animation:v192WorkerPulse 2.3s ease-in-out infinite!important;}
-#workerView .day:not(.empty):not(.shabbat){animation:popIn .25s ease both;}
-#workerView .day.today{animation:popIn .25s ease both, glowPulse 2.9s ease-in-out infinite!important;}
-#workerView .item{animation:v192SlideInRight .28s ease both!important;}
-#workerView .progress{box-shadow:inset 0 0 0 1px rgba(37,99,235,.08),0 8px 20px rgba(15,23,42,.07);}
-#workerView .bar{animation:v192WorkerPulse 3.5s ease-in-out infinite;}
-
-/* אדמין נשאר נקי אבל עם תגובה נעימה */
-#adminView .item,#adminView .payment-row{animation:v192SlideInRight .26s ease both!important;}
-
-/* מובייל: לשמור ביצועים */
-@media(max-width:800px){
-  .live-particle:nth-child(n+11){display:none!important;}
-  #workerView .type-card{animation:popIn .25s ease both!important;}
-}
-</style>
 
 <script id="v192-visible-buttons-live-ui-js">
-/* ===== VERSION 1.10.1: final visible version + button ripple + safe animation cleanup ===== */
+/* ===== VERSION 1.10.3: final visible version + button ripple + safe animation cleanup ===== */
 (function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
 
   function forceVersionV192(){
@@ -7039,7 +6398,7 @@ button.v192-ripple-host{position:relative;overflow:hidden;}
   window.addEventListener('load',()=>setTimeout(applyV192,80));
   document.addEventListener('click',()=>setTimeout(applyV192,80));
   document.addEventListener('change',()=>setTimeout(applyV192,80));
-  setInterval(applyV192,1200);
+  setTimeout(applyV192,1200);
   setTimeout(applyV192,80);
 })();
 </script>
@@ -7047,12 +6406,12 @@ button.v192-ripple-host{position:relative;overflow:hidden;}
 
 
 <script>
-/* ===== VERSION 1.10.1: Full logout state reset =====
+/* ===== VERSION 1.10.3: Full logout state reset =====
    תיקון: יציאה חייבת למחוק כל מצב מקומי ישן, כולל marker של מנוי פג תוקף שנשאר מעובד אחר.
    לא נוגעים בלוגיקת Firebase/מנויים — רק מאפסים state מקומי בזמן יציאה ידנית.
 */
 (function(){
-  const VERSION="1.10.1";
+  const VERSION="1.10.3";
   window.APP_VERSION=VERSION;
 
   function forceVersionV193(){
@@ -7120,100 +6479,18 @@ button.v192-ripple-host{position:relative;overflow:hidden;}
 
   window.addEventListener("load",()=>setTimeout(forceVersionV193,100));
   setTimeout(forceVersionV193,100);
-  setInterval(forceVersionV193,1500);
+  setTimeout(forceVersionV193,1500);
 })();
 </script>
 
 
 
-<style id="v194-search-buttons-visibility-fix">
-/* ===== VERSION 1.10.1: Search/Summary buttons hard visibility fix =====
-   תיקון ממוקד: באזור חיפוש וסיכומים חלק מהכפתורים קיבלו מצב שקוף עד hover/touch.
-   כאן מגדירים מצב בסיס גלוי וברור, בלי לפגוע באנימציות.
-*/
-#searchPanel button,
-#searchPanel .actions button,
-#searchPanel .grid2 button,
-#searchPanel .grid3 button,
-#summaryResults button,
-#searchResults button,
-#clientHistoryPanel button,
-#workerToolsPanel button,
-#workerSettingsPanel button{
-  opacity:1!important;
-  visibility:visible!important;
-  display:inline-flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  min-height:46px!important;
-  color:#fff!important;
-  -webkit-text-fill-color:#fff!important;
-  background:linear-gradient(135deg,#2563eb,#1d4ed8)!important;
-  border:0!important;
-  box-shadow:0 12px 24px rgba(37,99,235,.22)!important;
-  transform:translateZ(0)!important;
-  filter:none!important;
-  mix-blend-mode:normal!important;
-  z-index:2!important;
-  position:relative!important;
-}
-#searchPanel button.btn-light,
-#summaryResults button.btn-light,
-#searchResults button.btn-light,
-#clientHistoryPanel button.btn-light,
-#workerToolsPanel button.btn-light,
-#workerSettingsPanel button.btn-light{
-  color:#111827!important;
-  -webkit-text-fill-color:#111827!important;
-  background:#f8fafc!important;
-  border:1px solid #e2e8f0!important;
-  box-shadow:0 8px 18px rgba(15,23,42,.07)!important;
-}
-#searchPanel button.btn-yellow,
-#summaryResults button.btn-yellow,
-#searchResults button.btn-yellow{
-  color:#111827!important;
-  -webkit-text-fill-color:#111827!important;
-  background:linear-gradient(135deg,#f59e0b,#fbbf24)!important;
-}
-#searchPanel button.btn-green,
-#summaryResults button.btn-green,
-#searchResults button.btn-green,
-#clientHistoryPanel button.btn-green,
-#workerToolsPanel button.btn-green,
-#workerSettingsPanel button.btn-green{
-  color:#fff!important;
-  -webkit-text-fill-color:#fff!important;
-  background:linear-gradient(135deg,#16a34a,#22c55e)!important;
-}
-#searchPanel button:hover,
-#summaryResults button:hover,
-#searchResults button:hover,
-#clientHistoryPanel button:hover,
-#workerToolsPanel button:hover,
-#workerSettingsPanel button:hover{
-  opacity:1!important;
-  visibility:visible!important;
-  filter:brightness(1.04)!important;
-  transform:translateY(-2px) scale(1.012)!important;
-}
-#searchPanel .actions,
-#searchPanel .grid2,
-#searchPanel .grid3{
-  overflow:visible!important;
-}
-/* מונע מ-placeholder/hint או שכבת אנימציה לשבת מעל הכפתור */
-#searchPanel .field-hint,
-#searchPanel .placeholder-hint,
-#searchPanel .v191-hint{
-  pointer-events:none!important;
-}
-</style>
+
 
 <script id="v194-search-buttons-visibility-js">
-/* ===== VERSION 1.10.1: runtime search button visibility guard ===== */
+/* ===== VERSION 1.10.3: runtime search button visibility guard ===== */
 (function(){
-  const VERSION='1.10.1';
+  const VERSION='1.10.3';
   window.APP_VERSION=VERSION;
 
   function forceVersionV194(){
@@ -7254,136 +6531,19 @@ button.v192-ripple-host{position:relative;overflow:hidden;}
   document.addEventListener('touchstart',()=>setTimeout(applyV194,80),true);
   document.addEventListener('input',()=>setTimeout(applyV194,80),true);
   document.addEventListener('change',()=>setTimeout(applyV194,80),true);
-  setInterval(applyV194,900);
+  setTimeout(applyV194,900);
   setTimeout(applyV194,80);
 })();
 </script>
 
 
 
-<style id="v195-stable-button-css-rebuild">
-/* ===== VERSION 1.10.1: Stable button CSS rebuild =====
-   מטרה: כפתורים תמיד גלויים גם בגלילה, בלי opacity animations שיכולות להשאיר אותם שקופים.
-   האנימציות נשארות עדינות — תנועה/צל בלבד, לא שקיפות.
-*/
-@keyframes fadeUp{from{transform:translateY(10px) scale(.995)}to{transform:translateY(0) scale(1)}}
-@keyframes popIn{0%{transform:translateY(7px) scale(.985)}70%{transform:translateY(-1px) scale(1.01)}100%{transform:translateY(0) scale(1)}}
-@keyframes v195ButtonGlow{0%,100%{box-shadow:0 10px 20px rgba(37,99,235,.20)}50%{box-shadow:0 15px 30px rgba(37,99,235,.30)}}
-@keyframes v195GentleFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
-@keyframes v195SoftLine{0%{background-position:-180% 0}100%{background-position:180% 0}}
 
-/* בסיס חדש לכפתורים — בלי שקיפות, בלי מצב ביניים, בלי תלות ב-hover */
-button,
-button[class],
-.actions button,
-.card button,
-#workerView button,
-#adminView button,
-.login-box button,
-.plan-card button{
-  opacity:1!important;
-  visibility:visible!important;
-  display:inline-flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  gap:7px!important;
-  min-height:48px!important;
-  min-width:44px!important;
-  border-radius:999px!important;
-  padding:13px 18px!important;
-  border:1px solid rgba(255,255,255,.22)!important;
-  background:linear-gradient(135deg,#2563eb,#1d4ed8)!important;
-  color:#fff!important;
-  -webkit-text-fill-color:#fff!important;
-  text-shadow:none!important;
-  text-decoration:none!important;
-  filter:none!important;
-  mix-blend-mode:normal!important;
-  transform:translate3d(0,0,0) scale(1)!important;
-  animation:none!important;
-  transition:transform .18s ease, box-shadow .18s ease, filter .18s ease, background .18s ease!important;
-  box-shadow:0 10px 22px rgba(37,99,235,.22)!important;
-  position:relative!important;
-  z-index:5!important;
-  pointer-events:auto!important;
-  overflow:hidden!important;
-  backface-visibility:hidden!important;
-  contain:layout paint!important;
-}
-
-button *{opacity:1!important;visibility:visible!important;-webkit-text-fill-color:inherit!important;color:inherit!important;pointer-events:none;}
-button:before{content:""!important;position:absolute!important;inset:0!important;left:-130%!important;background:linear-gradient(110deg,transparent,rgba(255,255,255,.32),transparent)!important;transition:left .5s ease!important;pointer-events:none!important;opacity:1!important;}
-button:hover:before,button:focus-visible:before{left:130%!important;}
-button:hover,button:focus-visible{opacity:1!important;visibility:visible!important;transform:translate3d(0,-2px,0) scale(1.018)!important;filter:brightness(1.035)!important;box-shadow:0 15px 30px rgba(37,99,235,.28)!important;outline:none!important;}
-button:active{opacity:1!important;visibility:visible!important;transform:translate3d(0,0,0) scale(.985)!important;}
-button:disabled{opacity:.58!important;visibility:visible!important;filter:grayscale(.15)!important;cursor:not-allowed!important;transform:none!important;}
-
-button.btn-green,.btn-green{background:linear-gradient(135deg,#16a34a,#22c55e)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;box-shadow:0 10px 22px rgba(22,163,74,.22)!important;}
-button.btn-red,.btn-red{background:linear-gradient(135deg,#dc2626,#ef4444)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;box-shadow:0 10px 22px rgba(220,38,38,.20)!important;}
-button.btn-yellow,.btn-yellow{background:linear-gradient(135deg,#f59e0b,#fbbf24)!important;color:#111827!important;-webkit-text-fill-color:#111827!important;box-shadow:0 10px 22px rgba(245,158,11,.20)!important;}
-button.btn-light,.btn-light{background:rgba(255,255,255,.96)!important;color:#111827!important;-webkit-text-fill-color:#111827!important;border:1px solid #dbe3ef!important;box-shadow:0 8px 18px rgba(15,23,42,.075)!important;}
-button.btn-green:hover{box-shadow:0 15px 30px rgba(22,163,74,.30)!important;}
-button.btn-red:hover{box-shadow:0 15px 30px rgba(220,38,38,.28)!important;}
-button.btn-yellow:hover{box-shadow:0 15px 30px rgba(245,158,11,.28)!important;}
-button.btn-light:hover{box-shadow:0 12px 24px rgba(15,23,42,.13)!important;}
-
-/* אזורי כפתורים — לא לתת לגריד/אנימציה להסתיר או לחתוך */
-.actions,.cal-head,.grid2,.grid3,.grid4,#searchPanel,#workerView,#adminView,#dayPanel,#entryForm{
-  overflow:visible!important;
-}
-.actions{align-items:center!important;}
-.actions button{flex:0 1 auto!important;}
-
-/* במובייל הכפתורים נשארים 100% אבל גלויים תמיד */
-@media(max-width:800px){
-  button,button[class],.actions button,.card button,#workerView button,#adminView button{width:100%!important;min-height:50px!important;border-radius:22px!important;}
-  .actions button{flex:1 1 100%!important;}
-}
-
-/* חיים עדינים בממשק — בלי opacity */
-.card,.item,.stat,.dash-card,.type-card,.plan-card,.client-card,.payment-row,.kpi,.day,.notice,.paywall{
-  opacity:1!important;
-  visibility:visible!important;
-  animation-fill-mode:both!important;
-}
-#workerView .card,#adminView .card{animation:fadeUp .28s ease both!important;}
-#workerView .item,#adminView .item,#searchResults .item,#summaryResults .item{animation:popIn .22s ease both!important;}
-#workerView .stat{animation:popIn .24s ease both!important;}
-#workerView .type-card{animation:v195GentleFloat 5.8s ease-in-out infinite!important;}
-#workerView .type-card.active{box-shadow:0 0 0 4px rgba(37,99,235,.12),0 14px 28px rgba(37,99,235,.18)!important;}
-#workerView .day.today{animation:v195ButtonGlow 3.2s ease-in-out infinite!important;}
-
-/* שורת כותרות חיה ועדינה */
-#workerView .card h2:after,#adminView .card h2:after{
-  content:"";
-  display:block;
-  width:54px;
-  height:3px;
-  margin-top:6px;
-  border-radius:999px;
-  background:linear-gradient(90deg,#2563eb,#22c55e,#9333ea,#2563eb);
-  background-size:220% 100%;
-  animation:v195SoftLine 4s linear infinite;
-  opacity:.45!important;
-}
-
-/* שכבות דקורציה לא יישבו מעל כפתורים */
-.card:before,.logo:after,.field-hint,.placeholder-hint,.v191-hint,.live-particles,.live-particle{pointer-events:none!important;}
-
-/* תיקון טקסטים עם gradient כדי שלא ייעלמו בדפדפנים מסוימים */
-.stat .value,.dash-value,.money{
-  opacity:1!important;
-  visibility:visible!important;
-}
-@supports not (-webkit-background-clip:text){
-  .stat .value,.dash-value,.money{color:#16a34a!important;-webkit-text-fill-color:#16a34a!important;background:none!important;}
-}
-</style>
 
 <script id="v195-stable-button-guard">
-/* ===== VERSION 1.10.1: Runtime guard for visible buttons after scroll/render ===== */
+/* ===== VERSION 1.10.3: Runtime guard for visible buttons after scroll/render ===== */
 (function(){
-  const VERSION='1.10.1';
+  const VERSION='1.10.3';
   window.APP_VERSION=VERSION;
   function forceVersion(){
     try{document.title='מעקב עבודה - גרסה '+VERSION;}catch(e){}
@@ -7423,21 +6583,21 @@ button.btn-light:hover{box-shadow:0 12px 24px rgba(15,23,42,.13)!important;}
     const mo=new MutationObserver(()=>requestAnimationFrame(apply));
     mo.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
   }catch(e){}
-  setInterval(apply,700);
+  setTimeout(apply,700);
   setTimeout(apply,60);
 })();
 </script>
 
 
 <script>
-/* ===== VERSION 1.10.1: HARD FIX - remove admin return from worker screen =====
+/* ===== VERSION 1.10.3: HARD FIX - remove admin return from worker screen =====
    Worker users must never see or trigger a route back to admin from the worker interface. */
 (function(){
-  window.APP_VERSION = "1.10.1";
+  window.APP_VERSION = "1.10.3";
 
   function setVersionV196(){
-    try{ document.title = "מעקב עבודה - גרסה 1.10.1"; }catch(e){}
-    try{ document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.10.1"); }catch(e){}
+    try{ document.title = "מעקב עבודה - גרסה 1.10.4"; }catch(e){}
+    try{ document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.10.4"); }catch(e){}
   }
 
   window.removeBackAdminButtonV196 = function(){
@@ -7488,7 +6648,7 @@ button.btn-light:hover{box-shadow:0 12px 24px rgba(15,23,42,.13)!important;}
     const mo = new MutationObserver(()=>removeBackAdminButtonV196());
     mo.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:["class","style"]});
   }catch(e){}
-  setInterval(removeBackAdminButtonV196,600);
+  setTimeout(removeBackAdminButtonV196,600);
   setVersionV196();
   removeBackAdminButtonV196();
 })();
@@ -7496,9 +6656,9 @@ button.btn-light:hover{box-shadow:0 12px 24px rgba(15,23,42,.13)!important;}
 
 
 <script>
-/* ===== VERSION 1.10.1: final version marker + horizontal scroll guard ===== */
+/* ===== VERSION 1.10.3: final version marker + horizontal scroll guard ===== */
 (function(){
-  const VERSION = "1.10.1";
+  const VERSION = "1.10.3";
   window.APP_VERSION = VERSION;
   function lockHorizontalScrollV197(){
     document.documentElement.style.overflowX = "hidden";
@@ -7515,244 +6675,67 @@ button.btn-light:hover{box-shadow:0 12px 24px rgba(15,23,42,.13)!important;}
   window.addEventListener("scroll", function(){ if(window.scrollX !== 0) window.scrollTo(0, window.scrollY); }, {passive:true});
   document.addEventListener("touchmove", function(){ if(window.scrollX !== 0) window.scrollTo(0, window.scrollY); }, {passive:true});
   setTimeout(lockHorizontalScrollV197, 50);
-  setInterval(lockHorizontalScrollV197, 1200);
+  setTimeout(lockHorizontalScrollV197, 1200);
 })();
 </script>
 
 
-<style id="v198-button-design-performance-clean">
-/* ===== VERSION 1.10.1: button redesign + mobile performance cleanup =====
-   עיצוב בלבד: בלי שינוי לוגיקה, Firebase, שמירה, עובדים או מנויים. */
-:root{
-  --btn-main-a:#111827;
-  --btn-main-b:#334155;
-  --btn-accent:#14b8a6;
-  --btn-soft:#ffffff;
-  --btn-text:#ffffff;
-}
 
-/* ביטול אפקטים כבדים בכפתורים: shimmer/ripple/active-scale */
-button,
-button[class],
-.actions button,
-.card button,
-.login-box button,
-.plan-card button{
-  position:relative!important;
-  isolation:isolate!important;
-  overflow:hidden!important;
-  opacity:1!important;
-  visibility:visible!important;
-  pointer-events:auto!important;
-  transform:none!important;
-  animation:none!important;
-  will-change:auto!important;
-  transition:background .14s ease,border-color .14s ease,box-shadow .14s ease,filter .14s ease!important;
-  border-radius:999px!important;
-  min-height:48px!important;
-  padding:12px 18px!important;
-  letter-spacing:.01em!important;
-  background:linear-gradient(135deg,var(--btn-main-a),var(--btn-main-b))!important;
-  color:var(--btn-text)!important;
-  -webkit-text-fill-color:var(--btn-text)!important;
-  border:1px solid rgba(255,255,255,.18)!important;
-  box-shadow:0 8px 18px rgba(15,23,42,.16)!important;
-  -webkit-tap-highlight-color:transparent!important;
-  touch-action:manipulation!important;
-}
-button:before,
-button:after,
-button[class]:before,
-button[class]:after{
-  content:none!important;
-  display:none!important;
-  animation:none!important;
-  transition:none!important;
-}
-button:hover,
-button:focus,
-button:focus-visible,
-button:active{
-  transform:none!important;
-  animation:none!important;
-  filter:none!important;
-  outline:none!important;
-}
-button:focus-visible{
-  box-shadow:0 0 0 4px rgba(20,184,166,.18),0 8px 18px rgba(15,23,42,.16)!important;
-}
-button:disabled{
-  opacity:.55!important;
-  filter:grayscale(.18)!important;
-  cursor:not-allowed!important;
-  transform:none!important;
-}
-.v192-ripple-dot{display:none!important;animation:none!important;opacity:0!important;}
 
-/* סגנון צבעים חדש — פחות כחול, יותר נקי ומודרני */
-button.btn-green,.btn-green{
-  background:linear-gradient(135deg,#059669,#10b981)!important;
-  color:#fff!important;-webkit-text-fill-color:#fff!important;
-  box-shadow:0 8px 18px rgba(5,150,105,.18)!important;
-}
-button.btn-red,.btn-red{
-  background:linear-gradient(135deg,#b91c1c,#ef4444)!important;
-  color:#fff!important;-webkit-text-fill-color:#fff!important;
-  box-shadow:0 8px 18px rgba(185,28,28,.18)!important;
-}
-button.btn-yellow,.btn-yellow{
-  background:linear-gradient(135deg,#f59e0b,#fde68a)!important;
-  color:#111827!important;-webkit-text-fill-color:#111827!important;
-  box-shadow:0 8px 18px rgba(245,158,11,.16)!important;
-}
-button.btn-light,.btn-light{
-  background:rgba(255,255,255,.94)!important;
-  color:#111827!important;-webkit-text-fill-color:#111827!important;
-  border:1px solid rgba(148,163,184,.45)!important;
-  box-shadow:0 6px 14px rgba(15,23,42,.075)!important;
-}
-button.btn-green:focus-visible{box-shadow:0 0 0 4px rgba(16,185,129,.18),0 8px 18px rgba(5,150,105,.18)!important;}
-button.btn-red:focus-visible{box-shadow:0 0 0 4px rgba(239,68,68,.16),0 8px 18px rgba(185,28,28,.18)!important;}
-button.btn-yellow:focus-visible{box-shadow:0 0 0 4px rgba(245,158,11,.18),0 8px 18px rgba(245,158,11,.16)!important;}
-button.btn-light:focus-visible{box-shadow:0 0 0 4px rgba(15,23,42,.09),0 6px 14px rgba(15,23,42,.075)!important;}
 
-/* פריסת כפתורים מסודרת יותר */
-.actions{
-  display:grid!important;
-  grid-template-columns:repeat(auto-fit,minmax(148px,auto))!important;
-  justify-content:start!important;
-  align-items:center!important;
-  gap:10px!important;
-  overflow:visible!important;
-}
-.actions button{
-  width:auto!important;
-  min-width:138px!important;
-  max-width:100%!important;
-  flex:none!important;
-  white-space:normal!important;
-}
-.cal-head{
-  align-items:center!important;
-  gap:12px!important;
-  overflow:visible!important;
-}
-.cal-head .actions{justify-content:end!important;}
 
-/* כרטיסי בחירה של עובד — מראה נקי יותר בלי ריחוף אינסופי */
-.type-card{
-  animation:none!important;
-  transform:none!important;
-  border-radius:26px!important;
-  border:1px solid rgba(148,163,184,.42)!important;
-  background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(248,250,252,.96))!important;
-  box-shadow:0 8px 18px rgba(15,23,42,.08)!important;
-}
-.type-card.active{
-  background:linear-gradient(135deg,#ecfdf5,#f8fafc)!important;
-  border-color:#10b981!important;
-  box-shadow:0 0 0 4px rgba(16,185,129,.12),0 10px 22px rgba(15,23,42,.10)!important;
-}
 
-/* מובייל: בלי תזוזות, בלי גלילה אופקית, וכפתורים בפריסה נוחה */
-@media(max-width:800px){
-  html,body,.app,#workerView,#adminView,.card{max-width:100%!important;overflow-x:hidden!important;}
-  button,button[class],.card button,#workerView button,#adminView button{
-    width:100%!important;
-    min-width:0!important;
-    max-width:100%!important;
-    min-height:48px!important;
-    border-radius:999px!important;
-    padding:12px 14px!important;
-    font-size:15px!important;
-  }
-  .actions{
-    width:100%!important;
-    grid-template-columns:repeat(2,minmax(0,1fr))!important;
-    justify-content:stretch!important;
-    gap:9px!important;
-  }
-  .actions button{width:100%!important;min-width:0!important;}
-  .actions button:only-child{grid-column:1/-1!important;}
-  .cal-head{display:grid!important;grid-template-columns:1fr!important;text-align:center!important;}
-  .cal-head > button{width:100%!important;}
-  .cal-head .actions{grid-template-columns:repeat(2,minmax(0,1fr))!important;justify-content:stretch!important;}
-  #entryForm .grid2:has(.type-card){grid-template-columns:repeat(2,minmax(0,1fr))!important;}
-  #entryForm .type-card{padding:18px 10px!important;min-height:94px!important;display:flex!important;flex-direction:column!important;justify-content:center!important;}
-  .item .actions{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
-}
 
-@media(max-width:420px){
-  .actions{grid-template-columns:1fr!important;}
-  .item .actions{grid-template-columns:1fr!important;}
-  #entryForm .grid2:has(.type-card){grid-template-columns:1fr!important;}
-}
-
-@media (prefers-reduced-motion: reduce){
-  button,button[class],.type-card{animation:none!important;transition:none!important;transform:none!important;}
-}
-</style>
-
-<script id="v198-version-and-performance-guard">
-/* ===== VERSION 1.10.1: final version marker + remove click ripple nodes ===== */
+<script id="v1103-single-version-and-scroll-guard">
+/* ===== VERSION 1.10.3: single lightweight runtime guard ===== */
 (function(){
-  const VERSION='1.10.1';
+  const VERSION='1.10.3';
   window.APP_VERSION=VERSION;
-  function applyV198(){
+  function apply(){
     try{document.title='מעקב עבודה - גרסה '+VERSION;}catch(e){}
-    try{document.querySelectorAll('.secret').forEach(el=>el.textContent='גרסה '+VERSION);}catch(e){}
-    try{document.querySelectorAll('[data-app-version],#appVersion,#versionLabel').forEach(el=>el.textContent=VERSION);}catch(e){}
-    try{document.querySelectorAll('.v192-ripple-dot').forEach(el=>el.remove());}catch(e){}
-    try{
-      document.querySelectorAll('button').forEach(btn=>{
-        btn.style.animation='none';
-        btn.style.animationName='none';
-        btn.style.transform='none';
-        btn.style.willChange='auto';
-      });
-    }catch(e){}
+    try{document.querySelectorAll('.secret,#secretTap,[data-app-version],#appVersion,#versionLabel').forEach(function(el){
+      if(el.classList && el.classList.contains('secret')) el.textContent='גרסה '+VERSION;
+      else if(el.id==='secretTap') el.textContent='גרסה '+VERSION;
+      else el.textContent=VERSION;
+    });}catch(e){}
+    try{var b=document.getElementById('backAdminBtn'); if(b) b.remove();}catch(e){}
+    try{document.querySelectorAll('.live-particles,.v192-ripple-dot').forEach(function(el){el.remove();});}catch(e){}
+    try{document.documentElement.style.overflowX='hidden';document.body.style.overflowX='hidden';document.body.style.touchAction='pan-y';}catch(e){}
+    try{if(window.scrollX!==0) window.scrollTo(0,window.scrollY);}catch(e){}
   }
-  window.applyV198DesignFix=applyV198;
-  window.addEventListener('load',()=>setTimeout(applyV198,70));
-  ['click','touchstart','touchend','scroll','resize','orientationchange'].forEach(ev=>{
-    document.addEventListener(ev,()=>requestAnimationFrame(applyV198),true);
-  });
-  setTimeout(applyV198,70);
-  setInterval(applyV198,1500);
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',apply,{once:true}); else apply();
+  window.addEventListener('load',function(){setTimeout(apply,80);},{once:true});
+  window.addEventListener('orientationchange',function(){setTimeout(apply,250);});
 })();
 </script>
 
 
-<script id="v199-final-version-hard-lock">
-/* ===== VERSION 1.10.1: final visible version hard lock ===== */
+
+<script>
+/* ===== VERSION 1.10.4: final UI version sync + worker admin-button hard block ===== */
 (function(){
-  const VERSION = '1.10.1';
+  var VERSION = "1.10.4";
   window.APP_VERSION = VERSION;
-  function applyVersionV199(){
-    try{ document.title = 'מעקב עבודה - גרסה ' + VERSION; }catch(e){}
+  function syncVersionAndSecurityUI(){
+    try{ document.title = "מעקב עבודה - גרסה " + VERSION; }catch(e){}
+    try{ document.querySelectorAll(".secret").forEach(function(el){ el.textContent = "גרסה " + VERSION; }); }catch(e){}
     try{
-      document.querySelectorAll('.secret,#secretTap,[data-app-version],#appVersion,#versionLabel').forEach(function(el){
-        if(el.classList && el.classList.contains('secret')) el.textContent = 'גרסה ' + VERSION;
-        else if(el.id === 'secretTap') el.textContent = 'גרסה ' + VERSION;
-        else el.textContent = VERSION;
+      var bad = document.getElementById("backAdminBtn");
+      if(bad) bad.remove();
+      document.querySelectorAll("button").forEach(function(btn){
+        var txt = (btn.textContent || "").trim();
+        var onclick = btn.getAttribute("onclick") || "";
+        if(txt === "חזרה למנהל" || (onclick.indexOf("showAdmin()") !== -1 && txt.indexOf("חזרה") !== -1)){
+          btn.remove();
+        }
       });
     }catch(e){}
   }
-  window.applyVersionV199 = applyVersionV199;
-  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyVersionV199);
-  else applyVersionV199();
-  window.addEventListener('load', function(){
-    applyVersionV199();
-    setTimeout(applyVersionV199, 100);
-    setTimeout(applyVersionV199, 600);
-    setTimeout(applyVersionV199, 1600);
-  });
-  ['click','touchstart','touchend','scroll','resize','orientationchange'].forEach(function(ev){
-    document.addEventListener(ev, function(){ requestAnimationFrame(applyVersionV199); }, true);
-  });
-  setInterval(applyVersionV199, 250);
+  window.addEventListener("load", function(){ syncVersionAndSecurityUI(); setTimeout(syncVersionAndSecurityUI, 250); setTimeout(syncVersionAndSecurityUI, 1200); });
+  document.addEventListener("click", function(){ setTimeout(syncVersionAndSecurityUI, 50); });
+  syncVersionAndSecurityUI();
 })();
 </script>
 
 </body>
-  </html>
+</html>
