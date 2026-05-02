@@ -426,7 +426,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 <button class="btn-green" onclick="workerLogin()">כניסה</button>
 <button class="btn-light" onclick="showRegister()">הרשמה לעובד חדש</button>
 <p id="workerLoginMsg" class="danger"></p>
-<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.8.1</div>
+<div id="secretTap" class="secret" onclick="secretTap()">גרסה 1.8.3</div>
 </section>
 
 <section id="registerView" class="card login-box hidden">
@@ -2268,7 +2268,7 @@ async function createWorker(){
       authEmail:authResult.email||authEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.8.1" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.8.3" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2315,7 +2315,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.8.1",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.8.3",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2365,7 +2365,7 @@ async function loadWorkers(){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.8.1";
+    if(secret) secret.textContent="גרסה 1.8.3";
   }catch(e){}
 })();
 </script>
@@ -2581,7 +2581,7 @@ async function createAuthForWorker(workerId){
       authUid:authResult.uid,
       authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.8.1",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.8.3",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -2621,7 +2621,7 @@ async function createAuthForWorker(workerId){
 (function(){
   try{
     const secret=document.getElementById("secretTap");
-    if(secret) secret.textContent="גרסה 1.8.1";
+    if(secret) secret.textContent="גרסה 1.8.3";
   }catch(e){}
 })();
 </script>
@@ -2641,7 +2641,7 @@ function effectiveAuthEmailV168(username, optionalEmail){
   return e && isValidEmailV168(e) ? e : authEmailFromUsername(username);
 }
 function updateVersionV168(){
-  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.8.1"; }catch(e){}
+  try{ const secret=document.getElementById("secretTap"); if(secret) secret.textContent="גרסה 1.8.3"; }catch(e){}
 }
 
 // שם המשתמש נשאר שדה ההתחברות הראשי. מאחורי הקלעים Firebase Auth נכנס עם authEmail ששמור לעובד.
@@ -2731,7 +2731,7 @@ async function createWorker(){
       recoveryEmail,
       authUid:authResult.uid||"",
       authReady:!!authResult.ok,
-      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.8.1" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      authNote:authResult.ok ? "Firebase Auth נוצר/חובר בגרסה 1.8.3" : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
       passwordHash:await sha256(pass),
       monthlyGoal:goal,
       active:true,
@@ -2813,7 +2813,7 @@ async function createAuthForWorker(workerId){
       authEmail:authResult.email||preferredAuthEmail,
       recoveryEmail:emailPrompt,
       authReady:true,
-      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.8.1",
+      authNote:"Firebase Auth חובר ידנית מאדמין בגרסה 1.8.3",
       passwordHash:await sha256(pass),
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true});
@@ -3654,13 +3654,13 @@ async function adminLogin(){
 
 
 <script>
-/* ===== VERSION 1.8.1: Password recovery options =====
+/* ===== VERSION 1.8.3: Password recovery options =====
    - מוסיף מייל שחזור/אימייל Auth אמיתי למנהל במסך אדמין.
    - אחרי 3 ניסיונות שגויים לעובד או למנהל מציג אפשרות שחזור סיסמה.
    - שחזור Firebase עובד רק אם ה-Auth Email הוא אימייל אמיתי, לא @work-monitor.local.
 */
 (function(){
-  const VERSION="1.8.1";
+  const VERSION="1.8.3";
   window.APP_VERSION=VERSION;
   function updateVersionV174(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -3948,7 +3948,7 @@ window.workerLogin = async function(){
 
 
 <script>
-/* ===== VERSION 1.8.1: Self registration creates Firebase Auth UID + worker automatically =====
+/* ===== VERSION 1.8.3: Self registration creates Firebase Auth UID + worker automatically =====
    תיקון מרכזי:
    1. הרשמה עצמית יוצרת קודם Firebase Auth עם UID אמיתי.
    2. מיד אחרי זה נשמרים users/{uid}, workers/{workerId}, usernameLookup/{usernameKey}.
@@ -3956,7 +3956,7 @@ window.workerLogin = async function(){
    4. כולל Security Rules מעודכנות שמאפשרות יצירת משתמש עצמי בלי להיות מחובר מראש כמנהל.
 */
 (function(){
-  const VERSION="1.8.1";
+  const VERSION="1.8.3";
   window.APP_VERSION=VERSION;
   window.APP_VERSION_176=VERSION;
   function updateVersionV176(){
@@ -3965,7 +3965,7 @@ window.workerLogin = async function(){
     const old=document.getElementById("versionBadgeV176");
     if(!old){
       const brand=document.querySelector(".brand .muted");
-      if(brand && !String(brand.textContent||"").includes("1.8.1")){
+      if(brand && !String(brand.textContent||"").includes("1.8.3")){
         // לא משנים את שורת המשתמש, רק שומרים גרסה בכותרת/סוד.
       }
     }
@@ -4058,7 +4058,7 @@ async function registerWorker(){
       recoveryEmail,
       authUid:uid,
       authReady:true,
-      authNote:"נוצר בהרשמה עצמית אוטומטית בגרסה 1.8.1",
+      authNote:"נוצר בהרשמה עצמית אוטומטית בגרסה 1.8.3",
       passwordHash:await sha256(pass),
       monthlyGoal:0,
       active:true,
@@ -4089,7 +4089,7 @@ async function registerWorker(){
     }catch(e){
       if(typeof writeAppLogV167==="function") await writeAppLogV167("registerFirestoreWriteFailedV176",{username,usernameKey,workerId,uid,authEmail:baseWorker.authEmail,errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
       if(isPermissionErrorV176(e)){
-        registrationMsgV176("<p class='danger'>ה־UID נוצר ב־Firebase Auth, אבל Firestore חסם את שמירת העובד בגלל Security Rules ישנות. היכנס כמנהל, לחץ ‘העתק Security Rules’ בגרסה 1.8.1, פרסם אותן ב־Firebase ואז נסה שוב.</p>");
+        registrationMsgV176("<p class='danger'>ה־UID נוצר ב־Firebase Auth, אבל Firestore חסם את שמירת העובד בגלל Security Rules ישנות. היכנס כמנהל, לחץ ‘העתק Security Rules’ בגרסה 1.8.3, פרסם אותן ב־Firebase ואז נסה שוב.</p>");
       }else{
         registrationMsgV176(`<p class='danger'>נוצר Auth אבל שמירת העובד נכשלה: ${esc(e.code||e.message||String(e))}</p>`);
       }
@@ -4121,7 +4121,7 @@ window.workerLogin = async function(){
     await oldWorkerLoginV176();
     if(session && session.role==="worker") return;
   }
-  // fallback אחרון למשתמשים שנוצרו ב-1.8.1 אבל lookup לא הספיק להיכתב.
+  // fallback אחרון למשתמשים שנוצרו ב-1.8.3 אבל lookup לא הספיק להיכתב.
   try{
     const usernameKey=normalize(username);
     const authEmail=authEmailFromUsername(username);
@@ -4250,9 +4250,9 @@ window.copySecurityRulesV169 = async function(){
   try{
     await navigator.clipboard.writeText(FIRESTORE_RULES_V176);
     const msg=document.getElementById("securityToolsMsgV169") || document.getElementById("adminAuthBootstrapMsgV170");
-    if(msg) msg.innerHTML="<div class='notice'>Security Rules של גרסה 1.8.1 הועתקו ✅</div>";
+    if(msg) msg.innerHTML="<div class='notice'>Security Rules של גרסה 1.8.3 הועתקו ✅</div>";
   }catch(e){
-    prompt("העתק את ה־Security Rules של גרסה 1.8.1:", FIRESTORE_RULES_V176);
+    prompt("העתק את ה־Security Rules של גרסה 1.8.3:", FIRESTORE_RULES_V176);
   }
 };
 
@@ -4264,7 +4264,7 @@ function addSelfRegistrationToolsV176(){
   div.id="selfRegistrationToolsV176";
   div.className="card panel";
   div.innerHTML=`
-    <div class="cal-head"><h2>🆕 הרשמה עצמית 1.8.1</h2><button class="btn-light" onclick="copySecurityRulesV169()">העתק Rules 1.8.1</button></div>
+    <div class="cal-head"><h2>🆕 הרשמה עצמית 1.8.3</h2><button class="btn-light" onclick="copySecurityRulesV169()">העתק Rules 1.8.3</button></div>
     <p>הגרסה הזו יוצרת UID אוטומטי בהרשמה מהמסך הראשי, מחברת אותו לעובד, ופותחת תקופת ניסיון לפי ההגדרה באדמין.</p>
     <div class="notice">אחרי העלאה לגיטהאב: בדוק הרשמה חדשה מחלון גלישה בסתר כדי לוודא שאין Session ישן.</div>`;
   const first=admin.querySelector(".card");
@@ -4276,7 +4276,7 @@ function addSelfRegistrationToolsV176(){
     window.showAdmin=async function(){
       await oldShowAdmin.apply(this,arguments);
       addSelfRegistrationToolsV176();
-      document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.8.1");
+      document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה 1.8.3");
     };
   }
 })();
@@ -4285,11 +4285,11 @@ function addSelfRegistrationToolsV176(){
 
 
 <script>
-/* ===== VERSION 1.8.1: Subscription gate BEFORE rendering worker dashboard =====
+/* ===== VERSION 1.8.3: Subscription gate BEFORE rendering worker dashboard =====
    תיקון קריטי: לא מציגים workerView / נתונים / חודש לפני בדיקת מנוי עדכנית מהשרת.
 */
 (function(){
-  const VERSION="1.8.1";
+  const VERSION="1.8.3";
   window.APP_VERSION=VERSION;
   function updateVersionV177(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4425,7 +4425,7 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.8.1: Admin password/access recovery for workers =====
+/* ===== VERSION 1.8.3: Admin password/access recovery for workers =====
    שחזור גישה לעובד ששכח סיסמה:
    - לא מוחק workers ולא מוחק workEntries.
    - יוצר Firebase Auth חדש עם UID חדש, בדרך כלל אימייל פנימי חד־פעמי.
@@ -4434,7 +4434,7 @@ window.onload = async()=>{
    - מנטרל users/{oldUid} כדי שלא יישאר קישור ישן לאותו עובד.
 */
 (function(){
-  const VERSION="1.8.1";
+  const VERSION="1.8.3";
   window.APP_VERSION=VERSION;
   function updateVersionV178(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4572,7 +4572,7 @@ async function resetWorkerAccessV178(workerId){
       authEmail:authResult.email,
       recoveryEmail: optionalEmail || (w.recoveryEmail || ""),
       authReady:true,
-      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.8.1",
+      authNote:"גישה שוחזרה ונוצר UID חדש בגרסה 1.8.3",
       passwordHash:await sha256(newPassword),
       active:true,
       accessRecoveredAt:firebase.firestore.FieldValue.serverTimestamp(),
@@ -4665,7 +4665,7 @@ function addRecoveryInfoPanelV178(){
   div.id="recoveryInfoPanelV178";
   div.className="card panel";
   div.innerHTML=`
-    <div class="cal-head"><h2>🔑 שחזור גישה לעובד 1.8.1</h2></div>
+    <div class="cal-head"><h2>🔑 שחזור גישה לעובד 1.8.3</h2></div>
     <p>אם עובד שכח סיסמה ואין לו מייל, לחץ ברשימת העובדים על <b>שחזור גישה</b>. זה יוצר UID חדש, שומר סיסמה חדשה, ומחבר אותו לאותו Worker בלי למחוק עבודות.</p>
     <div class="notice">לא מוחקים Worker בשביל איפוס סיסמה. מוחקים/מנטרלים רק קישור Auth ישן אם צריך.</div>`;
   const workersCard=[...admin.querySelectorAll(".card")].find(c=>String(c.textContent||"").includes("עובדים"));
@@ -4688,11 +4688,11 @@ function addRecoveryInfoPanelV178(){
 
 
 <script>
-/* ===== VERSION 1.8.1: No login flicker on refresh =====
+/* ===== VERSION 1.8.3: No login flicker on refresh =====
    מציג מסך טעינה ניטרלי בזמן בדיקת session/Auth, ולא את מסך הכניסה.
 */
 (function(){
-  const VERSION="1.8.1";
+  const VERSION="1.8.3";
   window.APP_VERSION=VERSION;
   function updateVersionV179(){
     document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
@@ -4760,12 +4760,12 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.8.1: Safe logout + worker null guard =====
+/* ===== VERSION 1.8.3: Safe logout + worker null guard =====
    תיקון: אם עובד עושה יציאה בזמן שעדיין רצות טעינות async ברקע,
    לא מאפשרים לטעינה הישנה להמשיך לצייר דשבורד או לקרוא monthlyGoal על viewedWorker ריק.
 */
 (function(){
-  const VERSION="1.8.1";
+  const VERSION="1.8.3";
   window.APP_VERSION=VERSION;
   window.__appNavTokenV180 = window.__appNavTokenV180 || 0;
   window.__isLoggingOutV180 = false;
@@ -4950,9 +4950,9 @@ window.onload = async()=>{
 
 
 <script>
-/* ===== VERSION 1.8.1: polished loader + keep expired subscription screen on refresh ===== */
+/* ===== VERSION 1.8.3: polished loader + keep expired subscription screen on refresh ===== */
 (function(){
-  const VERSION="1.8.1";
+  const VERSION="1.8.3";
   window.APP_VERSION=VERSION;
   window.APP_VERSION_181=VERSION;
   function updateVersionV181(){
@@ -5089,6 +5089,346 @@ window.onload = async()=>{
   }
   showWorkerLogin();
 };
+</script>
+
+
+
+<script>
+/* ===== VERSION 1.8.3: Loader timeout + reliable startup release =====
+   תיקון: שום בדיקת Firebase/Firestore לא יכולה להשאיר את המשתמש תקוע על מסך טעינה.
+   יש Timeout קצר לכל שלב, והרצה חד-פעמית גם ב-DOMContentLoaded וגם ב-load.
+*/
+(function(){
+  const VERSION="1.8.3";
+  window.APP_VERSION=VERSION;
+  window.__bootStartedV182=false;
+  window.__bootFinishedV182=false;
+  window.__bootTimerV182=null;
+
+  function updateVersionV182(){
+    try{
+      document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
+      document.title="מעקב עבודה - גרסה "+VERSION;
+    }catch(e){}
+  }
+
+  function showLoaderV182(){
+    try{
+      if(typeof hideAll === "function") hideAll();
+      if(typeof show === "function" && document.getElementById("startupView")) show("startupView");
+      if(typeof hide === "function" && document.getElementById("logoutBtn")) hide("logoutBtn");
+      const line=document.getElementById("userLine");
+      if(line) line.textContent="טוען נתונים";
+    }catch(e){}
+  }
+
+  function withTimeoutV182(promise, ms, label){
+    return new Promise(resolve=>{
+      let done=false;
+      const t=setTimeout(()=>{
+        if(done) return;
+        done=true;
+        console.warn("startup timeout:", label);
+        resolve({__timeout:true,label});
+      }, ms);
+      Promise.resolve(promise).then(v=>{
+        if(done) return;
+        done=true;
+        clearTimeout(t);
+        resolve(v);
+      }).catch(e=>{
+        if(done) return;
+        done=true;
+        clearTimeout(t);
+        console.warn("startup step failed:", label, e);
+        resolve({__error:true,label,error:e});
+      });
+    });
+  }
+
+  async function safeShowLoginV182(){
+    try{
+      window.__bootFinishedV182=true;
+      clearTimeout(window.__bootTimerV182);
+      if(typeof showWorkerLogin === "function") return showWorkerLogin();
+      if(typeof hideAll === "function") hideAll();
+      if(typeof show === "function") show("workerLoginView");
+      if(typeof hide === "function") hide("logoutBtn");
+      const line=document.getElementById("userLine");
+      if(line) line.textContent="לא מחובר";
+    }catch(e){
+      alert("שגיאה בטעינת מסך הכניסה: "+(e.message||String(e)));
+    }
+  }
+
+  async function restoreExpiredV182(marker){
+    if(!marker || !marker.workerId) return false;
+    const worker = await withTimeoutV182(fetchFreshWorkerV177(marker.workerId), 4500, "fetch expired worker");
+    if(!worker || worker.__timeout || worker.__error || !worker.id) return false;
+    if(worker.active === false || isSubscriptionExpired(worker)){
+      try{ if(typeof rememberExpiredWorkerV181 === "function") rememberExpiredWorkerV181(worker); }catch(e){}
+      try{ showExpiredView(worker); }catch(e){ return false; }
+      window.__bootFinishedV182=true;
+      clearTimeout(window.__bootTimerV182);
+      return true;
+    }
+    try{ if(typeof clearExpiredWorkerV181 === "function") clearExpiredWorkerV181(); }catch(e){}
+    return false;
+  }
+
+  async function bootV182(){
+    if(window.__bootStartedV182) return;
+    window.__bootStartedV182=true;
+    window.__bootFinishedV182=false;
+    updateVersionV182();
+    showLoaderV182();
+
+    window.__bootTimerV182=setTimeout(()=>{
+      if(window.__bootFinishedV182) return;
+      console.warn("hard boot fallback to login");
+      safeShowLoginV182();
+    }, 9500);
+
+    const token = (typeof nextNavTokenV180 === "function") ? nextNavTokenV180() : Date.now();
+    window.__isLoggingOutV180=false;
+
+    try{
+      // לא נותנים ל-Firestore initialization לתקוע את loader.
+      await withTimeoutV182((async()=>{
+        try{ if(typeof ensureDefaultPriceList === "function") await ensureDefaultPriceList(); }catch(e){ console.warn("ensureDefaultPriceList skipped", e); }
+        try{ if(typeof loadSettings === "function") await loadSettings(); }catch(e){ console.warn("loadSettings skipped", e); }
+        try{ if(typeof attachLoginFieldCleaner === "function") attachLoginFieldCleaner(); }catch(e){}
+      })(), 5000, "startup init");
+
+      if(typeof isStaleNavV180 === "function" && isStaleNavV180(token)) return;
+
+      const expiredMarker = (typeof getExpiredWorkerMarkerV181 === "function") ? getExpiredWorkerMarkerV181() : null;
+      if(expiredMarker){
+        const restored = await restoreExpiredV182(expiredMarker);
+        if(restored) return;
+      }
+
+      const saved = localStorage.getItem("workSession");
+      if(saved){
+        try{
+          session=JSON.parse(saved);
+
+          if(session && session.role==="admin"){
+            try{ clearLoginFields(); }catch(e){}
+            await withTimeoutV182(waitForAuthReadyV169().catch(()=>{}), 3500, "admin auth wait");
+            if(typeof isStaleNavV180 === "function" && isStaleNavV180(token)) return;
+            window.__bootFinishedV182=true;
+            clearTimeout(window.__bootTimerV182);
+            return showAdmin();
+          }
+
+          if(session && session.role==="worker"){
+            if(isSessionExpired()){
+              localStorage.removeItem("workSession");
+              session=null;
+              try{ clearLoginFields(); }catch(e){}
+              return safeShowLoginV182();
+            }
+            try{ clearLoginFields(); }catch(e){}
+            await withTimeoutV182(waitForAuthReadyV169().catch(()=>{}), 3500, "worker auth wait");
+            if(typeof isStaleNavV180 === "function" && isStaleNavV180(token)) return;
+            if(!session || !session.workerId) return safeShowLoginV182();
+            window.__bootFinishedV182=true;
+            clearTimeout(window.__bootTimerV182);
+            return showWorkerById(session.workerId);
+          }
+        }catch(e){
+          console.warn("saved session restore failed V182", e);
+          localStorage.removeItem("workSession");
+          session=null;
+        }
+      }
+
+      return safeShowLoginV182();
+    }catch(e){
+      console.error("boot V182 failed", e);
+      return safeShowLoginV182();
+    }
+  }
+
+  window.bootV182=bootV182;
+  window.addEventListener("DOMContentLoaded",()=>setTimeout(bootV182,0));
+  window.addEventListener("load",()=>setTimeout(bootV182,0));
+  setTimeout(()=>{ if(document.readyState !== "loading") bootV182(); }, 80);
+})();
+</script>
+
+
+
+<script>
+/* ===== VERSION 1.8.3: Stable boot controller + no recursive login/logout =====
+   תיקון עומק: מבטל recursion שנוצר מעטיפות showWorkerLogin/logout, ומנהל טעינה/כניסה/מסך מנוי ממקום אחד.
+*/
+(function(){
+  const VERSION="1.8.3";
+  window.APP_VERSION=VERSION;
+  window.__stableBootV183Started=false;
+  window.__stableBootV183Finished=false;
+  window.__stableBootV183Token=0;
+
+  function setVersionV183(){
+    try{
+      document.querySelectorAll(".secret").forEach(el=>el.textContent="גרסה "+VERSION);
+      document.title="מעקב עבודה - גרסה "+VERSION;
+    }catch(e){}
+  }
+
+  function setUserLineV183(txt){
+    try{ const line=document.getElementById("userLine"); if(line) line.textContent=txt; }catch(e){}
+  }
+
+  window.showStartupV179 = function(){
+    try{
+      if(typeof hideAll==="function") hideAll();
+      if(typeof show==="function" && document.getElementById("startupView")) show("startupView");
+      if(typeof hide==="function" && document.getElementById("logoutBtn")) hide("logoutBtn");
+      setUserLineV183("טוען נתונים");
+    }catch(e){}
+  };
+
+  // מימוש ישיר, בלי לקרוא לגרסה קודמת — מונע Maximum call stack size exceeded.
+  window.showWorkerLogin = function(){
+    try{ if(typeof clearExpiredWorkerV181==="function") clearExpiredWorkerV181(); }catch(e){}
+    try{ if(typeof clearLoginFields==="function") clearLoginFields(); }catch(e){}
+    try{
+      if(typeof hideAll==="function") hideAll();
+      if(typeof show==="function") show("workerLoginView");
+      if(typeof hide==="function" && document.getElementById("logoutBtn")) hide("logoutBtn");
+      setUserLineV183("לא מחובר");
+    }catch(e){
+      alert("שגיאה בטעינת מסך הכניסה: "+(e.message||String(e)));
+    }
+  };
+
+  // יציאה ישירה ובטוחה, בלי שרשרת wrappers קודמים.
+  window.logout = async function(){
+    window.__stableBootV183Token++;
+    window.__isLoggingOutV180=true;
+    try{ if(typeof clearExpiredWorkerV181==="function") clearExpiredWorkerV181(); }catch(e){}
+    try{ localStorage.removeItem("workSession"); }catch(e){}
+    session=null;
+    viewedWorker=null;
+    selectedDate=null;
+    selectedType=null;
+    monthEntries=[];
+    try{ if(typeof clearLoginFields==="function") clearLoginFields(); }catch(e){}
+    try{
+      if(typeof hideAll==="function") hideAll();
+      if(typeof show==="function") show("workerLoginView");
+      if(typeof hide==="function" && document.getElementById("logoutBtn")) hide("logoutBtn");
+      setUserLineV183("לא מחובר");
+    }catch(e){}
+    try{ if(typeof firebaseAuthReady==="function" && firebaseAuthReady()) await auth.signOut(); }catch(e){ console.warn("signOut failed/skipped",e); }
+    window.__isLoggingOutV180=false;
+  };
+
+  function timeoutV183(promise, ms, fallback){
+    return new Promise(resolve=>{
+      let done=false;
+      const t=setTimeout(()=>{ if(done)return; done=true; resolve(fallback); }, ms);
+      Promise.resolve(promise).then(v=>{ if(done)return; done=true; clearTimeout(t); resolve(v); }).catch(e=>{ if(done)return; done=true; clearTimeout(t); console.warn("boot step failed",e); resolve(fallback); });
+    });
+  }
+
+  async function restoreExpiredV183(marker){
+    if(!marker || !marker.workerId || typeof fetchFreshWorkerV177!=="function") return false;
+    const worker=await timeoutV183(fetchFreshWorkerV177(marker.workerId),4500,null);
+    if(!worker || !worker.id) return false;
+    if(worker.active===false || (typeof isSubscriptionExpired==="function" && isSubscriptionExpired(worker))){
+      try{ if(typeof rememberExpiredWorkerV181==="function") rememberExpiredWorkerV181(worker); }catch(e){}
+      try{ showExpiredView(worker); setUserLineV183("המנוי הסתיים"); return true; }catch(e){ console.warn("show expired failed",e); return false; }
+    }
+    try{ if(typeof clearExpiredWorkerV181==="function") clearExpiredWorkerV181(); }catch(e){}
+    return false;
+  }
+
+  async function stableBootV183(){
+    if(window.__stableBootV183Started) return;
+    window.__stableBootV183Started=true;
+    window.__stableBootV183Finished=false;
+    const myToken=++window.__stableBootV183Token;
+    setVersionV183();
+    window.showStartupV179();
+
+    const hardFallback=setTimeout(()=>{
+      if(window.__stableBootV183Finished || myToken!==window.__stableBootV183Token) return;
+      console.warn("stable boot hard fallback");
+      window.__stableBootV183Finished=true;
+      window.showWorkerLogin();
+    },10000);
+
+    try{
+      await timeoutV183((async()=>{
+        try{ if(typeof ensureDefaultPriceList==="function") await ensureDefaultPriceList(); }catch(e){ console.warn("ensureDefaultPriceList skipped",e); }
+        try{ if(typeof loadSettings==="function") await loadSettings(); }catch(e){ console.warn("loadSettings skipped",e); }
+        try{ if(typeof attachLoginFieldCleaner==="function") attachLoginFieldCleaner(); }catch(e){}
+      })(),5000,null);
+
+      if(myToken!==window.__stableBootV183Token) return;
+
+      const expiredMarker=(typeof getExpiredWorkerMarkerV181==="function") ? getExpiredWorkerMarkerV181() : null;
+      if(expiredMarker && await restoreExpiredV183(expiredMarker)){
+        window.__stableBootV183Finished=true; clearTimeout(hardFallback); return;
+      }
+
+      const saved=localStorage.getItem("workSession");
+      if(saved){
+        try{
+          session=JSON.parse(saved);
+          if(session && session.role==="admin"){
+            try{ if(typeof clearLoginFields==="function") clearLoginFields(); }catch(e){}
+            if(typeof waitForAuthReadyV169==="function") await timeoutV183(waitForAuthReadyV169(),3500,null);
+            if(myToken!==window.__stableBootV183Token) return;
+            window.__stableBootV183Finished=true; clearTimeout(hardFallback);
+            return showAdmin();
+          }
+          if(session && session.role==="worker"){
+            if(typeof isSessionExpired==="function" && isSessionExpired()){
+              localStorage.removeItem("workSession"); session=null;
+              window.__stableBootV183Finished=true; clearTimeout(hardFallback);
+              return window.showWorkerLogin();
+            }
+            try{ if(typeof clearLoginFields==="function") clearLoginFields(); }catch(e){}
+            if(typeof waitForAuthReadyV169==="function") await timeoutV183(waitForAuthReadyV169(),3500,null);
+            if(myToken!==window.__stableBootV183Token) return;
+            if(!session || !session.workerId){
+              window.__stableBootV183Finished=true; clearTimeout(hardFallback);
+              return window.showWorkerLogin();
+            }
+            window.__stableBootV183Finished=true; clearTimeout(hardFallback);
+            return showWorkerById(session.workerId);
+          }
+        }catch(e){
+          console.warn("saved session parse/restore failed V183",e);
+          try{ localStorage.removeItem("workSession"); }catch(_e){}
+          session=null;
+        }
+      }
+
+      window.__stableBootV183Finished=true; clearTimeout(hardFallback);
+      return window.showWorkerLogin();
+    }catch(e){
+      console.error("stableBootV183 failed",e);
+      window.__stableBootV183Finished=true; clearTimeout(hardFallback);
+      return window.showWorkerLogin();
+    }
+  }
+
+  window.stableBootV183=stableBootV183;
+
+  // מבטלים את הבוט הישן אם כבר התחיל לפני שהסקריפט הזה נטען.
+  try{ window.__bootFinishedV182=true; window.__bootStartedV182=true; if(window.__bootTimerV182) clearTimeout(window.__bootTimerV182); }catch(e){}
+
+  window.addEventListener("DOMContentLoaded",()=>setTimeout(stableBootV183,0));
+  window.addEventListener("load",()=>setTimeout(stableBootV183,0));
+  setTimeout(()=>{ if(document.readyState!=="loading") stableBootV183(); },60);
+  setTimeout(setVersionV183,120);
+})();
 </script>
 
 </body>
