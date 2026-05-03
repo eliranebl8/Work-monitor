@@ -933,7 +933,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.12";
+const APP_VERSION = "4.14";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1813,15 +1813,49 @@ async function exportEntriesCSV(){
   }).join(","))).join("<br>");
   downloadFile("work_entries.csv","\ufeff"+csv,"text/csv;charset=utf-8");
 }
+function setBackupStatusV413(html){
+  ["backupMsg","backupMsgTop","workerToolsMsg"].forEach(id=>{ const el=$(id); if(el) el.innerHTML=html; });
+}
+function normalizeBackupDocV413(doc){
+  if(!doc) return null;
+  if(doc.id && doc.data) return {id:doc.id,data:doc.data};
+  if(doc.id){ const copy={...doc}; delete copy.id; return {id:doc.id,data:copy}; }
+  return null;
+}
+function backupCollectionNamesV413(){
+  return [
+    "workers",
+    "users",
+    "usernameLookup",
+    "priceList",
+    "workEntries",
+    "settings",
+    "installTemplates",
+    "paymentRequests",
+    "appLogs"
+  ];
+}
 async function backupJSON(){
-  const collections=["workers","priceList","workEntries","settings","installTemplates","paymentRequests"];
-  const data={version:"1.7.0",exportedAt:new Date().toISOString(),collections:{}};
+  const collections=backupCollectionNamesV413();
+  const data={
+    version:"4.14",
+    appVersion:(window.APP_VERSION||APP_VERSION||"4.14"),
+    backupSchema:"work-monitor-full-v413",
+    exportedAt:new Date().toISOString(),
+    notes:"Full backup includes workers, work entries, settings, payment requests, templates, username lookup, users, logs and the unified priceList with fiber/RF priceType fields.",
+    collections:{}
+  };
   for(const c of collections){
-    const snap=await db.collection(c).get();
-    data.collections[c]=snap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+    try{
+      const snap=await db.collection(c).get();
+      data.collections[c]=snap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+    }catch(e){
+      data.collections[c]=[];
+      data.collections[c+"__backupError"]=[{id:"error",data:{message:e.message||String(e),code:e.code||""}}];
+    }
   }
-  downloadFile("work_tracker_backup.json",JSON.stringify(data,null,2),"application/json");
-  $("backupMsg").innerHTML="<div class='notice'>גיבוי ירד למכשיר ✅</div>";
+  downloadFile("work_tracker_backup_v4_13_full_rf_fiber.json",JSON.stringify(data,null,2),"application/json");
+  setBackupStatusV413("<div class='notice'>גיבוי מלא ירד למכשיר ✅<br>כולל מחירון סיב/RF, תבניות, עבודות, משתמשים והגדרות.</div>");
 }
 async function restoreJSON(event){
   const file=event.target.files[0];
@@ -1830,12 +1864,44 @@ async function restoreJSON(event){
   const text=await file.text();
   const data=JSON.parse(text);
   const cols=data.collections||{};
-  for(const c of Object.keys(cols)){
-    for(const doc of cols[c]){
+
+  // תאימות לאחור: אם בעתיד/בעבר היה גיבוי נפרד priceListFiber / priceListRF,
+  // ממזגים אותו לתוך priceList עם priceType מתאים, כי בגרסה הנוכחית הכול יושב באוסף priceList.
+  const normalizedCols={...cols};
+  const mergedPriceList=[];
+  function pushLegacyPriceList(list, kind){
+    (list||[]).forEach((raw,idx)=>{
+      const doc=normalizeBackupDocV413(raw);
+      if(!doc) return;
+      mergedPriceList.push({
+        id: doc.id || (kind+"_"+idx),
+        data:{...(doc.data||{}),priceType:kind,installKind:kind,category:kind,active:(doc.data||{}).active!==false}
+      });
+    });
+  }
+  pushLegacyPriceList(cols.priceListFiber,"fiber");
+  pushLegacyPriceList(cols.priceListRF,"rf");
+  pushLegacyPriceList(cols.fiberPriceList,"fiber");
+  pushLegacyPriceList(cols.rfPriceList,"rf");
+  if(mergedPriceList.length){
+    normalizedCols.priceList=[...(normalizedCols.priceList||[]),...mergedPriceList];
+  }
+
+  const restoreOrder=["settings","users","usernameLookup","workers","priceList","installTemplates","workEntries","paymentRequests","appLogs"];
+  const keys=[...restoreOrder,...Object.keys(normalizedCols).filter(k=>!restoreOrder.includes(k) && !k.includes("__backupError") && !["priceListFiber","priceListRF","fiberPriceList","rfPriceList"].includes(k))];
+  let restored=0;
+  for(const c of keys){
+    const arr=normalizedCols[c];
+    if(!Array.isArray(arr)) continue;
+    for(const raw of arr){
+      const doc=normalizeBackupDocV413(raw);
+      if(!doc || !doc.id || !doc.data) continue;
       await db.collection(c).doc(doc.id).set(doc.data,{merge:true});
+      restored++;
     }
   }
-  $("backupMsg").innerHTML="<div class='notice'>השחזור הסתיים ✅</div>";
+  setBackupStatusV413(`<div class='notice'>השחזור הסתיים ✅<br>שוחזרו ${restored} רשומות, כולל תמיכה במחירוני סיב/RF.</div>`);
+  event.target.value="";
   await showAdmin();
 }
 function serializeFirestore(obj){
@@ -2014,13 +2080,23 @@ async function exportMyEntriesCSV(){
 }
 async function backupMyJSON(){
   if(!viewedWorker)return;
-  const data={version:"1.7.0",type:"worker-backup",workerId:viewedWorker.id,exportedAt:new Date().toISOString(),collections:{workEntries:[],installTemplates:[]}};
+  const data={
+    version:"4.14",
+    appVersion:(window.APP_VERSION||APP_VERSION||"4.14"),
+    type:"worker-backup-v413",
+    workerId:viewedWorker.id,
+    workerName:viewedWorker.name||"",
+    exportedAt:new Date().toISOString(),
+    collections:{workEntries:[],installTemplates:[],priceList:[]}
+  };
   const entriesSnap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
   data.collections.workEntries=entriesSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
   const tplSnap=await db.collection("installTemplates").get();
   data.collections.installTemplates=tplSnap.docs.map(d=>({id:d.id,...d.data()})).filter(t=>t.ownerWorkerId===viewedWorker.id).map(t=>({id:t.id,data:serializeFirestore(t)}));
-  downloadFile(`my_backup_${viewedWorker.username||viewedWorker.name||"worker"}.json`,JSON.stringify(data,null,2),"application/json");
-  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>גיבוי אישי ירד למכשיר ✅</div>";
+  const priceSnap=await db.collection("priceList").get();
+  data.collections.priceList=priceSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+  downloadFile(`my_backup_v4_13_${viewedWorker.username||viewedWorker.name||"worker"}.json`,JSON.stringify(data,null,2),"application/json");
+  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>גיבוי אישי ירד למכשיר ✅<br>כולל עבודות, תבניות אישיות ומחירון סיב/RF.</div>";
 }
 async function restoreMyJSON(event){
   const file=event.target.files[0];
@@ -2028,17 +2104,26 @@ async function restoreMyJSON(event){
   if(!confirm("שחזור אישי יוסיף/יעדכן עבודות ותבניות לחשבון שלך בלבד. להמשיך?"))return;
   const text=await file.text();
   const data=JSON.parse(text);
-  const entries=(data.collections&&data.collections.workEntries)||[];
-  const templatesData=(data.collections&&data.collections.installTemplates)||[];
+  const cols=data.collections||{};
+  const entries=cols.workEntries||[];
+  const templatesData=cols.installTemplates||[];
+  const priceData=[...(cols.priceList||[]),...(cols.priceListFiber||[]).map((x,i)=>({id:(x.id||`fiber_${i}`),data:{...(x.data||x),priceType:"fiber",installKind:"fiber",category:"fiber"}})),...(cols.priceListRF||[]).map((x,i)=>({id:(x.id||`rf_${i}`),data:{...(x.data||x),priceType:"rf",installKind:"rf",category:"rf"}}))];
+  for(const doc of priceData){
+    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
+    await db.collection("priceList").doc(nd.id).set(nd.data,{merge:true});
+  }
   for(const doc of entries){
-    const payload={...(doc.data||{}),workerId:viewedWorker.id,workerName:viewedWorker.name,restoredAt:new Date().toISOString()};
-    await db.collection("workEntries").doc(doc.id).set(payload,{merge:true});
+    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
+    const payload={...(nd.data||{}),workerId:viewedWorker.id,workerName:viewedWorker.name,restoredAt:new Date().toISOString()};
+    await db.collection("workEntries").doc(nd.id).set(payload,{merge:true});
   }
   for(const doc of templatesData){
-    const payload={...(doc.data||{}),ownerWorkerId:viewedWorker.id,ownerWorkerName:viewedWorker.name,restoredAt:new Date().toISOString()};
-    await db.collection("installTemplates").doc(doc.id).set(payload,{merge:true});
+    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
+    const payload={...(nd.data||{}),ownerWorkerId:viewedWorker.id,ownerWorkerName:viewedWorker.name,restoredAt:new Date().toISOString()};
+    await db.collection("installTemplates").doc(nd.id).set(payload,{merge:true});
   }
-  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>השחזור האישי הסתיים ✅</div>";
+  event.target.value="";
+  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>השחזור האישי הסתיים ✅<br>כולל תמיכה במחירוני סיב/RF.</div>";
   await loadMonth();
 }
 async function saveEntryAsTemplate(id){
@@ -8890,7 +8975,7 @@ service cloud.firestore {
 <script id="v411-rf-fiber-and-buttons-js">
 /* ===== v4.11: תיקון כפתורי סידור + מחירון התקנה לפי סיב/RF ===== */
 (function(){
-  window.APP_VERSION='4.12';
+  window.APP_VERSION='4.14';
   try{ if(typeof APP_VERSION!=='undefined'){} }catch(e){}
   var installKindV411='fiber';
   var adminPriceKindV411='fiber';
@@ -9160,7 +9245,7 @@ service cloud.firestore {
 <script id="v412-search-and-template-kind-js">
 /* ===== v4.12: חיפוש ותבניות לפי סיב/RF ===== */
 (function(){
-  window.APP_VERSION='4.12';
+  window.APP_VERSION='4.14';
   try{ document.title='מעקב עבודה - גרסה 4.12'; }catch(e){}
 
   var searchInstallKindV412='fiber';
@@ -9420,5 +9505,94 @@ service cloud.firestore {
 })();
 </script>
 
+
+
+<script id="v414-planned-future-date-guard-js">
+/* ===== v4.14: סידור עתידי רק מהיום והלאה + גרסה קבועה ב-UI ===== */
+(function(){
+  try{
+    window.APP_VERSION = "4.14";
+    if(typeof setAppVersionUI === "function") setAppVersionUI();
+    window.addEventListener("DOMContentLoaded", function(){ if(typeof setAppVersionUI === "function") setAppVersionUI(); });
+    window.addEventListener("load", function(){ if(typeof setAppVersionUI === "function") setAppVersionUI(); });
+  }catch(e){}
+
+  function getSelectedDateV414(){
+    try{ if(typeof selectedDate !== "undefined") return selectedDate; }catch(e){}
+    return window.selectedDate || "";
+  }
+
+  function selectedDateIsTodayOrFutureV414(){
+    var ds = getSelectedDateV414();
+    if(!ds) return false;
+    if(typeof todayStr === "function") return String(ds) >= String(todayStr());
+    var d = new Date();
+    var yyyy = d.getFullYear();
+    var mm = String(d.getMonth()+1).padStart(2,"0");
+    var dd = String(d.getDate()).padStart(2,"0");
+    return String(ds) >= (yyyy+"-"+mm+"-"+dd);
+  }
+
+  function showPastPlannedErrorV414(){
+    var msg = document.getElementById("entryMsg");
+    var chosen = "";
+    try{ chosen = typeof heDate === "function" ? heDate(getSelectedDateV414()) : String(getSelectedDateV414()||""); }catch(e){ chosen = String(getSelectedDateV414()||""); }
+    var today = "";
+    try{ today = typeof heDate === "function" ? heDate(todayStr()) : todayStr(); }catch(e){ today = "היום"; }
+    var html = '<p class="danger">אי אפשר לשמור סידור עתידי על תאריך שעבר.<br>התאריך שבחרת: '+(typeof esc==="function"?esc(chosen):chosen)+'<br>אפשר לשמור כסידור עתידי רק מהיום ('+(typeof esc==="function"?esc(today):today)+') והלאה.</p>';
+    if(msg) msg.innerHTML = html; else alert('אי אפשר לשמור סידור עתידי על תאריך שעבר.');
+    return false;
+  }
+
+  window.canCreatePlannedEntryV414 = function(){
+    return selectedDateIsTodayOrFutureV414() || showPastPlannedErrorV414();
+  };
+
+  function wrapPlannedSaveV414(){
+    if(window.__plannedFutureGuardV414Applied) return;
+    var oldServicePlanned = window.addServicePlannedV49;
+    var oldInstallPlanned = window.addInstallPlannedV49;
+
+    if(typeof oldServicePlanned === "function"){
+      window.addServicePlannedV49 = function(){
+        if(!window.canCreatePlannedEntryV414()) return;
+        return oldServicePlanned.apply(this, arguments);
+      };
+    }
+
+    if(typeof oldInstallPlanned === "function"){
+      window.addInstallPlannedV49 = function(){
+        if(!window.canCreatePlannedEntryV414()) return;
+        return oldInstallPlanned.apply(this, arguments);
+      };
+    }
+
+    window.__plannedFutureGuardV414Applied = true;
+  }
+
+  wrapPlannedSaveV414();
+  window.addEventListener("load", function(){
+    setTimeout(function(){
+      window.__plannedFutureGuardV414Applied = false;
+      wrapPlannedSaveV414();
+      try{ if(typeof wrapSaveButtonsV411 === "function") wrapSaveButtonsV411(); }catch(e){}
+    }, 350);
+  });
+
+  // אם גרסאות קודמות יוצרות מחדש את הכפתורים, נוודא שהשמירה העתידית עדיין עוברת דרך הבדיקה.
+  var oldWrap = window.wrapSaveButtonsV411;
+  if(typeof oldWrap === "function"){
+    window.wrapSaveButtonsV411 = function(){
+      var r = oldWrap.apply(this, arguments);
+      setTimeout(function(){
+        window.__plannedFutureGuardV414Applied = false;
+        wrapPlannedSaveV414();
+      }, 0);
+      return r;
+    };
+  }
+})();
+</script>
+
 </body>
-                                                                              </html>
+  </html>
