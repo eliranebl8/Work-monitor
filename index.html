@@ -8822,5 +8822,303 @@ service cloud.firestore {
 })();
 </script>
 
+
+<style id="v411-rf-fiber-and-buttons-css">
+/* ===== v4.11: כפתורי שמירה מלאים + מחירון סיב / RF ===== */
+.install-save-stack-v411{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:12px!important;
+  width:100%!important;
+  margin:16px 0 0!important;
+}
+#serviceForm .install-save-stack-v411 button,
+#installForm .install-save-stack-v411 button,
+#serviceSaveDoneBtnV411,
+#installSaveDoneBtnV411,
+#saveServicePlannedBtnV49,
+#saveInstallPlannedBtnV49{
+  display:flex!important;
+  width:100%!important;
+  max-width:none!important;
+  min-width:100%!important;
+  min-height:58px!important;
+  align-items:center!important;
+  justify-content:center!important;
+  text-align:center!important;
+  border-radius:24px!important;
+  font-size:17px!important;
+  font-weight:900!important;
+  margin:0!important;
+  padding:16px 20px!important;
+  line-height:1.2!important;
+}
+#serviceSaveDoneBtnV411,#installSaveDoneBtnV411{
+  background:linear-gradient(135deg,#16a34a,#22c55e)!important;
+  color:white!important;
+  box-shadow:0 14px 30px rgba(22,163,74,.24)!important;
+}
+#saveServicePlannedBtnV49,#saveInstallPlannedBtnV49{
+  color:#7c2d12!important;
+  background:linear-gradient(135deg,#fff7ed,#fed7aa 48%,#fdba74)!important;
+  border:2px solid #fb923c!important;
+  box-shadow:0 14px 30px rgba(249,115,22,.22)!important;
+}
+.install-kind-tabs-v411,.admin-price-tabs-v411{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:10px!important;
+  margin:12px 0!important;
+}
+.install-kind-tab-v411{
+  border:2px solid var(--line)!important;
+  background:linear-gradient(180deg,#fff,#f8fafc)!important;
+  color:#0f172a!important;
+  box-shadow:var(--soft-shadow)!important;
+  min-height:54px!important;
+}
+.install-kind-tab-v411.active{
+  border-color:#2563eb!important;
+  background:linear-gradient(135deg,#dbeafe,#eff6ff)!important;
+  color:#1d4ed8!important;
+}
+.rf-note-v411{
+  background:#f8fafc;border:1px solid var(--line);border-radius:18px;padding:12px;margin:8px 0;color:#475569;font-weight:900;
+}
+</style>
+
+<script id="v411-rf-fiber-and-buttons-js">
+/* ===== v4.11: תיקון כפתורי סידור + מחירון התקנה לפי סיב/RF ===== */
+(function(){
+  window.APP_VERSION='4.11';
+  try{ if(typeof APP_VERSION!=='undefined'){} }catch(e){}
+  var installKindV411='fiber';
+  var adminPriceKindV411='fiber';
+  window.installKindV411=installKindV411;
+  window.adminPriceKindV411=adminPriceKindV411;
+
+  const RF_DEFAULT_PRICE_LIST_V411=[];
+  function kindLabelV411(kind){ return kind==='rf'?'RF':'סיב'; }
+  function normalizeKindV411(v){ return String(v||'fiber').toLowerCase()==='rf'?'rf':'fiber'; }
+  function itemKindV411(item){ return normalizeKindV411(item && (item.priceType || item.installKind || item.category || 'fiber')); }
+  function selectedKindV411(){ return normalizeKindV411(installKindV411); }
+  function selectedAdminKindV411(){ return normalizeKindV411(adminPriceKindV411); }
+
+  function wrapSaveButtonsV411(){
+    try{
+      ensurePlannedButtonsV49 && ensurePlannedButtonsV49();
+      [['serviceForm','serviceSaveDoneBtnV411'],['installForm','installSaveDoneBtnV411']].forEach(function(pair){
+        var form=document.getElementById(pair[0]); if(!form)return;
+        var done=form.querySelector('button.btn-green[onclick*="addService"],button.btn-green[onclick*="addInstall"]');
+        var planned=form.querySelector('#saveServicePlannedBtnV49,#saveInstallPlannedBtnV49');
+        if(!done||!planned)return;
+        done.id=pair[1];
+        done.textContent='✅ שמור כבוצע';
+        planned.textContent='📋 שמור כסידור עתידי';
+        var stack=form.querySelector('.install-save-stack-v411');
+        if(!stack){
+          stack=document.createElement('div');
+          stack.className='install-save-stack-v411';
+          done.parentNode.insertBefore(stack, done);
+        }
+        if(done.parentNode!==stack) stack.appendChild(done);
+        if(planned.parentNode!==stack) stack.appendChild(planned);
+      });
+    }catch(e){console.warn('wrapSaveButtonsV411',e)}
+  }
+  window.wrapSaveButtonsV411=wrapSaveButtonsV411;
+
+  function ensureInstallKindUIV411(){
+    var form=document.getElementById('installForm'); if(!form)return;
+    if(!document.getElementById('installKindTabsV411')){
+      var box=document.createElement('div');
+      box.id='installKindTabsV411';
+      box.innerHTML='<div class="rf-note-v411">בחר סוג התקנה — לכל סוג יש מחירון נפרד.</div><div class="install-kind-tabs-v411"><button type="button" id="installKindFiberV411" class="install-kind-tab-v411" onclick="changeInstallKindV411(\'fiber\')">🔵 התקנת סיב</button><button type="button" id="installKindRfV411" class="install-kind-tab-v411" onclick="changeInstallKindV411(\'rf\')">📡 התקנת RF</button></div>';
+      var templateRow=document.getElementById('installTemplateSelect');
+      var anchor=templateRow ? templateRow.closest('.grid2') : document.getElementById('installItems');
+      if(anchor) anchor.parentNode.insertBefore(box, anchor); else form.insertBefore(box, form.firstChild);
+    }
+    updateInstallKindTabsV411();
+  }
+  function updateInstallKindTabsV411(){
+    var f=document.getElementById('installKindFiberV411'), r=document.getElementById('installKindRfV411');
+    if(f)f.classList.toggle('active', selectedKindV411()==='fiber');
+    if(r)r.classList.toggle('active', selectedKindV411()==='rf');
+    var title=document.querySelector('#installForm h3');
+    if(title) title.textContent='התקנה - מחירון '+kindLabelV411(selectedKindV411());
+  }
+  window.changeInstallKindV411=async function(kind){
+    installKindV411=normalizeKindV411(kind); window.installKindV411=installKindV411;
+    updateInstallKindTabsV411();
+    await loadPriceList();
+    if(typeof loadTemplates==='function') await loadTemplates();
+    renderInstallItems();
+    if(typeof renderTemplateSelect==='function') renderTemplateSelect();
+  };
+
+  function ensureAdminPriceKindUIV411(){
+    var card=document.getElementById('priceAdmin'); if(!card)return;
+    var priceCard=card.closest('.card'); if(!priceCard)return;
+    if(!document.getElementById('adminPriceTabsV411')){
+      var tabs=document.createElement('div');
+      tabs.id='adminPriceTabsV411';
+      tabs.className='admin-price-tabs-v411';
+      tabs.innerHTML='<button type="button" id="adminFiberPriceBtnV411" class="install-kind-tab-v411" onclick="changeAdminPriceKindV411(\'fiber\')">🔵 מחירון סיב</button><button type="button" id="adminRfPriceBtnV411" class="install-kind-tab-v411" onclick="changeAdminPriceKindV411(\'rf\')">📡 מחירון RF</button>';
+      var p=priceCard.querySelector('p');
+      if(p) p.insertAdjacentElement('afterend',tabs); else priceCard.insertBefore(tabs,priceCard.firstChild);
+    }
+    if(!document.getElementById('pPriceTypeV411')){
+      var hidden=document.createElement('input'); hidden.type='hidden'; hidden.id='pPriceTypeV411'; hidden.value=selectedAdminKindV411(); priceCard.appendChild(hidden);
+    }
+    updateAdminPriceTabsV411();
+  }
+  function updateAdminPriceTabsV411(){
+    var f=document.getElementById('adminFiberPriceBtnV411'), r=document.getElementById('adminRfPriceBtnV411'), h=document.getElementById('pPriceTypeV411');
+    if(f)f.classList.toggle('active', selectedAdminKindV411()==='fiber');
+    if(r)r.classList.toggle('active', selectedAdminKindV411()==='rf');
+    if(h)h.value=selectedAdminKindV411();
+    var msg=document.getElementById('priceMsg');
+    if(msg && !msg.innerHTML) msg.innerHTML='<p class="muted">מוסיף ועורך כרגע פריטים במחירון: <b>'+kindLabelV411(selectedAdminKindV411())+'</b></p>';
+  }
+  window.changeAdminPriceKindV411=async function(kind){
+    adminPriceKindV411=normalizeKindV411(kind); window.adminPriceKindV411=adminPriceKindV411;
+    updateAdminPriceTabsV411();
+    await loadPriceListAdmin();
+  };
+
+  async function getAllPriceDocsV411(){
+    const snap=await db.collection('priceList').get();
+    return snap.docs.map(d=>({id:d.id,...d.data()}));
+  }
+  function uniqueActiveSortedV411(items){
+    const uniqueMap={};
+    (items||[]).filter(x=>x.active!==false).forEach(item=>{
+      const key=`${String(item.name||'').trim()}|${Number(item.price||0)}|${item.inputMode||'qty'}|${itemKindV411(item)}`;
+      if(!uniqueMap[key]) uniqueMap[key]=item;
+    });
+    return Object.values(uniqueMap).sort((a,b)=>Number(a.order||0)-Number(b.order||0));
+  }
+
+  window.loadPriceList=async function(){
+    const all=await getAllPriceDocsV411();
+    priceList=uniqueActiveSortedV411(all.filter(x=>itemKindV411(x)===selectedKindV411()));
+  };
+
+  window.loadPriceListAdmin=async function(){
+    ensureAdminPriceKindUIV411();
+    const box=$('priceAdmin'); if(!box)return;
+    box.innerHTML='<p>טוען מחירון '+kindLabelV411(selectedAdminKindV411())+'...</p>';
+    const all=await getAllPriceDocsV411();
+    let items=uniqueActiveSortedV411(all.filter(x=>itemKindV411(x)===selectedAdminKindV411()));
+    box.innerHTML=items.length?'':'<p class="muted">אין פריטים פעילים במחירון '+kindLabelV411(selectedAdminKindV411())+'. אפשר להוסיף פריט חדש מלמעלה.</p>';
+    items.forEach(item=>{
+      const row=document.createElement('div'); row.className='item';
+      row.innerHTML=`<div><div class="item-title">${esc(item.name)}</div><div class="item-sub">מחירון: ${kindLabelV411(itemKindV411(item))} · מחיר: ${money(item.price)} · סוג: ${(item.inputMode||'qty')==='check'?'סימון כן/לא':'כמות מספרית'}</div></div><div class="actions"><button class="btn-yellow" onclick="openPriceEdit('${item.id}')">ערוך</button><button class="btn-red" onclick="togglePrice('${item.id}', false)">הסר מהרשימה</button></div>`;
+      box.appendChild(row);
+    });
+    updateAdminPriceTabsV411();
+  };
+
+  window.addPriceItem=async function(){
+    const name=val('pName'), price=Number(val('pPrice')), inputMode=$('pMode').value, priceType=selectedAdminKindV411();
+    if(!name||Number.isNaN(price)||price<0)return $('priceMsg').innerHTML='<p class="danger">שם או מחיר לא תקינים.</p>';
+    const snap=await db.collection('priceList').get();
+    await db.collection('priceList').add({name,price,inputMode,priceType,installKind:priceType,active:true,order:snap.size+1000,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    $('pName').value=''; $('pPrice').value=''; $('pMode').value='qty';
+    $('priceMsg').innerHTML='<div class="notice">הפריט נוסף למחירון '+kindLabelV411(priceType)+' ✅</div>';
+    await loadPriceListAdmin();
+  };
+
+  window.openPriceEdit=async function(id){
+    const doc=await db.collection('priceList').doc(id).get(); if(!doc.exists)return;
+    const p={id:doc.id,...doc.data()};
+    show('editPricePanel');
+    $('editPriceId').value=id; $('editPriceName').value=p.name||''; $('editPriceValue').value=p.price||0; $('editPriceMode').value=p.inputMode||'qty'; $('editPriceActive').value=p.active===false?'false':'true';
+    if(!document.getElementById('editPriceTypeV411')){
+      const sel=document.createElement('select'); sel.id='editPriceTypeV411'; sel.innerHTML='<option value="fiber">מחירון סיב</option><option value="rf">מחירון RF</option>';
+      const grid=$('editPriceActive').closest('.grid2'); if(grid) grid.insertBefore(sel, grid.firstChild); else $('editPricePanel').insertBefore(sel,$('editPriceMsg'));
+    }
+    $('editPriceTypeV411').value=itemKindV411(p);
+    $('editPriceMsg').innerHTML='';
+    window.scrollTo({top:$('editPricePanel').offsetTop-20,behavior:'smooth'});
+  };
+
+  window.savePriceEdit=async function(){
+    const id=val('editPriceId'), name=val('editPriceName'), price=Number(val('editPriceValue')), inputMode=$('editPriceMode').value, active=$('editPriceActive').value==='true';
+    const priceType=document.getElementById('editPriceTypeV411')?normalizeKindV411($('editPriceTypeV411').value):selectedAdminKindV411();
+    if(!name||Number.isNaN(price)||price<0)return $('editPriceMsg').innerHTML='<p class="danger">שם או מחיר לא תקינים.</p>';
+    await db.collection('priceList').doc(id).update({name,price,inputMode,priceType,installKind:priceType,active,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    adminPriceKindV411=priceType; window.adminPriceKindV411=priceType;
+    $('editPriceMsg').innerHTML='<div class="notice">הפריט נשמר במחירון '+kindLabelV411(priceType)+' ✅</div>';
+    await loadPriceListAdmin();
+  };
+
+  window.renderInstallItems=function(){
+    ensureInstallKindUIV411();
+    const box=$('installItems'); if(!box)return;
+    updateInstallKindTabsV411();
+    box.innerHTML='';
+    if(!priceList.length){
+      box.innerHTML='<div class="hint-card">אין עדיין פריטים במחירון '+kindLabelV411(selectedKindV411())+'. הוסף אותם ממסך האדמין.</div>';
+      updateInstallPreview();
+      return;
+    }
+    priceList.forEach(item=>{
+      const row=document.createElement('div'); row.className='item';
+      const mode=item.inputMode||'qty';
+      const control=mode==='check'?`<label style="display:flex;align-items:center;gap:8px;font-weight:900"><input id="qty_${item.id}" type="checkbox" onchange="updateInstallPreview()" style="width:24px;height:24px;margin:0"> בוצע</label>`:`<input class="qty" id="qty_${item.id}" type="number" min="0" placeholder="כמות" oninput="updateInstallPreview()">`;
+      row.innerHTML=`<div><div class="item-title">${esc(item.name)}</div><div class="item-sub">מחירון: ${kindLabelV411(selectedKindV411())} · מחיר: ${money(item.price)} · ${mode==='check'?'סימון כן/לא':'כמות מספרית'}</div></div>${control}`;
+      box.appendChild(row);
+    });
+    updateInstallPreview();
+  };
+
+  const oldAddInstallPlannedV411=window.addInstallPlannedV49;
+  // דריסת שמירת התקנה כדי לשמור גם אם זו התקנת RF/סיב
+  async function addInstallWithStatusV411(status){
+    const customerNumber=val('iCustomer'), address=val('iAddress'), notes=val('iNotes');
+    if(!customerNumber||!/^\d+$/.test(customerNumber))return $('entryMsg').innerHTML='<p class="danger">חובה למלא מספר לקוח בספרות בלבד.</p>';
+    if(!address)return $('entryMsg').innerHTML='<p class="danger">חובה למלא כתובת.</p>';
+    let items=[], total=0;
+    priceList.forEach(p=>{
+      const el=$('qty_'+p.id); let q=0;
+      if(el) q=(p.inputMode||'qty')==='check'?(el.checked?1:0):Number(el.value||0);
+      if(q>0){items.push({id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||'qty',priceType:selectedKindV411(),installKind:selectedKindV411(),total:q*Number(p.price||0)}); total+=q*Number(p.price||0);}
+    });
+    if(!items.length)return $('entryMsg').innerHTML='<p class="danger">חובה לבחור לפחות פריט אחד.</p>';
+    await db.collection('workEntries').add({workerId:viewedWorker.id,workerName:viewedWorker.name,authUid:viewedWorker.authUid||currentAuthUid(),date:selectedDate,workType:'install',installKind:selectedKindV411(),priceType:selectedKindV411(),entryStatus:status,description:'התקנת '+kindLabelV411(selectedKindV411()),customerNumber,address,notes,items,amount:total,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    if(typeof resetEntryFormsAfterSaveV42==='function') resetEntryFormsAfterSaveV42();
+    if(status==='planned') $('entryMsg').innerHTML='<div class="notice">התקנת '+kindLabelV411(selectedKindV411())+' נשמרה כסידור עתידי ✅<br>היא לא נכנסה להתחשבנות עד שתלחץ בוצע.</div>'; else showEntryFeedbackV41('install', total);
+    await loadMonth();
+    if(typeof resetEntryFormsAfterSaveV42==='function') resetEntryFormsAfterSaveV42();
+    wrapSaveButtonsV411();
+  }
+  window.addInstall=function(){return addInstallWithStatusV411('done')};
+  window.addInstallPlannedV49=function(){return addInstallWithStatusV411('planned')};
+
+  const oldSetTypeV411=window.setType;
+  window.setType=function(type,clear){
+    const r=oldSetTypeV411?oldSetTypeV411(type,clear):undefined;
+    if(type==='install') setTimeout(async function(){ ensureInstallKindUIV411(); await loadPriceList(); renderInstallItems(); wrapSaveButtonsV411(); },0);
+    else setTimeout(wrapSaveButtonsV411,0);
+    return r;
+  };
+
+  const oldShowAdminV411=window.showAdmin;
+  if(typeof oldShowAdminV411==='function'){
+    window.showAdmin=async function(){
+      await oldShowAdminV411();
+      ensureAdminPriceKindUIV411();
+      await loadPriceListAdmin();
+      wrapSaveButtonsV411();
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){ensureInstallKindUIV411();ensureAdminPriceKindUIV411();wrapSaveButtonsV411();},600)});
+  window.addEventListener('load',function(){setTimeout(function(){ensureInstallKindUIV411();ensureAdminPriceKindUIV411();wrapSaveButtonsV411();},900)});
+  setInterval(wrapSaveButtonsV411,1200);
+})();
+</script>
+
 </body>
   </html>
