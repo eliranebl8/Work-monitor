@@ -933,7 +933,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.8";
+const APP_VERSION = "4.10";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -8306,7 +8306,7 @@ service cloud.firestore {
 
 
 <script id="v48-delete-entry-fix">
-/* ===== v4.8: תיקון מחיקת קריאת שירות / התקנה =====
+/* ===== v4.9: תיקון מחיקת קריאת שירות / התקנה =====
    הבעיה הייתה ב-Security Rules: במחיקת מסמך אין request.resource,
    לכן כלל update, delete משותף שחייב request.resource חוסם delete לעובד.
    כאן מפרידים update ו-delete, ומחזקים גם את כפתור המחיקה עם הודעת שגיאה ברורה.
@@ -8459,10 +8459,10 @@ service cloud.firestore {
     try{
       await navigator.clipboard.writeText(rules);
       var msg=document.getElementById('securityToolsMsgV169') || document.getElementById('securityToolsMsgV47');
-      if(msg) msg.innerHTML='<div class="notice">Security Rules v4.8 הועתקו ✅<br>Firebase → Firestore Database → Rules → הדבק → Publish.</div>';
-      alert('Security Rules v4.8 הועתקו ✅');
+      if(msg) msg.innerHTML='<div class="notice">Security Rules v4.9 הועתקו ✅<br>Firebase → Firestore Database → Rules → הדבק → Publish.</div>';
+      alert('Security Rules v4.9 הועתקו ✅');
     }catch(e){
-      prompt('העתק את Security Rules v4.8:', rules);
+      prompt('העתק את Security Rules v4.9:', rules);
     }
   };
 
@@ -8479,8 +8479,8 @@ service cloud.firestore {
       panel.id='securityRulesPanelV47';
       panel.className='card panel';
       panel.innerHTML=''+
-        '<div class="cal-head"><h2>🔒 Security Rules v4.8</h2><div class="actions">'+
-        '<button class="btn-green" type="button" onclick="copySecurityRulesV169()">העתק Security Rules v4.8</button>'+
+        '<div class="cal-head"><h2>🔒 Security Rules v4.9</h2><div class="actions">'+
+        '<button class="btn-green" type="button" onclick="copySecurityRulesV169()">העתק Security Rules v4.9</button>'+
         '<button class="btn-light" type="button" onclick="manualSyncSecurityV169 && manualSyncSecurityV169()">סנכרן אבטחה</button>'+
         '</div></div>'+
         '<p><b>זה התיקון למחיקה:</b> עכשיו update ו-delete מופרדים, כדי שעובד יוכל למחוק רק עבודות שלו.</p>'+
@@ -8488,9 +8488,9 @@ service cloud.firestore {
         '<div id="securityToolsMsgV169"></div>';
       admin.insertBefore(panel, admin.firstChild);
     }else{
-      var h=panel.querySelector('h2'); if(h) h.textContent='🔒 Security Rules v4.8';
+      var h=panel.querySelector('h2'); if(h) h.textContent='🔒 Security Rules v4.9';
       var p=panel.querySelector('p'); if(p) p.innerHTML='<b>זה התיקון למחיקה:</b> עכשיו update ו-delete מופרדים, כדי שעובד יוכל למחוק רק עבודות שלו.';
-      var b=panel.querySelector('button.btn-green'); if(b) b.textContent='העתק Security Rules v4.8';
+      var b=panel.querySelector('button.btn-green'); if(b) b.textContent='העתק Security Rules v4.9';
     }
     panel.classList.remove('hidden');
     panel.style.display='block';
@@ -8514,7 +8514,7 @@ service cloud.firestore {
       var code=e && (e.code || e.message) ? (e.code || e.message) : String(e);
       var hint='שגיאה במחיקה: ' + code;
       if(String(code).includes('permission-denied') || String(code).includes('Missing or insufficient permissions')){
-        hint='Firestore חסם את המחיקה. צריך להיכנס לאדמין, להעתיק Security Rules v4.8, לפרסם ב-Firebase ואז לנסות שוב.';
+        hint='Firestore חסם את המחיקה. צריך להיכנס לאדמין, להעתיק Security Rules v4.9, לפרסם ב-Firebase ואז לנסות שוב.';
       }
       try{
         var msg2=document.getElementById('entryMsg');
@@ -8529,6 +8529,296 @@ service cloud.firestore {
 
   document.addEventListener('DOMContentLoaded',function(){ setTimeout(window.ensureSecurityRulesPanelV47,200); });
   window.addEventListener('load',function(){ setTimeout(window.ensureSecurityRulesPanelV47,500); });
+})();
+</script>
+
+
+<style id="v49-planned-work-css">
+/* ===== v4.9: סידור עבודה עתידי - מתוכנן מול בוצע ===== */
+.planned-badge-v49{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:7px 11px;border-radius:999px;background:#fff7ed;color:#9a3412;
+  border:1px solid #fed7aa;font-size:13px;font-weight:900;margin:4px 0;
+}
+.done-badge-v49{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:7px 11px;border-radius:999px;background:#ecfdf5;color:#166534;
+  border:1px solid #bbf7d0;font-size:13px;font-weight:900;margin:4px 0;
+}
+.planned-money-v49{color:#9a3412!important;background:none!important;-webkit-background-clip:initial!important;background-clip:initial!important;animation:none!important;}
+.day-planned-v49{font-size:12px;color:#9a3412;font-weight:900;margin-top:4px;line-height:1.35;}
+.planned-card-v49{border-color:#fed7aa!important;background:linear-gradient(180deg,#fff,#fff7ed)!important;}
+
+/* ===== v4.10: כפתור סידור עתידי רחב, ממורכז וברור ===== */
+#serviceForm > button.btn-green[onclick*="addService"],
+#installForm > button.btn-green[onclick*="addInstall"]{
+  width:100%!important;
+  max-width:none!important;
+  min-height:56px!important;
+  margin:16px auto 0!important;
+  border-radius:24px!important;
+  font-size:17px!important;
+  letter-spacing:-.2px!important;
+}
+.v49-extra-save-btn{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  max-width:none!important;
+  min-height:60px!important;
+  margin:12px auto 0!important;
+  padding:16px 20px!important;
+  border-radius:26px!important;
+  font-size:17px!important;
+  font-weight:900!important;
+  color:#7c2d12!important;
+  background:linear-gradient(135deg,#fff7ed,#fed7aa 48%,#fdba74)!important;
+  border:2px solid #fb923c!important;
+  box-shadow:0 14px 30px rgba(249,115,22,.22)!important;
+  text-align:center!important;
+}
+.v49-extra-save-btn:hover{
+  filter:brightness(1.02)!important;
+  box-shadow:0 18px 36px rgba(249,115,22,.30)!important;
+}
+.v49-extra-save-btn:active{
+  transform:scale(.99)!important;
+}
+@media(max-width:800px){
+  .v49-extra-save-btn,
+  #serviceForm > button.btn-green[onclick*="addService"],
+  #installForm > button.btn-green[onclick*="addInstall"]{
+    width:100%!important;
+    max-width:none!important;
+    min-height:58px!important;
+  }
+}
+</style>
+
+<script id="v49-planned-work-js">
+/* ===== v4.9: סידור עבודה עתידי ===== */
+(function(){
+  function entryStatusV49(e){ return (e && e.entryStatus) ? e.entryStatus : 'done'; }
+  function isPlannedV49(e){ return entryStatusV49(e)==='planned'; }
+  function isDoneV49(e){ return !isPlannedV49(e); }
+  function doneEntriesV49(list){ return (Array.isArray(list)?list:[]).filter(isDoneV49); }
+  function plannedEntriesV49(list){ return (Array.isArray(list)?list:[]).filter(isPlannedV49); }
+  function sumV49(list){ return (Array.isArray(list)?list:[]).reduce(function(s,e){return s+Number(e.amount||0)},0); }
+  function workTypeNameV49(e){ return e && e.workType==='install' ? 'התקנה' : 'קריאת שירות'; }
+  window.entryStatusV49=entryStatusV49;
+  window.isPlannedV49=isPlannedV49;
+  window.isDoneV49=isDoneV49;
+
+  function ensurePlannedButtonsV49(){
+    try{
+      var serviceBtn=document.querySelector('#serviceForm button.btn-green[onclick*="addService"]');
+      if(serviceBtn && !document.getElementById('saveServicePlannedBtnV49')){
+        serviceBtn.textContent='✅ שמור כבוצע';
+        var b=document.createElement('button');
+        b.id='saveServicePlannedBtnV49';
+        b.type='button';
+        b.className='btn-yellow v49-extra-save-btn';
+        b.textContent='📋 שמור כסידור עתידי';
+        b.onclick=function(){ addServicePlannedV49(); };
+        serviceBtn.insertAdjacentElement('afterend', b);
+      }
+      var installBtn=document.querySelector('#installForm button.btn-green[onclick*="addInstall"]');
+      if(installBtn && !document.getElementById('saveInstallPlannedBtnV49')){
+        installBtn.textContent='✅ שמור כבוצע';
+        var b2=document.createElement('button');
+        b2.id='saveInstallPlannedBtnV49';
+        b2.type='button';
+        b2.className='btn-yellow v49-extra-save-btn';
+        b2.textContent='📋 שמור כסידור עתידי';
+        b2.onclick=function(){ addInstallPlannedV49(); };
+        installBtn.insertAdjacentElement('afterend', b2);
+      }
+    }catch(e){ console.warn('ensurePlannedButtonsV49 failed',e); }
+  }
+  window.ensurePlannedButtonsV49=ensurePlannedButtonsV49;
+
+  async function addServiceWithStatusV49(status){
+    const customerNumber=val('sCustomer'), address=val('sAddress'), notes=val('sNotes'), isReturnCall=$('sReturnCall')&&$('sReturnCall').checked;
+    const amount=isReturnCall?0:SERVICE_PRICE;
+    if(!customerNumber||!/^\d+$/.test(customerNumber))return $('entryMsg').innerHTML='<p class="danger">חובה למלא מספר לקוח בספרות בלבד.</p>';
+    if(!address)return $('entryMsg').innerHTML='<p class="danger">חובה למלא כתובת.</p>';
+    await db.collection('workEntries').add({
+      workerId:viewedWorker.id, workerName:viewedWorker.name, authUid:viewedWorker.authUid||currentAuthUid(),
+      date:selectedDate, workType:'service', entryStatus:status,
+      description:isReturnCall?'קריאת שירות חוזרת':'קריאת שירות', customerNumber,address,notes,isReturnCall,amount,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    resetEntryFormsAfterSaveV42 && resetEntryFormsAfterSaveV42();
+    if(status==='planned'){
+      $('entryMsg').innerHTML='<div class="notice">קריאת השירות נשמרה כסידור עתידי ✅<br>היא לא נכנסה להתחשבנות עד שתלחץ בוצע.</div>';
+    }else{
+      showEntryFeedbackV41('service', amount);
+    }
+    await loadMonth();
+    resetEntryFormsAfterSaveV42 && resetEntryFormsAfterSaveV42();
+    ensurePlannedButtonsV49();
+  }
+
+  async function addInstallWithStatusV49(status){
+    const customerNumber=val('iCustomer'), address=val('iAddress'), notes=val('iNotes');
+    if(!customerNumber||!/^\d+$/.test(customerNumber))return $('entryMsg').innerHTML='<p class="danger">חובה למלא מספר לקוח בספרות בלבד.</p>';
+    if(!address)return $('entryMsg').innerHTML='<p class="danger">חובה למלא כתובת.</p>';
+    let items=[], total=0;
+    priceList.forEach(p=>{
+      const el=$('qty_'+p.id); let q=0;
+      if(el) q=(p.inputMode||'qty')==='check'?(el.checked?1:0):Number(el.value||0);
+      if(q>0){
+        items.push({id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||'qty',total:q*Number(p.price||0)});
+        total+=q*Number(p.price||0);
+      }
+    });
+    if(!items.length)return $('entryMsg').innerHTML='<p class="danger">חובה לבחור לפחות פריט אחד.</p>';
+    await db.collection('workEntries').add({
+      workerId:viewedWorker.id, workerName:viewedWorker.name, authUid:viewedWorker.authUid||currentAuthUid(),
+      date:selectedDate, workType:'install', entryStatus:status, description:'התקנה', customerNumber,address,notes,items,amount:total,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    resetEntryFormsAfterSaveV42 && resetEntryFormsAfterSaveV42();
+    if(status==='planned'){
+      $('entryMsg').innerHTML='<div class="notice">ההתקנה נשמרה כסידור עתידי ✅<br>היא לא נכנסה להתחשבנות עד שתלחץ בוצע.</div>';
+    }else{
+      showEntryFeedbackV41('install', total);
+    }
+    await loadMonth();
+    resetEntryFormsAfterSaveV42 && resetEntryFormsAfterSaveV42();
+    ensurePlannedButtonsV49();
+  }
+
+  window.addService=function(){ return addServiceWithStatusV49('done'); };
+  window.addInstall=function(){ return addInstallWithStatusV49('done'); };
+  window.addServicePlannedV49=function(){ return addServiceWithStatusV49('planned'); };
+  window.addInstallPlannedV49=function(){ return addInstallWithStatusV49('planned'); };
+
+  window.markEntryDoneV49=async function(id){
+    if(!id)return;
+    var e=(Array.isArray(monthEntries)?monthEntries:[]).find(function(x){return x.id===id;});
+    var label=e ? workTypeNameV49(e)+(e.customerNumber?' ללקוח '+e.customerNumber:'') : 'העבודה';
+    if(!confirm('לסמן את '+label+' כבוצע ולהכניס להתחשבנות?'))return;
+    try{
+      await db.collection('workEntries').doc(id).set({entryStatus:'done',doneAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+      if($('entryMsg')) $('entryMsg').innerHTML='<div class="notice">העבודה סומנה כבוצעה ונכנסה להתחשבנות ✅</div>';
+      await loadMonth();
+    }catch(err){ alert('שגיאה בסימון בוצע: '+(err.code||err.message||err)); }
+  };
+
+  window.renderStats=function(){
+    const worker=viewedWorker||{};
+    const entries=Array.isArray(monthEntries)?monthEntries:[];
+    const done=doneEntriesV49(entries);
+    const planned=plannedEntriesV49(entries);
+    const monthTotal=sumV49(done);
+    const dayDone=selectedDate?done.filter(e=>e.date===selectedDate):[];
+    const dayTotal=sumV49(dayDone);
+    const plannedTotal=sumV49(planned);
+    const dayPlannedTotal=selectedDate?sumV49(planned.filter(e=>e.date===selectedDate)):0;
+    const goal=Number(worker.monthlyGoal||0);
+    const left=Math.max(goal-monthTotal,0);
+    if($('monthTotal')) $('monthTotal').textContent=money(monthTotal);
+    if($('dayTotal')) $('dayTotal').textContent=money(dayTotal);
+    if($('goalTotal')) $('goalTotal').textContent=money(goal);
+    if($('leftTotal')) $('leftTotal').textContent=money(left);
+    if($('goalBar')) $('goalBar').style.width=goal?Math.min(monthTotal/goal*100,100)+'%':'0%';
+    if($('paceLine')) $('paceLine').innerHTML=(goal?(left<=0?'מעולה — היעד הושג.':`חסר ליעד: ${money(left)}.`):'לא הוגדר יעד חודשי.')+`<br><span class="planned-badge-v49">📋 מתוכנן החודש: ${money(plannedTotal)} · ${planned.length} עבודות</span>`+(selectedDate&&dayPlannedTotal?` <span class="planned-badge-v49">ביום הנבחר: ${money(dayPlannedTotal)}</span>`:'');
+  };
+
+  window.renderCalendar=function(){
+    const cal=$('calendar'); if(!cal)return; cal.innerHTML='';
+    weekdays.forEach(w=>{const d=document.createElement('div');d.className='weekday';d.textContent=w;cal.appendChild(d)});
+    const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0).getDate(),today=formatDate(new Date());
+    for(let i=0;i<first.getDay();i++){const e=document.createElement('div');e.className='day empty';cal.appendChild(e)}
+    for(let d=1;d<=last;d++){
+      const ds=`${y}-${pad(m+1)}-${pad(d)}`,dt=new Date(y,m,d),sh=dt.getDay()===6;
+      const all=(Array.isArray(monthEntries)?monthEntries:[]).filter(e=>e.date===ds);
+      const done=doneEntriesV49(all), planned=plannedEntriesV49(all);
+      const total=sumV49(done), plannedTotal=sumV49(planned);
+      const div=document.createElement('div'); div.className='day';
+      if(sh)div.classList.add('shabbat'); if(ds===today)div.classList.add('today'); if(ds===selectedDate)div.classList.add('selected');
+      div.innerHTML=`<div class="day-num">${d}</div>${total?`<div class="day-total">${money(total)}</div>`:''}${done.length?`<div class="day-count">${done.length} בוצע</div>`:''}${planned.length?`<div class="day-planned-v49">📋 ${planned.length} מתוכנן<br>${money(plannedTotal)}</div>`:''}`;
+      if(!sh)div.onclick=()=>selectDay(ds); cal.appendChild(div);
+    }
+  };
+
+  window.renderDay=function(){
+    ensurePlannedButtonsV49();
+    if(!selectedDate){hide('dayPanel');show('selectDayHint');return}
+    show('dayPanel');hide('selectDayHint');text('dateTitle',`יום ${heDate(selectedDate)}`);
+    renderInstallItems();setType(selectedType,false);updateServicePriceLabels();ensurePlannedButtonsV49();
+    const entries=(Array.isArray(monthEntries)?monthEntries:[]).filter(e=>e.date===selectedDate).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    const box=$('dayEntries');
+    box.innerHTML=entries.length?'':'<p class="muted">אין עבודות ביום הזה עדיין.</p>';
+    entries.forEach(e=>{
+      const planned=isPlannedV49(e);
+      const details=e.workType==='service'?`מספר לקוח: ${e.customerNumber||''}\nכתובת: ${e.address||''}\n${e.notes||''}`:`מספר לקוח: ${e.customerNumber||''}\nכתובת: ${e.address||''}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join('<br>')+`\n${e.notes||''}`;
+      const row=document.createElement('div'); row.className='item'+(planned?' planned-card-v49':'');
+      const iconClass=e.workType==='install'?'install':(e.isReturnCall?'return':'service');
+      const icon=e.workType==='install'?'🛠️':(e.isReturnCall?'🔁':'☎️');
+      row.innerHTML=`<div class="work-row-main"><div class="work-icon ${iconClass}">${planned?'📋':icon}</div><div><div class="item-title">${esc(e.description)} ${planned?'<span class="planned-badge-v49">מתוכנן</span>':'<span class="done-badge-v49">בוצע</span>'}</div><div class="item-sub">${nl2br(details)}</div></div></div><div><div class="money ${planned?'planned-money-v49':''}">${money(e.amount)}</div><div class="actions" style="margin-top:8px">${planned?`<button class="btn-green" onclick="markEntryDoneV49('${e.id}')">בוצע</button>`:''}<button class="btn-yellow" onclick="openEntryEdit('${e.id}')">ערוך</button>${(!planned&&e.workType==='install')?`<button class="btn-light" onclick="saveEntryAsTemplate('${e.id}')">שמור כתבנית</button>`:''}<button class="btn-red" onclick="deleteEntry('${e.id}')">מחק</button></div></div>`;
+      box.appendChild(row);
+    });
+  };
+
+  window.getFilteredEntries=function(){
+    const customer=val('searchCustomer');
+    const address=val('searchAddress').toLowerCase();
+    const type=val('searchType');
+    const date=val('searchDate');
+    const month=val('searchMonth');
+    let arr=doneEntriesV49(monthEntries);
+    if(customer) arr=arr.filter(e=>String(e.customerNumber||'').includes(customer));
+    if(address) arr=arr.filter(e=>String(e.address||'').toLowerCase().includes(address));
+    if(type) arr=arr.filter(e=>e.workType===type);
+    if(date) arr=arr.filter(e=>e.date===date);
+    if(month) arr=arr.filter(e=>String(e.date||'').startsWith(month));
+    return arr;
+  };
+  window.renderFullSummary=function(){ renderSummary(doneEntriesV49(monthEntries),'סיכום חודש בתצוגה - בוצע בלבד'); };
+
+  window.renderSmartDashboard=function(){
+    const box=$('smartDashboard'); if(!box)return;
+    const entries=Array.isArray(monthEntries)?monthEntries:[];
+    const done=doneEntriesV49(entries), planned=plannedEntriesV49(entries);
+    const total=sumV49(done), plannedTotal=sumV49(planned);
+    const workDays=[...new Set(done.map(e=>e.date))].length;
+    const avg=workDays?total/workDays:0;
+    const services=done.filter(e=>e.workType==='service');
+    const installs=done.filter(e=>e.workType==='install');
+    const plannedServices=planned.filter(e=>e.workType==='service');
+    const plannedInstalls=planned.filter(e=>e.workType==='install');
+    const goal=Number((viewedWorker||{}).monthlyGoal||0);
+    const left=Math.max(goal-total,0);
+    const progress=goal?Math.min(total/goal*100,100):0;
+    box.innerHTML=`
+      <div class="grid4">
+        <div class="dash-card"><div class="dash-icon">💰</div><div class="dash-title">בוצע החודש</div><div class="dash-value">${money(total)}</div><div class="muted">נכנס להתחשבנות</div></div>
+        <div class="dash-card planned-card-v49"><div class="dash-icon">📋</div><div class="dash-title">מתוכנן החודש</div><div class="dash-value planned-money-v49">${money(plannedTotal)}</div><div class="muted">לא נספר בהתחשבנות</div></div>
+        <div class="dash-card"><div class="dash-icon">🎯</div><div class="dash-title">קצב ליעד</div><div class="dash-value">${Math.round(progress)}%</div><div class="muted">${left>0?'חסר '+money(left):'היעד הושג'}</div></div>
+        <div class="dash-card"><div class="dash-icon">📊</div><div class="dash-title">ממוצע ליום בוצע</div><div class="dash-value">${money(avg)}</div><div class="muted">${workDays} ימי עבודה</div></div>
+      </div>
+      <div class="kpi-strip">
+        <div class="kpi">קריאות בוצעו<b>${services.length}</b></div>
+        <div class="kpi">התקנות בוצעו<b>${installs.length}</b></div>
+        <div class="kpi planned-card-v49">קריאות מתוכננות<b>${plannedServices.length}</b></div>
+        <div class="kpi planned-card-v49">התקנות מתוכננות<b>${plannedInstalls.length}</b></div>
+      </div>
+      <p><span class="planned-badge-v49">📋 כסף מתוכנן: ${money(plannedTotal)}</span> <span class="done-badge-v49">✅ כסף שבוצע: ${money(total)}</span></p>
+    `;
+  };
+
+  const oldSetTypeV49=window.setType;
+  window.setType=function(type,clear){
+    const r=oldSetTypeV49?oldSetTypeV49(type,clear):undefined;
+    setTimeout(ensurePlannedButtonsV49,0);
+    return r;
+  };
+
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(ensurePlannedButtonsV49,300); });
+  window.addEventListener('load',function(){ setTimeout(ensurePlannedButtonsV49,700); });
 })();
 </script>
 
