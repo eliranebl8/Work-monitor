@@ -933,7 +933,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.10";
+const APP_VERSION = "4.12";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -8890,7 +8890,7 @@ service cloud.firestore {
 <script id="v411-rf-fiber-and-buttons-js">
 /* ===== v4.11: תיקון כפתורי סידור + מחירון התקנה לפי סיב/RF ===== */
 (function(){
-  window.APP_VERSION='4.11';
+  window.APP_VERSION='4.12';
   try{ if(typeof APP_VERSION!=='undefined'){} }catch(e){}
   var installKindV411='fiber';
   var adminPriceKindV411='fiber';
@@ -9120,5 +9120,305 @@ service cloud.firestore {
 })();
 </script>
 
+
+
+<style id="v412-search-and-template-kind-css">
+/* ===== v4.12: הפרדת סיב/RF גם בחיפוש ובתבניות ===== */
+.search-kind-tabs-v412{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:10px!important;
+  margin:10px 0 12px!important;
+}
+.search-kind-tab-v412{
+  min-height:52px!important;
+  border-radius:20px!important;
+  background:linear-gradient(180deg,#fff,#f8fafc)!important;
+  color:#0f172a!important;
+  border:2px solid #e2e8f0!important;
+  box-shadow:0 10px 22px rgba(15,23,42,.08)!important;
+}
+.search-kind-tab-v412.active{
+  border-color:#2563eb!important;
+  background:linear-gradient(135deg,#dbeafe,#eff6ff)!important;
+  color:#1d4ed8!important;
+}
+.template-kind-badge-v412{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:5px 10px;
+  border-radius:999px;
+  background:#eff6ff;
+  color:#1d4ed8;
+  font-weight:900;
+  font-size:12px;
+  margin:0 0 6px;
+}
+</style>
+
+<script id="v412-search-and-template-kind-js">
+/* ===== v4.12: חיפוש ותבניות לפי סיב/RF ===== */
+(function(){
+  window.APP_VERSION='4.12';
+  try{ document.title='מעקב עבודה - גרסה 4.12'; }catch(e){}
+
+  var searchInstallKindV412='fiber';
+  window.searchInstallKindV412=searchInstallKindV412;
+
+  function byIdV412(id){return document.getElementById(id)}
+  function normalizeKindV412(v){return String(v||'fiber').toLowerCase()==='rf'?'rf':'fiber'}
+  function kindLabelV412(kind){return normalizeKindV412(kind)==='rf'?'RF':'סיב'}
+  function kindFromItemV412(item){return normalizeKindV412(item && (item.priceType||item.installKind||item.category||'fiber'))}
+  function kindFromEntryV412(e){return normalizeKindV412(e && (e.installKind||e.priceType||((e.items||[])[0]&&((e.items||[])[0].installKind||(e.items||[])[0].priceType))||'fiber'))}
+  function kindFromTemplateV412(t){return normalizeKindV412(t && (t.installKind||t.priceType||t.templateKind||((t.items||[])[0]&&((t.items||[])[0].installKind||(t.items||[])[0].priceType))||'fiber'))}
+  function escV412(s){try{return esc(s)}catch(e){return String(s||'')}}
+
+  function ensureSearchKindTabsV412(){
+    var box=byIdV412('workerPriceSearchBoxV22');
+    var list=byIdV412('priceSearchListV22');
+    if(!box||!list)return;
+    if(!byIdV412('searchKindTabsV412')){
+      var tabs=document.createElement('div');
+      tabs.id='searchKindTabsV412';
+      tabs.className='search-kind-tabs-v412';
+      tabs.innerHTML='<button type="button" id="searchFiberBtnV412" class="search-kind-tab-v412" onclick="changeSearchInstallKindV412(\'fiber\')">🔵 חיפוש סיב</button><button type="button" id="searchRfBtnV412" class="search-kind-tab-v412" onclick="changeSearchInstallKindV412(\'rf\')">📡 חיפוש RF</button>';
+      list.parentNode.insertBefore(tabs,list);
+    }
+    updateSearchKindTabsV412();
+  }
+
+  function updateSearchKindTabsV412(){
+    var f=byIdV412('searchFiberBtnV412'), r=byIdV412('searchRfBtnV412');
+    if(f)f.classList.toggle('active', normalizeKindV412(searchInstallKindV412)==='fiber');
+    if(r)r.classList.toggle('active', normalizeKindV412(searchInstallKindV412)==='rf');
+    var note=byIdV412('priceSearchNoteV22');
+    if(note && byIdV412('searchType') && byIdV412('searchType').value==='install'){
+      var count=window.selectedWorkerPriceSearchItemsV38 ? Array.from(window.selectedWorkerPriceSearchItemsV38).length : 0;
+      note.textContent=count ? ('נבחרו '+count+' פריטי '+kindLabelV412(searchInstallKindV412)+' לסינון') : 'בחר פריטי '+kindLabelV412(searchInstallKindV412)+' לסינון, או השאר ריק כדי לראות את כל התקנות '+kindLabelV412(searchInstallKindV412);
+    }
+  }
+
+  async function getAllPriceItemsV412(){
+    try{
+      const snap=await db.collection('priceList').get();
+      return snap.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.active!==false);
+    }catch(e){
+      try{return (typeof priceList!=='undefined' && Array.isArray(priceList)) ? priceList : []}catch(_e){return []}
+    }
+  }
+
+  async function renderSearchPriceListV412(){
+    ensureSearchKindTabsV412();
+    var list=byIdV412('priceSearchListV22'); if(!list)return;
+    list.innerHTML='<div class="muted">טוען פריטי '+kindLabelV412(searchInstallKindV412)+'...</div>';
+    var all=await getAllPriceItemsV412();
+    var items=all.filter(function(p){return kindFromItemV412(p)===normalizeKindV412(searchInstallKindV412)});
+    const unique={};
+    items.forEach(function(p){
+      var key=String(p.name||'').trim()+'|'+Number(p.price||0)+'|'+String(p.inputMode||'qty')+'|'+kindFromItemV412(p);
+      if(!unique[key])unique[key]=p;
+    });
+    items=Object.values(unique).sort(function(a,b){return Number(a.order||0)-Number(b.order||0)});
+    if(!items.length){
+      list.innerHTML='<div class="muted">אין פריטים במחירון '+kindLabelV412(searchInstallKindV412)+'. אפשר להוסיף אותם באדמין.</div>';
+      updateSearchKindTabsV412();
+      return;
+    }
+    list.innerHTML='';
+    items.forEach(function(p){
+      var name=String(p.name||'');
+      var id='priceSearchV412_'+String(p.id||name).replace(/[^a-zA-Z0-9_\-א-ת]/g,'_');
+      var label=document.createElement('label');
+      label.className='price-search-item-v22';
+      label.setAttribute('for',id);
+      label.innerHTML='<input id="'+id+'" type="checkbox" data-price-name="'+escV412(name)+'"> <span>'+escV412(name)+'</span>';
+      var cb=label.querySelector('input');
+      cb.checked=(window.selectedWorkerPriceSearchItemsV38||new Set()).has(name);
+      cb.addEventListener('change',function(){
+        if(!window.selectedWorkerPriceSearchItemsV38)window.selectedWorkerPriceSearchItemsV38=new Set();
+        if(cb.checked)window.selectedWorkerPriceSearchItemsV38.add(name); else window.selectedWorkerPriceSearchItemsV38.delete(name);
+        updateSearchKindTabsV412();
+      });
+      list.appendChild(label);
+    });
+    updateSearchKindTabsV412();
+  }
+
+  window.changeSearchInstallKindV412=async function(kind){
+    searchInstallKindV412=normalizeKindV412(kind);
+    window.searchInstallKindV412=searchInstallKindV412;
+    window.selectedWorkerPriceSearchItemsV38=new Set();
+    await renderSearchPriceListV412();
+    if(typeof runSearch==='function' && byIdV412('searchType') && byIdV412('searchType').value==='install') runSearch();
+  };
+
+  window.onWorkerSearchTypeChangeV22=async function(){
+    var box=byIdV412('workerPriceSearchBoxV22');
+    var type=byIdV412('searchType') ? byIdV412('searchType').value : '';
+    if(!box)return;
+    if(type==='install'){
+      box.classList.remove('hidden');
+      ensureSearchKindTabsV412();
+      await renderSearchPriceListV412();
+    }else{
+      box.classList.add('hidden');
+      if(window.selectedWorkerPriceSearchItemsV38)window.selectedWorkerPriceSearchItemsV38=new Set();
+    }
+  };
+
+  var baseGetFilteredEntriesV412=window.getFilteredEntries;
+  window.getFilteredEntries=function(){
+    var arr=[];
+    if(typeof baseGetFilteredEntriesV412==='function') arr=baseGetFilteredEntriesV412.apply(this,arguments)||[];
+    else { try{ arr=Array.isArray(monthEntries)?monthEntries.slice():[]; }catch(e){ arr=[]; } }
+    var type=byIdV412('searchType') ? byIdV412('searchType').value : '';
+    if(type!=='install')return arr;
+    var wantedKind=normalizeKindV412(searchInstallKindV412);
+    arr=arr.filter(function(e){return e && e.workType==='install' && kindFromEntryV412(e)===wantedKind;});
+    var selected=window.selectedWorkerPriceSearchItemsV38 ? Array.from(window.selectedWorkerPriceSearchItemsV38) : [];
+    if(!selected.length)return arr;
+    return arr.filter(function(e){
+      var items=e.items||[];
+      return selected.every(function(name){return items.some(function(i){return String(i.name||'')===String(name)});});
+    });
+  };
+
+  /* תבניות: במסך התקנה מוצגות רק תבניות של סוג ההתקנה שנבחר */
+  window.loadTemplates=async function(){
+    try{
+      const snap=await db.collection('installTemplates').get();
+      const currentWorkerId = (typeof viewedWorker!=='undefined' && viewedWorker) ? viewedWorker.id : null;
+      const wantedKind = normalizeKindV412(typeof window.installKindV411!=='undefined' ? window.installKindV411 : 'fiber');
+      templates=snap.docs
+        .map(d=>({id:d.id,...d.data()}))
+        .filter(t=>t.active!==false)
+        .filter(t=>!t.ownerWorkerId || t.ownerWorkerId===currentWorkerId || (session&&session.role==='admin'))
+        .filter(t=>kindFromTemplateV412(t)===wantedKind)
+        .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+      if(typeof renderTemplateSelect==='function') renderTemplateSelect();
+    }catch(e){ templates=[]; }
+  };
+
+  window.renderTemplateSelect=function(){
+    var sel=byIdV412('installTemplateSelect'); if(!sel)return;
+    var label=kindLabelV412(typeof window.installKindV411!=='undefined' ? window.installKindV411 : 'fiber');
+    sel.innerHTML='<option value="">בחר תבנית התקנת '+label+'</option>';
+    (templates||[]).forEach(function(t){
+      var opt=document.createElement('option');
+      opt.value=t.id;
+      opt.textContent=(t.name||'')+' · '+kindLabelV412(kindFromTemplateV412(t));
+      sel.appendChild(opt);
+    });
+  };
+
+  window.applyTemplateFromSelect=function(){
+    var id=byIdV412('installTemplateSelect') ? byIdV412('installTemplateSelect').value : '';
+    if(!id)return;
+    var tpl=(templates||[]).find(t=>t.id===id);
+    if(!tpl)return;
+    var selectedInstallKind=normalizeKindV412(typeof window.installKindV411!=='undefined' ? window.installKindV411 : 'fiber');
+    if(kindFromTemplateV412(tpl)!==selectedInstallKind){
+      alert('התבנית הזאת שייכת ל-'+kindLabelV412(kindFromTemplateV412(tpl))+' ולא ל-'+kindLabelV412(selectedInstallKind));
+      if(byIdV412('installTemplateSelect'))byIdV412('installTemplateSelect').value='';
+      return;
+    }
+    if(typeof clearInstallSelection==='function') clearInstallSelection();
+    (tpl.items||[]).forEach(function(i){
+      var el=byIdV412('qty_'+i.id);
+      if(!el)return;
+      if((i.inputMode||'qty')==='check')el.checked=true; else el.value=i.quantity;
+    });
+    if(typeof updateInstallPreview==='function') updateInstallPreview();
+  };
+
+  async function saveTemplateFromEntryV412(id){
+    const e=monthEntries.find(x=>x.id===id);
+    if(!e||e.workType!=='install'||!e.items||!e.items.length){ alert('אפשר לשמור כתבנית רק התקנה עם פריטים.'); return; }
+    const kind=kindFromEntryV412(e);
+    const defaultName=`תבנית ${kindLabelV412(kind)} מ-${heDate(e.date)} לקוח ${e.customerNumber||''}`.trim();
+    const name=prompt('שם לתבנית',defaultName);
+    if(name===null)return;
+    if(!name.trim())return alert('חובה לתת שם לתבנית');
+    const ownerName=viewedWorker?(viewedWorker.name||''):(session?(session.name||''):'');
+    const ownerId=viewedWorker?viewedWorker.id:'';
+    await db.collection('installTemplates').add({
+      name:name.trim(),
+      installKind:kind,
+      priceType:kind,
+      items:e.items.map(i=>({id:i.id,name:i.name,price:Number(i.price||0),quantity:Number(i.quantity||0),inputMode:i.inputMode||'qty',installKind:kind,priceType:kind,total:Number(i.total||0)})),
+      active:true,
+      ownerWorkerId:ownerId,
+      ownerWorkerName:ownerName||'לא ידוע',
+      ownerUsername:viewedWorker?(viewedWorker.username||''):'',
+      createdByName:ownerName||'לא ידוע',
+      createdByRole:session?session.role:'',
+      createdFromEntry:id,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    alert('התבנית נשמרה ✅ תחת '+kindLabelV412(kind));
+    if(typeof loadTemplates==='function')await loadTemplates();
+  }
+  window.saveEntryAsTemplate=saveTemplateFromEntryV412;
+
+  function currentAdminTemplateKindV412(){
+    return normalizeKindV412(typeof window.adminPriceKindV411!=='undefined'?window.adminPriceKindV411:'fiber');
+  }
+  function collectTemplateItemsFromPrefixV412(prefix, kind){
+    const items=[];
+    priceList.forEach(function(p){
+      const el=byIdV412(prefix+p.id); if(!el)return;
+      const q=(p.inputMode||'qty')==='check'?(el.checked?1:0):Number(el.value||0);
+      if(q>0)items.push({id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||'qty',installKind:kind,priceType:kind,total:q*Number(p.price||0)});
+    });
+    return items;
+  }
+  async function saveAdminTemplateV412(top){
+    const kind=currentAdminTemplateKindV412();
+    const name=byIdV412(top?'tplNameTop':'tplName') ? byIdV412(top?'tplNameTop':'tplName').value.trim() : '';
+    const msg=byIdV412(top?'templateMsgTop':'templateMsg');
+    if(!name){ if(msg)msg.innerHTML='<p class="danger">חובה למלא שם תבנית.</p>'; return; }
+    const items=collectTemplateItemsFromPrefixV412(top?'tplTop_':'tpl_',kind);
+    if(!items.length){ if(msg)msg.innerHTML='<p class="danger">חובה לבחור לפחות פריט אחד.</p>'; return; }
+    await db.collection('installTemplates').add({name,installKind:kind,priceType:kind,items,active:true,ownerWorkerId:null,ownerWorkerName:'מנהל',createdByName:'מנהל',createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    if(byIdV412(top?'tplNameTop':'tplName'))byIdV412(top?'tplNameTop':'tplName').value='';
+    if(typeof hide==='function')hide(top?'templateBuilderTop':'templateBuilder');
+    if(msg)msg.innerHTML='<div class="notice">התבנית נשמרה תחת '+kindLabelV412(kind)+' ✅</div>';
+    if(typeof loadTemplatesAdmin==='function')await loadTemplatesAdmin();
+  }
+  window.saveTemplateTop=function(){return saveAdminTemplateV412(true)};
+  window.saveTemplate=function(){return saveAdminTemplateV412(false)};
+
+  var oldLoadTemplatesAdminV412=window.loadTemplatesAdmin;
+  window.loadTemplatesAdmin=async function(){
+    if(typeof oldLoadTemplatesAdminV412==='function') await oldLoadTemplatesAdminV412.apply(this,arguments);
+    document.querySelectorAll('#templatesAdminTop .item,#templatesAdmin .item').forEach(function(row){
+      if(row.dataset.kindBadgeV412)return;
+      row.dataset.kindBadgeV412='1';
+    });
+  };
+
+  var oldChangeInstallKindV412=window.changeInstallKindV411;
+  if(typeof oldChangeInstallKindV412==='function'){
+    window.changeInstallKindV411=async function(kind){
+      await oldChangeInstallKindV412(kind);
+      await loadTemplates();
+      renderTemplateSelect();
+    };
+  }
+
+  var oldClearSearchV412=window.clearSearch;
+  window.clearSearch=function(){
+    if(typeof oldClearSearchV412==='function')oldClearSearchV412.apply(this,arguments);
+    if(window.selectedWorkerPriceSearchItemsV38)window.selectedWorkerPriceSearchItemsV38=new Set();
+    setTimeout(function(){ if(window.onWorkerSearchTypeChangeV22)window.onWorkerSearchTypeChangeV22(); },50);
+  };
+
+  document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){ensureSearchKindTabsV412(); if(window.onWorkerSearchTypeChangeV22)window.onWorkerSearchTypeChangeV22();},700)});
+  window.addEventListener('load',function(){setTimeout(function(){ensureSearchKindTabsV412(); if(window.onWorkerSearchTypeChangeV22)window.onWorkerSearchTypeChangeV22();},1000)});
+})();
+</script>
+
 </body>
-  </html>
+                                                                              </html>
