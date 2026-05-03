@@ -933,7 +933,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.7";
+const APP_VERSION = "4.8";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -8297,6 +8297,235 @@ service cloud.firestore {
       },50);
     };
   }
+
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(window.ensureSecurityRulesPanelV47,200); });
+  window.addEventListener('load',function(){ setTimeout(window.ensureSecurityRulesPanelV47,500); });
+})();
+</script>
+
+
+
+<script id="v48-delete-entry-fix">
+/* ===== v4.8: תיקון מחיקת קריאת שירות / התקנה =====
+   הבעיה הייתה ב-Security Rules: במחיקת מסמך אין request.resource,
+   לכן כלל update, delete משותף שחייב request.resource חוסם delete לעובד.
+   כאן מפרידים update ו-delete, ומחזקים גם את כפתור המחיקה עם הודעת שגיאה ברורה.
+*/
+(function(){
+  try{
+    window.APP_VERSION = "4.8";
+    document.title = "מעקב עבודה - גרסה 4.8";
+    if(typeof setAppVersionUI === 'function') setAppVersionUI();
+  }catch(e){}
+
+  window.FIRESTORE_RULES_V48 = String.raw`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function hasUserDoc() {
+      return signedIn() && exists(userPath(request.auth.uid));
+    }
+
+    function userDoc() {
+      return get(userPath(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.email == "admin@work-monitor.local" ||
+        (hasUserDoc() && userDoc().data.role == "admin")
+      );
+    }
+
+    function myWorkerId() {
+      return hasUserDoc() ? userDoc().data.workerId : "";
+    }
+
+    function isOwnWorker(workerId) {
+      return signedIn() && (
+        myWorkerId() == workerId ||
+        (exists(/databases/$(database)/documents/workers/$(workerId)) &&
+         get(/databases/$(database)/documents/workers/$(workerId)).data.authUid == request.auth.uid)
+      );
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /usernameLookup/{usernameKey} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.authUid == request.auth.uid
+        && request.resource.data.active == true
+        && request.resource.data.usernameKey == usernameKey
+        && request.resource.data.workerId is string;
+      allow update: if isAdmin() || (signedIn()
+        && resource.data.authUid == request.auth.uid
+        && request.resource.data.authUid == request.auth.uid
+        && request.resource.data.workerId == resource.data.workerId);
+      allow delete: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role == "worker"
+        && request.resource.data.workerId is string;
+      allow update: if isAdmin() || (signedIn()
+        && request.auth.uid == uid
+        && resource.data.role == "worker"
+        && request.resource.data.role == "worker"
+        && request.resource.data.workerId == resource.data.workerId);
+      allow delete: if isAdmin();
+    }
+
+    match /workers/{workerId} {
+      allow read: if isAdmin() || isOwnWorker(workerId);
+
+      allow create: if isAdmin() || (signedIn()
+        && request.resource.data.authUid == request.auth.uid
+        && request.resource.data.authReady == true
+        && request.resource.data.active == true
+        && request.resource.data.selfRegistered == true
+        && request.resource.data.usernameKey is string);
+
+      allow update: if isAdmin() || (isOwnWorker(workerId)
+        && request.resource.data.authUid == resource.data.authUid
+        && request.resource.data.usernameKey == resource.data.usernameKey);
+      allow delete: if isAdmin();
+    }
+
+    match /workEntries/{entryId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create: if isAdmin() || (signedIn() && request.resource.data.workerId == myWorkerId());
+
+      // עדכון חייב request.resource כי אחרי העדכון המסמך עדיין קיים.
+      allow update: if isAdmin() || (signedIn()
+        && resource.data.workerId == myWorkerId()
+        && request.resource.data.workerId == resource.data.workerId);
+
+      // מחיקה לא יכולה להשתמש ב-request.resource כי במסמך שנמחק אין מסמך חדש.
+      allow delete: if isAdmin() || (signedIn()
+        && resource.data.workerId == myWorkerId());
+    }
+
+    match /priceList/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /installTemplates/{docId} {
+      allow read: if isAdmin() || signedIn();
+      allow create: if signedIn();
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.ownerWorkerId == myWorkerId());
+    }
+
+    match /paymentRequests/{docId} {
+      allow create: if signedIn();
+      allow read, update, delete: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+    }
+
+    match /payments/{docId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /appLogs/{docId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}`;
+
+  window.copySecurityRulesV169 = async function(){
+    var rules = window.FIRESTORE_RULES_V48;
+    try{
+      await navigator.clipboard.writeText(rules);
+      var msg=document.getElementById('securityToolsMsgV169') || document.getElementById('securityToolsMsgV47');
+      if(msg) msg.innerHTML='<div class="notice">Security Rules v4.8 הועתקו ✅<br>Firebase → Firestore Database → Rules → הדבק → Publish.</div>';
+      alert('Security Rules v4.8 הועתקו ✅');
+    }catch(e){
+      prompt('העתק את Security Rules v4.8:', rules);
+    }
+  };
+
+  window.ensureSecurityRulesPanelV47 = function(){
+    var admin=document.getElementById('adminView');
+    if(!admin) return;
+    ['securityRulesPanelV45','securityRulesPanelV46','securityToolsV169','selfRegistrationToolsV176'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el && el.parentNode) el.parentNode.removeChild(el);
+    });
+    var panel=document.getElementById('securityRulesPanelV47');
+    if(!panel){
+      panel=document.createElement('div');
+      panel.id='securityRulesPanelV47';
+      panel.className='card panel';
+      panel.innerHTML=''+
+        '<div class="cal-head"><h2>🔒 Security Rules v4.8</h2><div class="actions">'+
+        '<button class="btn-green" type="button" onclick="copySecurityRulesV169()">העתק Security Rules v4.8</button>'+
+        '<button class="btn-light" type="button" onclick="manualSyncSecurityV169 && manualSyncSecurityV169()">סנכרן אבטחה</button>'+
+        '</div></div>'+
+        '<p><b>זה התיקון למחיקה:</b> עכשיו update ו-delete מופרדים, כדי שעובד יוכל למחוק רק עבודות שלו.</p>'+
+        '<textarea id="securityRulesPreviewV47" readonly></textarea>'+
+        '<div id="securityToolsMsgV169"></div>';
+      admin.insertBefore(panel, admin.firstChild);
+    }else{
+      var h=panel.querySelector('h2'); if(h) h.textContent='🔒 Security Rules v4.8';
+      var p=panel.querySelector('p'); if(p) p.innerHTML='<b>זה התיקון למחיקה:</b> עכשיו update ו-delete מופרדים, כדי שעובד יוכל למחוק רק עבודות שלו.';
+      var b=panel.querySelector('button.btn-green'); if(b) b.textContent='העתק Security Rules v4.8';
+    }
+    panel.classList.remove('hidden');
+    panel.style.display='block';
+    var ta=document.getElementById('securityRulesPreviewV47');
+    if(ta) ta.value=window.FIRESTORE_RULES_V48;
+  };
+
+  window.deleteEntry = async function(id){
+    if(!id) return;
+    var entry=(Array.isArray(monthEntries)?monthEntries:[]).find(function(x){return x.id===id;});
+    var label=entry ? ((entry.workType==='install'?'התקנה':'קריאת שירות') + (entry.customerNumber ? ' ללקוח ' + entry.customerNumber : '')) : 'העבודה';
+    if(!confirm('למחוק את ' + label + '?')) return;
+    try{
+      await db.collection('workEntries').doc(id).delete();
+      try{
+        var msg=document.getElementById('entryMsg');
+        if(msg) msg.innerHTML='<div class="notice">העבודה נמחקה בהצלחה ✅</div>';
+      }catch(_e){}
+      await loadMonth();
+    }catch(e){
+      var code=e && (e.code || e.message) ? (e.code || e.message) : String(e);
+      var hint='שגיאה במחיקה: ' + code;
+      if(String(code).includes('permission-denied') || String(code).includes('Missing or insufficient permissions')){
+        hint='Firestore חסם את המחיקה. צריך להיכנס לאדמין, להעתיק Security Rules v4.8, לפרסם ב-Firebase ואז לנסות שוב.';
+      }
+      try{
+        var msg2=document.getElementById('entryMsg');
+        if(msg2) msg2.innerHTML='<p class="danger">'+esc(hint)+'</p>';
+      }catch(_e){}
+      alert(hint);
+      if(typeof writeAppLogV167==='function'){
+        await writeAppLogV167('deleteEntryFailedV48',{entryId:id,errorCode:e.code||'',errorMessage:e.message||String(e)}).catch(function(){});
+      }
+    }
+  };
 
   document.addEventListener('DOMContentLoaded',function(){ setTimeout(window.ensureSecurityRulesPanelV47,200); });
   window.addEventListener('load',function(){ setTimeout(window.ensureSecurityRulesPanelV47,500); });
