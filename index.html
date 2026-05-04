@@ -933,7 +933,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.16";
+const APP_VERSION = "4.17";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -9909,5 +9909,190 @@ service cloud.firestore {
 })();
 </script>
 
+
+
+<script id="v417-edit-close-remember-me-fix-js">
+/* ===== v4.17: סגירת חלון עריכת עבודה אחרי שמירה + זכור אותי יציב ===== */
+(function(){
+  try{ if(typeof setAppVersionUI === "function") setAppVersionUI(); }catch(e){}
+
+  const REMEMBER_COOKIE_V417 = "workSessionRememberV417";
+
+  function byIdV417(id){ return document.getElementById(id); }
+  function safeEscV417(s){
+    try{ return esc(s); }catch(e){ return String(s||"").replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]}); }
+  }
+  function setCookieV417(name,value,days){
+    try{
+      const d=new Date();
+      d.setTime(d.getTime() + (Number(days||365)*24*60*60*1000));
+      document.cookie = name + "=" + encodeURIComponent(value) + "; expires=" + d.toUTCString() + "; path=/; SameSite=Lax";
+    }catch(e){}
+  }
+  function getCookieV417(name){
+    try{
+      const parts=(document.cookie||"").split(";").map(x=>x.trim());
+      for(const p of parts){
+        if(p.indexOf(name+"=")===0) return decodeURIComponent(p.substring(name.length+1));
+      }
+    }catch(e){}
+    return "";
+  }
+  function deleteCookieV417(name){
+    try{ document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax"; }catch(e){}
+  }
+  function saveRememberCookieV417(sess){
+    try{
+      if(!sess || sess.role !== "worker" || !sess.remember){ deleteCookieV417(REMEMBER_COOKIE_V417); return; }
+      const clean={
+        role:"worker",
+        workerId:sess.workerId||"",
+        name:sess.name||"",
+        authUid:sess.authUid||"",
+        authEmail:sess.authEmail||"",
+        remember:true,
+        loginAt:sess.loginAt||Date.now(),
+        expiresAt:null,
+        savedAt:Date.now(),
+        appVersion:"4.17"
+      };
+      setCookieV417(REMEMBER_COOKIE_V417, JSON.stringify(clean), 365);
+      localStorage.setItem("workSession", JSON.stringify(clean));
+      window.session = clean;
+    }catch(e){}
+  }
+  function hydrateRememberFromCookieV417(){
+    try{
+      const current=localStorage.getItem("workSession");
+      if(current) return;
+      const raw=getCookieV417(REMEMBER_COOKIE_V417);
+      if(!raw) return;
+      const parsed=JSON.parse(raw);
+      if(parsed && parsed.role==="worker" && parsed.workerId && parsed.remember){
+        parsed.expiresAt=null;
+        localStorage.setItem("workSession", JSON.stringify(parsed));
+        window.session=parsed;
+      }
+    }catch(e){ deleteCookieV417(REMEMBER_COOKIE_V417); }
+  }
+  async function ensureLocalAuthPersistenceV417(){
+    try{
+      if(window.firebase && firebase.auth && auth && auth.setPersistence && firebase.auth.Auth && firebase.auth.Auth.Persistence){
+        await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+      }
+    }catch(e){ console.warn("Auth persistence LOCAL skipped", e); }
+  }
+
+  // מחזיר סשן שמור עוד לפני שה־boot קורא localStorage
+  hydrateRememberFromCookieV417();
+  document.addEventListener("DOMContentLoaded", function(){
+    hydrateRememberFromCookieV417();
+    ensureLocalAuthPersistenceV417();
+  });
+
+  const oldOnloadV417 = window.onload;
+  window.onload = async function(){
+    hydrateRememberFromCookieV417();
+    await ensureLocalAuthPersistenceV417();
+    if(typeof oldOnloadV417 === "function") return oldOnloadV417.apply(this, arguments);
+  };
+
+  const oldWorkerLoginV417 = window.workerLogin;
+  if(typeof oldWorkerLoginV417 === "function"){
+    window.workerLogin = async function(){
+      const rememberChecked = !!(byIdV417("rememberMe") && byIdV417("rememberMe").checked);
+      await ensureLocalAuthPersistenceV417();
+      const result = await oldWorkerLoginV417.apply(this, arguments);
+      try{
+        if(window.session && session.role === "worker"){
+          session.remember = rememberChecked;
+          session.expiresAt = rememberChecked ? null : (Date.now() + (2*60*60*1000));
+          localStorage.setItem("workSession", JSON.stringify(session));
+          if(rememberChecked) saveRememberCookieV417(session);
+          else deleteCookieV417(REMEMBER_COOKIE_V417);
+        }
+      }catch(e){}
+      return result;
+    };
+  }
+
+  const oldLogoutV417 = window.logout;
+  if(typeof oldLogoutV417 === "function"){
+    window.logout = function(){
+      deleteCookieV417(REMEMBER_COOKIE_V417);
+      try{ localStorage.removeItem("workSession"); }catch(e){}
+      return oldLogoutV417.apply(this, arguments);
+    };
+  }
+
+  function showSavedNoticeAfterEditV417(){
+    const msg = byIdV417("entryMsg") || byIdV417("dayPanel") || byIdV417("workerToolsMsg");
+    if(msg){
+      if(msg.id === "entryMsg"){
+        msg.innerHTML = '<div class="notice">העבודה נשמרה בהצלחה ✅</div>';
+      }else{
+        const n=document.createElement("div");
+        n.className="notice";
+        n.textContent="העבודה נשמרה בהצלחה ✅";
+        msg.prepend(n);
+        setTimeout(()=>{ try{ n.remove(); }catch(e){} }, 4500);
+      }
+    }
+    try{
+      const panel=byIdV417("dayPanel");
+      if(panel) panel.scrollIntoView({behavior:"smooth",block:"start"});
+    }catch(e){}
+  }
+
+  // גרסה מלאה של שמירת עריכת עבודה: שומר, סוגר את חלון העריכה, מרענן, ומציג הודעה במסך היום.
+  window.saveEntryEdit = async function(){
+    const id=val("editEntryId"), customerNumber=val("editEntryCustomer"), address=val("editEntryAddress"), notes=val("editEntryNotes");
+    let amount=Number(val("editEntryAmount")||0);
+    const editMsg=byIdV417("editEntryMsg");
+    if(!customerNumber || !/^\d+$/.test(customerNumber)){
+      if(editMsg) editMsg.innerHTML='<p class="danger">מספר לקוח חייב להיות ספרות בלבד.</p>';
+      return;
+    }
+    if(!address){
+      if(editMsg) editMsg.innerHTML='<p class="danger">חובה למלא כתובת.</p>';
+      return;
+    }
+    const original=(window.monthEntries||[]).find(x=>x.id===id);
+    const update={customerNumber,address,notes,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+    if(original && original.workType === "install"){
+      let edited=null;
+      if(typeof window.getEditedInstallItems === "function") edited=window.getEditedInstallItems();
+      else if(typeof window.getEditedInstallItemsV415 === "function") edited=window.getEditedInstallItemsV415();
+      if(!edited || !edited.items || !edited.items.length){
+        if(editMsg) editMsg.innerHTML='<p class="danger">חובה לבחור לפחות פריט התקנה אחד.</p>';
+        return;
+      }
+      update.items=edited.items;
+      update.amount=Number(edited.total||0);
+      if(edited.kind){
+        update.installKind=edited.kind;
+        update.priceType=edited.kind;
+        update.description = edited.kind === "rf" ? "התקנת RF" : "התקנת סיב";
+      }
+    }else{
+      if(Number.isNaN(amount)||amount<0){
+        if(editMsg) editMsg.innerHTML='<p class="danger">סכום לא תקין.</p>';
+        return;
+      }
+      update.amount=amount;
+    }
+    try{
+      if(editMsg) editMsg.innerHTML='<div class="notice">שומר...</div>';
+      await db.collection("workEntries").doc(id).update(update);
+      try{ hide("editEntryPanel"); }catch(e){ const p=byIdV417("editEntryPanel"); if(p)p.classList.add("hidden"); }
+      await loadMonth();
+      showSavedNoticeAfterEditV417();
+    }catch(e){
+      if(editMsg) editMsg.innerHTML='<p class="danger">שגיאה בשמירה: '+safeEscV417(e.message||e)+'</p>';
+    }
+  };
+})();
+</script>
+
 </body>
-  </html>
+</html>
