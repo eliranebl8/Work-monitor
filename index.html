@@ -1124,10 +1124,11 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.29";
+const APP_VERSION = "4.30";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
+/* CHANGELOG v4.30: Added admin-only Back to Admin button when opening worker tracking from admin panel. */
 function setAppVersionUI(){
   try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
   try{ document.querySelectorAll(".secret,#secretTap").forEach(el => { el.textContent = "גרסה " + APP_VERSION; }); }catch(e){}
@@ -1141,7 +1142,7 @@ window.addEventListener("load", setAppVersionUI);
 ===============================================================================
 CHANGELOG 4.29 - תיקון מקור גרסה מרכזי
 -------------------------------------------------------------------------------
-1. נוספה גרסה אחת בלבד: APP_VERSION = "4.29".
+1. גרסה מרכזית אחת בלבד: APP_VERSION = "4.30".
 2. כל הצגת גרסה במסך, כותרת דפדפן, אזור סודי, footer, לוגים, גיבויים ושמות קבצים נמשכת מהקבוע בלבד.
 3. בוטלו עדכוני גרסה ישנים שכתבו 4.24/4.25/4.26/4.28 ישירות למסך וגרמו לקפיצות גרסה בזמן טעינה.
 4. נוסף מנגנון enforceAppVersionUI() שרץ אחרי טעינה/רינדור ומיישר כל טקסט גרסה לפי APP_VERSION בלי לפגוע בפונקציות הקיימות.
@@ -11320,6 +11321,120 @@ body.worker-main-loading-v428 #startupView{
 })();
 </script>
 
+
+
+<style id="v4-30-admin-back-button-css">
+/* ===== v4.30: כפתור חזרה לאדמין — מוצג רק כשמנהל פתח מעקב עובד ===== */
+.admin-back-to-panel-v430{
+  background:#f8fafc!important;
+  color:#0f172a!important;
+  border:1px solid var(--line)!important;
+  box-shadow:0 8px 18px rgba(15,23,42,.08)!important;
+  border-radius:999px!important;
+  padding:11px 15px!important;
+  min-height:42px!important;
+  white-space:nowrap!important;
+  width:auto!important;
+}
+.admin-back-to-panel-v430.hidden{display:none!important}
+@media(max-width:800px){
+  .admin-back-to-panel-v430{width:100%!important;margin-top:8px!important}
+  .worker-tabs-head-v420{flex-direction:column!important;align-items:stretch!important}
+}
+</style>
+
+<script>
+/* ===== PATCH v4.30: Admin-only Back to Admin navigation =====
+   מה עודכן:
+   1. כאשר מנהל לוחץ "פתח מעקב" על עובד, נשמר דגל זמני שהפתיחה הגיעה מהאדמין.
+   2. במסך העובד נוצר כפתור "חזור לאדמין" רק במקרה הזה.
+   3. עובד רגיל לא רואה את הכפתור בכלל, גם אחרי רענון/כניסה רגילה.
+   4. החזרה לאדמין קוראת ל-showAdmin הקיים ושומרת את כל הלוגיקה הקיימת ללא שינוי.
+*/
+(function(){
+  window.__adminOpenedWorkerTrackingV430 = false;
+
+  function isAdminSessionV430(){
+    try{return !!(window.session && session.role === 'admin');}catch(e){return false;}
+  }
+
+  function ensureBackToAdminButtonV430(){
+    try{
+      var workerView=document.getElementById('workerView');
+      if(!workerView) return;
+      var head=document.querySelector('#workerView .worker-tabs-head-v420') || document.querySelector('#workerView .card') || workerView;
+      var btn=document.getElementById('backToAdminBtnV430');
+      if(!btn){
+        btn=document.createElement('button');
+        btn.id='backToAdminBtnV430';
+        btn.type='button';
+        btn.className='btn-light admin-back-to-panel-v430 hidden';
+        btn.textContent='↩️ חזור לאדמין';
+        btn.onclick=function(){ return window.backToAdminPanelV430(); };
+        head.appendChild(btn);
+      }
+      var shouldShow=isAdminSessionV430() && window.__adminOpenedWorkerTrackingV430 === true;
+      btn.classList.toggle('hidden', !shouldShow);
+      btn.style.display = shouldShow ? 'inline-flex' : 'none';
+    }catch(e){console.warn('ensureBackToAdminButtonV430 failed', e);}
+  }
+
+  window.backToAdminPanelV430 = async function(){
+    try{
+      window.__adminOpenedWorkerTrackingV430=false;
+      ensureBackToAdminButtonV430();
+      if(isAdminSessionV430() && typeof showAdmin === 'function'){
+        await showAdmin();
+        return;
+      }
+      if(typeof showWorkerLogin === 'function') showWorkerLogin();
+    }catch(e){
+      alert('שגיאה בחזרה לאדמין: ' + (e.message || e));
+    }
+  };
+
+  var baseShowWorkerByIdV430 = window.showWorkerById;
+  if(typeof baseShowWorkerByIdV430 === 'function'){
+    window.showWorkerById = async function(id){
+      if(isAdminSessionV430()) window.__adminOpenedWorkerTrackingV430 = true;
+      return await baseShowWorkerByIdV430.apply(this, arguments);
+    };
+  }
+
+  var baseShowWorkerV430 = window.showWorker;
+  if(typeof baseShowWorkerV430 === 'function'){
+    window.showWorker = async function(worker, token){
+      var result = await baseShowWorkerV430.apply(this, arguments);
+      ensureBackToAdminButtonV430();
+      setTimeout(ensureBackToAdminButtonV430, 150);
+      setTimeout(ensureBackToAdminButtonV430, 700);
+      return result;
+    };
+  }
+
+  var baseShowWorkerLoginV430 = window.showWorkerLogin;
+  if(typeof baseShowWorkerLoginV430 === 'function'){
+    window.showWorkerLogin = function(){
+      window.__adminOpenedWorkerTrackingV430=false;
+      var result = baseShowWorkerLoginV430.apply(this, arguments);
+      ensureBackToAdminButtonV430();
+      return result;
+    };
+  }
+
+  var baseLogoutV430 = window.logout;
+  if(typeof baseLogoutV430 === 'function'){
+    window.logout = function(){
+      window.__adminOpenedWorkerTrackingV430=false;
+      return baseLogoutV430.apply(this, arguments);
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', ensureBackToAdminButtonV430);
+  window.addEventListener('load', function(){ setTimeout(ensureBackToAdminButtonV430, 400); });
+})();
+</script>
+
 </body>
 </html>
 
@@ -11756,5 +11871,112 @@ html,body{max-width:100%!important;overflow-x:hidden!important;}
   window.addEventListener("load", runVersionEnforcerV429);
   document.addEventListener("click", function(){ setTimeout(runVersionEnforcerV429, 80); });
   setInterval(runVersionEnforcerV429, 900);
+})();
+</script>
+
+<script id="v4-30-admin-back-button-final-js">
+/* ===== FINAL PATCH v4.30: Admin-only Back to Admin after all legacy overrides =====
+   הערת עדכון: הקובץ כולל שכבות סקריפט ישנות גם אחרי תגית הסיום, לכן שכבת v4.30 זו נטענת אחרונה ומוודאת שהכפתור לא נדרס.
+*/
+(function(){
+  window.__adminOpenedWorkerTrackingV430 = window.__adminOpenedWorkerTrackingV430 || false;
+
+  function isAdminSessionV430(){
+    try{return !!(window.session && session.role === 'admin');}catch(e){return false;}
+  }
+
+  function ensureBackToAdminButtonV430(){
+    try{
+      var workerView=document.getElementById('workerView');
+      if(!workerView) return;
+      var head=document.querySelector('#workerView .worker-tabs-head-v420') || document.querySelector('#workerView .card') || workerView;
+      var btn=document.getElementById('backToAdminBtnV430');
+      if(!btn){
+        btn=document.createElement('button');
+        btn.id='backToAdminBtnV430';
+        btn.type='button';
+        btn.className='btn-light admin-back-to-panel-v430 hidden';
+        btn.textContent='↩️ חזור לאדמין';
+        btn.onclick=function(){ return window.backToAdminPanelV430(); };
+        head.appendChild(btn);
+      }
+      var shouldShow=isAdminSessionV430() && window.__adminOpenedWorkerTrackingV430 === true;
+      btn.classList.toggle('hidden', !shouldShow);
+      btn.style.display = shouldShow ? 'inline-flex' : 'none';
+    }catch(e){console.warn('ensureBackToAdminButtonV430 final failed', e);}
+  }
+
+  window.backToAdminPanelV430 = async function(){
+    try{
+      window.__adminOpenedWorkerTrackingV430=false;
+      ensureBackToAdminButtonV430();
+      if(isAdminSessionV430() && typeof showAdmin === 'function'){
+        await showAdmin();
+      }else if(typeof showWorkerLogin === 'function'){
+        showWorkerLogin();
+      }
+    }catch(e){ alert('שגיאה בחזרה לאדמין: ' + (e.message || e)); }
+  };
+
+  var oldShowWorkerByIdV430Final = window.showWorkerById;
+  if(typeof oldShowWorkerByIdV430Final === 'function' && !oldShowWorkerByIdV430Final.__adminBackWrappedV430Final){
+    var wrappedShowWorkerByIdV430Final = async function(id){
+      if(isAdminSessionV430()) window.__adminOpenedWorkerTrackingV430 = true;
+      return await oldShowWorkerByIdV430Final.apply(this, arguments);
+    };
+    wrappedShowWorkerByIdV430Final.__adminBackWrappedV430Final = true;
+    window.showWorkerById = wrappedShowWorkerByIdV430Final;
+  }
+
+  var oldShowWorkerV430Final = window.showWorker;
+  if(typeof oldShowWorkerV430Final === 'function' && !oldShowWorkerV430Final.__adminBackWrappedV430Final){
+    var wrappedShowWorkerV430Final = async function(worker, token){
+      var result = await oldShowWorkerV430Final.apply(this, arguments);
+      ensureBackToAdminButtonV430();
+      setTimeout(ensureBackToAdminButtonV430, 150);
+      setTimeout(ensureBackToAdminButtonV430, 700);
+      return result;
+    };
+    wrappedShowWorkerV430Final.__adminBackWrappedV430Final = true;
+    window.showWorker = wrappedShowWorkerV430Final;
+  }
+
+  var oldShowAdminV430Final = window.showAdmin;
+  if(typeof oldShowAdminV430Final === 'function' && !oldShowAdminV430Final.__adminBackWrappedV430Final){
+    var wrappedShowAdminV430Final = async function(){
+      window.__adminOpenedWorkerTrackingV430=false;
+      var result = await oldShowAdminV430Final.apply(this, arguments);
+      ensureBackToAdminButtonV430();
+      return result;
+    };
+    wrappedShowAdminV430Final.__adminBackWrappedV430Final = true;
+    window.showAdmin = wrappedShowAdminV430Final;
+  }
+
+  var oldShowWorkerLoginV430Final = window.showWorkerLogin;
+  if(typeof oldShowWorkerLoginV430Final === 'function' && !oldShowWorkerLoginV430Final.__adminBackWrappedV430Final){
+    var wrappedShowWorkerLoginV430Final = function(){
+      window.__adminOpenedWorkerTrackingV430=false;
+      var result = oldShowWorkerLoginV430Final.apply(this, arguments);
+      ensureBackToAdminButtonV430();
+      return result;
+    };
+    wrappedShowWorkerLoginV430Final.__adminBackWrappedV430Final = true;
+    window.showWorkerLogin = wrappedShowWorkerLoginV430Final;
+  }
+
+  var oldLogoutV430Final = window.logout;
+  if(typeof oldLogoutV430Final === 'function' && !oldLogoutV430Final.__adminBackWrappedV430Final){
+    var wrappedLogoutV430Final = function(){
+      window.__adminOpenedWorkerTrackingV430=false;
+      return oldLogoutV430Final.apply(this, arguments);
+    };
+    wrappedLogoutV430Final.__adminBackWrappedV430Final = true;
+    window.logout = wrappedLogoutV430Final;
+  }
+
+  ensureBackToAdminButtonV430();
+  document.addEventListener('DOMContentLoaded', ensureBackToAdminButtonV430);
+  window.addEventListener('load', function(){ setTimeout(ensureBackToAdminButtonV430, 400); setTimeout(ensureBackToAdminButtonV430, 1400); });
 })();
 </script>
