@@ -1124,7 +1124,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.27";
+const APP_VERSION = "4.28";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -11138,6 +11138,143 @@ html,body{max-width:100%!important;overflow-x:hidden!important;}
 })();
 </script>
 
+
+
+<style id="v4-28-true-startup-until-ready-css">
+/* ===== v4.28: מסך טעינה ראשי עד שכל נתוני העובד מוכנים ===== */
+body.worker-main-loading-v428 #workerView{
+  display:none!important;
+}
+body.worker-main-loading-v428 #startupView{
+  display:block!important;
+}
+</style>
+
+<script id="v4-28-true-startup-until-ready-js">
+(function(){
+  window.APP_VERSION = "4.28";
+  try{ document.title = "מעקב עבודה - גרסה 4.28"; }catch(e){}
+
+  function setVersion428(){
+    try{
+      document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent='4.28'; });
+      document.querySelectorAll('.secret,#secretTap').forEach(function(el){ el.textContent='גרסה 4.28'; });
+    }catch(e){}
+  }
+
+  function showMainStartup428(subText){
+    try{
+      document.body.classList.add('worker-main-loading-v428');
+      if(typeof hideAll === 'function') hideAll();
+      if(typeof show === 'function') show('startupView');
+      if(typeof show === 'function') show('logoutBtn');
+      if(typeof text === 'function') text('userLine','טוען נתונים');
+      var sub=document.querySelector('#startupView .startup-sub');
+      if(sub) sub.textContent=subText || 'מחשב סיכומים, עבודות ומתוזמנות...';
+      var title=document.querySelector('#startupView .big-title');
+      if(title) title.textContent='טוען נתונים';
+    }catch(e){}
+  }
+
+  function revealWorkerAfterReady428(worker){
+    try{
+      document.body.classList.remove('worker-main-loading-v428');
+      if(typeof hideAll === 'function') hideAll();
+      if(typeof show === 'function') show('workerView');
+      if(typeof show === 'function') show('logoutBtn');
+      if(typeof text === 'function'){
+        text('userLine', (worker && worker.name ? worker.name : 'עובד') + ' · ' + ((window.session && session.role === 'admin') ? 'צפייה כמנהל' : 'עובד'));
+      }
+      if(typeof setVersion428 === 'function') setVersion428();
+      if(typeof cleanVisibleSlashN === 'function') cleanVisibleSlashN();
+    }catch(e){ console.warn('revealWorkerAfterReady428 failed',e); }
+  }
+
+  var baseLoadMonth428 = window.loadMonth;
+  var baseShowWorkerById428 = window.showWorkerById;
+
+  window.showWorker = async function(worker, token){
+    token = token || (typeof nextNavTokenV180 === 'function' ? nextNavTokenV180() : Date.now());
+    window.__isLoggingOutV180 = false;
+    if(!worker || !worker.id) return;
+
+    showMainStartup428('מכין את סביבת העבודה שלך...');
+
+    try{
+      if(typeof assertWorkerCanViewV177 === 'function'){
+        var gate = await assertWorkerCanViewV177(worker);
+        if(typeof isStaleNavV180 === 'function' && isStaleNavV180(token)) return;
+        if(!gate || !gate.ok) return;
+        worker = gate.worker;
+      }
+
+      window.viewedWorker = worker;
+      viewedWorker = worker;
+      calendarDate = new Date();
+      selectedDate = null;
+      selectedType = null;
+      monthEntries = [];
+
+      if($('helloTitle')) text('helloTitle','שלום ' + (worker.name || ''));
+      if($('selfMonthlyGoal')) $('selfMonthlyGoal').value = Number(worker.monthlyGoal || 0);
+      if($('selfNewPassword')) $('selfNewPassword').value = '';
+
+      try{ await loadSettings(); }catch(e){ console.warn('loadSettings v4.28 skipped',e); }
+      if(typeof isStaleNavV180 === 'function' && isStaleNavV180(token)) return;
+
+      showMainStartup428('טוען עבודות, סיכומים ודשבורד...');
+      if(typeof baseLoadMonth428 === 'function'){
+        await baseLoadMonth428.call(this, token);
+      }else if(typeof loadMonth === 'function'){
+        await loadMonth(token);
+      }
+      if(typeof isStaleNavV180 === 'function' && isStaleNavV180(token)) return;
+
+      // רינדור אחרון אחרי שכל הנתונים כבר הגיעו — כדי שלא תהיה קפיצה מאפסים לנתונים.
+      try{ renderCalendar(); }catch(e){}
+      try{ renderDay(); }catch(e){}
+      try{ renderStats(); }catch(e){}
+      try{ if(typeof renderSmartDashboard === 'function') renderSmartDashboard(); }catch(e){}
+      try{ if($('searchPanel') && !$('searchPanel').classList.contains('hidden') && typeof renderFullSummary === 'function') renderFullSummary(); }catch(e){}
+
+      revealWorkerAfterReady428(worker);
+    }catch(e){
+      document.body.classList.remove('worker-main-loading-v428');
+      try{ if(typeof hideWorkerLoading427 === 'function') hideWorkerLoading427(); }catch(_e){}
+      console.error('showWorker v4.28 failed', e);
+      alert('שגיאה בטעינת נתוני העובד: ' + (e.message || e));
+      try{ showWorkerLogin(); }catch(_e){}
+    }
+  };
+
+  window.showWorkerById = async function(id){
+    var token = (typeof nextNavTokenV180 === 'function' ? nextNavTokenV180() : Date.now());
+    window.__isLoggingOutV180 = false;
+    showMainStartup428('פותח עובד וטוען נתונים...');
+    try{
+      if(!id) throw new Error('חסר מזהה עובד');
+      var worker;
+      if(typeof fetchFreshWorkerV177 === 'function') worker = await fetchFreshWorkerV177(id);
+      else {
+        var doc = await db.collection('workers').doc(id).get();
+        worker = Object.assign({id:doc.id}, doc.data());
+      }
+      if(typeof isStaleNavV180 === 'function' && isStaleNavV180(token)) return;
+      await window.showWorker(worker, token);
+    }catch(e){
+      document.body.classList.remove('worker-main-loading-v428');
+      console.error('showWorkerById v4.28 failed',e);
+      if(window.__isLoggingOutV180 || !window.session) return;
+      alert('שגיאה בפתיחת עובד: ' + (e.message || String(e)));
+      try{ showWorkerLogin(); }catch(_e){}
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded',function(){ setVersion428(); });
+  window.addEventListener('load',function(){ setTimeout(setVersion428,250); setTimeout(setVersion428,900); setTimeout(setVersion428,1800); });
+})();
+</script>
+
 </body>
 </html>
 
@@ -11380,7 +11517,7 @@ html,body{max-width:100%!important;overflow-x:hidden!important;}
 </script>
 
 <style id="v4-27-day-counts-loading-fix-css">
-/* ===== v4.27: סיכומי יום בשתי שורות + טעינת נתונים לפני הצגת מספרים ===== */
+/* ===== v4.28: סיכומי יום בשתי שורות + טעינת נתונים לפני הצגת מספרים ===== */
 .day-count-pill-v419{
   display:flex!important;
   flex-direction:column!important;
@@ -11465,10 +11602,10 @@ html,body{max-width:100%!important;overflow-x:hidden!important;}
 
 <script id="v4-27-day-counts-loading-fix-js">
 (function(){
-  window.APP_VERSION = "4.27";
-  try{ document.title = "מעקב עבודה - גרסה 4.27"; }catch(e){}
+  window.APP_VERSION = "4.28";
+  try{ document.title = "מעקב עבודה - גרסה 4.28"; }catch(e){}
   function setVersion427(){
-    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent='4.27'; }); }catch(e){}
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent='4.28'; }); }catch(e){}
   }
 
   function ensureWorkerLoadingOverlay427(){
@@ -11522,7 +11659,7 @@ html,body{max-width:100%!important;overflow-x:hidden!important;}
         var pills=document.querySelectorAll('.day-count-pill-v419');
         if(pills[0]) pills[0].innerHTML=countsHtml427(counts427(done));
         if(pills[1]) pills[1].innerHTML=countsHtml427(counts427(planned));
-      }catch(e){ console.warn('v4.27 day count fix',e); }
+      }catch(e){ console.warn('v4.28 day count fix',e); }
       return res;
     };
     window.renderDay.__v427=true;
@@ -11550,7 +11687,7 @@ html,body{max-width:100%!important;overflow-x:hidden!important;}
       if(typeof cleanVisibleSlashN==='function') cleanVisibleSlashN();
       setVersion427();
     }catch(e){
-      console.error('loadMonth v4.27 failed',e);
+      console.error('loadMonth v4.28 failed',e);
       try{ alert('שגיאה בטעינת נתוני החודש: '+(e.message||e)); }catch(_e){}
     }finally{
       setTimeout(hideWorkerLoading427,120);
