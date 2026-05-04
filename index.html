@@ -593,10 +593,16 @@ button:focus{
 }
 </style>
 
+
+<style id="v4-18-version-labels">
+.app-version-mini{font-size:11px;color:#94a3b8;font-weight:800;line-height:1.2;margin-top:2px;letter-spacing:.2px}
+.app-version-footer{font-size:11px;color:#94a3b8;text-align:center;margin:18px auto 6px;font-weight:800;opacity:.85}
+@media(max-width:800px){.app-version-mini{font-size:10.5px}.app-version-footer{font-size:10.5px;margin-top:14px}}
+</style>
 </head>
 <body>
 <div class="app">
-<div class="top"><div class="brand"><div class="logo">₪</div><div>מעקב עבודה<br><span id="userLine" class="muted" style="font-size:13px">טוען נתונים</span></div></div><button id="logoutBtn" class="btn-light hidden" onclick="logout()">יציאה</button></div>
+<div class="top"><div class="brand"><div class="logo">₪</div><div>מעקב עבודה<br><span id="userLine" class="muted" style="font-size:13px">טוען נתונים</span><div class="app-version-mini" title="גרסת האפליקציה">v<span data-app-version></span></div></div></div><button id="logoutBtn" class="btn-light hidden" onclick="logout()">יציאה</button></div>
 
 <section id="startupView" class="card login-box startup-screen">
   <div class="startup-loader-wrap">
@@ -930,10 +936,11 @@ button:focus{
 
 <div id="selectDayHint" class="card"><div class="hint-card">בחר יום בלוח השנה כדי להוסיף קריאת שירות או התקנה</div></div>
 </section>
+<div class="app-version-footer">Work App • v<span data-app-version></span></div>
 </div>
 
 <script>
-const APP_VERSION = "4.17";
+const APP_VERSION = "4.18";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1858,8 +1865,8 @@ function backupCollectionNamesV413(){
 async function backupJSON(){
   const collections=backupCollectionNamesV413();
   const data={
-    version:"4.15",
-    appVersion:(window.APP_VERSION||APP_VERSION||"4.15"),
+    version:"4.18",
+    appVersion:(window.APP_VERSION||APP_VERSION||"4.18"),
     backupSchema:"work-monitor-full-v413",
     exportedAt:new Date().toISOString(),
     notes:"Full backup includes workers, work entries, settings, payment requests, templates, username lookup, users, logs and the unified priceList with fiber/RF priceType fields.",
@@ -2101,8 +2108,8 @@ async function exportMyEntriesCSV(){
 async function backupMyJSON(){
   if(!viewedWorker)return;
   const data={
-    version:"4.15",
-    appVersion:(window.APP_VERSION||APP_VERSION||"4.15"),
+    version:"4.18",
+    appVersion:(window.APP_VERSION||APP_VERSION||"4.18"),
     type:"worker-backup-v413",
     workerId:viewedWorker.id,
     workerName:viewedWorker.name||"",
@@ -7479,7 +7486,7 @@ async function addInstall(){
    לא להשאיר את המשתמש תקוע במסך הרשמה, ולא להחזיר כלי Security ישנים לאדמין.
 */
 (function(){
-  window.APP_VERSION = "4.7";
+  window.APP_VERSION = "4.18";
   try{ if(typeof APP_VERSION !== "undefined"){} }catch(e){}
   try{ document.title = "מעקב עבודה - גרסה 4.4"; }catch(e){}
 
@@ -8195,7 +8202,7 @@ service cloud.firestore {
 <script id="v47-self-registration-rules-final">
 /* ===== v4.7: Final self-registration Security Rules + stronger registration message ===== */
 (function(){
-  try{ window.APP_VERSION = "4.7"; document.title = "מעקב עבודה - גרסה 4.7"; }catch(e){}
+  try{ window.APP_VERSION = "4.18"; document.title = "מעקב עבודה - גרסה 4.18"; }catch(e){}
 
   window.FIRESTORE_RULES_V47 = String.raw`rules_version = '2';
 service cloud.firestore {
@@ -8418,7 +8425,7 @@ service cloud.firestore {
 */
 (function(){
   try{
-    window.APP_VERSION = "4.8";
+    window.APP_VERSION = "4.18";
     document.title = "מעקב עבודה - גרסה 4.8";
     if(typeof setAppVersionUI === 'function') setAppVersionUI();
   }catch(e){}
@@ -8995,7 +9002,7 @@ service cloud.firestore {
 <script id="v411-rf-fiber-and-buttons-js">
 /* ===== v4.11: תיקון כפתורי סידור + מחירון התקנה לפי סיב/RF ===== */
 (function(){
-  window.APP_VERSION='4.16';
+  window.APP_VERSION = "4.18";
   try{ if(typeof APP_VERSION!=='undefined'){} }catch(e){}
   var installKindV411='fiber';
   var adminPriceKindV411='fiber';
@@ -9265,7 +9272,7 @@ service cloud.firestore {
 <script id="v412-search-and-template-kind-js">
 /* ===== v4.12: חיפוש ותבניות לפי סיב/RF ===== */
 (function(){
-  window.APP_VERSION='4.16';
+  window.APP_VERSION = "4.18";
   try{ document.title='מעקב עבודה - גרסה 4.12'; }catch(e){}
 
   var searchInstallKindV412='fiber';
@@ -9531,7 +9538,7 @@ service cloud.firestore {
 /* ===== v4.14: סידור עתידי רק מהיום והלאה + גרסה קבועה ב-UI ===== */
 (function(){
   try{
-    window.APP_VERSION = "4.16";
+    window.APP_VERSION = "4.18";
     if(typeof setAppVersionUI === "function") setAppVersionUI();
     window.addEventListener("DOMContentLoaded", function(){ if(typeof setAppVersionUI === "function") setAppVersionUI(); });
     window.addEventListener("load", function(){ if(typeof setAppVersionUI === "function") setAppVersionUI(); });
@@ -9652,7 +9659,7 @@ service cloud.firestore {
 <script id="v415-full-edit-rf-fiber-js">
 /* ===== v4.15: עריכה מלאה — התקנת RF נשארת RF, סיב נשאר סיב, ואפשר להחליף סוג בעריכה ===== */
 (function(){
-  window.APP_VERSION='4.16';
+  window.APP_VERSION = "4.18";
   try{ setAppVersionUI && setAppVersionUI(); }catch(e){}
 
   var editEntryKindV415='fiber';
@@ -10095,4 +10102,4 @@ service cloud.firestore {
 </script>
 
 </body>
-</html>
+  </html>
