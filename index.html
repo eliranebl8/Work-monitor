@@ -847,9 +847,9 @@ button:focus{
 <div id="workerToolsPanel" class="hidden">
 <p>ייצוא, גיבוי ושחזור לנתונים האישיים שלך בלבד.</p>
 <div class="actions">
-  <button class="btn-green" onclick="exportMyEntriesCSV()">📊 ייצוא שלי לאקסל</button>
-  <button onclick="backupMyJSON()">💾 גיבוי שלי JSON</button>
-  <button class="btn-yellow" onclick="$('restoreMyFile').click()">♻️ שחזור שלי JSON</button>
+  <button class="btn-green" onclick="exportMyEntriesCSV()">📊 ייצוא לאקסל</button>
+  <button onclick="backupMyJSON()">💾 גיבוי JSON</button>
+  <button class="btn-yellow" onclick="$('restoreMyFile').click()">♻️ שחזור JSON</button>
   <input id="restoreMyFile" type="file" accept="application/json" class="hidden" onchange="restoreMyJSON(event)">
 </div>
 <div id="workerToolsMsg"></div>
@@ -940,7 +940,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.18";
+const APP_VERSION = "4.19";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1865,8 +1865,8 @@ function backupCollectionNamesV413(){
 async function backupJSON(){
   const collections=backupCollectionNamesV413();
   const data={
-    version:"4.18",
-    appVersion:(window.APP_VERSION||APP_VERSION||"4.18"),
+    version:"4.19",
+    appVersion:(window.APP_VERSION||APP_VERSION||"4.19"),
     backupSchema:"work-monitor-full-v413",
     exportedAt:new Date().toISOString(),
     notes:"Full backup includes workers, work entries, settings, payment requests, templates, username lookup, users, logs and the unified priceList with fiber/RF priceType fields.",
@@ -2108,8 +2108,8 @@ async function exportMyEntriesCSV(){
 async function backupMyJSON(){
   if(!viewedWorker)return;
   const data={
-    version:"4.18",
-    appVersion:(window.APP_VERSION||APP_VERSION||"4.18"),
+    version:"4.19",
+    appVersion:(window.APP_VERSION||APP_VERSION||"4.19"),
     type:"worker-backup-v413",
     workerId:viewedWorker.id,
     workerName:viewedWorker.name||"",
@@ -7486,7 +7486,7 @@ async function addInstall(){
    לא להשאיר את המשתמש תקוע במסך הרשמה, ולא להחזיר כלי Security ישנים לאדמין.
 */
 (function(){
-  window.APP_VERSION = "4.18";
+  window.APP_VERSION = "4.19";
   try{ if(typeof APP_VERSION !== "undefined"){} }catch(e){}
   try{ document.title = "מעקב עבודה - גרסה 4.4"; }catch(e){}
 
@@ -8202,7 +8202,7 @@ service cloud.firestore {
 <script id="v47-self-registration-rules-final">
 /* ===== v4.7: Final self-registration Security Rules + stronger registration message ===== */
 (function(){
-  try{ window.APP_VERSION = "4.18"; document.title = "מעקב עבודה - גרסה 4.18"; }catch(e){}
+  try{ window.APP_VERSION = "4.19"; document.title = "מעקב עבודה - גרסה 4.19"; }catch(e){}
 
   window.FIRESTORE_RULES_V47 = String.raw`rules_version = '2';
 service cloud.firestore {
@@ -8425,7 +8425,7 @@ service cloud.firestore {
 */
 (function(){
   try{
-    window.APP_VERSION = "4.18";
+    window.APP_VERSION = "4.19";
     document.title = "מעקב עבודה - גרסה 4.8";
     if(typeof setAppVersionUI === 'function') setAppVersionUI();
   }catch(e){}
@@ -9002,7 +9002,7 @@ service cloud.firestore {
 <script id="v411-rf-fiber-and-buttons-js">
 /* ===== v4.11: תיקון כפתורי סידור + מחירון התקנה לפי סיב/RF ===== */
 (function(){
-  window.APP_VERSION = "4.18";
+  window.APP_VERSION = "4.19";
   try{ if(typeof APP_VERSION!=='undefined'){} }catch(e){}
   var installKindV411='fiber';
   var adminPriceKindV411='fiber';
@@ -9272,7 +9272,7 @@ service cloud.firestore {
 <script id="v412-search-and-template-kind-js">
 /* ===== v4.12: חיפוש ותבניות לפי סיב/RF ===== */
 (function(){
-  window.APP_VERSION = "4.18";
+  window.APP_VERSION = "4.19";
   try{ document.title='מעקב עבודה - גרסה 4.12'; }catch(e){}
 
   var searchInstallKindV412='fiber';
@@ -9538,7 +9538,7 @@ service cloud.firestore {
 /* ===== v4.14: סידור עתידי רק מהיום והלאה + גרסה קבועה ב-UI ===== */
 (function(){
   try{
-    window.APP_VERSION = "4.18";
+    window.APP_VERSION = "4.19";
     if(typeof setAppVersionUI === "function") setAppVersionUI();
     window.addEventListener("DOMContentLoaded", function(){ if(typeof setAppVersionUI === "function") setAppVersionUI(); });
     window.addEventListener("load", function(){ if(typeof setAppVersionUI === "function") setAppVersionUI(); });
@@ -9659,7 +9659,7 @@ service cloud.firestore {
 <script id="v415-full-edit-rf-fiber-js">
 /* ===== v4.15: עריכה מלאה — התקנת RF נשארת RF, סיב נשאר סיב, ואפשר להחליף סוג בעריכה ===== */
 (function(){
-  window.APP_VERSION = "4.18";
+  window.APP_VERSION = "4.19";
   try{ setAppVersionUI && setAppVersionUI(); }catch(e){}
 
   var editEntryKindV415='fiber';
@@ -10098,6 +10098,170 @@ service cloud.firestore {
       if(editMsg) editMsg.innerHTML='<p class="danger">שגיאה בשמירה: '+safeEscV417(e.message||e)+'</p>';
     }
   };
+})();
+</script>
+
+
+
+<style id="v4-19-day-scroll-and-counts">
+/* ===== v4.19: חלוקה מקצועית לעבודות שבוצעו ומתוזמנות + גלילה פנימית ===== */
+.day-sections-v419{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:14px;
+  margin-top:10px;
+}
+.day-section-v419{
+  background:rgba(255,255,255,.74);
+  border:1px solid var(--line);
+  border-radius:24px;
+  padding:14px;
+  box-shadow:var(--soft-shadow);
+}
+.day-section-head-v419{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+.day-section-title-v419{
+  margin:0;
+  font-size:18px;
+  font-weight:900;
+  color:#0f172a;
+}
+.day-section-sub-v419{
+  color:#64748b;
+  font-size:13px;
+  font-weight:800;
+  margin-top:4px;
+}
+.day-count-pill-v419{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border-radius:999px;
+  padding:7px 11px;
+  background:#eff6ff;
+  color:#1d4ed8;
+  font-size:13px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.day-scroll-v419{
+  max-height:420px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding-inline-end:4px;
+  scroll-behavior:smooth;
+}
+.day-scroll-v419::-webkit-scrollbar{width:8px}
+.day-scroll-v419::-webkit-scrollbar-track{background:#e2e8f0;border-radius:999px}
+.day-scroll-v419::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:999px}
+.day-scroll-v419 .item:last-child{margin-bottom:0!important}
+.day-section-planned-v419{
+  background:rgba(255,247,237,.82);
+  border-color:#fed7aa;
+}
+.day-section-planned-v419 .day-count-pill-v419{
+  background:#fff7ed;
+  color:#9a3412;
+}
+.day-empty-v419{
+  background:rgba(248,250,252,.86);
+  border:1px dashed #cbd5e1;
+  border-radius:18px;
+  padding:18px;
+  text-align:center;
+  color:#64748b;
+  font-weight:900;
+}
+@media(min-width:920px){
+  .day-sections-v419{grid-template-columns:1fr 1fr;align-items:start}
+  .day-section-done-v419 .day-scroll-v419,
+  .day-section-planned-v419 .day-scroll-v419{max-height:520px}
+}
+@media(max-width:800px){
+  .day-section-v419{padding:12px;border-radius:22px}
+  .day-scroll-v419{max-height:390px}
+  .day-section-title-v419{font-size:16px}
+  .day-count-pill-v419{width:100%;justify-content:center}
+}
+</style>
+
+<script id="v4-19-day-scroll-and-counts">
+(function(){
+  function safeArrV419(a){ return Array.isArray(a) ? a : []; }
+  function isPlannedSafeV419(e){
+    try{ if(typeof window.isPlannedV49 === 'function') return !!window.isPlannedV49(e); }catch(_e){}
+    return e && (e.entryStatus === 'planned' || e.status === 'planned' || e.planned === true);
+  }
+  function entryTimeV419(e){
+    try{ return Number(e && e.createdAt && e.createdAt.seconds ? e.createdAt.seconds : 0); }catch(_e){ return 0; }
+  }
+  function countsV419(list){
+    list = safeArrV419(list);
+    return {
+      total:list.length,
+      installs:list.filter(function(e){return e.workType === 'install';}).length,
+      services:list.filter(function(e){return e.workType === 'service';}).length
+    };
+  }
+  function countsTextV419(c){
+    return 'סה״כ ' + c.total + ' · התקנות ' + c.installs + ' · קריאות שירות ' + c.services;
+  }
+  function detailsV419(e){
+    if(e.workType === 'service'){
+      return 'מספר לקוח: ' + (e.customerNumber || '') + '\nכתובת: ' + (e.address || '') + '\n' + (e.notes || '');
+    }
+    return 'מספר לקוח: ' + (e.customerNumber || '') + '\nכתובת: ' + (e.address || '') + '\n' +
+      safeArrV419(e.items).map(function(i){ return (i.name || '') + ' × ' + (i.quantity || 0) + ' = ' + money(i.total || 0); }).join('<br>') +
+      '\n' + (e.notes || '');
+  }
+  function buildEntryRowV419(e, planned){
+    var row=document.createElement('div');
+    row.className='item' + (planned ? ' planned-card-v49' : '');
+    var iconClass=e.workType==='install' ? 'install' : (e.isReturnCall ? 'return' : 'service');
+    var icon=e.workType==='install' ? '🛠️' : (e.isReturnCall ? '🔁' : '☎️');
+    row.innerHTML = '<div class="work-row-main"><div class="work-icon '+iconClass+'">'+(planned?'📋':icon)+'</div><div><div class="item-title">'+esc(e.description||'')+' '+(planned?'<span class="planned-badge-v49">מתוכנן</span>':'<span class="done-badge-v49">בוצע</span>')+'</div><div class="item-sub">'+nl2br(detailsV419(e))+'</div></div></div><div><div class="money '+(planned?'planned-money-v49':'')+'">'+money(e.amount||0)+'</div><div class="actions" style="margin-top:8px">'+(planned?'<button class="btn-green" onclick="markEntryDoneV49(\''+e.id+'\')">בוצע</button>':'')+'<button class="btn-yellow" onclick="openEntryEdit(\''+e.id+'\')">ערוך</button>'+((!planned && e.workType==='install')?'<button class="btn-light" onclick="saveEntryAsTemplate(\''+e.id+'\')">שמור כתבנית</button>':'')+'<button class="btn-red" onclick="deleteEntry(\''+e.id+'\')">מחק</button></div></div>';
+    return row;
+  }
+  function sectionV419(title, subtitle, count, items, planned){
+    var sec=document.createElement('section');
+    sec.className='day-section-v419 ' + (planned ? 'day-section-planned-v419' : 'day-section-done-v419');
+    sec.innerHTML = '<div class="day-section-head-v419"><div><h3 class="day-section-title-v419">'+title+'</h3><div class="day-section-sub-v419">'+subtitle+'</div></div><div class="day-count-pill-v419">'+countsTextV419(count)+'</div></div><div class="day-scroll-v419"></div>';
+    var scroll=sec.querySelector('.day-scroll-v419');
+    if(!items.length){
+      scroll.innerHTML='<div class="day-empty-v419">אין '+(planned?'עבודות מתוזמנות':'עבודות שבוצעו')+' ביום הזה.</div>';
+    }else{
+      items.forEach(function(e){ scroll.appendChild(buildEntryRowV419(e, planned)); });
+    }
+    return sec;
+  }
+  window.renderDay=function(){
+    try{ if(typeof ensurePlannedButtonsV49 === 'function') ensurePlannedButtonsV49(); }catch(_e){}
+    if(!selectedDate){ hide('dayPanel'); show('selectDayHint'); return; }
+    show('dayPanel'); hide('selectDayHint'); text('dateTitle','יום '+heDate(selectedDate));
+    renderInstallItems(); setType(selectedType,false); updateServicePriceLabels();
+    try{ if(typeof ensurePlannedButtonsV49 === 'function') ensurePlannedButtonsV49(); }catch(_e){}
+
+    var entries=safeArrV419(monthEntries).filter(function(e){return e.date===selectedDate;}).sort(function(a,b){return entryTimeV419(b)-entryTimeV419(a);});
+    var done=entries.filter(function(e){return !isPlannedSafeV419(e);});
+    var planned=entries.filter(function(e){return isPlannedSafeV419(e);});
+    var box=$('dayEntries'); if(!box) return;
+    box.innerHTML='';
+    var wrap=document.createElement('div');
+    wrap.className='day-sections-v419';
+    wrap.appendChild(sectionV419('✅ עבודות שבוצעו ביום הזה', 'נכנס להתחשבנות ולסיכומי החודש', countsV419(done), done, false));
+    wrap.appendChild(sectionV419('📋 עבודות מתוזמנות ביום הזה', 'לא נכנס להתחשבנות עד סימון בוצע', countsV419(planned), planned, true));
+    box.appendChild(wrap);
+    if(typeof cleanVisibleSlashN === 'function') cleanVisibleSlashN();
+  };
+  window.addEventListener('load', function(){
+    try{ window.APP_VERSION = '4.19'; document.title = 'מעקב עבודה - גרסה 4.19'; setAppVersionUI && setAppVersionUI(); }catch(_e){}
+  });
 })();
 </script>
 
