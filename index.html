@@ -933,7 +933,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.15";
+const APP_VERSION = "4.16";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1195,29 +1195,49 @@ async function checkRecentCustomer(inputId, resultId){
     box.innerHTML="<div class='danger'>לא זוהה עובד פעיל לבדיקה.</div>";
     return;
   }
-  box.innerHTML="<div class='muted'>בודק 30 ימים אחרונים אצל העובד הנוכחי...</div>";
+  box.innerHTML="<div class='muted'>בודק עבודות שבוצעו וסידורים מתוזמנים אצל העובד הנוכחי...</div>";
   try{
     const now=new Date();
     const from=new Date(now.getTime()-30*24*60*60*1000);
     const fromStr=formatDate(from);
+    const today=todayStr ? todayStr() : formatDate(new Date());
 
-    // חשוב: הבדיקה חייבת להיות מוגבלת לעובד הנוכחי.
-    // ב-Firestore Rules מאובטחים, שאילתה על כל העובדים תיחסם גם אם אחר כך מסננים בצד הלקוח.
+    // חשוב: הבדיקה מוגבלת לעובד הנוכחי בלבד.
     const snap=await db.collection("workEntries")
       .where("workerId","==",viewedWorker.id)
       .where("customerNumber","==",num)
       .get();
 
-    const matches=snap.docs
+    const all=snap.docs
       .map(d=>({id:d.id,...d.data()}))
-      .filter(e=>e.workerId===viewedWorker.id && e.date>=fromStr)
+      .filter(e=>e.workerId===viewedWorker.id)
       .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
-    if(!matches.length){
-      box.innerHTML="<div class='recent-ok'>לא נמצאה עבודה שלך אצל הלקוח הזה ב־30 הימים האחרונים ✅</div>";
+
+    const doneMatches=all
+      .filter(e=>(!window.isPlannedV49 || !window.isPlannedV49(e)) && (e.entryStatus||"done")!=="planned" && e.date>=fromStr)
+      .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+
+    const plannedMatches=all
+      .filter(e=>((window.isPlannedV49 && window.isPlannedV49(e)) || e.entryStatus==="planned") && String(e.date||"")>=today)
+      .sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
+
+    if(!doneMatches.length && !plannedMatches.length){
+      box.innerHTML="<div class='recent-ok'>לא נמצאה עבודה שבוצעה ב־30 הימים האחרונים, ואין סידור מתוזמן ללקוח הזה ✅</div>";
       return;
     }
-    const last=matches[0];
-    box.innerHTML=`<div class="recent-box">שים לב: היית אצל הלקוח הזה ב־30 הימים האחרונים.<br>פעם אחרונה: ${heDate(last.date)} · ${esc(last.description||"עבודה")} · ${money(last.amount||0)}<br>כתובת: ${esc(last.address||"")}</div>`;
+
+    const parts=[];
+    if(doneMatches.length){
+      const last=doneMatches[0];
+      parts.push(`✅ היית אצל לקוח זה ב־30 הימים האחרונים.<br>פעם אחרונה: ${heDate(last.date)} · ${esc(last.description||"עבודה")} · ${money(last.amount||0)}<br>כתובת: ${esc(last.address||"")}`);
+    }
+    if(plannedMatches.length){
+      const next=plannedMatches[0];
+      parts.push(`📋 קיימת קריאה/התקנה מתוזמנת ללקוח זה.<br>מועד קרוב: ${heDate(next.date)} · ${esc(next.description||"סידור מתוזמן")} · צפי ${money(next.amount||0)}<br>כתובת: ${esc(next.address||"")}`);
+    }
+
+    const cls=doneMatches.length ? "recent-box" : "recent-ok";
+    box.innerHTML=`<div class="${cls}">${parts.join("<br><br>")}</div>`;
   }catch(e){
     const msg=e && (e.code==="permission-denied" || String(e.message||"").includes("permissions"))
       ? "אין הרשאה לבדוק היסטוריית לקוח. השאילתה כבר מוגבלת לעובד הנוכחי, לכן אם זה חוזר צריך לעדכן Rules שיאפשרו לעובד לקרוא workEntries שלו לפי workerId."
@@ -8975,7 +8995,7 @@ service cloud.firestore {
 <script id="v411-rf-fiber-and-buttons-js">
 /* ===== v4.11: תיקון כפתורי סידור + מחירון התקנה לפי סיב/RF ===== */
 (function(){
-  window.APP_VERSION='4.15';
+  window.APP_VERSION='4.16';
   try{ if(typeof APP_VERSION!=='undefined'){} }catch(e){}
   var installKindV411='fiber';
   var adminPriceKindV411='fiber';
@@ -9245,7 +9265,7 @@ service cloud.firestore {
 <script id="v412-search-and-template-kind-js">
 /* ===== v4.12: חיפוש ותבניות לפי סיב/RF ===== */
 (function(){
-  window.APP_VERSION='4.15';
+  window.APP_VERSION='4.16';
   try{ document.title='מעקב עבודה - גרסה 4.12'; }catch(e){}
 
   var searchInstallKindV412='fiber';
@@ -9511,7 +9531,7 @@ service cloud.firestore {
 /* ===== v4.14: סידור עתידי רק מהיום והלאה + גרסה קבועה ב-UI ===== */
 (function(){
   try{
-    window.APP_VERSION = "4.14";
+    window.APP_VERSION = "4.16";
     if(typeof setAppVersionUI === "function") setAppVersionUI();
     window.addEventListener("DOMContentLoaded", function(){ if(typeof setAppVersionUI === "function") setAppVersionUI(); });
     window.addEventListener("load", function(){ if(typeof setAppVersionUI === "function") setAppVersionUI(); });
@@ -9632,7 +9652,7 @@ service cloud.firestore {
 <script id="v415-full-edit-rf-fiber-js">
 /* ===== v4.15: עריכה מלאה — התקנת RF נשארת RF, סיב נשאר סיב, ואפשר להחליף סוג בעריכה ===== */
 (function(){
-  window.APP_VERSION='4.15';
+  window.APP_VERSION='4.16';
   try{ setAppVersionUI && setAppVersionUI(); }catch(e){}
 
   var editEntryKindV415='fiber';
@@ -9810,5 +9830,84 @@ service cloud.firestore {
 })();
 </script>
 
+
+
+<script id="v416-recent-customer-planned-fix-js">
+/* ===== v4.16: בדיקת לקוח מפרידה בין בוצע לבין סידור מתוזמן ===== */
+(function(){
+  try{ if(typeof setAppVersionUI === "function") setAppVersionUI(); }catch(e){}
+
+  function isPlannedEntryV416(e){
+    try{ if(window.isPlannedV49) return window.isPlannedV49(e); }catch(_e){}
+    return e && e.entryStatus === "planned";
+  }
+  function isDoneEntryV416(e){ return !isPlannedEntryV416(e); }
+  function safeTodayV416(){
+    try{ if(typeof todayStr === "function") return todayStr(); }catch(e){}
+    var d=new Date();
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  }
+  function safeTextV416(s){ try{return esc(s)}catch(e){return String(s||"").replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]})} }
+  function safeMoneyV416(n){ try{return money(n)}catch(e){return '₪'+Number(n||0).toLocaleString('he-IL',{maximumFractionDigits:0})} }
+  function safeDateV416(s){ try{return heDate(s)}catch(e){return safeTextV416(s||"")} }
+
+  window.checkRecentCustomer = async function(inputId, resultId){
+    const num=val(inputId);
+    const box=$(resultId);
+    if(!box)return;
+    box.innerHTML="";
+    if(!num)return;
+    if(!/^\d+$/.test(num)){
+      box.innerHTML="<div class='danger'>מספר לקוח חייב להיות ספרות בלבד</div>";
+      return;
+    }
+    if(!viewedWorker || !viewedWorker.id){
+      box.innerHTML="<div class='danger'>לא זוהה עובד פעיל לבדיקה.</div>";
+      return;
+    }
+    box.innerHTML="<div class='muted'>בודק עבודות שבוצעו וסידורים מתוזמנים אצל העובד הנוכחי...</div>";
+    try{
+      const now=new Date();
+      const from=new Date(now.getTime()-30*24*60*60*1000);
+      const fromStr=formatDate(from);
+      const today=safeTodayV416();
+      const snap=await db.collection("workEntries")
+        .where("workerId","==",viewedWorker.id)
+        .where("customerNumber","==",num)
+        .get();
+      const all=snap.docs
+        .map(d=>({id:d.id,...d.data()}))
+        .filter(e=>e.workerId===viewedWorker.id);
+      const doneMatches=all
+        .filter(e=>isDoneEntryV416(e) && String(e.date||"")>=fromStr)
+        .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+      const plannedMatches=all
+        .filter(e=>isPlannedEntryV416(e) && String(e.date||"")>=today)
+        .sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
+      if(!doneMatches.length && !plannedMatches.length){
+        box.innerHTML="<div class='recent-ok'>לא נמצאה עבודה שבוצעה ב־30 הימים האחרונים, ואין סידור מתוזמן ללקוח הזה ✅</div>";
+        return;
+      }
+      const parts=[];
+      if(doneMatches.length){
+        const last=doneMatches[0];
+        parts.push(`✅ היית אצל לקוח זה ב־30 הימים האחרונים.<br>פעם אחרונה: ${safeDateV416(last.date)} · ${safeTextV416(last.description||"עבודה")} · ${safeMoneyV416(last.amount||0)}<br>כתובת: ${safeTextV416(last.address||"")}`);
+      }
+      if(plannedMatches.length){
+        const next=plannedMatches[0];
+        parts.push(`📋 קיימת קריאה/התקנה מתוזמנת ללקוח זה.<br>מועד קרוב: ${safeDateV416(next.date)} · ${safeTextV416(next.description||"סידור מתוזמן")} · צפי ${safeMoneyV416(next.amount||0)}<br>כתובת: ${safeTextV416(next.address||"")}`);
+      }
+      const cls=doneMatches.length ? "recent-box" : "recent-ok";
+      box.innerHTML=`<div class="${cls}">${parts.join("<br><br>")}</div>`;
+    }catch(e){
+      const msg=e && (e.code==="permission-denied" || String(e.message||"").includes("permissions"))
+        ? "אין הרשאה לבדוק היסטוריית לקוח. השאילתה כבר מוגבלת לעובד הנוכחי, לכן אם זה חוזר צריך לעדכן Rules שיאפשרו לעובד לקרוא workEntries שלו לפי workerId."
+        : "שגיאה בבדיקת לקוח: "+(e.message||e);
+      box.innerHTML=`<div class='danger'>${safeTextV416(msg)}</div>`;
+    }
+  };
+})();
+</script>
+
 </body>
-</html>
+  </html>
