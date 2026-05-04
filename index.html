@@ -1124,7 +1124,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.28";
+const APP_VERSION = "4.29";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1136,6 +1136,51 @@ function setAppVersionUI(){
 setAppVersionUI();
 window.addEventListener("DOMContentLoaded", setAppVersionUI);
 window.addEventListener("load", setAppVersionUI);
+
+/*
+===============================================================================
+CHANGELOG 4.29 - תיקון מקור גרסה מרכזי
+-------------------------------------------------------------------------------
+1. נוספה גרסה אחת בלבד: APP_VERSION = "4.29".
+2. כל הצגת גרסה במסך, כותרת דפדפן, אזור סודי, footer, לוגים, גיבויים ושמות קבצים נמשכת מהקבוע בלבד.
+3. בוטלו עדכוני גרסה ישנים שכתבו 4.24/4.25/4.26/4.28 ישירות למסך וגרמו לקפיצות גרסה בזמן טעינה.
+4. נוסף מנגנון enforceAppVersionUI() שרץ אחרי טעינה/רינדור ומיישר כל טקסט גרסה לפי APP_VERSION בלי לפגוע בפונקציות הקיימות.
+5. אין שינוי לוגי בנתוני עובדים/מחירון/לוח שנה/גיבוי מעבר לאיחוד מקור הגרסה.
+===============================================================================
+*/
+function appVersionFileSafe(){
+  return String(APP_VERSION).replace(/\./g,"_");
+}
+function appVersionLabel(){
+  return String(APP_VERSION);
+}
+function appVersionFullLabel(){
+  return "גרסה " + APP_VERSION;
+}
+function enforceAppVersionUI(){
+  try{ window.APP_VERSION = APP_VERSION; }catch(e){}
+  try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
+  try{
+    document.querySelectorAll("[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span").forEach(function(el){
+      el.textContent = APP_VERSION;
+    });
+  }catch(e){}
+  try{
+    document.querySelectorAll(".secret,#secretTap").forEach(function(el){
+      el.textContent = "גרסה " + APP_VERSION;
+    });
+  }catch(e){}
+  try{
+    document.querySelectorAll("body *").forEach(function(el){
+      if(!el || !el.childNodes || !el.childNodes.length) return;
+      el.childNodes.forEach(function(node){
+        if(node.nodeType === 3 && node.nodeValue && node.nodeValue.indexOf("${APP_VERSION}") !== -1){
+          node.nodeValue = node.nodeValue.replaceAll("${APP_VERSION}", APP_VERSION);
+        }
+      });
+    });
+  }catch(e){}
+}
 const firebaseConfig={apiKey:"AIzaSyCR41hsAakxY7FgaPhJAhV63lnrgLIT9eM",authDomain:"work-monitor-a3bb9.firebaseapp.com",projectId:"work-monitor-a3bb9",storageBucket:"work-monitor-a3bb9.firebasestorage.app",messagingSenderId:"571499964314",appId:"1:571499964314:web:ec0f18ba9f1e6502fabc23",measurementId:"G-4SLEBPPYE8"};
 firebase.initializeApp(firebaseConfig);const db=firebase.firestore();const auth=firebase.auth ? firebase.auth() : null;
 let ADMIN_USERNAME="Eliran",ADMIN_PASSWORD_SHA256="a3548d64df7d2c4eeeb1c0480aa87b0b306b3e0b0f8faa8c8aef71140761a759",SERVICE_PRICE=65,DEFAULT_TRIAL_DAYS=90;
@@ -2073,8 +2118,8 @@ function backupCollectionNamesV413(){
 async function backupJSON(){
   const collections=backupCollectionNamesV413();
   const data={
-    version:"4.24",
-    appVersion:(window.APP_VERSION||APP_VERSION||"4.22"),
+    version: APP_VERSION,
+    appVersion: APP_VERSION,
     backupSchema:"work-monitor-full-v413",
     exportedAt:new Date().toISOString(),
     notes:"Full backup includes workers, work entries, settings, payment requests, templates, username lookup, users, logs and the unified priceList with fiber/RF priceType fields.",
@@ -2089,7 +2134,7 @@ async function backupJSON(){
       data.collections[c+"__backupError"]=[{id:"error",data:{message:e.message||String(e),code:e.code||""}}];
     }
   }
-  downloadFile("work_tracker_backup_v4_15_full_rf_fiber.json",JSON.stringify(data,null,2),"application/json");
+  downloadFile(`work_tracker_backup_v${APP_VERSION.replaceAll(".","_")}_full_rf_fiber.json`,JSON.stringify(data,null,2),"application/json");
   setBackupStatusV413("<div class='notice'>גיבוי מלא ירד למכשיר ✅<br>כולל מחירון סיב/RF, תבניות, עבודות, משתמשים והגדרות.</div>");
 }
 async function restoreJSON(event){
@@ -2316,8 +2361,8 @@ async function exportMyEntriesCSV(){
 async function backupMyJSON(){
   if(!viewedWorker)return;
   const data={
-    version:"4.24",
-    appVersion:(window.APP_VERSION||APP_VERSION||"4.22"),
+    version: APP_VERSION,
+    appVersion: APP_VERSION,
     type:"worker-backup-v413",
     workerId:viewedWorker.id,
     workerName:viewedWorker.name||"",
@@ -2330,7 +2375,7 @@ async function backupMyJSON(){
   data.collections.installTemplates=tplSnap.docs.map(d=>({id:d.id,...d.data()})).filter(t=>t.ownerWorkerId===viewedWorker.id).map(t=>({id:t.id,data:serializeFirestore(t)}));
   const priceSnap=await db.collection("priceList").get();
   data.collections.priceList=priceSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
-  downloadFile(`my_backup_v4_13_${viewedWorker.username||viewedWorker.name||"worker"}.json`,JSON.stringify(data,null,2),"application/json");
+  downloadFile(`my_backup_v${APP_VERSION.replaceAll(".","_")}_${viewedWorker.username||viewedWorker.name||"worker"}.json`,JSON.stringify(data,null,2),"application/json");
   if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>גיבוי אישי ירד למכשיר ✅<br>כולל עבודות, תבניות אישיות ומחירון סיב/RF.</div>";
 }
 async function restoreMyJSON(event){
@@ -2760,7 +2805,7 @@ async function saveEntryAsTemplate(id){
 
   await db.collection("appLogs").add({
     action: "templateCreated",
-    pageVersion: "1.6.4",
+    pageVersion: APP_VERSION,
     clientTime: new Date().toISOString(),
     data: {
       templateName: name.trim(),
@@ -2880,7 +2925,7 @@ async function createAuthForWorker(workerId){
 
     await db.collection("appLogs").add({
       action:"authLinkedForExistingWorker",
-      pageVersion:"1.6.9",
+      pageVersion: APP_VERSION,
       workerId,
       workerName:w.name||"",
       authEmail:authResult.email||"",
@@ -7694,9 +7739,9 @@ async function addInstall(){
    לא להשאיר את המשתמש תקוע במסך הרשמה, ולא להחזיר כלי Security ישנים לאדמין.
 */
 (function(){
-  window.APP_VERSION = "4.21";
+  window.APP_VERSION = APP_VERSION;
   try{ if(typeof APP_VERSION !== "undefined"){} }catch(e){}
-  try{ document.title = "מעקב עבודה - גרסה 4.4"; }catch(e){}
+  try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
 
   function byId(id){ return document.getElementById(id); }
   function safeHide(id){ var el=byId(id); if(el) el.classList.add('hidden'); }
@@ -7827,7 +7872,7 @@ async function addInstall(){
         name:name, username:username, usernameKey:usernameKey,
         authEmail:authResult.email||preferredEmail, recoveryEmail:recoveryEmail,
         authUid:uid, authReady:true,
-        authNote:'נוצר בהרשמה עצמית בגרסה 4.4',
+        authNote:"נוצר בהרשמה עצמית בגרסה "+APP_VERSION,
         passwordHash:await sha256V43(pass), monthlyGoal:0, active:true,
         selfRegistered:true, subscriptionStatus:'trial', trialDays:trialDays,
         trialUntil:trialUntil, subscriptionUntil:trialUntil,
@@ -8410,7 +8455,7 @@ service cloud.firestore {
 <script id="v47-self-registration-rules-final">
 /* ===== v4.7: Final self-registration Security Rules + stronger registration message ===== */
 (function(){
-  try{ window.APP_VERSION = "4.21"; document.title = "מעקב עבודה - גרסה 4.21"; }catch(e){}
+  try{ window.APP_VERSION = APP_VERSION; document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
 
   window.FIRESTORE_RULES_V47 = String.raw`rules_version = '2';
 service cloud.firestore {
@@ -8633,8 +8678,8 @@ service cloud.firestore {
 */
 (function(){
   try{
-    window.APP_VERSION = "4.21";
-    document.title = "מעקב עבודה - גרסה 4.8";
+    window.APP_VERSION = APP_VERSION;
+    document.title = "מעקב עבודה - גרסה " + APP_VERSION;
     if(typeof setAppVersionUI === 'function') setAppVersionUI();
   }catch(e){}
 
@@ -9210,7 +9255,7 @@ service cloud.firestore {
 <script id="v411-rf-fiber-and-buttons-js">
 /* ===== v4.11: תיקון כפתורי סידור + מחירון התקנה לפי סיב/RF ===== */
 (function(){
-  window.APP_VERSION = "4.21";
+  window.APP_VERSION = APP_VERSION;
   try{ if(typeof APP_VERSION!=='undefined'){} }catch(e){}
   var installKindV411='fiber';
   var adminPriceKindV411='fiber';
@@ -9480,8 +9525,8 @@ service cloud.firestore {
 <script id="v412-search-and-template-kind-js">
 /* ===== v4.12: חיפוש ותבניות לפי סיב/RF ===== */
 (function(){
-  window.APP_VERSION = "4.21";
-  try{ document.title='מעקב עבודה - גרסה 4.12'; }catch(e){}
+  window.APP_VERSION = APP_VERSION;
+  try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
 
   var searchInstallKindV412='fiber';
   window.searchInstallKindV412=searchInstallKindV412;
@@ -9746,7 +9791,7 @@ service cloud.firestore {
 /* ===== v4.14: סידור עתידי רק מהיום והלאה + גרסה קבועה ב-UI ===== */
 (function(){
   try{
-    window.APP_VERSION = "4.21";
+    window.APP_VERSION = APP_VERSION;
     if(typeof setAppVersionUI === "function") setAppVersionUI();
     window.addEventListener("DOMContentLoaded", function(){ if(typeof setAppVersionUI === "function") setAppVersionUI(); });
     window.addEventListener("load", function(){ if(typeof setAppVersionUI === "function") setAppVersionUI(); });
@@ -9867,7 +9912,7 @@ service cloud.firestore {
 <script id="v415-full-edit-rf-fiber-js">
 /* ===== v4.15: עריכה מלאה — התקנת RF נשארת RF, סיב נשאר סיב, ואפשר להחליף סוג בעריכה ===== */
 (function(){
-  window.APP_VERSION = "4.21";
+  window.APP_VERSION = APP_VERSION;
   try{ setAppVersionUI && setAppVersionUI(); }catch(e){}
 
   var editEntryKindV415='fiber';
@@ -10468,7 +10513,7 @@ service cloud.firestore {
     if(typeof cleanVisibleSlashN === 'function') cleanVisibleSlashN();
   };
   window.addEventListener('load', function(){
-    try{ window.APP_VERSION = '4.20'; document.title = 'מעקב עבודה - גרסה 4.21'; setAppVersionUI && setAppVersionUI(); }catch(_e){}
+    try{ window.APP_VERSION = APP_VERSION; document.title = "מעקב עבודה - גרסה " + APP_VERSION; setAppVersionUI && setAppVersionUI(); }catch(_e){}
   });
 })();
 </script>
@@ -10530,7 +10575,7 @@ service cloud.firestore {
   });
   window.addEventListener('load', function(){
     forcePanelsVisibleV420();
-    try{ window.APP_VERSION = '4.20'; document.title = 'מעקב עבודה - גרסה 4.21'; if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(_e){}
+    try{ window.APP_VERSION = APP_VERSION; document.title = "מעקב עבודה - גרסה " + APP_VERSION; if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(_e){}
   });
 })();
 </script>
@@ -10573,7 +10618,7 @@ body.a11y-readable-font-v422,body.a11y-readable-font-v422 *{font-family:Arial,"N
 
 <script id="v4-22-smart-dashboard-accessibility-js">
 (function(){
-  window.APP_VERSION = "4.25";
+  window.APP_VERSION = APP_VERSION;
   try{ if(typeof APP_VERSION !== 'undefined'){} }catch(e){}
   function sum422(arr){return (arr||[]).reduce((s,e)=>s+Number(e.amount||0),0)}
   function done422(arr){return (typeof doneEntriesV49==='function')?doneEntriesV49(arr||[]):(arr||[]).filter(e=>!(typeof isPlannedV49==='function' && isPlannedV49(e)))}
@@ -10647,7 +10692,7 @@ body.a11y-readable-font-v422,body.a11y-readable-font-v422 *{font-family:Arial,"N
   window.openAccessibilityStatementV422=function(){
     const old=document.getElementById('accessibilityModalV422'); if(old)old.remove();
     const m=document.createElement('div'); m.id='accessibilityModalV422'; m.className='accessibility-modal-v422';
-    m.innerHTML=`<div class="accessibility-modal-card-v422" role="dialog" aria-modal="true" aria-label="הצהרת נגישות"><div class="cal-head"><h2>הצהרת נגישות</h2><button class="btn-light" type="button" onclick="document.getElementById('accessibilityModalV422').remove()">סגור</button></div><p>אנו רואים חשיבות רבה בהנגשת השירות לכלל המשתמשים, כולל אנשים עם מוגבלויות, ומשקיעים מאמץ כדי שהמערכת תהיה נוחה, ברורה ושמישה ככל האפשר.</p><h3>התאמות שבוצעו במערכת</h3><ul><li>כפתורים גדולים וברורים במובייל ובמחשב.</li><li>אפשרות להגדלת טקסט, ניגודיות גבוהה ופונט קריא דרך כפתור הנגישות.</li><li>מבנה כרטיסיות להפחתת גלילה ועומס חזותי.</li><li>שימוש בכותרות, טקסטים ברורים וצבעים בעלי ניגודיות טובה ככל האפשר.</li></ul><h3>דיווח על בעיית נגישות</h3><p>אם נתקלת בקושי להשתמש במערכת, אפשר לפנות אלינו ונעשה מאמץ לטפל בתקלה בהקדם.</p><p><b>איש קשר:</b> אלירן<br><b>טלפון:</b> 052-8899988<br><b>אימייל:</b> Eliranebl@gmail.com</p><p class="muted">עודכן לאחרונה: 04/05/2026 · גרסה 4.25</p><div class="actions"><button class="btn-green" type="button" onclick="document.getElementById('accessibilityModalV422').remove()">הבנתי</button></div></div>`;
+    m.innerHTML=`<div class="accessibility-modal-card-v422" role="dialog" aria-modal="true" aria-label="הצהרת נגישות"><div class="cal-head"><h2>הצהרת נגישות</h2><button class="btn-light" type="button" onclick="document.getElementById('accessibilityModalV422').remove()">סגור</button></div><p>אנו רואים חשיבות רבה בהנגשת השירות לכלל המשתמשים, כולל אנשים עם מוגבלויות, ומשקיעים מאמץ כדי שהמערכת תהיה נוחה, ברורה ושמישה ככל האפשר.</p><h3>התאמות שבוצעו במערכת</h3><ul><li>כפתורים גדולים וברורים במובייל ובמחשב.</li><li>אפשרות להגדלת טקסט, ניגודיות גבוהה ופונט קריא דרך כפתור הנגישות.</li><li>מבנה כרטיסיות להפחתת גלילה ועומס חזותי.</li><li>שימוש בכותרות, טקסטים ברורים וצבעים בעלי ניגודיות טובה ככל האפשר.</li></ul><h3>דיווח על בעיית נגישות</h3><p>אם נתקלת בקושי להשתמש במערכת, אפשר לפנות אלינו ונעשה מאמץ לטפל בתקלה בהקדם.</p><p><b>איש קשר:</b> אלירן<br><b>טלפון:</b> 052-8899988<br><b>אימייל:</b> Eliranebl@gmail.com</p><p class="muted">עודכן לאחרונה: 04/05/2026 · גרסה ${APP_VERSION}</p><div class="actions"><button class="btn-green" type="button" onclick="document.getElementById('accessibilityModalV422').remove()">הבנתי</button></div></div>`;
     document.body.appendChild(m);
   };
   document.addEventListener('DOMContentLoaded',function(){ensureA11y422(); try{setAppVersionUI()}catch(e){}});
@@ -10691,8 +10736,8 @@ body.a11y-readable-font-v422,body.a11y-readable-font-v422 *{font-family:Arial,"N
 </style>
 <script id="v4-23-dashboard-plus-small-accessibility-js">
 (function(){
-  window.APP_VERSION = "4.25";
-  try{ document.title = "מעקב עבודה - גרסה 4.25"; }catch(e){}
+  window.APP_VERSION = APP_VERSION;
+  try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
   function s423(arr){return (arr||[]).reduce((x,e)=>x+Number(e.amount||0),0)}
   function isPlan423(e){try{return (typeof isPlannedV49==='function' && isPlannedV49(e)) || e.entryStatus==='planned'}catch(_e){return e.entryStatus==='planned'}}
   function done423(arr){return (arr||[]).filter(e=>!isPlan423(e))}
@@ -10775,11 +10820,11 @@ body.a11y-readable-font-v422,body.a11y-readable-font-v422 *{font-family:Arial,"N
     const btn=document.querySelector('.a11y-main-btn-v422');
     if(btn){btn.innerHTML='♿';btn.title='כלי נגישות';btn.setAttribute('aria-label','פתיחת כלי נגישות');}
     const modal=document.getElementById('accessibilityModalV422');
-    if(modal) modal.innerHTML=modal.innerHTML.replace(/גרסה 4\.22/g,'גרסה 4.25');
+    if(modal) modal.innerHTML=modal.innerHTML.replace(/גרסה 4\.22/g,'גרסה ${APP_VERSION}');
   }
   const oldOpen=window.openAccessibilityStatementV422;
   if(typeof oldOpen==='function'){
-    window.openAccessibilityStatementV422=function(){oldOpen();setTimeout(fixA11yButton423,20);const m=document.getElementById('accessibilityModalV422'); if(m)m.innerHTML=m.innerHTML.replace(/גרסה 4\.22/g,'גרסה 4.25');};
+    window.openAccessibilityStatementV422=function(){oldOpen();setTimeout(fixA11yButton423,20);const m=document.getElementById('accessibilityModalV422'); if(m)m.innerHTML=m.innerHTML.replace(/גרסה 4\.22/g,'גרסה ${APP_VERSION}');};
   }
   document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){try{setAppVersionUI&&setAppVersionUI()}catch(e){} fixA11yButton423(); try{renderSmartDashboard()}catch(e){}},120)});
   window.addEventListener('load',function(){setTimeout(function(){try{setAppVersionUI&&setAppVersionUI()}catch(e){} fixA11yButton423(); try{renderSmartDashboard()}catch(e){}},180)});
@@ -10897,12 +10942,12 @@ html,body{max-width:100%!important;overflow-x:hidden!important}
 </style>
 <script id="v4-24-calendar-dashboard-layout-fix-js">
 (function(){
-  window.APP_VERSION = "4.25";
-  try{ document.title = "מעקב עבודה - גרסה 4.25"; }catch(e){}
+  window.APP_VERSION = APP_VERSION;
+  try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
   function fixVersion424(){
     try{ if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(e){}
-    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel').forEach(function(el){el.textContent='4.24';}); }catch(e){}
-    try{ document.querySelectorAll('.app-version-mini span,.app-version-footer span').forEach(function(el){el.textContent='4.24';}); }catch(e){}
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel').forEach(function(el){el.textContent = APP_VERSION;}); }catch(e){}
+    try{ document.querySelectorAll('.app-version-mini span,.app-version-footer span').forEach(function(el){el.textContent = APP_VERSION;}); }catch(e){}
   }
   function fixCalendar424(){
     var cal=document.getElementById('calendar');
@@ -11066,10 +11111,10 @@ html,body{max-width:100%!important;overflow-x:hidden!important;}
 </style>
 <script id="v4-25-calendar-day-text-fit-js">
 (function(){
-  window.APP_VERSION = "4.25";
-  try{ document.title = "מעקב עבודה - גרסה 4.25"; }catch(e){}
+  window.APP_VERSION = APP_VERSION;
+  try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
   function setVersion425(){
-    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){el.textContent='4.25';}); }catch(e){}
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){el.textContent = APP_VERSION;}); }catch(e){}
   }
   function compactMoney425(text){
     var raw=String(text||'').replace(/[₪,\s]/g,'');
@@ -11152,13 +11197,13 @@ body.worker-main-loading-v428 #startupView{
 
 <script id="v4-28-true-startup-until-ready-js">
 (function(){
-  window.APP_VERSION = "4.28";
-  try{ document.title = "מעקב עבודה - גרסה 4.28"; }catch(e){}
+  window.APP_VERSION = APP_VERSION;
+  try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
 
   function setVersion428(){
     try{
-      document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent='4.28'; });
-      document.querySelectorAll('.secret,#secretTap').forEach(function(el){ el.textContent='גרסה 4.28'; });
+      document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent = APP_VERSION; });
+      document.querySelectorAll('.secret,#secretTap').forEach(function(el){ el.textContent = "גרסה " + APP_VERSION; });
     }catch(e){}
   }
 
@@ -11452,10 +11497,10 @@ html,body{max-width:100%!important;overflow-x:hidden!important;}
 </style>
 <script id="v4-26-calendar-horizontal-scroll-exact-js">
 (function(){
-  window.APP_VERSION="4.26";
-  try{document.title="מעקב עבודה - גרסה 4.26";}catch(e){}
+  window.APP_VERSION = APP_VERSION;
+  try{document.title = "מעקב עבודה - גרסה " + APP_VERSION;}catch(e){}
   function setVersion426(){
-    try{document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){el.textContent='4.26';});}catch(e){}
+    try{document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){el.textContent = APP_VERSION;});}catch(e){}
   }
   function fullMoney426(text){
     var raw=String(text||'').replace(/[₪,\s]/g,'').replace(/K$/i,'000');
@@ -11602,10 +11647,10 @@ html,body{max-width:100%!important;overflow-x:hidden!important;}
 
 <script id="v4-27-day-counts-loading-fix-js">
 (function(){
-  window.APP_VERSION = "4.28";
-  try{ document.title = "מעקב עבודה - גרסה 4.28"; }catch(e){}
+  window.APP_VERSION = APP_VERSION;
+  try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
   function setVersion427(){
-    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent='4.28'; }); }catch(e){}
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent = APP_VERSION; }); }catch(e){}
   }
 
   function ensureWorkerLoadingOverlay427(){
@@ -11696,5 +11741,20 @@ html,body{max-width:100%!important;overflow-x:hidden!important;}
 
   document.addEventListener('DOMContentLoaded',function(){ setVersion427(); ensureWorkerLoadingOverlay427(); });
   window.addEventListener('load',function(){ setTimeout(setVersion427,250); setTimeout(setVersion427,700); setTimeout(setVersion427,1400); });
+})();
+</script>
+
+
+<script id="v4-29-central-version-enforcer-js">
+/* ===== v4.29: אכיפת גרסה מקונסט יחיד בלבד ===== */
+(function(){
+  function runVersionEnforcerV429(){
+    try{ if(typeof enforceAppVersionUI === "function") enforceAppVersionUI(); }catch(e){}
+  }
+  runVersionEnforcerV429();
+  document.addEventListener("DOMContentLoaded", runVersionEnforcerV429);
+  window.addEventListener("load", runVersionEnforcerV429);
+  document.addEventListener("click", function(){ setTimeout(runVersionEnforcerV429, 80); });
+  setInterval(runVersionEnforcerV429, 900);
 })();
 </script>
