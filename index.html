@@ -599,6 +599,168 @@ button:focus{
 .app-version-footer{font-size:11px;color:#94a3b8;text-align:center;margin:18px auto 6px;font-weight:800;opacity:.85}
 @media(max-width:800px){.app-version-mini{font-size:10.5px}.app-version-footer{font-size:10.5px;margin-top:14px}}
 </style>
+
+
+<style id="v4-20-worker-tabs-css">
+/* ===== v4.21: כרטיסיות באזור העובד + חלון לוח שנה נפרד ===== */
+.worker-tabs-shell-v420{
+  padding:16px!important;
+  overflow:visible!important;
+}
+.worker-tabs-head-v420{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:12px;
+}
+.worker-tabs-nav-v420{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding:4px 2px 12px;
+  margin-bottom:10px;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+}
+.worker-tabs-nav-v420::-webkit-scrollbar{height:6px}
+.worker-tabs-nav-v420::-webkit-scrollbar-track{background:#e2e8f0;border-radius:999px}
+.worker-tabs-nav-v420::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:999px}
+.worker-tab-btn-v420{
+  flex:0 0 auto!important;
+  width:auto!important;
+  min-width:max-content!important;
+  background:#f8fafc!important;
+  color:#0f172a!important;
+  border:1px solid var(--line)!important;
+  box-shadow:0 7px 16px rgba(15,23,42,.07)!important;
+  border-radius:999px!important;
+  padding:11px 14px!important;
+  min-height:42px!important;
+}
+.worker-tab-btn-v420.active{
+  background:linear-gradient(135deg,var(--blue),var(--blue2))!important;
+  color:#fff!important;
+  border-color:transparent!important;
+  box-shadow:0 12px 24px rgba(37,99,235,.22)!important;
+}
+.worker-tab-pane-v420{
+  display:none;
+  background:rgba(248,250,252,.58);
+  border:1px solid rgba(226,232,240,.9);
+  border-radius:22px;
+  padding:14px;
+  min-height:160px;
+}
+.worker-tab-pane-v420.active{display:block}
+.worker-tab-pane-v420 h2{margin-bottom:12px}
+.calendar-work-shell-v420{
+  background:rgba(255,255,255,.48);
+  border:1px solid rgba(255,255,255,.7);
+  border-radius:28px;
+  padding:10px;
+  margin-top:12px;
+  box-shadow:0 12px 28px rgba(15,23,42,.07);
+}
+.calendar-work-title-v420{
+  font-weight:900;
+  color:#0f172a;
+  padding:8px 8px 12px;
+  font-size:18px;
+}
+.calendar-work-shell-v420>.card{margin-bottom:12px}
+@media(max-width:800px){
+  .worker-tabs-shell-v420{padding:12px!important}
+  .worker-tabs-head-v420{align-items:flex-start}
+  .worker-tab-btn-v420{font-size:13px!important;padding:10px 12px!important}
+  .worker-tab-pane-v420{padding:12px;border-radius:20px}
+  .calendar-work-shell-v420{border-radius:24px;padding:8px}
+}
+</style>
+
+
+<style id="v4-21-search-scroll-sections">
+/* ===== v4.21: גלילות פנימיות בכרטיסיית חיפוש וסיכומים ===== */
+.search-summary-grid-v421{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  margin-top:10px;
+}
+.search-scroll-card-v421{
+  box-shadow:none!important;
+  border:1px solid #e5e7eb!important;
+  padding:14px!important;
+  margin-bottom:0!important;
+  overflow:hidden!important;
+  min-height:0;
+}
+.search-scroll-card-v421 h3{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+  margin-bottom:10px;
+}
+.search-scroll-count-v421{
+  font-size:12px;
+  color:#64748b;
+  background:#f1f5f9;
+  border:1px solid #e2e8f0;
+  border-radius:999px;
+  padding:5px 9px;
+  white-space:nowrap;
+}
+.search-scroll-box-v421{
+  max-height:260px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:3px 3px 3px 0;
+  border-radius:16px;
+  scrollbar-width:thin;
+  scrollbar-color:#cbd5e1 transparent;
+}
+.search-scroll-box-v421::-webkit-scrollbar{width:8px}
+.search-scroll-box-v421::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
+.search-scroll-box-v421::-webkit-scrollbar-track{background:transparent}
+.search-results-shell-v421{
+  margin-top:12px;
+  background:rgba(255,255,255,.9);
+  border:1px solid #e5e7eb;
+  border-radius:22px;
+  padding:14px;
+  box-shadow:0 10px 24px rgba(15,23,42,.06);
+}
+.search-results-shell-v421 h3{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+}
+.search-results-scroll-v421{
+  max-height:360px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:3px 3px 3px 0;
+  border-radius:16px;
+  scrollbar-width:thin;
+  scrollbar-color:#cbd5e1 transparent;
+}
+.search-results-scroll-v421::-webkit-scrollbar{width:8px}
+.search-results-scroll-v421::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
+.search-results-scroll-v421::-webkit-scrollbar-track{background:transparent}
+.search-scroll-box-v421 .item,
+.search-results-scroll-v421 .item{
+  margin-bottom:8px;
+}
+@media(max-width:800px){
+  .search-summary-grid-v421{grid-template-columns:1fr;gap:10px}
+  .search-scroll-box-v421{max-height:230px}
+  .search-results-scroll-v421{max-height:380px}
+}
+</style>
+
 </head>
 <body>
 <div class="app">
@@ -840,77 +1002,98 @@ button:focus{
 </section>
 
 <section id="workerView" class="hidden">
-<div class="card"><div class="cal-head"><div><h2 id="helloTitle">שלום</h2><div id="monthSub" class="muted"></div></div></div>
-<div class="grid4"><div class="stat"><div class="label">סה״כ החודש</div><div id="monthTotal" class="value">₪0</div></div><div class="stat"><div class="label">היום הנבחר</div><div id="dayTotal" class="value">₪0</div></div><div class="stat"><div class="label">יעד חודשי</div><div id="goalTotal" class="value">₪0</div></div><div class="stat"><div class="label">חסר ליעד</div><div id="leftTotal" class="value">₪0</div></div></div><div class="progress"><div id="goalBar" class="bar"></div></div><p id="paceLine"></p></div>
-<div class="card">
-<div class="cal-head"><h2>📦 הכלים שלי</h2><button class="btn-light" onclick="toggleWorkerTools()">פתח / סגור</button></div>
-<div id="workerToolsPanel" class="hidden">
-<p>ייצוא, גיבוי ושחזור לנתונים האישיים שלך בלבד.</p>
-<div class="actions">
-  <button class="btn-green" onclick="exportMyEntriesCSV()">📊 ייצוא לאקסל</button>
-  <button onclick="backupMyJSON()">💾 גיבוי JSON</button>
-  <button class="btn-yellow" onclick="$('restoreMyFile').click()">♻️ שחזור JSON</button>
-  <input id="restoreMyFile" type="file" accept="application/json" class="hidden" onchange="restoreMyJSON(event)">
-</div>
-<div id="workerToolsMsg"></div>
-</div>
-</div>
-
-<div class="card">
-<div class="cal-head"><h2>⚙️ הגדרות אישיות</h2><button class="btn-light" onclick="toggleWorkerSettings()">פתח / סגור</button></div>
-<div id="workerSettingsPanel" class="hidden">
-<p>כאן אפשר לשנות סיסמה ויעד חודשי.</p>
-<div class="grid2"><input id="selfMonthlyGoal" type="number" placeholder="יעד חודשי"><input id="selfNewPassword" type="password" placeholder="סיסמה חדשה - לא חובה"></div>
-<button class="btn-green" onclick="saveWorkerSelfSettings()">שמור הגדרות אישיות</button>
-<div id="selfSettingsMsg"></div>
-</div>
-</div>
-
-<div class="card">
-<div class="cal-head"><h2>🧠 דשבורד חכם</h2><div class="actions"><button class="btn-light" onclick="toggleDashboard()">הצג / הסתר</button><button class="btn-light" onclick="renderSmartDashboard()">רענן דשבורד</button></div></div>
-<div id="smartDashboard" class="hidden">
-  <p class="muted">הדשבורד יתעדכן אוטומטית אחרי טעינת החודש.</p>
-</div>
-</div>
-
-<div class="card">
-<div class="cal-head"><h2>👤 היסטוריית לקוח</h2><button class="btn-light" onclick="toggleClientHistory()">פתח / סגור</button></div>
-<div id="clientHistoryPanel" class="hidden">
-<p>הכנס מספר לקוח כדי לראות את כל ההיסטוריה שלו במערכת.</p>
-<div class="grid2"><input id="clientHistoryNumber" inputmode="numeric" placeholder="מספר לקוח"><button class="btn-green" onclick="loadClientHistory()">חפש לקוח</button></div>
-<div id="clientHistoryResults"></div>
-</div>
-</div>
-
-<div class="card">
-<div class="cal-head"><h2>🔎 חיפוש וסיכומים</h2><button class="btn-light" onclick="toggleSearchPanel()">פתח / סגור</button></div>
-<div id="searchPanel" class="hidden">
-<p>אפשר לחפש לפי מספר לקוח, כתובת, יום, חודש או סוג עבודה. הסיכום מתעדכן לפי התוצאות.</p>
-<div class="grid3">
-<input id="searchCustomer" placeholder="חיפוש לפי מספר לקוח">
-<input id="searchAddress" placeholder="חיפוש לפי כתובת">
-<select id="searchType" onchange="window.onWorkerSearchTypeChangeV22 && window.onWorkerSearchTypeChangeV22()"><option value="">כל סוגי העבודה</option><option value="service">קריאות שירות</option><option value="install">התקנות</option></select>
-</div>
-<div class="grid2">
-<input id="searchDate" type="date" placeholder="יום מסוים">
-<input id="searchMonth" type="month" placeholder="חודש מסוים">
-</div>
-<div id="workerPriceSearchBoxV22" class="worker-price-search-v22 hidden">
-  <div class="price-search-head-v22">
+<div class="card worker-tabs-shell-v420">
+  <div class="worker-tabs-head-v420">
     <div>
-      <div class="price-search-title-v22">סינון לפי פריטי מחירון התקנה</div>
-      <div id="priceSearchNoteV22" class="price-search-note-v22">בחר סוג עבודה: התקנות כדי לפתוח את הצ׳קליסט</div>
+      <h2 id="helloTitle">שלום</h2>
+      <div id="monthSub" class="muted"></div>
     </div>
-    <button type="button" class="btn-light" onclick="window.clearWorkerPriceSearchV22 && window.clearWorkerPriceSearchV22()">נקה פריטי מחירון</button>
   </div>
-  <div id="priceSearchListV22" class="price-search-list-v22"></div>
-</div>
-<div class="actions search-actions-v22"><button class="btn-green" onclick="runSearch()">חפש וסכם</button><button class="btn-light" onclick="clearSearch()">נקה חיפוש</button><button class="btn-yellow" onclick="renderFullSummary()">סיכום חודש מלא</button></div>
-<div id="summaryResults"></div>
-<div id="searchResults"></div>
-</div>
+  <div class="worker-tabs-nav-v420" role="tablist" aria-label="אזורי עובד">
+    <button type="button" class="worker-tab-btn-v420 active" data-worker-tab="overview" onclick="openWorkerTabV420('overview')">🏠 תצוגה כללית</button>
+    <button type="button" class="worker-tab-btn-v420" data-worker-tab="tools" onclick="openWorkerTabV420('tools')">📦 הכלים שלי</button>
+    <button type="button" class="worker-tab-btn-v420" data-worker-tab="settings" onclick="openWorkerTabV420('settings')">⚙️ הגדרות אישיות</button>
+    <button type="button" class="worker-tab-btn-v420" data-worker-tab="dashboard" onclick="openWorkerTabV420('dashboard')">🧠 דשבורד חכם</button>
+    <button type="button" class="worker-tab-btn-v420" data-worker-tab="client" onclick="openWorkerTabV420('client')">👤 היסטוריית לקוח</button>
+    <button type="button" class="worker-tab-btn-v420" data-worker-tab="search" onclick="openWorkerTabV420('search')">🔎 חיפוש וסיכומים</button>
+  </div>
+
+  <div class="worker-tab-pane-v420 active" data-worker-pane="overview">
+    <div class="grid4"><div class="stat"><div class="label">סה״כ החודש</div><div id="monthTotal" class="value">₪0</div></div><div class="stat"><div class="label">היום הנבחר</div><div id="dayTotal" class="value">₪0</div></div><div class="stat"><div class="label">יעד חודשי</div><div id="goalTotal" class="value">₪0</div></div><div class="stat"><div class="label">חסר ליעד</div><div id="leftTotal" class="value">₪0</div></div></div><div class="progress"><div id="goalBar" class="bar"></div></div><p id="paceLine"></p>
+  </div>
+
+  <div class="worker-tab-pane-v420" data-worker-pane="tools">
+    <h2>📦 הכלים שלי</h2>
+    <div id="workerToolsPanel">
+      <p>ייצוא, גיבוי ושחזור לנתונים האישיים שלך בלבד.</p>
+      <div class="actions">
+        <button class="btn-green" onclick="exportMyEntriesCSV()">📊 ייצוא לאקסל</button>
+        <button onclick="backupMyJSON()">💾 גיבוי JSON</button>
+        <button class="btn-yellow" onclick="$('restoreMyFile').click()">♻️ שחזור JSON</button>
+        <input id="restoreMyFile" type="file" accept="application/json" class="hidden" onchange="restoreMyJSON(event)">
+      </div>
+      <div id="workerToolsMsg"></div>
+    </div>
+  </div>
+
+  <div class="worker-tab-pane-v420" data-worker-pane="settings">
+    <h2>⚙️ הגדרות אישיות</h2>
+    <div id="workerSettingsPanel">
+      <p>כאן אפשר לשנות סיסמה ויעד חודשי.</p>
+      <div class="grid2"><input id="selfMonthlyGoal" type="number" placeholder="יעד חודשי"><input id="selfNewPassword" type="password" placeholder="סיסמה חדשה - לא חובה"></div>
+      <button class="btn-green" onclick="saveWorkerSelfSettings()">שמור הגדרות אישיות</button>
+      <div id="selfSettingsMsg"></div>
+    </div>
+  </div>
+
+  <div class="worker-tab-pane-v420" data-worker-pane="dashboard">
+    <div class="cal-head"><h2>🧠 דשבורד חכם</h2><button class="btn-light" onclick="renderSmartDashboard()">רענן דשבורד</button></div>
+    <div id="smartDashboard">
+      <p class="muted">הדשבורד יתעדכן אוטומטית אחרי טעינת החודש.</p>
+    </div>
+  </div>
+
+  <div class="worker-tab-pane-v420" data-worker-pane="client">
+    <h2>👤 היסטוריית לקוח</h2>
+    <div id="clientHistoryPanel">
+      <p>הכנס מספר לקוח כדי לראות את כל ההיסטוריה שלו במערכת.</p>
+      <div class="grid2"><input id="clientHistoryNumber" inputmode="numeric" placeholder="מספר לקוח"><button class="btn-green" onclick="loadClientHistory()">חפש לקוח</button></div>
+      <div id="clientHistoryResults"></div>
+    </div>
+  </div>
+
+  <div class="worker-tab-pane-v420" data-worker-pane="search">
+    <h2>🔎 חיפוש וסיכומים</h2>
+    <div id="searchPanel">
+      <p>אפשר לחפש לפי מספר לקוח, כתובת, יום, חודש או סוג עבודה. הסיכום מתעדכן לפי התוצאות.</p>
+      <div class="grid3">
+        <input id="searchCustomer" placeholder="חיפוש לפי מספר לקוח">
+        <input id="searchAddress" placeholder="חיפוש לפי כתובת">
+        <select id="searchType" onchange="window.onWorkerSearchTypeChangeV22 && window.onWorkerSearchTypeChangeV22()"><option value="">כל סוגי העבודה</option><option value="service">קריאות שירות</option><option value="install">התקנות</option></select>
+      </div>
+      <div class="grid2">
+        <input id="searchDate" type="date" placeholder="יום מסוים">
+        <input id="searchMonth" type="month" placeholder="חודש מסוים">
+      </div>
+      <div id="workerPriceSearchBoxV22" class="worker-price-search-v22 hidden">
+        <div class="price-search-head-v22">
+          <div>
+            <div class="price-search-title-v22">סינון לפי פריטי מחירון התקנה</div>
+            <div id="priceSearchNoteV22" class="price-search-note-v22">בחר סוג עבודה: התקנות כדי לפתוח את הצ׳קליסט</div>
+          </div>
+          <button type="button" class="btn-light" onclick="window.clearWorkerPriceSearchV22 && window.clearWorkerPriceSearchV22()">נקה פריטי מחירון</button>
+        </div>
+        <div id="priceSearchListV22" class="price-search-list-v22"></div>
+      </div>
+      <div class="actions search-actions-v22"><button class="btn-green" onclick="runSearch()">חפש וסכם</button><button class="btn-light" onclick="clearSearch()">נקה חיפוש</button><button class="btn-yellow" onclick="renderFullSummary()">סיכום חודש מלא</button></div>
+      <div id="summaryResults"></div>
+      <div id="searchResults"></div>
+    </div>
+  </div>
 </div>
 
+<div class="calendar-work-shell-v420">
+  <div class="calendar-work-title-v420">📅 לוח שנה ועבודות</div>
 <div class="card"><div class="cal-head"><button class="btn-light" onclick="changeMonth(-1)">חודש קודם</button><h2 id="calTitle"></h2><button class="btn-light" onclick="changeMonth(1)">חודש הבא</button></div><div id="calendar" class="cal"></div></div>
 <div id="dayPanel" class="card hidden"><h2 id="dateTitle">בחר יום</h2><p id="shabbatMsg" class="danger hidden">שבת חסומה לעבודה.</p>
 <div id="entryForm"><div class="grid2"><div id="serviceBtn" class="type-card" onclick="setType('service')">קריאת שירות<br><span id="servicePriceLabel" class="muted">₪65 קבוע</span></div><div id="installBtn" class="type-card" onclick="setType('install')">התקנה<br><span class="muted">לפי מחירון</span></div></div>
@@ -935,12 +1118,13 @@ button:focus{
 </div>
 
 <div id="selectDayHint" class="card"><div class="hint-card">בחר יום בלוח השנה כדי להוסיף קריאת שירות או התקנה</div></div>
+</div>
 </section>
 <div class="app-version-footer">Work App • v<span data-app-version></span></div>
 </div>
 
 <script>
-const APP_VERSION = "4.19";
+const APP_VERSION = "4.27";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1428,16 +1612,17 @@ function renderSummary(entries,title){
   const results=$("searchResults");
   if(!box||!results)return;
 
-  const total=entries.reduce((s,e)=>s+Number(e.amount||0),0);
-  const services=entries.filter(e=>e.workType==="service");
-  const installs=entries.filter(e=>e.workType==="install");
+  const list=[...entries];
+  const total=list.reduce((s,e)=>s+Number(e.amount||0),0);
+  const services=list.filter(e=>e.workType==="service");
+  const installs=list.filter(e=>e.workType==="install");
   const paidServices=services.filter(e=>!e.isReturnCall);
   const returnServices=services.filter(e=>e.isReturnCall);
 
   const byDay={}, byWeek={}, byType={"קריאות שירות":0,"התקנות":0};
   const byInstallItem={};
 
-  entries.forEach(e=>{
+  list.forEach(e=>{
     groupAdd(byDay,e.date||"ללא תאריך",e.amount);
     groupAdd(byWeek,getWeekKey(e.date),e.amount);
     if(e.workType==="service") groupAdd(byType,"קריאות שירות",e.amount);
@@ -1449,6 +1634,11 @@ function renderSummary(entries,title){
     });
   });
 
+  const dayCount=Object.keys(byDay).length;
+  const weekCount=Object.keys(byWeek).length;
+  const typeCount=Object.keys(byType).filter(k=>Number(byType[k]||0)>0).length;
+  const itemCount=Object.keys(byInstallItem).length;
+
   box.innerHTML=`
     <h3>${esc(title)}</h3>
     <div class="grid4">
@@ -1457,19 +1647,35 @@ function renderSummary(entries,title){
       <div class="stat"><div class="label">התקנות</div><div class="value">${installs.length}</div></div>
       <div class="stat"><div class="label">קריאות חוזרות</div><div class="value">${returnServices.length}</div></div>
     </div>
-    <div class="grid2" style="margin-top:10px">
-      <div class="card" style="box-shadow:none;border:1px solid #e5e7eb"><h3>לפי ימים</h3>${renderMiniTable(byDay)}</div>
-      <div class="card" style="box-shadow:none;border:1px solid #e5e7eb"><h3>לפי שבועות</h3>${renderMiniTable(byWeek)}</div>
-    </div>
-    <div class="grid2">
-      <div class="card" style="box-shadow:none;border:1px solid #e5e7eb"><h3>לפי סוג עבודה</h3>${renderMiniTable(byType)}</div>
-      <div class="card" style="box-shadow:none;border:1px solid #e5e7eb"><h3>פירוט פריטי התקנה</h3>${renderInstallItemsSummary(byInstallItem)}</div>
+
+    <div class="search-summary-grid-v421">
+      <div class="card search-scroll-card-v421">
+        <h3>לפי ימים <span class="search-scroll-count-v421">${dayCount} ימים</span></h3>
+        <div class="search-scroll-box-v421">${renderMiniTable(byDay)}</div>
+      </div>
+      <div class="card search-scroll-card-v421">
+        <h3>לפי שבועות <span class="search-scroll-count-v421">${weekCount} שבועות</span></h3>
+        <div class="search-scroll-box-v421">${renderMiniTable(byWeek)}</div>
+      </div>
+      <div class="card search-scroll-card-v421">
+        <h3>לפי סוג עבודה <span class="search-scroll-count-v421">${typeCount} סוגים</span></h3>
+        <div class="search-scroll-box-v421">${renderMiniTable(byType)}</div>
+      </div>
+      <div class="card search-scroll-card-v421">
+        <h3>פירוט פריטי התקנה <span class="search-scroll-count-v421">${itemCount} פריטים</span></h3>
+        <div class="search-scroll-box-v421">${renderInstallItemsSummary(byInstallItem)}</div>
+      </div>
     </div>
     <p class="muted">קריאות שירות בתשלום: ${paidServices.length} · קריאות חוזרות ללא תשלום: ${returnServices.length}</p>
   `;
 
-  results.innerHTML = entries.length ? "<h3>פירוט תוצאות</h3>" : "<p class='muted'>אין תוצאות.</p>";
-  entries
+  results.innerHTML = list.length
+    ? `<div class="search-results-shell-v421"><h3>פירוט תוצאות <span class="search-scroll-count-v421">${list.length} תוצאות</span></h3><div id="searchResultsScrollV421" class="search-results-scroll-v421"></div></div>`
+    : "<p class='muted'>אין תוצאות.</p>";
+
+  const target=$("searchResultsScrollV421");
+  if(!target)return;
+  list
     .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")))
     .forEach(e=>{
       const details=e.workType==="install" && e.items
@@ -1478,9 +1684,11 @@ function renderSummary(entries,title){
       const div=document.createElement("div");
       div.className="item";
       div.innerHTML=`<div><div class="item-title">${esc(e.date||"")} · ${esc(e.description||"")}</div><div class="item-sub">לקוח: ${esc(e.customerNumber||"")}\\nכתובת: ${esc(e.address||"")}\\n${nl2br(details)}\\n${nl2br(e.notes||"")}</div></div><div class="money">${money(e.amount||0)}</div>`;
-      results.appendChild(div);
+      target.appendChild(div);
     });
+  if(typeof cleanVisibleSlashN === "function") cleanVisibleSlashN();
 }
+
 function renderMiniTable(obj){
   const keys=Object.keys(obj).sort();
   if(!keys.length)return "<p class='muted'>אין נתונים.</p>";
@@ -1865,8 +2073,8 @@ function backupCollectionNamesV413(){
 async function backupJSON(){
   const collections=backupCollectionNamesV413();
   const data={
-    version:"4.19",
-    appVersion:(window.APP_VERSION||APP_VERSION||"4.19"),
+    version:"4.24",
+    appVersion:(window.APP_VERSION||APP_VERSION||"4.22"),
     backupSchema:"work-monitor-full-v413",
     exportedAt:new Date().toISOString(),
     notes:"Full backup includes workers, work entries, settings, payment requests, templates, username lookup, users, logs and the unified priceList with fiber/RF priceType fields.",
@@ -2108,8 +2316,8 @@ async function exportMyEntriesCSV(){
 async function backupMyJSON(){
   if(!viewedWorker)return;
   const data={
-    version:"4.19",
-    appVersion:(window.APP_VERSION||APP_VERSION||"4.19"),
+    version:"4.24",
+    appVersion:(window.APP_VERSION||APP_VERSION||"4.22"),
     type:"worker-backup-v413",
     workerId:viewedWorker.id,
     workerName:viewedWorker.name||"",
@@ -7486,7 +7694,7 @@ async function addInstall(){
    לא להשאיר את המשתמש תקוע במסך הרשמה, ולא להחזיר כלי Security ישנים לאדמין.
 */
 (function(){
-  window.APP_VERSION = "4.19";
+  window.APP_VERSION = "4.21";
   try{ if(typeof APP_VERSION !== "undefined"){} }catch(e){}
   try{ document.title = "מעקב עבודה - גרסה 4.4"; }catch(e){}
 
@@ -8202,7 +8410,7 @@ service cloud.firestore {
 <script id="v47-self-registration-rules-final">
 /* ===== v4.7: Final self-registration Security Rules + stronger registration message ===== */
 (function(){
-  try{ window.APP_VERSION = "4.19"; document.title = "מעקב עבודה - גרסה 4.19"; }catch(e){}
+  try{ window.APP_VERSION = "4.21"; document.title = "מעקב עבודה - גרסה 4.21"; }catch(e){}
 
   window.FIRESTORE_RULES_V47 = String.raw`rules_version = '2';
 service cloud.firestore {
@@ -8425,7 +8633,7 @@ service cloud.firestore {
 */
 (function(){
   try{
-    window.APP_VERSION = "4.19";
+    window.APP_VERSION = "4.21";
     document.title = "מעקב עבודה - גרסה 4.8";
     if(typeof setAppVersionUI === 'function') setAppVersionUI();
   }catch(e){}
@@ -9002,7 +9210,7 @@ service cloud.firestore {
 <script id="v411-rf-fiber-and-buttons-js">
 /* ===== v4.11: תיקון כפתורי סידור + מחירון התקנה לפי סיב/RF ===== */
 (function(){
-  window.APP_VERSION = "4.19";
+  window.APP_VERSION = "4.21";
   try{ if(typeof APP_VERSION!=='undefined'){} }catch(e){}
   var installKindV411='fiber';
   var adminPriceKindV411='fiber';
@@ -9272,7 +9480,7 @@ service cloud.firestore {
 <script id="v412-search-and-template-kind-js">
 /* ===== v4.12: חיפוש ותבניות לפי סיב/RF ===== */
 (function(){
-  window.APP_VERSION = "4.19";
+  window.APP_VERSION = "4.21";
   try{ document.title='מעקב עבודה - גרסה 4.12'; }catch(e){}
 
   var searchInstallKindV412='fiber';
@@ -9538,7 +9746,7 @@ service cloud.firestore {
 /* ===== v4.14: סידור עתידי רק מהיום והלאה + גרסה קבועה ב-UI ===== */
 (function(){
   try{
-    window.APP_VERSION = "4.19";
+    window.APP_VERSION = "4.21";
     if(typeof setAppVersionUI === "function") setAppVersionUI();
     window.addEventListener("DOMContentLoaded", function(){ if(typeof setAppVersionUI === "function") setAppVersionUI(); });
     window.addEventListener("load", function(){ if(typeof setAppVersionUI === "function") setAppVersionUI(); });
@@ -9659,7 +9867,7 @@ service cloud.firestore {
 <script id="v415-full-edit-rf-fiber-js">
 /* ===== v4.15: עריכה מלאה — התקנת RF נשארת RF, סיב נשאר סיב, ואפשר להחליף סוג בעריכה ===== */
 (function(){
-  window.APP_VERSION = "4.19";
+  window.APP_VERSION = "4.21";
   try{ setAppVersionUI && setAppVersionUI(); }catch(e){}
 
   var editEntryKindV415='fiber';
@@ -10260,10 +10468,1096 @@ service cloud.firestore {
     if(typeof cleanVisibleSlashN === 'function') cleanVisibleSlashN();
   };
   window.addEventListener('load', function(){
-    try{ window.APP_VERSION = '4.19'; document.title = 'מעקב עבודה - גרסה 4.19'; setAppVersionUI && setAppVersionUI(); }catch(_e){}
+    try{ window.APP_VERSION = '4.20'; document.title = 'מעקב עבודה - גרסה 4.21'; setAppVersionUI && setAppVersionUI(); }catch(_e){}
   });
 })();
 </script>
 
+
+<script id="v4-20-worker-tabs-js">
+(function(){
+  window.openWorkerTabV420=function(tab){
+    tab = tab || 'overview';
+    document.querySelectorAll('.worker-tab-btn-v420').forEach(function(btn){
+      btn.classList.toggle('active', btn.getAttribute('data-worker-tab') === tab);
+    });
+    document.querySelectorAll('.worker-tab-pane-v420').forEach(function(pane){
+      pane.classList.toggle('active', pane.getAttribute('data-worker-pane') === tab);
+    });
+    try{
+      if(tab === 'dashboard' && typeof renderSmartDashboard === 'function') renderSmartDashboard();
+      if(tab === 'search' && typeof renderFullSummary === 'function') renderFullSummary();
+      if(typeof cleanVisibleSlashN === 'function') cleanVisibleSlashN();
+    }catch(e){ console.warn('openWorkerTabV420', e); }
+  };
+
+  function forcePanelsVisibleV420(){
+    ['workerToolsPanel','workerSettingsPanel','smartDashboard','clientHistoryPanel','searchPanel'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el) el.classList.remove('hidden');
+    });
+  }
+
+  var oldShowWorker = window.showWorker;
+  if(typeof oldShowWorker === 'function'){
+    window.showWorker = async function(worker){
+      var res = await oldShowWorker(worker);
+      forcePanelsVisibleV420();
+      window.openWorkerTabV420('overview');
+      return res;
+    };
+  }
+
+  var oldShowWorkerById = window.showWorkerById;
+  if(typeof oldShowWorkerById === 'function'){
+    window.showWorkerById = async function(id){
+      var res = await oldShowWorkerById(id);
+      forcePanelsVisibleV420();
+      return res;
+    };
+  }
+
+  var oldToggleDashboard = window.toggleDashboard;
+  window.toggleDashboard = function(){ window.openWorkerTabV420('dashboard'); if(typeof renderSmartDashboard === 'function') renderSmartDashboard(); };
+  window.toggleClientHistory = function(){ window.openWorkerTabV420('client'); };
+  window.toggleSearchPanel = function(){ window.openWorkerTabV420('search'); if(typeof renderFullSummary === 'function') renderFullSummary(); };
+  window.toggleWorkerTools = function(){ window.openWorkerTabV420('tools'); };
+  window.toggleWorkerSettings = function(){ window.openWorkerTabV420('settings'); if((typeof viewedWorker !== 'undefined' && viewedWorker)&&document.getElementById('selfMonthlyGoal')) document.getElementById('selfMonthlyGoal').value=Number(viewedWorker.monthlyGoal||0); };
+
+  window.addEventListener('DOMContentLoaded', function(){
+    forcePanelsVisibleV420();
+    window.openWorkerTabV420('overview');
+  });
+  window.addEventListener('load', function(){
+    forcePanelsVisibleV420();
+    try{ window.APP_VERSION = '4.20'; document.title = 'מעקב עבודה - גרסה 4.21'; if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(_e){}
+  });
+})();
+</script>
+
+
+
+<style id="v4-22-smart-dashboard-accessibility-css">
+/* ===== v4.22: דשבורד חכם מקצועי + נגישות בסיסית ===== */
+.smart-grid-v422{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
+.smart-card-v422{background:linear-gradient(180deg,#fff,#f8fafc);border:1px solid var(--line);border-radius:22px;padding:15px;box-shadow:var(--soft-shadow);overflow:hidden!important}
+.smart-card-v422 .smart-title{font-size:13px;font-weight:900;color:#64748b;margin-bottom:7px}
+.smart-card-v422 .smart-value{font-size:25px;font-weight:900;color:#1d4ed8;line-height:1.1}
+.smart-card-v422 .smart-note{font-size:12px;color:#64748b;font-weight:800;margin-top:7px;line-height:1.35}
+.smart-section-v422{background:#fff;border:1px solid var(--line);border-radius:22px;padding:15px;box-shadow:0 8px 18px rgba(15,23,42,.055);margin-top:12px;overflow:hidden!important}
+.smart-section-v422 h3{margin:0 0 10px;font-size:17px}
+.smart-bars-v422{display:grid;gap:9px}
+.smart-bar-row-v422{display:grid;grid-template-columns:86px 1fr 70px;gap:8px;align-items:center;font-size:13px;font-weight:900;color:#334155}
+.smart-bar-track-v422{height:13px;background:#e2e8f0;border-radius:999px;overflow:hidden}
+.smart-bar-fill-v422{height:100%;background:linear-gradient(90deg,#2563eb,#22c55e);border-radius:999px;min-width:3px}
+.smart-insights-v422{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.smart-insights-v422 li{background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:10px 12px;font-weight:900;color:#334155;line-height:1.45}
+.smart-insights-v422 .good{background:#ecfdf5;border-color:#bbf7d0;color:#166534}
+.smart-insights-v422 .warn{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+.smart-insights-v422 .info{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
+.smart-quick-v422{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.smart-mini-v422{border:1px solid var(--line);background:#f8fafc;border-radius:18px;padding:12px;text-align:center;font-weight:900;color:#334155}
+.smart-mini-v422 b{display:block;font-size:20px;color:#0f172a;margin-top:4px}
+.a11y-floating-v422{position:fixed;left:14px;bottom:14px;z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.a11y-main-btn-v422{width:auto!important;min-width:118px!important;border-radius:999px!important;background:linear-gradient(135deg,#0f172a,#334155)!important;box-shadow:0 16px 34px rgba(15,23,42,.26)!important;padding:12px 15px!important;font-size:14px!important}
+.a11y-panel-v422{width:min(330px,calc(100vw - 28px));background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:22px;box-shadow:0 22px 55px rgba(15,23,42,.22);padding:14px;backdrop-filter:blur(14px)}
+.a11y-panel-v422 h3{margin:0 0 8px;font-size:17px}.a11y-panel-v422 p{font-size:13px;margin:4px 0 10px}.a11y-panel-v422 .actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important}.a11y-panel-v422 button{width:100%!important;max-width:none!important;min-height:42px!important;font-size:13px!important;padding:10px!important;border-radius:15px!important}
+.accessibility-modal-v422{position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,.62);display:grid;place-items:center;padding:16px}
+.accessibility-modal-card-v422{width:min(760px,100%);max-height:86vh;overflow:auto;background:white;border-radius:26px;padding:20px;box-shadow:0 30px 80px rgba(15,23,42,.35);direction:rtl;text-align:right}
+.accessibility-modal-card-v422 h2{margin-top:0}.accessibility-modal-card-v422 ul{line-height:1.65}.accessibility-modal-card-v422 .actions{justify-content:flex-start!important}
+body.a11y-large-text-v422{font-size:18px!important}body.a11y-large-text-v422 input,body.a11y-large-text-v422 textarea,body.a11y-large-text-v422 select,body.a11y-large-text-v422 button{font-size:18px!important}
+body.a11y-high-contrast-v422{background:#000!important;color:#fff!important}body.a11y-high-contrast-v422 .card,body.a11y-high-contrast-v422 .top,body.a11y-high-contrast-v422 .item,body.a11y-high-contrast-v422 .smart-card-v422,body.a11y-high-contrast-v422 .smart-section-v422,body.a11y-high-contrast-v422 .a11y-panel-v422{background:#111827!important;color:#fff!important;border-color:#fff!important}body.a11y-high-contrast-v422 .muted,body.a11y-high-contrast-v422 p,body.a11y-high-contrast-v422 .item-sub{color:#e5e7eb!important}body.a11y-high-contrast-v422 input,body.a11y-high-contrast-v422 textarea,body.a11y-high-contrast-v422 select{background:#000!important;color:#fff!important;border-color:#fff!important}
+body.a11y-readable-font-v422,body.a11y-readable-font-v422 *{font-family:Arial,"Noto Sans Hebrew",sans-serif!important;letter-spacing:0!important}
+@media(max-width:800px){.smart-grid-v422{grid-template-columns:repeat(2,1fr)}.smart-quick-v422{grid-template-columns:1fr}.smart-bar-row-v422{grid-template-columns:74px 1fr 58px}.a11y-floating-v422{left:10px;bottom:10px}.a11y-main-btn-v422{min-width:104px!important;font-size:13px!important}.a11y-panel-v422 .actions{grid-template-columns:1fr!important}}
+</style>
+
+<script id="v4-22-smart-dashboard-accessibility-js">
+(function(){
+  window.APP_VERSION = "4.25";
+  try{ if(typeof APP_VERSION !== 'undefined'){} }catch(e){}
+  function sum422(arr){return (arr||[]).reduce((s,e)=>s+Number(e.amount||0),0)}
+  function done422(arr){return (typeof doneEntriesV49==='function')?doneEntriesV49(arr||[]):(arr||[]).filter(e=>!(typeof isPlannedV49==='function' && isPlannedV49(e)))}
+  function planned422(arr){return (typeof plannedEntriesV49==='function')?plannedEntriesV49(arr||[]):(arr||[]).filter(e=>(typeof isPlannedV49==='function' && isPlannedV49(e))||e.entryStatus==='planned')}
+  function group422(arr,keyFn){const o={};(arr||[]).forEach(e=>{const k=keyFn(e); if(!o[k])o[k]={count:0,total:0,items:[]}; o[k].count++; o[k].total+=Number(e.amount||0); o[k].items.push(e)}); return o}
+  function pct422(a,b){return b?Math.round((a/b)*100):0}
+  function bestKey422(obj,field){const ks=Object.keys(obj||{});return ks.length?ks.sort((a,b)=>Number(obj[b][field]||0)-Number(obj[a][field]||0))[0]:''}
+  function weekdayName422(dateStr){try{return ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][parseDate(dateStr).getDay()]||''}catch(e){return ''}}
+  function renderBars422(obj,limit){
+    const rows=Object.keys(obj||{}).sort().slice(-limit||-7); const max=Math.max(1,...rows.map(k=>obj[k].total||0));
+    if(!rows.length)return '<p class="muted">אין מספיק נתונים להצגת מגמה.</p>';
+    return '<div class="smart-bars-v422">'+rows.map(k=>`<div class="smart-bar-row-v422"><div>${esc(k.slice(5)||k)}</div><div class="smart-bar-track-v422"><div class="smart-bar-fill-v422" style="width:${Math.max(4,Math.round((obj[k].total/max)*100))}%"></div></div><div>${money(obj[k].total||0)}</div></div>`).join('')+'</div>';
+  }
+  window.renderSmartDashboard=function(){
+    const box=$('smartDashboard'); if(!box)return;
+    const all=Array.isArray(monthEntries)?monthEntries:[];
+    const done=done422(all), planned=planned422(all);
+    const total=sum422(done), plannedTotal=sum422(planned), allPotential=total+plannedTotal;
+    const services=done.filter(e=>e.workType==='service'), installs=done.filter(e=>e.workType==='install');
+    const plannedServices=planned.filter(e=>e.workType==='service'), plannedInstalls=planned.filter(e=>e.workType==='install');
+    const returnCalls=services.filter(e=>e.isReturnCall);
+    const goal=Number((viewedWorker||{}).monthlyGoal||0), left=Math.max(goal-total,0), progress=goal?Math.min(100,pct422(total,goal)):0;
+    const workDays=[...new Set(done.map(e=>e.date).filter(Boolean))].length, avg=workDays?total/workDays:0;
+    const byDate=group422(done,e=>e.date||'ללא תאריך');
+    const byWeekday=group422(done,e=>weekdayName422(e.date)||'ללא יום');
+    const byClient=group422(done,e=>e.customerNumber||'ללא מספר');
+    const bestDay=bestKey422(byDate,'total'), bestWeekday=bestKey422(byWeekday,'total'), topClient=bestKey422(byClient,'count');
+    const completion=allPotential?pct422(total,allPotential):0;
+    const installAvg=installs.length?sum422(installs)/installs.length:0, serviceAvg=services.length?sum422(services)/services.length:0;
+    const insights=[];
+    insights.push(progress>=100?`<li class="good">🎯 היעד החודשי הושג. כרגע אתה על ${Math.round(progress)}%.</li>`:`<li class="warn">🎯 חסר ליעד ${money(left)}. ממוצע נוכחי ליום עבודה: ${money(avg)}.</li>`);
+    if(planned.length) insights.push(`<li class="info">📋 יש ${planned.length} עבודות מתוזמנות בשווי ${money(plannedTotal)}. אם כולן יבוצעו, תגיע ל־${money(allPotential)}.</li>`);
+    if(bestWeekday) insights.push(`<li class="info">🔥 היום החזק ביותר לפי הנתונים החודשיים: יום ${esc(bestWeekday)}.</li>`);
+    if(topClient && byClient[topClient].count>1) insights.push(`<li class="warn">👤 לקוח חוזר בולט: ${esc(topClient)} עם ${byClient[topClient].count} עבודות החודש.</li>`);
+    if(returnCalls.length) insights.push(`<li class="warn">🔁 יש ${returnCalls.length} קריאות חוזרות/ללא תשלום. שווה לבדוק אם יש דפוס שחוזר.</li>`);
+    if(!insights.length) insights.push('<li class="info">אין עדיין מספיק נתונים לתובנות עמוקות. אחרי כמה ימי עבודה הדשבורד יתחיל להיות חכם יותר.</li>');
+    box.innerHTML=`
+      <div class="smart-grid-v422">
+        <div class="smart-card-v422"><div class="smart-title">בוצע החודש</div><div class="smart-value">${money(total)}</div><div class="smart-note">רק עבודות שבוצעו</div></div>
+        <div class="smart-card-v422"><div class="smart-title">מתוזמן החודש</div><div class="smart-value">${money(plannedTotal)}</div><div class="smart-note">לא נספר בהתחשבנות עד ביצוע</div></div>
+        <div class="smart-card-v422"><div class="smart-title">עמידה ביעד</div><div class="smart-value">${Math.round(progress)}%</div><div class="smart-note">${goal?('יעד: '+money(goal)):'לא הוגדר יעד'}</div></div>
+        <div class="smart-card-v422"><div class="smart-title">ממוצע ליום</div><div class="smart-value">${money(avg)}</div><div class="smart-note">${workDays} ימי עבודה פעילים</div></div>
+      </div>
+      <div class="smart-quick-v422">
+        <div class="smart-mini-v422">התקנות שבוצעו<b>${installs.length}</b></div>
+        <div class="smart-mini-v422">קריאות שבוצעו<b>${services.length}</b></div>
+        <div class="smart-mini-v422">אחוז ביצוע מול מתוזמן<b>${completion}%</b></div>
+      </div>
+      <div class="smart-section-v422"><h3>📈 מגמת הכנסות לפי ימים</h3>${renderBars422(byDate,10)}</div>
+      <div class="smart-section-v422"><h3>🧠 תובנות אוטומטיות</h3><ul class="smart-insights-v422">${insights.slice(0,6).join('')}</ul></div>
+      <div class="smart-section-v422"><h3>⚖️ השוואת סוגי עבודה</h3>
+        <div class="smart-quick-v422">
+          <div class="smart-mini-v422">ממוצע התקנה<b>${money(installAvg)}</b></div>
+          <div class="smart-mini-v422">ממוצע קריאה<b>${money(serviceAvg)}</b></div>
+          <div class="smart-mini-v422">מתוכנן: התקנות / קריאות<b>${plannedInstalls.length} / ${plannedServices.length}</b></div>
+        </div>
+      </div>`;
+  };
+
+  function ensureA11y422(){
+    if(document.getElementById('a11yFloatingV422'))return;
+    const wrap=document.createElement('div'); wrap.id='a11yFloatingV422'; wrap.className='a11y-floating-v422';
+    wrap.innerHTML=`<button type="button" class="a11y-main-btn-v422" onclick="toggleA11yPanelV422()" aria-label="פתיחת כלי נגישות">♿ נגישות</button><div id="a11yPanelV422" class="a11y-panel-v422 hidden" role="dialog" aria-label="כלי נגישות"><h3>כלי נגישות</h3><p class="muted">התאמות בסיסיות לנוחות שימוש. ההצהרה מצורפת כדי לתת מענה מסודר למשתמשים.</p><div class="actions"><button class="btn-light" type="button" onclick="toggleLargeTextV422()">הגדלת טקסט</button><button class="btn-light" type="button" onclick="toggleContrastV422()">ניגודיות גבוהה</button><button class="btn-light" type="button" onclick="toggleReadableFontV422()">פונט קריא</button><button class="btn-yellow" type="button" onclick="resetA11yV422()">איפוס</button><button class="btn-green" type="button" onclick="openAccessibilityStatementV422()">הצהרת נגישות</button><button class="btn-light" type="button" onclick="toggleA11yPanelV422()">סגור</button></div></div>`;
+    document.body.appendChild(wrap);
+  }
+  window.toggleA11yPanelV422=function(){const p=document.getElementById('a11yPanelV422'); if(p)p.classList.toggle('hidden')};
+  window.toggleLargeTextV422=function(){document.body.classList.toggle('a11y-large-text-v422')};
+  window.toggleContrastV422=function(){document.body.classList.toggle('a11y-high-contrast-v422')};
+  window.toggleReadableFontV422=function(){document.body.classList.toggle('a11y-readable-font-v422')};
+  window.resetA11yV422=function(){document.body.classList.remove('a11y-large-text-v422','a11y-high-contrast-v422','a11y-readable-font-v422')};
+  window.openAccessibilityStatementV422=function(){
+    const old=document.getElementById('accessibilityModalV422'); if(old)old.remove();
+    const m=document.createElement('div'); m.id='accessibilityModalV422'; m.className='accessibility-modal-v422';
+    m.innerHTML=`<div class="accessibility-modal-card-v422" role="dialog" aria-modal="true" aria-label="הצהרת נגישות"><div class="cal-head"><h2>הצהרת נגישות</h2><button class="btn-light" type="button" onclick="document.getElementById('accessibilityModalV422').remove()">סגור</button></div><p>אנו רואים חשיבות רבה בהנגשת השירות לכלל המשתמשים, כולל אנשים עם מוגבלויות, ומשקיעים מאמץ כדי שהמערכת תהיה נוחה, ברורה ושמישה ככל האפשר.</p><h3>התאמות שבוצעו במערכת</h3><ul><li>כפתורים גדולים וברורים במובייל ובמחשב.</li><li>אפשרות להגדלת טקסט, ניגודיות גבוהה ופונט קריא דרך כפתור הנגישות.</li><li>מבנה כרטיסיות להפחתת גלילה ועומס חזותי.</li><li>שימוש בכותרות, טקסטים ברורים וצבעים בעלי ניגודיות טובה ככל האפשר.</li></ul><h3>דיווח על בעיית נגישות</h3><p>אם נתקלת בקושי להשתמש במערכת, אפשר לפנות אלינו ונעשה מאמץ לטפל בתקלה בהקדם.</p><p><b>איש קשר:</b> אלירן<br><b>טלפון:</b> 052-8899988<br><b>אימייל:</b> Eliranebl@gmail.com</p><p class="muted">עודכן לאחרונה: 04/05/2026 · גרסה 4.25</p><div class="actions"><button class="btn-green" type="button" onclick="document.getElementById('accessibilityModalV422').remove()">הבנתי</button></div></div>`;
+    document.body.appendChild(m);
+  };
+  document.addEventListener('DOMContentLoaded',function(){ensureA11y422(); try{setAppVersionUI()}catch(e){}});
+  window.addEventListener('load',function(){ensureA11y422(); try{setAppVersionUI()}catch(e){}; try{renderSmartDashboard()}catch(e){} });
+})();
+</script>
+
+
+<style id="v4-23-dashboard-plus-small-accessibility-css">
+/* ===== v4.23: שדרוג דשבורד + כפתור נגישות קטן ===== */
+.smart-grid-v423{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
+.smart-card-v423{background:linear-gradient(180deg,#fff,#f8fafc);border:1px solid var(--line);border-radius:22px;padding:15px;box-shadow:var(--soft-shadow);overflow:hidden!important;position:relative}
+.smart-card-v423:before{content:"";position:absolute;top:0;right:0;left:0;height:4px;background:linear-gradient(90deg,#2563eb,#22c55e,#7c3aed)}
+.smart-card-v423 .smart-title{font-size:13px;font-weight:900;color:#64748b;margin-bottom:7px}
+.smart-card-v423 .smart-value{font-size:25px;font-weight:900;color:#1d4ed8;line-height:1.1}
+.smart-card-v423 .smart-note{font-size:12px;color:#64748b;font-weight:800;margin-top:7px;line-height:1.35}
+.smart-section-v423{background:#fff;border:1px solid var(--line);border-radius:22px;padding:15px;box-shadow:0 8px 18px rgba(15,23,42,.055);margin-top:12px;overflow:hidden!important}
+.smart-section-v423 h3{margin:0 0 10px;font-size:17px}
+.smart-bars-v423{display:grid;gap:9px;max-height:250px;overflow:auto;padding-left:3px}
+.smart-bar-row-v423{display:grid;grid-template-columns:86px 1fr 74px;gap:8px;align-items:center;font-size:13px;font-weight:900;color:#334155}
+.smart-bar-track-v423{height:13px;background:#e2e8f0;border-radius:999px;overflow:hidden}
+.smart-bar-fill-v423{height:100%;background:linear-gradient(90deg,#2563eb,#22c55e);border-radius:999px;min-width:3px}
+.smart-insights-v423{display:grid;gap:8px;margin:0;padding:0;list-style:none;max-height:300px;overflow:auto;padding-left:3px}
+.smart-insights-v423 li{background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:10px 12px;font-weight:900;color:#334155;line-height:1.45}
+.smart-insights-v423 .good{background:#ecfdf5;border-color:#bbf7d0;color:#166534}
+.smart-insights-v423 .warn{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+.smart-insights-v423 .info{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
+.smart-insights-v423 .danger{background:#fef2f2;border-color:#fecaca;color:#991b1b!important}
+.smart-quick-v423{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.smart-mini-v423{border:1px solid var(--line);background:#f8fafc;border-radius:18px;padding:12px;text-align:center;font-weight:900;color:#334155;min-height:74px;display:flex;flex-direction:column;justify-content:center}
+.smart-mini-v423 b{display:block;font-size:20px;color:#0f172a;margin-top:4px}
+.smart-pill-row-v423{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.smart-pill-v423{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:900}
+.smart-progress-v423{height:14px;background:#e2e8f0;border-radius:999px;overflow:hidden;margin-top:10px}
+.smart-progress-v423 div{height:100%;background:linear-gradient(90deg,#16a34a,#2563eb);border-radius:999px}
+.smart-two-v423{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}
+.a11y-main-btn-v422{width:42px!important;height:42px!important;min-width:42px!important;max-width:42px!important;min-height:42px!important;padding:0!important;border-radius:999px!important;font-size:20px!important;line-height:1!important;display:grid!important;place-items:center!important;background:linear-gradient(135deg,#0f172a,#334155)!important;box-shadow:0 10px 24px rgba(15,23,42,.22)!important;color:#fff!important}
+.a11y-floating-v422{left:10px!important;bottom:10px!important;gap:7px!important}
+.a11y-panel-v422{width:min(330px,calc(100vw - 24px))!important}
+@media(max-width:800px){.smart-grid-v423{grid-template-columns:repeat(2,1fr)}.smart-quick-v423,.smart-two-v423{grid-template-columns:1fr}.smart-bar-row-v423{grid-template-columns:74px 1fr 62px}.smart-card-v423 .smart-value{font-size:22px}.a11y-main-btn-v422{width:38px!important;height:38px!important;min-width:38px!important;max-width:38px!important;font-size:18px!important}}
+</style>
+<script id="v4-23-dashboard-plus-small-accessibility-js">
+(function(){
+  window.APP_VERSION = "4.25";
+  try{ document.title = "מעקב עבודה - גרסה 4.25"; }catch(e){}
+  function s423(arr){return (arr||[]).reduce((x,e)=>x+Number(e.amount||0),0)}
+  function isPlan423(e){try{return (typeof isPlannedV49==='function' && isPlannedV49(e)) || e.entryStatus==='planned'}catch(_e){return e.entryStatus==='planned'}}
+  function done423(arr){return (arr||[]).filter(e=>!isPlan423(e))}
+  function planned423(arr){return (arr||[]).filter(e=>isPlan423(e))}
+  function group423(arr,keyFn){const o={};(arr||[]).forEach(e=>{const k=keyFn(e)||'לא ידוע'; if(!o[k])o[k]={count:0,total:0,items:[]}; o[k].count++; o[k].total+=Number(e.amount||0); o[k].items.push(e)});return o}
+  function pct423(a,b){return b?Math.round((Number(a||0)/Number(b||0))*100):0}
+  function best423(o,field){const ks=Object.keys(o||{});return ks.length?ks.sort((a,b)=>Number(o[b][field]||0)-Number(o[a][field]||0))[0]:''}
+  function weekday423(dateStr){try{return ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][parseDate(dateStr).getDay()]||''}catch(e){return ''}}
+  function monthDay423(dateStr){try{return heDate(dateStr).slice(0,5)}catch(e){return dateStr||''}}
+  function renderBars423(obj,limit){
+    const rows=Object.keys(obj||{}).sort().slice(-(limit||10));
+    const max=Math.max(1,...rows.map(k=>Number(obj[k].total||0)));
+    if(!rows.length)return '<p class="muted">אין מספיק נתונים להצגת מגמה.</p>';
+    return '<div class="smart-bars-v423">'+rows.map(k=>`<div class="smart-bar-row-v423"><div>${esc(monthDay423(k))}</div><div class="smart-bar-track-v423"><div class="smart-bar-fill-v423" style="width:${Math.max(4,Math.round((obj[k].total/max)*100))}%"></div></div><div>${money(obj[k].total||0)}</div></div>`).join('')+'</div>';
+  }
+  function topItems423(entries){
+    const o={};
+    (entries||[]).forEach(e=>(e.items||[]).forEach(i=>{const k=i.name||'פריט'; if(!o[k])o[k]={qty:0,total:0}; o[k].qty+=Number(i.quantity||0); o[k].total+=Number(i.total||0)}));
+    return Object.keys(o).sort((a,b)=>o[b].total-o[a].total).slice(0,5).map(k=>({name:k,...o[k]}));
+  }
+  window.renderSmartDashboard=function(){
+    const box=$('smartDashboard'); if(!box)return;
+    const all=Array.isArray(monthEntries)?monthEntries:[];
+    const done=done423(all), planned=planned423(all);
+    const total=s423(done), plannedTotal=s423(planned), potential=total+plannedTotal;
+    const services=done.filter(e=>e.workType==='service'), installs=done.filter(e=>e.workType==='install');
+    const plannedServices=planned.filter(e=>e.workType==='service'), plannedInstalls=planned.filter(e=>e.workType==='install');
+    const returnCalls=services.filter(e=>e.isReturnCall);
+    const paidServices=services.filter(e=>!e.isReturnCall);
+    const goal=Number((viewedWorker||{}).monthlyGoal||0), progress=goal?Math.min(100,pct423(total,goal)):0, left=Math.max(goal-total,0);
+    const dates=[...new Set(done.map(e=>e.date).filter(Boolean))], workDays=dates.length, avg=workDays?total/workDays:0;
+    const byDate=group423(done,e=>e.date||'ללא תאריך'), byWeekday=group423(done,e=>weekday423(e.date)||'ללא יום'), byClient=group423(done,e=>e.customerNumber||'ללא מספר');
+    const bestDate=best423(byDate,'total'), bestWeekday=best423(byWeekday,'total'), topClient=best423(byClient,'count');
+    const installAvg=installs.length?s423(installs)/installs.length:0, serviceAvg=paidServices.length?s423(paidServices)/paidServices.length:0;
+    const closeRate=potential?pct423(total,potential):100;
+    const topItems=topItems423(done);
+    const today=formatDate(new Date());
+    const todayDone=done.filter(e=>e.date===today), todayPlanned=planned.filter(e=>e.date===today);
+    const insights=[];
+    insights.push(progress>=100?`<li class="good">🎯 היעד הושג. אתה על ${Math.round(progress)}% — אפשר להגדיל יעד או לשמור קצב.</li>`:`<li class="warn">🎯 חסר ליעד ${money(left)}. בקצב הנוכחי כל יום עבודה שווה בערך ${money(avg)}.</li>`);
+    if(todayPlanned.length) insights.push(`<li class="info">📌 להיום יש ${todayPlanned.length} עבודות מתוזמנות בשווי ${money(s423(todayPlanned))}.</li>`);
+    if(planned.length) insights.push(`<li class="info">📋 צבר מתוזמן: ${planned.length} עבודות בשווי ${money(plannedTotal)}. פוטנציאל חודשי כולל: ${money(potential)}.</li>`);
+    if(bestDate) insights.push(`<li class="good">🔥 היום החזק בחודש: ${heDate(bestDate)} עם ${money(byDate[bestDate].total)}.</li>`);
+    if(bestWeekday) insights.push(`<li class="info">📈 יום ${esc(bestWeekday)} הוא היום החזק ביותר לפי דפוס החודש.</li>`);
+    if(topClient && byClient[topClient].count>1) insights.push(`<li class="warn">👤 לקוח חוזר בולט: ${esc(topClient)} עם ${byClient[topClient].count} עבודות. כדאי לבדוק איכות/חזרתיות.</li>`);
+    if(returnCalls.length) insights.push(`<li class="danger">🔁 ${returnCalls.length} קריאות חוזרות ללא תשלום. זה מדד שצריך לעקוב אחריו כי הוא אוכל זמן ולא מוסיף הכנסה.</li>`);
+    if(installs.length && paidServices.length && installAvg>serviceAvg*1.6) insights.push(`<li class="good">🛠️ התקנה ממוצעת שווה הרבה יותר מקריאת שירות. שווה לתת עדיפות להתקנות כשאפשר.</li>`);
+    if(!done.length) insights.push('<li class="info">עדיין אין עבודות שבוצעו בחודש הזה. הדשבורד יתמלא אחרי שמירת עבודות.</li>');
+    const pills=[];
+    if(bestWeekday)pills.push(`יום חזק: ${bestWeekday}`);
+    if(topClient && byClient[topClient].count>1)pills.push(`לקוח חוזר: ${topClient}`);
+    if(topItems[0])pills.push(`פריט מוביל: ${topItems[0].name}`);
+    box.innerHTML=`
+      <div class="smart-grid-v423">
+        <div class="smart-card-v423"><div class="smart-title">בוצע החודש</div><div class="smart-value">${money(total)}</div><div class="smart-note">רק עבודות שבוצעו בפועל</div></div>
+        <div class="smart-card-v423"><div class="smart-title">פוטנציאל כולל</div><div class="smart-value">${money(potential)}</div><div class="smart-note">בוצע + מתוזמן</div></div>
+        <div class="smart-card-v423"><div class="smart-title">עמידה ביעד</div><div class="smart-value">${Math.round(progress)}%</div><div class="smart-note">${goal?'יעד: '+money(goal):'לא הוגדר יעד'}<div class="smart-progress-v423"><div style="width:${Math.max(0,Math.min(100,progress))}%"></div></div></div></div>
+        <div class="smart-card-v423"><div class="smart-title">היום</div><div class="smart-value">${todayDone.length}/${todayDone.length+todayPlanned.length}</div><div class="smart-note">בוצע מתוך מתוכנן להיום</div></div>
+      </div>
+      <div class="smart-quick-v423">
+        <div class="smart-mini-v423">התקנות שבוצעו<b>${installs.length}</b></div>
+        <div class="smart-mini-v423">קריאות בתשלום<b>${paidServices.length}</b></div>
+        <div class="smart-mini-v423">קריאות חוזרות<b>${returnCalls.length}</b></div>
+      </div>
+      <div class="smart-pill-row-v423">${pills.map(p=>`<span class="smart-pill-v423">${esc(p)}</span>`).join('')}</div>
+      <div class="smart-two-v423">
+        <div class="smart-section-v423"><h3>📈 מגמת הכנסות לפי ימים</h3>${renderBars423(byDate,12)}</div>
+        <div class="smart-section-v423"><h3>🧠 תובנות אוטומטיות</h3><ul class="smart-insights-v423">${insights.slice(0,8).join('')}</ul></div>
+      </div>
+      <div class="smart-section-v423"><h3>⚖️ ניתוח מקצועי מהיר</h3>
+        <div class="smart-quick-v423">
+          <div class="smart-mini-v423">ממוצע התקנה<b>${money(installAvg)}</b></div>
+          <div class="smart-mini-v423">ממוצע קריאה<b>${money(serviceAvg)}</b></div>
+          <div class="smart-mini-v423">סגירה מול מתוזמן<b>${closeRate}%</b></div>
+        </div>
+      </div>
+      <div class="smart-section-v423"><h3>🏆 פריטי התקנה מובילים</h3>${topItems.length?'<div class="smart-bars-v423">'+topItems.map(i=>`<div class="smart-bar-row-v423"><div>${esc(i.name)}</div><div class="smart-bar-track-v423"><div class="smart-bar-fill-v423" style="width:${Math.max(4,Math.min(100,pct423(i.total,topItems[0].total)))}%"></div></div><div>${money(i.total)}</div></div>`).join('')+'</div>':'<p class="muted">אין עדיין פריטי התקנה החודש.</p>'}</div>`;
+  };
+  function fixA11yButton423(){
+    const btn=document.querySelector('.a11y-main-btn-v422');
+    if(btn){btn.innerHTML='♿';btn.title='כלי נגישות';btn.setAttribute('aria-label','פתיחת כלי נגישות');}
+    const modal=document.getElementById('accessibilityModalV422');
+    if(modal) modal.innerHTML=modal.innerHTML.replace(/גרסה 4\.22/g,'גרסה 4.25');
+  }
+  const oldOpen=window.openAccessibilityStatementV422;
+  if(typeof oldOpen==='function'){
+    window.openAccessibilityStatementV422=function(){oldOpen();setTimeout(fixA11yButton423,20);const m=document.getElementById('accessibilityModalV422'); if(m)m.innerHTML=m.innerHTML.replace(/גרסה 4\.22/g,'גרסה 4.25');};
+  }
+  document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){try{setAppVersionUI&&setAppVersionUI()}catch(e){} fixA11yButton423(); try{renderSmartDashboard()}catch(e){}},120)});
+  window.addEventListener('load',function(){setTimeout(function(){try{setAppVersionUI&&setAppVersionUI()}catch(e){} fixA11yButton423(); try{renderSmartDashboard()}catch(e){}},180)});
+})();
+</script>
+
+
+
+<style id="v4-24-calendar-dashboard-layout-fix-css">
+/* ===== v4.24: תיקון פרופורציות לוח שנה + טקסט פריטי דשבורד ===== */
+html,body{max-width:100%!important;overflow-x:hidden!important}
+.app,#workerView,#dayPanel,.card{max-width:100%!important}
+#calendar.cal{
+  display:grid!important;
+  grid-template-columns:repeat(7,minmax(0,1fr))!important;
+  width:100%!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  gap:6px!important;
+  direction:rtl!important;
+}
+#calendar .weekday,
+#calendar .day{
+  min-width:0!important;
+  max-width:100%!important;
+  width:100%!important;
+  overflow:hidden!important;
+  contain:layout paint!important;
+}
+#calendar .day{
+  transform:none!important;
+  box-shadow:0 6px 14px rgba(15,23,42,.055)!important;
+}
+#calendar .day:hover,
+#calendar .day.selected,
+#calendar .today{
+  transform:none!important;
+}
+#calendar .day-num,
+#calendar .day-total,
+#calendar .day-count{
+  min-width:0!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+#calendar .selected{
+  outline:2px solid var(--blue)!important;
+  outline-offset:-2px!important;
+  border-color:var(--blue)!important;
+}
+#calendar .today{
+  outline:2px solid rgba(37,99,235,.75)!important;
+  outline-offset:-2px!important;
+}
+
+/* דשבורד: פריטי התקנה מובילים — טקסט מלא, פרוגרס קטן ומסודר */
+.smart-section-v423 .smart-bars-v423{gap:10px!important}
+.smart-section-v423 .smart-bar-row-v423{
+  grid-template-columns:minmax(150px,1.55fr) minmax(90px,1fr) 78px!important;
+  align-items:center!important;
+  gap:10px!important;
+  min-width:0!important;
+}
+.smart-section-v423 .smart-bar-row-v423 > div:first-child{
+  white-space:normal!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  overflow-wrap:anywhere!important;
+  line-height:1.25!important;
+  font-size:13px!important;
+  color:#334155!important;
+}
+.smart-section-v423 .smart-bar-track-v423{
+  height:9px!important;
+  min-width:70px!important;
+  align-self:center!important;
+}
+.smart-section-v423 .smart-bar-row-v423 > div:last-child{
+  text-align:left!important;
+  white-space:nowrap!important;
+  font-size:12px!important;
+}
+
+@media(max-width:800px){
+  .app{padding-left:0!important;padding-right:0!important}
+  body{padding-left:8px!important;padding-right:8px!important}
+  #calendar.cal{gap:4px!important}
+  #calendar .weekday{font-size:11px!important;padding:4px 0!important}
+  #calendar .day{
+    min-height:58px!important;
+    padding:5px 3px!important;
+    border-radius:12px!important;
+  }
+  #calendar .day-num{font-size:12px!important;line-height:1.1!important}
+  #calendar .day-total{font-size:10px!important;margin-top:5px!important;letter-spacing:-.3px!important}
+  #calendar .day-count{font-size:9.5px!important;margin-top:2px!important;letter-spacing:-.3px!important}
+  .cal-head{max-width:100%!important;overflow:hidden!important}
+  .smart-section-v423 .smart-bar-row-v423{
+    grid-template-columns:minmax(96px,1.35fr) minmax(64px,.9fr) 56px!important;
+    gap:7px!important;
+  }
+  .smart-section-v423 .smart-bar-row-v423 > div:first-child{font-size:11.5px!important;line-height:1.18!important}
+  .smart-section-v423 .smart-bar-track-v423{height:7px!important;min-width:54px!important}
+  .smart-section-v423 .smart-bar-row-v423 > div:last-child{font-size:10.5px!important}
+}
+
+@media(max-width:380px){
+  #calendar.cal{gap:3px!important}
+  #calendar .day{min-height:54px!important;padding:4px 2px!important;border-radius:10px!important}
+  #calendar .day-total{font-size:9.5px!important}
+  #calendar .day-count{display:none!important}
+}
+</style>
+<script id="v4-24-calendar-dashboard-layout-fix-js">
+(function(){
+  window.APP_VERSION = "4.25";
+  try{ document.title = "מעקב עבודה - גרסה 4.25"; }catch(e){}
+  function fixVersion424(){
+    try{ if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(e){}
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel').forEach(function(el){el.textContent='4.24';}); }catch(e){}
+    try{ document.querySelectorAll('.app-version-mini span,.app-version-footer span').forEach(function(el){el.textContent='4.24';}); }catch(e){}
+  }
+  function fixCalendar424(){
+    var cal=document.getElementById('calendar');
+    if(!cal)return;
+    cal.style.gridTemplateColumns='repeat(7,minmax(0,1fr))';
+    cal.style.width='100%';
+    cal.style.maxWidth='100%';
+    cal.style.overflow='hidden';
+    document.documentElement.style.overflowX='hidden';
+    document.body.style.overflowX='hidden';
+  }
+  function patchDashboardTopItemText424(){
+    try{
+      var old=window.renderSmartDashboard;
+      if(typeof old !== 'function' || old.__v424Patched)return;
+      window.renderSmartDashboard=function(){
+        var res=old.apply(this,arguments);
+        setTimeout(function(){
+          document.querySelectorAll('.smart-section-v423 .smart-bar-row-v423').forEach(function(row){
+            row.style.minWidth='0';
+            var first=row.children && row.children[0];
+            if(first){first.style.whiteSpace='normal';first.style.overflowWrap='anywhere';first.style.lineHeight='1.25';}
+          });
+        },0);
+        return res;
+      };
+      window.renderSmartDashboard.__v424Patched=true;
+    }catch(e){console.warn('v4.24 dashboard patch',e)}
+  }
+  var oldSelect=window.selectDay;
+  if(typeof oldSelect === 'function'){
+    window.selectDay=function(ds){
+      var res=oldSelect.apply(this,arguments);
+      setTimeout(fixCalendar424,0);
+      return res;
+    };
+  }
+  var oldRenderCal=window.renderCalendar;
+  if(typeof oldRenderCal === 'function'){
+    window.renderCalendar=function(){
+      var res=oldRenderCal.apply(this,arguments);
+      fixCalendar424();
+      return res;
+    };
+  }
+  document.addEventListener('DOMContentLoaded',function(){fixVersion424();fixCalendar424();patchDashboardTopItemText424();});
+  window.addEventListener('load',function(){setTimeout(function(){fixVersion424();fixCalendar424();patchDashboardTopItemText424();try{ if(typeof renderSmartDashboard==='function')renderSmartDashboard(); }catch(e){}},220);});
+  document.addEventListener('click',function(){setTimeout(fixCalendar424,60);});
+})();
+</script>
+
+
+
+<style id="v4-25-calendar-day-text-fit-css">
+/* ===== v4.25: תיקון קריאות לוח שנה + מניעת גלישת עבודות היום במובייל ===== */
+html,body{max-width:100%!important;overflow-x:hidden!important;}
+.app,#workerView,.calendar-work-shell-v420,#dayPanel,#dayEntries,.day-sections-v419,.day-section-v419{max-width:100%!important;min-width:0!important;overflow-x:hidden!important;}
+
+/* שבת צרה יותר כדי שכל השבוע ייכנס טוב במסכים קטנים */
+#calendar.cal{
+  grid-template-columns:repeat(6,minmax(0,1fr)) minmax(24px,.58fr)!important;
+  gap:4px!important;
+  width:100%!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+#calendar .weekday:last-of-type{font-size:10px!important;letter-spacing:-.5px!important;}
+#calendar .shabbat{padding-inline:1px!important;}
+
+/* מחזיר קריאות לסכום בתוך היום */
+#calendar .day{
+  min-width:0!important;
+  overflow:hidden!important;
+  padding:5px 3px!important;
+  min-height:66px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:2px!important;
+}
+#calendar .day-num{font-size:12px!important;line-height:1.05!important;max-width:100%!important;}
+#calendar .day-total{
+  display:block!important;
+  color:#15803d!important;
+  background:none!important;
+  -webkit-background-clip:initial!important;
+  background-clip:initial!important;
+  animation:none!important;
+  font-size:10.8px!important;
+  line-height:1.05!important;
+  font-weight:900!important;
+  margin-top:2px!important;
+  max-width:100%!important;
+  white-space:normal!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  letter-spacing:-.45px!important;
+  direction:ltr!important;
+  text-align:center!important;
+}
+#calendar .day-count,
+#calendar .day-planned-v49{
+  max-width:100%!important;
+  white-space:normal!important;
+  overflow:hidden!important;
+  text-overflow:clip!important;
+  line-height:1.05!important;
+  text-align:center!important;
+}
+#calendar .day-count{font-size:9.4px!important;margin-top:0!important;}
+#calendar .day-planned-v49{font-size:9px!important;margin-top:1px!important;}
+#calendar .selected,
+#calendar .today,
+#calendar .day:hover{transform:none!important;max-width:100%!important;}
+
+/* חלונות עבודות שבוצעו/מתוזמנות לא גולשים שמאלה */
+.day-sections-v419{width:100%!important;box-sizing:border-box!important;grid-template-columns:minmax(0,1fr)!important;}
+.day-section-v419{width:100%!important;box-sizing:border-box!important;padding:11px!important;}
+.day-scroll-v419{width:100%!important;max-width:100%!important;box-sizing:border-box!important;overflow-y:auto!important;overflow-x:hidden!important;padding-inline-end:0!important;}
+.day-scroll-v419 .item,
+#dayEntries .item{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+  overflow:hidden!important;
+}
+#dayEntries .work-row-main{min-width:0!important;max-width:100%!important;width:100%!important;}
+#dayEntries .work-row-main>div:last-child{min-width:0!important;max-width:100%!important;overflow-wrap:anywhere!important;}
+#dayEntries .item-sub,#dayEntries .item-title{max-width:100%!important;overflow-wrap:anywhere!important;word-break:break-word!important;}
+#dayEntries .money{white-space:nowrap!important;align-self:flex-start!important;}
+#dayEntries .actions{max-width:100%!important;width:100%!important;box-sizing:border-box!important;}
+#dayEntries .actions button{min-width:0!important;max-width:100%!important;}
+
+@media(min-width:920px){
+  .day-sections-v419{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;}
+}
+@media(max-width:800px){
+  body{padding-left:6px!important;padding-right:6px!important;}
+  .calendar-work-shell-v420{padding:6px!important;border-radius:20px!important;}
+  #calendar.cal{grid-template-columns:repeat(6,minmax(0,1fr)) minmax(20px,.52fr)!important;gap:3px!important;}
+  #calendar .weekday{font-size:10.5px!important;padding:3px 0!important;}
+  #calendar .weekday:last-of-type{font-size:9.5px!important;}
+  #calendar .day{min-height:63px!important;border-radius:10px!important;padding:4px 2px!important;}
+  #calendar .day-total{font-size:10px!important;letter-spacing:-.55px!important;}
+  #calendar .day-count{font-size:8.8px!important;}
+  #calendar .day-planned-v49{font-size:8.4px!important;}
+  #dayEntries .item{padding:10px!important;border-radius:16px!important;}
+  #dayEntries .work-row-main{gap:8px!important;}
+  #dayEntries .work-icon{width:36px!important;height:36px!important;border-radius:13px!important;font-size:18px!important;flex:0 0 36px!important;}
+}
+@media(max-width:380px){
+  #calendar.cal{gap:2px!important;grid-template-columns:repeat(6,minmax(0,1fr)) minmax(18px,.48fr)!important;}
+  #calendar .day{min-height:59px!important;padding:3px 1px!important;}
+  #calendar .day-num{font-size:11px!important;}
+  #calendar .day-total{font-size:9.2px!important;letter-spacing:-.65px!important;}
+  #calendar .day-count{font-size:8px!important;}
+  #calendar .day-planned-v49{font-size:7.8px!important;}
+}
+</style>
+<script id="v4-25-calendar-day-text-fit-js">
+(function(){
+  window.APP_VERSION = "4.25";
+  try{ document.title = "מעקב עבודה - גרסה 4.25"; }catch(e){}
+  function setVersion425(){
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){el.textContent='4.25';}); }catch(e){}
+  }
+  function compactMoney425(text){
+    var raw=String(text||'').replace(/[₪,\s]/g,'');
+    var n=Number(raw);
+    if(!isFinite(n)) return text;
+    if(Math.abs(n)>=10000) return '₪'+Math.round(n/1000)+'K';
+    if(Math.abs(n)>=1000){
+      var v=(n/1000).toFixed(n%1000===0?0:1).replace('.0','');
+      return '₪'+v+'K';
+    }
+    return '₪'+Math.round(n);
+  }
+  function fixCalendar425(){
+    var cal=document.getElementById('calendar');
+    if(!cal)return;
+    var heads=cal.querySelectorAll('.weekday');
+    heads.forEach(function(h){ if((h.textContent||'').trim()==='שבת') h.textContent='ש'; });
+    cal.querySelectorAll('.day-total').forEach(function(el){
+      if(!el.dataset.fullMoney425) el.dataset.fullMoney425=el.textContent||'';
+      el.textContent=compactMoney425(el.dataset.fullMoney425);
+      el.title=el.dataset.fullMoney425;
+    });
+    document.documentElement.style.overflowX='hidden';
+    document.body.style.overflowX='hidden';
+  }
+  function fixDaySections425(){
+    try{
+      document.querySelectorAll('#dayEntries,.day-sections-v419,.day-section-v419,.day-scroll-v419,#dayEntries .item').forEach(function(el){
+        el.style.maxWidth='100%';
+        el.style.minWidth='0';
+        el.style.boxSizing='border-box';
+        el.style.overflowX='hidden';
+      });
+    }catch(e){}
+  }
+  var oldRenderCalendar=window.renderCalendar;
+  if(typeof oldRenderCalendar==='function' && !oldRenderCalendar.__v425){
+    window.renderCalendar=function(){
+      var res=oldRenderCalendar.apply(this,arguments);
+      fixCalendar425();
+      return res;
+    };
+    window.renderCalendar.__v425=true;
+  }
+  var oldRenderDay=window.renderDay;
+  if(typeof oldRenderDay==='function' && !oldRenderDay.__v425){
+    window.renderDay=function(){
+      var res=oldRenderDay.apply(this,arguments);
+      setTimeout(fixDaySections425,0);
+      return res;
+    };
+    window.renderDay.__v425=true;
+  }
+  var oldSelectDay=window.selectDay;
+  if(typeof oldSelectDay==='function' && !oldSelectDay.__v425){
+    window.selectDay=function(ds){
+      var res=oldSelectDay.apply(this,arguments);
+      setTimeout(function(){fixCalendar425();fixDaySections425();},30);
+      return res;
+    };
+    window.selectDay.__v425=true;
+  }
+  document.addEventListener('DOMContentLoaded',function(){setVersion425();setTimeout(function(){fixCalendar425();fixDaySections425();},160);});
+  window.addEventListener('load',function(){setTimeout(function(){setVersion425();fixCalendar425();fixDaySections425();},260);});
+  document.addEventListener('click',function(){setTimeout(function(){fixCalendar425();fixDaySections425();},80);});
+})();
+</script>
+
 </body>
-  </html>
+</html>
+
+<style id="v4-26-calendar-horizontal-scroll-exact-css">
+/* ===== v4.26 ניסוי: לוח שנה בגלילה אופקית קטנה + סכומים מלאים וברורים ===== */
+:root{--cal-cell-w-v426:72px;--cal-sat-w-v426:72px;}
+html,body{max-width:100%!important;overflow-x:hidden!important;}
+
+/* הלוח עצמו מקבל רוחב פנימי קבוע וגלילה אופקית עדינה בתוך הכרטיס בלבד */
+#calendar.cal{
+  display:grid!important;
+  grid-template-columns:repeat(7,var(--cal-cell-w-v426))!important;
+  gap:7px!important;
+  width:max-content!important;
+  min-width:max-content!important;
+  max-width:none!important;
+  overflow:visible!important;
+  direction:rtl!important;
+  padding:4px 2px 8px!important;
+}
+
+/* הופך את כרטיס הלוח לחלון גלילה אופקית קטן בלי להזיז את כל האתר */
+#calendar.cal{
+  scrollbar-width:thin!important;
+}
+#calendar.cal::-webkit-scrollbar{height:7px!important;}
+#calendar.cal::-webkit-scrollbar-thumb{background:#cbd5e1!important;border-radius:999px!important;}
+#calendar.cal::-webkit-scrollbar-track{background:#f1f5f9!important;border-radius:999px!important;}
+
+/* מכיוון שהגלילה צריכה להיות על ההורה, הופכים את הכרטיס שמכיל את הלוח לגלילה אופקית */
+#calendar.cal{position:relative!important;}
+#calendar.cal::after{content:"";display:block;width:1px;height:1px;}
+
+/* ההורה הישיר של הלוח: הכרטיס של החודש */
+#calendar.cal{
+  transform:none!important;
+}
+#calendar.cal > .weekday,
+#calendar.cal > .day{
+  width:var(--cal-cell-w-v426)!important;
+  min-width:var(--cal-cell-w-v426)!important;
+  max-width:var(--cal-cell-w-v426)!important;
+  box-sizing:border-box!important;
+}
+
+/* שבת חוזר לכותרת מלאה */
+#calendar .weekday:last-of-type{font-size:12px!important;letter-spacing:0!important;}
+#calendar .shabbat{padding-inline:6px!important;}
+
+/* קוביות בולטות וברורות */
+#calendar .day{
+  min-height:88px!important;
+  padding:8px 5px!important;
+  border-radius:16px!important;
+  background:linear-gradient(180deg,#ffffff,#f8fafc)!important;
+  border:1px solid #dbe3ef!important;
+  box-shadow:0 8px 17px rgba(15,23,42,.075)!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:4px!important;
+  overflow:hidden!important;
+  transform:none!important;
+}
+#calendar .day.selected{
+  border:2px solid #2563eb!important;
+  background:#dbeafe!important;
+  box-shadow:0 0 0 3px rgba(37,99,235,.12),0 9px 18px rgba(37,99,235,.12)!important;
+  outline:none!important;
+  transform:none!important;
+}
+#calendar .today{
+  border:2px solid #2563eb!important;
+  outline:none!important;
+}
+#calendar .shabbat{
+  background:#f1f5f9!important;
+  color:#94a3b8!important;
+}
+#calendar .weekday{
+  min-height:26px!important;
+  padding:5px 0!important;
+  text-align:center!important;
+  color:#475569!important;
+  font-size:12px!important;
+  font-weight:900!important;
+  overflow:hidden!important;
+}
+#calendar .day-num{
+  font-size:14px!important;
+  line-height:1!important;
+  font-weight:900!important;
+  color:#0f172a!important;
+}
+#calendar .day-total,
+#calendar .day-planned-v49{
+  display:block!important;
+  color:#15803d!important;
+  background:none!important;
+  -webkit-background-clip:initial!important;
+  background-clip:initial!important;
+  animation:none!important;
+  font-weight:900!important;
+  text-align:center!important;
+  direction:ltr!important;
+  white-space:normal!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  max-width:100%!important;
+  letter-spacing:-.35px!important;
+}
+#calendar .day-total{
+  font-size:12px!important;
+  line-height:1.08!important;
+  margin-top:3px!important;
+}
+#calendar .day-count{
+  font-size:10.5px!important;
+  color:#64748b!important;
+  line-height:1.08!important;
+  white-space:normal!important;
+  text-align:center!important;
+  overflow:visible!important;
+}
+#calendar .day-planned-v49{
+  font-size:10px!important;
+  line-height:1.08!important;
+  color:#7c3aed!important;
+  margin-top:0!important;
+}
+
+/* מאפשרים גלילה אופקית רק בתוך כרטיס הלוח, לא בכל הדף */
+.calendar-work-shell-v420 .card:has(#calendar),
+#workerView .card:has(#calendar){
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+  -webkit-overflow-scrolling:touch!important;
+  scrollbar-width:thin!important;
+}
+.calendar-work-shell-v420 .card:has(#calendar)::-webkit-scrollbar,
+#workerView .card:has(#calendar)::-webkit-scrollbar{height:7px!important;}
+.calendar-work-shell-v420 .card:has(#calendar)::-webkit-scrollbar-thumb,
+#workerView .card:has(#calendar)::-webkit-scrollbar-thumb{background:#cbd5e1!important;border-radius:999px!important;}
+
+/* עבודות היום ומתוזמנות נשארות בתוך המסך */
+#dayPanel,.day-sections-v419,.day-section-v419,.day-scroll-v419,#dayEntries,#dayEntries .item{
+  max-width:100%!important;
+  min-width:0!important;
+  overflow-x:hidden!important;
+  box-sizing:border-box!important;
+}
+.day-sections-v419{width:100%!important;grid-template-columns:minmax(0,1fr)!important;gap:12px!important;}
+.day-section-v419{padding:12px!important;}
+.day-scroll-v419{padding-left:0!important;padding-right:0!important;}
+#dayEntries .item{padding:11px!important;}
+#dayEntries .item-sub,#dayEntries .item-title{overflow-wrap:anywhere!important;word-break:break-word!important;}
+
+@media(min-width:920px){.day-sections-v419{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;}}
+@media(max-width:800px){
+  :root{--cal-cell-w-v426:70px;}
+  .calendar-work-shell-v420{padding:8px!important;overflow-x:hidden!important;}
+  #calendar.cal{gap:6px!important;padding-bottom:9px!important;}
+  #calendar .day{min-height:86px!important;border-radius:15px!important;padding:7px 5px!important;}
+  #calendar .day-total{font-size:11.4px!important;letter-spacing:-.45px!important;}
+  #calendar .day-count{font-size:10px!important;}
+  #calendar .day-planned-v49{font-size:9.6px!important;}
+}
+@media(max-width:390px){
+  :root{--cal-cell-w-v426:68px;}
+  #calendar.cal{gap:5px!important;}
+  #calendar .day{min-height:84px!important;padding:7px 4px!important;}
+  #calendar .day-total{font-size:11px!important;}
+}
+</style>
+<script id="v4-26-calendar-horizontal-scroll-exact-js">
+(function(){
+  window.APP_VERSION="4.26";
+  try{document.title="מעקב עבודה - גרסה 4.26";}catch(e){}
+  function setVersion426(){
+    try{document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){el.textContent='4.26';});}catch(e){}
+  }
+  function fullMoney426(text){
+    var raw=String(text||'').replace(/[₪,\s]/g,'').replace(/K$/i,'000');
+    var n=Number(raw);
+    if(!isFinite(n)) return text;
+    return '₪'+Math.round(n).toLocaleString('he-IL',{maximumFractionDigits:0});
+  }
+  function restoreExactAmounts426(){
+    var cal=document.getElementById('calendar');
+    if(!cal)return;
+    cal.querySelectorAll('.weekday').forEach(function(h){ if((h.textContent||'').trim()==='ש') h.textContent='שבת'; });
+    cal.querySelectorAll('.day-total,.day-planned-v49').forEach(function(el){
+      var original=el.dataset.fullMoney425 || el.dataset.fullMoney426 || el.textContent || '';
+      // עבור planned יש לפעמים טקסט עם אייקון ושורה. מתקנים רק סכום שיש בתוכו.
+      if((el.className||'').indexOf('day-planned-v49')>=0){
+        el.innerHTML=String(el.innerHTML||'').replace(/₪\s*[0-9.,]+\s*K?/gi,function(m){return fullMoney426(m)});
+      }else{
+        el.dataset.fullMoney426=original;
+        el.textContent=fullMoney426(original);
+      }
+    });
+  }
+  function fixCalendarScroll426(){
+    var cal=document.getElementById('calendar');
+    if(!cal)return;
+    restoreExactAmounts426();
+    document.documentElement.style.overflowX='hidden';
+    document.body.style.overflowX='hidden';
+    var parent=cal.parentElement;
+    if(parent){
+      parent.style.overflowX='auto';
+      parent.style.overflowY='visible';
+      parent.style.webkitOverflowScrolling='touch';
+      parent.style.maxWidth='100%';
+    }
+  }
+  var oldRenderCalendar=window.renderCalendar;
+  if(typeof oldRenderCalendar==='function' && !oldRenderCalendar.__v426){
+    window.renderCalendar=function(){
+      var res=oldRenderCalendar.apply(this,arguments);
+      setTimeout(fixCalendarScroll426,0);
+      return res;
+    };
+    window.renderCalendar.__v426=true;
+  }
+  var oldSelectDay=window.selectDay;
+  if(typeof oldSelectDay==='function' && !oldSelectDay.__v426){
+    window.selectDay=function(ds){
+      var res=oldSelectDay.apply(this,arguments);
+      setTimeout(fixCalendarScroll426,40);
+      return res;
+    };
+    window.selectDay.__v426=true;
+  }
+  document.addEventListener('DOMContentLoaded',function(){setVersion426();setTimeout(fixCalendarScroll426,180);});
+  window.addEventListener('load',function(){setTimeout(function(){setVersion426();fixCalendarScroll426();},300);});
+  document.addEventListener('click',function(){setTimeout(fixCalendarScroll426,90);});
+})();
+</script>
+
+<style id="v4-27-day-counts-loading-fix-css">
+/* ===== v4.27: סיכומי יום בשתי שורות + טעינת נתונים לפני הצגת מספרים ===== */
+.day-count-pill-v419{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:3px!important;
+  width:auto!important;
+  min-width:178px!important;
+  max-width:100%!important;
+  white-space:normal!important;
+  line-height:1.18!important;
+  text-align:center!important;
+  padding:8px 12px!important;
+  border-radius:18px!important;
+  box-sizing:border-box!important;
+}
+.day-count-total-v427,
+.day-count-split-v427{
+  display:block!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+.day-count-total-v427{font-size:13px!important;font-weight:900!important;}
+.day-count-split-v427{font-size:12px!important;font-weight:900!important;opacity:.92;}
+.day-section-head-v419{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:start!important;
+  gap:10px!important;
+}
+.day-section-head-v419 > div:first-child{min-width:0!important;}
+.day-section-title-v419,
+.day-section-sub-v419{overflow-wrap:anywhere!important;word-break:break-word!important;}
+@media(max-width:800px){
+  .day-section-head-v419{grid-template-columns:1fr!important;}
+  .day-count-pill-v419{width:100%!important;min-width:0!important;}
+  .day-count-total-v427{font-size:13px!important;}
+  .day-count-split-v427{font-size:12px!important;}
+}
+
+#workerView{position:relative!important;}
+.worker-loading-overlay-v427{
+  position:fixed;
+  inset:0;
+  z-index:9500;
+  display:none;
+  place-items:center;
+  padding:18px;
+  background:
+    radial-gradient(circle at top right,rgba(37,99,235,.22),transparent 34%),
+    radial-gradient(circle at bottom left,rgba(236,72,153,.18),transparent 32%),
+    linear-gradient(135deg,var(--bg-a),var(--bg-b) 55%,var(--bg-c));
+}
+.worker-loading-active-v427 .worker-loading-overlay-v427{display:grid!important;}
+.worker-loading-card-v427{
+  width:min(430px,100%);
+  text-align:center;
+  background:rgba(255,255,255,.92);
+  border:1px solid rgba(255,255,255,.85);
+  border-radius:28px;
+  padding:28px 22px;
+  box-shadow:0 24px 70px rgba(15,23,42,.18);
+  backdrop-filter:blur(14px);
+}
+.worker-loading-logo-v427{
+  width:86px;height:86px;border-radius:30px;margin:0 auto 16px;
+  display:grid;place-items:center;color:white;font-size:36px;font-weight:900;
+  background:linear-gradient(135deg,#2563eb,#7c3aed);
+  box-shadow:0 18px 36px rgba(37,99,235,.30);
+  animation:workerPulseV427 1.45s ease-in-out infinite;
+}
+.worker-loading-title-v427{font-size:27px;font-weight:900;margin:0 0 8px;color:#0f172a;}
+.worker-loading-sub-v427{font-size:14px;font-weight:900;color:#64748b;margin:0 0 16px;}
+.worker-loading-bar-v427{height:10px;background:#e2e8f0;border-radius:999px;overflow:hidden;}
+.worker-loading-bar-v427 div{height:100%;width:45%;border-radius:999px;background:linear-gradient(90deg,#2563eb,#22c55e,#7c3aed);animation:workerBarV427 1.15s ease-in-out infinite;}
+@keyframes workerPulseV427{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@keyframes workerBarV427{0%{transform:translateX(140%)}100%{transform:translateX(-260%)}}
+@media(max-width:800px){.worker-loading-card-v427{padding:24px 18px}.worker-loading-logo-v427{width:76px;height:76px;font-size:32px}.worker-loading-title-v427{font-size:24px}}
+</style>
+
+<script id="v4-27-day-counts-loading-fix-js">
+(function(){
+  window.APP_VERSION = "4.27";
+  try{ document.title = "מעקב עבודה - גרסה 4.27"; }catch(e){}
+  function setVersion427(){
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent='4.27'; }); }catch(e){}
+  }
+
+  function ensureWorkerLoadingOverlay427(){
+    var view=document.getElementById('workerView');
+    if(!view) return null;
+    var overlay=document.getElementById('workerLoadingOverlayV427');
+    if(!overlay){
+      overlay=document.createElement('div');
+      overlay.id='workerLoadingOverlayV427';
+      overlay.className='worker-loading-overlay-v427';
+      overlay.innerHTML='<div class="worker-loading-card-v427"><div class="worker-loading-logo-v427">₪</div><div class="worker-loading-title-v427">טוען נתונים</div><p class="worker-loading-sub-v427">מחשב סיכומים, עבודות ומתוזמנות...</p><div class="worker-loading-bar-v427"><div></div></div></div>';
+      document.body.appendChild(overlay);
+    }
+    return overlay;
+  }
+  function showWorkerLoading427(){
+    ensureWorkerLoadingOverlay427();
+    document.body.classList.add('worker-loading-active-v427');
+  }
+  function hideWorkerLoading427(){
+    document.body.classList.remove('worker-loading-active-v427');
+  }
+
+  function safeArr427(a){ return Array.isArray(a) ? a : []; }
+  function isPlanned427(e){
+    try{ if(typeof window.isPlannedV49 === 'function') return !!window.isPlannedV49(e); }catch(_e){}
+    return e && (e.entryStatus === 'planned' || e.status === 'planned' || e.planned === true);
+  }
+  function counts427(list){
+    list=safeArr427(list);
+    return {
+      total:list.length,
+      installs:list.filter(function(e){return e.workType==='install';}).length,
+      services:list.filter(function(e){return e.workType==='service';}).length
+    };
+  }
+  function countsHtml427(c){
+    return '<span class="day-count-total-v427">סה״כ: '+c.total+'</span><span class="day-count-split-v427">התקנות: '+c.installs+' · קריאות שירות: '+c.services+'</span>';
+  }
+  window.countsTextV419=function(c){ return countsHtml427(c); };
+
+  // תיקון הכרטיסים של עבודות היום: הסיכום נהיה שתי שורות במקום שורה אחת גולשת.
+  var oldRenderDay427=window.renderDay;
+  if(typeof oldRenderDay427==='function' && !oldRenderDay427.__v427){
+    window.renderDay=function(){
+      var res=oldRenderDay427.apply(this,arguments);
+      try{
+        var entries=safeArr427(window.monthEntries || monthEntries).filter(function(e){return e.date===selectedDate;});
+        var done=entries.filter(function(e){return !isPlanned427(e);});
+        var planned=entries.filter(function(e){return isPlanned427(e);});
+        var pills=document.querySelectorAll('.day-count-pill-v419');
+        if(pills[0]) pills[0].innerHTML=countsHtml427(counts427(done));
+        if(pills[1]) pills[1].innerHTML=countsHtml427(counts427(planned));
+      }catch(e){ console.warn('v4.27 day count fix',e); }
+      return res;
+    };
+    window.renderDay.__v427=true;
+  }
+
+  // טעינת חודש בלי להציג אפסים זמניים: המסך נשאר על טעינה עד שהשאילתה והחישובים נגמרים.
+  window.loadMonth = async function(){
+    showWorkerLoading427();
+    try{
+      await loadPriceList();
+      await loadTemplates();
+      var y=calendarDate.getFullYear(), m=calendarDate.getMonth();
+      var last=new Date(y,m+1,0).getDate();
+      var start=y+'-'+pad(m+1)+'-01';
+      var end=y+'-'+pad(m+1)+'-'+pad(last);
+      text('calTitle', months[m]+' '+y);
+      text('monthSub', 'חודש בתצוגה: '+months[m]+' '+y);
+      var snap=await db.collection('workEntries').where('workerId','==',viewedWorker.id).get();
+      monthEntries=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());}).filter(function(e){return e.date>=start && e.date<=end;});
+      renderCalendar();
+      renderDay();
+      renderStats();
+      if(typeof renderSmartDashboard==='function') renderSmartDashboard();
+      if($('searchPanel') && !$('searchPanel').classList.contains('hidden') && typeof renderFullSummary==='function') renderFullSummary();
+      if(typeof cleanVisibleSlashN==='function') cleanVisibleSlashN();
+      setVersion427();
+    }catch(e){
+      console.error('loadMonth v4.27 failed',e);
+      try{ alert('שגיאה בטעינת נתוני החודש: '+(e.message||e)); }catch(_e){}
+    }finally{
+      setTimeout(hideWorkerLoading427,120);
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded',function(){ setVersion427(); ensureWorkerLoadingOverlay427(); });
+  window.addEventListener('load',function(){ setTimeout(setVersion427,250); setTimeout(setVersion427,700); setTimeout(setVersion427,1400); });
+})();
+</script>
