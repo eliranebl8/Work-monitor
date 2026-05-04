@@ -933,7 +933,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.14";
+const APP_VERSION = "4.15";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1838,8 +1838,8 @@ function backupCollectionNamesV413(){
 async function backupJSON(){
   const collections=backupCollectionNamesV413();
   const data={
-    version:"4.14",
-    appVersion:(window.APP_VERSION||APP_VERSION||"4.14"),
+    version:"4.15",
+    appVersion:(window.APP_VERSION||APP_VERSION||"4.15"),
     backupSchema:"work-monitor-full-v413",
     exportedAt:new Date().toISOString(),
     notes:"Full backup includes workers, work entries, settings, payment requests, templates, username lookup, users, logs and the unified priceList with fiber/RF priceType fields.",
@@ -1854,7 +1854,7 @@ async function backupJSON(){
       data.collections[c+"__backupError"]=[{id:"error",data:{message:e.message||String(e),code:e.code||""}}];
     }
   }
-  downloadFile("work_tracker_backup_v4_13_full_rf_fiber.json",JSON.stringify(data,null,2),"application/json");
+  downloadFile("work_tracker_backup_v4_15_full_rf_fiber.json",JSON.stringify(data,null,2),"application/json");
   setBackupStatusV413("<div class='notice'>גיבוי מלא ירד למכשיר ✅<br>כולל מחירון סיב/RF, תבניות, עבודות, משתמשים והגדרות.</div>");
 }
 async function restoreJSON(event){
@@ -2081,8 +2081,8 @@ async function exportMyEntriesCSV(){
 async function backupMyJSON(){
   if(!viewedWorker)return;
   const data={
-    version:"4.14",
-    appVersion:(window.APP_VERSION||APP_VERSION||"4.14"),
+    version:"4.15",
+    appVersion:(window.APP_VERSION||APP_VERSION||"4.15"),
     type:"worker-backup-v413",
     workerId:viewedWorker.id,
     workerName:viewedWorker.name||"",
@@ -8975,7 +8975,7 @@ service cloud.firestore {
 <script id="v411-rf-fiber-and-buttons-js">
 /* ===== v4.11: תיקון כפתורי סידור + מחירון התקנה לפי סיב/RF ===== */
 (function(){
-  window.APP_VERSION='4.14';
+  window.APP_VERSION='4.15';
   try{ if(typeof APP_VERSION!=='undefined'){} }catch(e){}
   var installKindV411='fiber';
   var adminPriceKindV411='fiber';
@@ -9245,7 +9245,7 @@ service cloud.firestore {
 <script id="v412-search-and-template-kind-js">
 /* ===== v4.12: חיפוש ותבניות לפי סיב/RF ===== */
 (function(){
-  window.APP_VERSION='4.14';
+  window.APP_VERSION='4.15';
   try{ document.title='מעקב עבודה - גרסה 4.12'; }catch(e){}
 
   var searchInstallKindV412='fiber';
@@ -9594,5 +9594,221 @@ service cloud.firestore {
 })();
 </script>
 
+
+
+<style id="v415-full-edit-rf-fiber-css">
+/* ===== v4.15: עריכה מלאה להתקנת RF/סיב ===== */
+.edit-kind-tabs-v415{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin:10px 0 14px;
+}
+.edit-kind-tab-v415{
+  width:100%!important;
+  min-height:50px!important;
+  border-radius:18px!important;
+  background:#f8fafc!important;
+  color:#0f172a!important;
+  border:2px solid #e2e8f0!important;
+  box-shadow:0 8px 18px rgba(15,23,42,.06)!important;
+}
+.edit-kind-tab-v415.active{
+  background:linear-gradient(135deg,#2563eb,#1d4ed8)!important;
+  color:#fff!important;
+  border-color:#2563eb!important;
+}
+.edit-kind-note-v415{
+  background:#eff6ff;
+  border:1px solid #bfdbfe;
+  color:#1e3a8a;
+  border-radius:16px;
+  padding:10px;
+  margin:8px 0;
+  font-weight:900;
+}
+</style>
+
+<script id="v415-full-edit-rf-fiber-js">
+/* ===== v4.15: עריכה מלאה — התקנת RF נשארת RF, סיב נשאר סיב, ואפשר להחליף סוג בעריכה ===== */
+(function(){
+  window.APP_VERSION='4.15';
+  try{ setAppVersionUI && setAppVersionUI(); }catch(e){}
+
+  var editEntryKindV415='fiber';
+  var editEntryOriginalV415=null;
+  var editPriceListV415=[];
+
+  function byIdV415(id){return document.getElementById(id)}
+  function normalizeKindV415(v){return String(v||'fiber').toLowerCase()==='rf'?'rf':'fiber'}
+  function kindLabelV415(kind){return normalizeKindV415(kind)==='rf'?'RF':'סיב'}
+  function itemKindV415(item){return normalizeKindV415(item && (item.priceType||item.installKind||item.category||'fiber'))}
+  function entryKindV415(entry){return normalizeKindV415(entry && (entry.installKind||entry.priceType||((entry.items||[])[0]&&((entry.items||[])[0].installKind||(entry.items||[])[0].priceType))||'fiber'))}
+  function escV415(s){try{return esc(s)}catch(e){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]})}}
+  function moneyV415(n){try{return money(n)}catch(e){return '₪'+Number(n||0).toLocaleString('he-IL',{maximumFractionDigits:0})}}
+
+  async function getAllPriceItemsV415(){
+    try{
+      const snap=await db.collection('priceList').get();
+      const unique={};
+      snap.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.active!==false).forEach(function(item){
+        var key=String(item.name||'').trim()+'|'+Number(item.price||0)+'|'+String(item.inputMode||'qty')+'|'+itemKindV415(item);
+        if(!unique[key]) unique[key]=item;
+      });
+      return Object.values(unique).sort(function(a,b){return Number(a.order||0)-Number(b.order||0)});
+    }catch(e){
+      alert('שגיאה בטעינת מחירון לעריכה: '+(e.message||e));
+      return [];
+    }
+  }
+
+  function ensureEditKindUIV415(){
+    var wrap=byIdV415('editInstallItemsBox');
+    if(!wrap)return;
+    if(!byIdV415('editInstallKindTabsV415')){
+      var box=document.createElement('div');
+      box.id='editInstallKindTabsV415';
+      box.innerHTML='<div class="edit-kind-note-v415">בחר סוג התקנה לעריכה — הרשימה והסכום מתחלפים לפי סיב / RF.</div><div class="edit-kind-tabs-v415"><button type="button" id="editKindFiberV415" class="edit-kind-tab-v415" onclick="changeEditInstallKindV415(\'fiber\')">🔵 עריכת סיב</button><button type="button" id="editKindRfV415" class="edit-kind-tab-v415" onclick="changeEditInstallKindV415(\'rf\')">📡 עריכת RF</button></div>';
+      var items=byIdV415('editInstallItems');
+      if(items) wrap.insertBefore(box, items); else wrap.insertBefore(box, wrap.firstChild);
+    }
+    updateEditKindTabsV415();
+  }
+
+  function updateEditKindTabsV415(){
+    var f=byIdV415('editKindFiberV415'), r=byIdV415('editKindRfV415');
+    if(f)f.classList.toggle('active', normalizeKindV415(editEntryKindV415)==='fiber');
+    if(r)r.classList.toggle('active', normalizeKindV415(editEntryKindV415)==='rf');
+    var preview=byIdV415('editInstallPreview');
+    if(preview && !preview.textContent.includes(kindLabelV415(editEntryKindV415))){
+      // הטקסט הסופי מתעדכן בחישוב, זה רק ביטוח שלא יראה ריק.
+    }
+  }
+
+  window.changeEditInstallKindV415=async function(kind){
+    editEntryKindV415=normalizeKindV415(kind);
+    await renderEditInstallItemsV415(editEntryOriginalV415, true);
+  };
+
+  function oldItemsMapV415(entry){
+    var mapById={}, mapByName={};
+    (entry&&entry.items||[]).forEach(function(i){
+      if(i.id)mapById[String(i.id)]=i;
+      if(i.name)mapByName[String(i.name).trim()]=i;
+    });
+    return {byId:mapById,byName:mapByName};
+  }
+
+  async function renderEditInstallItemsV415(entry, forceSelectedKind){
+    const box=byIdV415('editInstallItems');
+    const wrap=byIdV415('editInstallItemsBox');
+    if(!box||!wrap)return;
+    if(!entry || entry.workType!=='install'){
+      wrap.classList.add('hidden');
+      return;
+    }
+    wrap.classList.remove('hidden');
+    editEntryOriginalV415=entry;
+    if(!forceSelectedKind) editEntryKindV415=entryKindV415(entry);
+    ensureEditKindUIV415();
+
+    const all=await getAllPriceItemsV415();
+    editPriceListV415=all.filter(function(p){return itemKindV415(p)===normalizeKindV415(editEntryKindV415)});
+    box.innerHTML='';
+    updateEditKindTabsV415();
+
+    if(!editPriceListV415.length){
+      box.innerHTML='<div class="hint-card">אין פריטים במחירון '+kindLabelV415(editEntryKindV415)+' לעריכה. אפשר להוסיף אותם באדמין.</div>';
+      updateEditInstallPreviewV415();
+      return;
+    }
+
+    var maps=oldItemsMapV415(entry);
+    editPriceListV415.forEach(function(item){
+      var old=maps.byId[String(item.id)] || maps.byName[String(item.name||'').trim()];
+      var row=document.createElement('div');
+      row.className='item';
+      var mode=item.inputMode||'qty';
+      var control='';
+      if(mode==='check'){
+        control='<label style="display:flex;align-items:center;gap:8px;font-weight:900"><input id="editQty_'+item.id+'" type="checkbox" '+(old&&Number(old.quantity)>0?'checked':'')+' onchange="updateEditInstallPreviewV415()" style="width:24px;height:24px;margin:0"> בוצע</label>';
+      }else{
+        control='<input class="qty" id="editQty_'+item.id+'" type="number" min="0" placeholder="כמות" value="'+(old?Number(old.quantity||0):'')+'" oninput="updateEditInstallPreviewV415()">';
+      }
+      row.innerHTML='<div><div class="item-title">'+escV415(item.name)+'</div><div class="item-sub">מחירון: '+kindLabelV415(editEntryKindV415)+' · מחיר: '+moneyV415(item.price)+' · '+(mode==='check'?'סימון כן/לא':'כמות מספרית')+'</div></div>'+control;
+      box.appendChild(row);
+    });
+    updateEditInstallPreviewV415();
+  }
+
+  function getEditedInstallItemsV415(){
+    var items=[], total=0;
+    (editPriceListV415||[]).forEach(function(p){
+      var el=byIdV415('editQty_'+p.id); if(!el)return;
+      var q=(p.inputMode||'qty')==='check'?(el.checked?1:0):Number(el.value||0);
+      if(q>0){
+        var item={id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||'qty',installKind:normalizeKindV415(editEntryKindV415),priceType:normalizeKindV415(editEntryKindV415),total:q*Number(p.price||0)};
+        items.push(item);
+        total+=item.total;
+      }
+    });
+    return {items,total,kind:normalizeKindV415(editEntryKindV415)};
+  }
+
+  window.updateEditInstallPreviewV415=function(){
+    var data=getEditedInstallItemsV415();
+    var preview=byIdV415('editInstallPreview');
+    if(preview) preview.textContent='סה״כ התקנת '+kindLabelV415(data.kind)+': '+moneyV415(data.total);
+    var amount=byIdV415('editEntryAmount');
+    if(amount) amount.value=data.total;
+  };
+
+  // נשמור תאימות לשמות הישנים, כי saveEntryEdit המקורי קרא להם.
+  window.renderEditInstallItems=function(entry){return renderEditInstallItemsV415(entry,false)};
+  window.getEditedInstallItems=function(){return getEditedInstallItemsV415()};
+  window.updateEditInstallPreview=window.updateEditInstallPreviewV415;
+
+  window.openEntryEdit=function(id){
+    const e=monthEntries.find(x=>x.id===id);
+    if(!e)return;
+    show('editEntryPanel');
+    byIdV415('editEntryId').value=id;
+    byIdV415('editEntryCustomer').value=e.customerNumber||'';
+    byIdV415('editEntryAddress').value=e.address||'';
+    byIdV415('editEntryNotes').value=e.notes||'';
+    byIdV415('editEntryAmount').value=Number(e.amount||0);
+    byIdV415('editEntryMsg').innerHTML='';
+    editEntryOriginalV415=e;
+    editEntryKindV415=entryKindV415(e);
+    renderEditInstallItemsV415(e,false);
+    window.scrollTo({top:byIdV415('editEntryPanel').offsetTop-20,behavior:'smooth'});
+  };
+
+  window.saveEntryEdit=async function(){
+    const id=val('editEntryId'), customerNumber=val('editEntryCustomer'), address=val('editEntryAddress'), notes=val('editEntryNotes');
+    let amount=Number(val('editEntryAmount')||0);
+    if(!customerNumber||!/^\d+$/.test(customerNumber))return byIdV415('editEntryMsg').innerHTML='<p class="danger">מספר לקוח חייב להיות ספרות בלבד.</p>';
+    if(!address)return byIdV415('editEntryMsg').innerHTML='<p class="danger">חובה למלא כתובת.</p>';
+    const original=monthEntries.find(x=>x.id===id);
+    const update={customerNumber,address,notes,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+    if(original&&original.workType==='install'){
+      const edited=getEditedInstallItemsV415();
+      if(!edited.items.length)return byIdV415('editEntryMsg').innerHTML='<p class="danger">חובה לבחור לפחות פריט התקנה אחד במחירון '+kindLabelV415(edited.kind)+'.</p>';
+      update.items=edited.items;
+      update.amount=edited.total;
+      update.installKind=edited.kind;
+      update.priceType=edited.kind;
+      update.description='התקנת '+kindLabelV415(edited.kind);
+    }else{
+      if(Number.isNaN(amount)||amount<0)return byIdV415('editEntryMsg').innerHTML='<p class="danger">סכום לא תקין.</p>';
+      update.amount=amount;
+    }
+    await db.collection('workEntries').doc(id).update(update);
+    byIdV415('editEntryMsg').innerHTML='<div class="notice">העבודה נשמרה ✅</div>';
+    await loadMonth();
+  };
+})();
+</script>
+
 </body>
-  </html>
+</html>
