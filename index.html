@@ -1124,7 +1124,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.32";
+const APP_VERSION = "4.33";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -12424,6 +12424,271 @@ html,body{max-width:100%!important;overflow-x:hidden!important;}
   document.addEventListener('DOMContentLoaded', function(){
     setVersionV431();
   });
+})();
+</script>
+
+<style id="v4-33-admin-loader-stable-text-css">
+/* ===== v4.33: תיקון קפיצות טקסט במסך טעינת אדמין =====
+   CHANGELOG בתוך הקובץ:
+   1. מסך טעינת האדמין מציג הודעה יציבה אחת ולא משנה טקסט אחרי כל שלב טעינה.
+   2. showAdmin/adminLogin/backToAdminPanel/onload נדרסים כאן כשכבה אחרונה כדי לבטל השפעה של תיקוני v4.31/v4.32 שרצו לפני כן.
+   3. בזמן טעינת אדמין כל הפאנלים מוסתרים בכוח, ורק אחרי שכל הנתונים נטענו פאנל האדמין מוצג פעם אחת.
+   4. שמירת הסשן של האדמין נשארת פעילה גם אחרי חזרה ממעקב עובד ורענון דפדפן.
+   5. מספר הגרסה מוצג אך ורק דרך הקבוע המרכזי APP_VERSION.
+*/
+.admin-loading-lock-v433 #adminView,
+.admin-loading-lock-v433 #workerView,
+.admin-loading-lock-v433 #workerLoginView,
+.admin-loading-lock-v433 #adminLoginView,
+.admin-loading-lock-v433 #registerView,
+.admin-loading-lock-v433 #expiredView{
+  display:none!important;
+  visibility:hidden!important;
+}
+.admin-loading-lock-v433 #startupView{
+  display:block!important;
+  visibility:visible!important;
+}
+</style>
+
+<script id="v4-33-admin-loader-stable-text-js">
+/* ===== PATCH v4.33: Stable admin loading text, no staged text jumps =====
+   הערות שינוי:
+   - הבעיה שנמצאה: תיקון v4.31 הוגדר אחרי v4.32 בקובץ ולכן דרס חלק מהתיקון וגרם שוב לקפיצות טקסט/טעינה.
+   - הפתרון: שכבה אחרונה וסופית שמחליפה שוב את showAdmin, adminLogin, backToAdminPanelV430 ו-window.onload.
+   - בזמן הטעינה לא משנים יותר את הטקסט לפי שלבים כמו "מטעין לוגים" ואז "מטעין מחירון"; מוצג טקסט יציב אחד עד סוף הטעינה.
+*/
+(function(){
+  window.APP_VERSION = APP_VERSION;
+  window.__adminLoadPromiseV433 = null;
+  window.__adminReadyV433 = false;
+
+  function elV433(id){ return document.getElementById(id); }
+
+  function setVersionV433(){
+    try{ document.title = 'מעקב עבודה - גרסה ' + APP_VERSION; }catch(e){}
+    try{ if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(e){}
+    try{ if(typeof enforceAppVersionUI === 'function') enforceAppVersionUI(); }catch(e){}
+    try{
+      document.querySelectorAll('[data-app-version],#appVersion,#versionLabel').forEach(function(node){
+        node.textContent = APP_VERSION;
+      });
+    }catch(e){}
+  }
+
+  function setUserLineV433(txt){
+    try{ if(typeof text === 'function') return text('userLine', txt); }catch(e){}
+    var line=elV433('userLine');
+    if(line) line.textContent=txt;
+  }
+
+  function ensureAdminSessionV433(){
+    try{
+      if(!window.session || session.role !== 'admin'){
+        window.session = {role:'admin', name:'מנהל', remember:true, loginAt:Date.now(), restoredBy:'v'+APP_VERSION};
+      }else{
+        session.role='admin';
+        session.name=session.name || 'מנהל';
+        session.remember=true;
+        session.restoredBy=session.restoredBy || ('v'+APP_VERSION);
+      }
+      localStorage.setItem('workSession', JSON.stringify(window.session));
+    }catch(e){ console.warn('ensureAdminSessionV433 failed', e); }
+  }
+
+  function showStableAdminLoaderV433(){
+    try{
+      window.__adminReadyV433 = false;
+      document.body.classList.add('admin-loading-lock-v433');
+      document.body.classList.add('admin-loading-lock-v432');
+      ['workerLoginView','registerView','expiredView','adminLoginView','adminView','workerView'].forEach(function(id){
+        var node=elV433(id);
+        if(node) node.classList.add('hidden');
+      });
+      var startup=elV433('startupView');
+      if(startup){
+        startup.classList.remove('hidden');
+        var title=startup.querySelector('h1');
+        var sub=startup.querySelector('.startup-sub');
+        if(title) title.textContent='טוען נתוני אדמין';
+        if(sub) sub.textContent='מטעין את כל נתוני האדמין. הפאנל יוצג רק כשהכול מוכן...';
+      }
+      var logout=elV433('logoutBtn');
+      if(logout) logout.classList.remove('hidden');
+      setUserLineV433('מנהל · טוען נתונים');
+      setVersionV433();
+    }catch(e){ console.warn('showStableAdminLoaderV433 failed', e); }
+  }
+
+  function showAdminPanelOnceV433(){
+    try{
+      ['startupView','workerLoginView','registerView','expiredView','adminLoginView','workerView'].forEach(function(id){
+        var node=elV433(id);
+        if(node) node.classList.add('hidden');
+      });
+      var admin=elV433('adminView');
+      if(admin) admin.classList.remove('hidden');
+      var logout=elV433('logoutBtn');
+      if(logout) logout.classList.remove('hidden');
+      document.body.classList.remove('admin-loading-lock-v433');
+      document.body.classList.remove('admin-loading-lock-v432');
+      window.__adminReadyV433 = true;
+      window.__adminOpenedWorkerTrackingV430 = false;
+      setUserLineV433('מנהל · Auth מאובטח');
+      setVersionV433();
+    }catch(e){ console.warn('showAdminPanelOnceV433 failed', e); }
+  }
+
+  async function runSilentStepV433(label, fn, required){
+    try{
+      // בכוונה לא משנים כאן טקסט במסך הטעינה — מונע קפיצות כמו "מטעין לוגים" ואז "מטעין מחירון".
+      if(typeof fn === 'function') await fn();
+      return {ok:true,label:label};
+    }catch(e){
+      console.warn('Admin silent load step failed v'+APP_VERSION+':', label, e);
+      if(required) throw e;
+      return {ok:false,label:label,error:(e && (e.message || e.code)) || String(e)};
+    }
+  }
+
+  function showAdminWarningsV433(results){
+    try{
+      var failed=(results||[]).filter(function(x){ return x && !x.ok; });
+      var admin=elV433('adminView');
+      if(!admin) return;
+      var old=elV433('adminLoadWarningsV431');
+      if(old) old.remove();
+      if(!failed.length) return;
+      var box=document.createElement('div');
+      box.id='adminLoadWarningsV431';
+      box.className='admin-load-error-v431';
+      box.innerHTML='⚠️ חלק מנתוני האדמין לא נטענו במלואם, אבל הפאנל נשאר פתוח.<br>'+
+        failed.map(function(x){
+          var label=typeof esc==='function'?esc(x.label):x.label;
+          var err=typeof esc==='function'?esc(x.error||'שגיאה'):(x.error||'שגיאה');
+          return '• '+label+': '+err;
+        }).join('<br>');
+      admin.insertBefore(box, admin.firstChild);
+    }catch(e){ console.warn('showAdminWarningsV433 failed', e); }
+  }
+
+  async function loadAdminStableV433(){
+    if(window.__adminLoadPromiseV433) return window.__adminLoadPromiseV433;
+
+    window.__adminLoadPromiseV433 = (async function(){
+      ensureAdminSessionV433();
+      showStableAdminLoaderV433();
+
+      var results=[];
+      results.push(await runSilentStepV433('הרשאות והגדרות', async function(){
+        if(typeof waitForAuthReadyV169 === 'function') await waitForAuthReadyV169();
+        if(typeof ensureDefaultPriceList === 'function') await ensureDefaultPriceList();
+        if(typeof loadSettings === 'function') await loadSettings();
+        if(elV433('servicePriceInput')) elV433('servicePriceInput').value = SERVICE_PRICE;
+        if(elV433('adminSetUsername')) elV433('adminSetUsername').value = ADMIN_USERNAME;
+        if(elV433('trialDaysInput')) elV433('trialDaysInput').value = DEFAULT_TRIAL_DAYS;
+      }, true));
+
+      // סדר טעינה קבוע: הגדרות → עובדים → אבטחה → מחירון → תבניות → תשלומים → לוגים → כלי אבטחה.
+      // הטקסט במסך לא משתנה בין השלבים כדי למנוע קפיצות ותחושת טעינה כפולה.
+      results.push(await runSilentStepV433('עובדים', async function(){ if(typeof loadWorkers === 'function') await loadWorkers(); }, false));
+      results.push(await runSilentStepV433('סנכרון אבטחה', async function(){ if(typeof syncAuthSecurityDataV169 === 'function') await syncAuthSecurityDataV169(); }, false));
+      results.push(await runSilentStepV433('מחירון', async function(){ if(typeof loadPriceListAdmin === 'function') await loadPriceListAdmin(); }, false));
+      results.push(await runSilentStepV433('תבניות', async function(){ if(typeof loadTemplatesAdmin === 'function') await loadTemplatesAdmin(); }, false));
+      results.push(await runSilentStepV433('תשלומים', async function(){ if(typeof loadPaymentRequests === 'function') await loadPaymentRequests(); }, false));
+      results.push(await runSilentStepV433('לוגים', async function(){ if(typeof loadDebugLogs === 'function') await loadDebugLogs(); }, false));
+      results.push(await runSilentStepV433('כלי אבטחה', async function(){ if(typeof addSecurityToolsV169 === 'function') addSecurityToolsV169(); }, false));
+
+      showAdminPanelOnceV433();
+      showAdminWarningsV433(results);
+      return results;
+    })();
+
+    try{
+      return await window.__adminLoadPromiseV433;
+    }finally{
+      window.__adminLoadPromiseV433 = null;
+    }
+  }
+
+  window.showAdmin = async function(){
+    try{
+      return await loadAdminStableV433();
+    }catch(e){
+      console.error('showAdmin v'+APP_VERSION+' failed', e);
+      ensureAdminSessionV433();
+      showAdminPanelOnceV433();
+      showAdminWarningsV433([{ok:false,label:'טעינת אדמין',error:(e && (e.message || e.code)) || String(e)}]);
+    }
+  };
+
+  window.adminLogin = async function(){
+    try{
+      if(typeof loadSettings === 'function') await loadSettings();
+      var u = typeof val === 'function' ? val('adminUsername') : (elV433('adminUsername') ? elV433('adminUsername').value.trim() : '');
+      var p = typeof val === 'function' ? val('adminPassword') : (elV433('adminPassword') ? elV433('adminPassword').value.trim() : '');
+      var ok = (u === ADMIN_USERNAME && await sha256(p) === ADMIN_PASSWORD_SHA256);
+      if(!ok){
+        var msg=elV433('adminLoginMsg');
+        if(msg) msg.textContent='שם משתמש או סיסמה לא נכונים.';
+        return;
+      }
+      ensureAdminSessionV433();
+      try{ if(typeof clearLoginFields === 'function') clearLoginFields(); }catch(e){}
+      return await window.showAdmin();
+    }catch(e){
+      var msg=elV433('adminLoginMsg');
+      if(msg) msg.textContent='שגיאה בכניסת מנהל: '+((e && e.message) || e);
+    }
+  };
+
+  window.backToAdminPanelV430 = async function(){
+    ensureAdminSessionV433();
+    window.__adminOpenedWorkerTrackingV430 = false;
+    var btn=elV433('backToAdminBtnV430');
+    if(btn){ btn.classList.add('hidden'); btn.style.display='none'; }
+    return await window.showAdmin();
+  };
+
+  window.onload = async function(){
+    setVersionV433();
+    var saved=null;
+    try{ saved=localStorage.getItem('workSession'); }catch(e){}
+    if(saved){
+      try{
+        var parsed=JSON.parse(saved);
+        if(parsed && parsed.role === 'admin'){
+          window.session=parsed;
+          ensureAdminSessionV433();
+          return await window.showAdmin();
+        }
+      }catch(e){ console.warn('admin session parse failed v'+APP_VERSION, e); }
+    }
+
+    try{
+      if(typeof ensureDefaultPriceList === 'function') await ensureDefaultPriceList();
+      if(typeof loadSettings === 'function') await loadSettings();
+      if(typeof attachLoginFieldCleaner === 'function') attachLoginFieldCleaner();
+    }catch(e){ console.error(e); }
+
+    var workerSaved=null;
+    try{ workerSaved=localStorage.getItem('workSession'); }catch(e){}
+    if(workerSaved){
+      try{
+        window.session=JSON.parse(workerSaved);
+        if(session.role === 'worker'){
+          if(typeof isSessionExpired === 'function' && isSessionExpired()){
+            localStorage.removeItem('workSession'); window.session=null;
+          }else if(typeof showWorkerById === 'function'){
+            return showWorkerById(session.workerId);
+          }
+        }
+      }catch(e){ localStorage.removeItem('workSession'); }
+    }
+    if(typeof showWorkerLogin === 'function') showWorkerLogin();
+  };
+
+  document.addEventListener('DOMContentLoaded', setVersionV433);
 })();
 </script>
 
