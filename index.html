@@ -1166,7 +1166,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "4.36";
+const APP_VERSION = "4.38";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -11934,6 +11934,124 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
 })();
 </script>
 
+
+
+<style id="v4-38-dashboard-colors-expenses-css">
+/* ===== v4.38: דשבורד חכם - צבעים עדינים + הוצאות 6% + הסרת יום רגיל ===== */
+#smartDashboard .smart-soft-blue-v438{background:linear-gradient(180deg,#eff6ff,#ffffff)!important;border-color:#bfdbfe!important}
+#smartDashboard .smart-soft-green-v438{background:linear-gradient(180deg,#ecfdf5,#ffffff)!important;border-color:#bbf7d0!important}
+#smartDashboard .smart-soft-red-v438{background:linear-gradient(180deg,#fff1f2,#ffffff)!important;border-color:#fecdd3!important}
+#smartDashboard .smart-soft-purple-v438{background:linear-gradient(180deg,#f5f3ff,#ffffff)!important;border-color:#ddd6fe!important}
+#smartDashboard .smart-soft-orange-v438{background:linear-gradient(180deg,#fff7ed,#ffffff)!important;border-color:#fed7aa!important}
+#smartDashboard .smart-soft-slate-v438{background:linear-gradient(180deg,#f8fafc,#ffffff)!important;border-color:#e2e8f0!important}
+.expenses-strip-v438{margin:12px 0 14px!important}
+.expenses-strip-v438 .smart-tip-v436{min-height:92px!important}
+.expenses-title-v438{font-weight:900;color:#0f172a;margin:0 0 8px;font-size:16px}
+.expenses-note-v438{font-size:12px;color:#64748b;font-weight:800;margin-top:5px;line-height:1.35}
+</style>
+
+<script id="v4-38-dashboard-colors-expenses-js">
+/*
+===============================================================================
+CHANGELOG 4.38 - דשבורד חכם: צבעים עדינים, הסרת יום רגיל, הוצאות 6%
+-------------------------------------------------------------------------------
+1. הוסר כרטיס "צריך לכל יום רגיל" מהדשבורד כי הוא מבלבל ולא משמש לניהול יעד אמיתי.
+2. נוספו צבעי רקע עדינים לכרטיסיות קיימות בלבד, בלי לשנות מבנה נתונים או לוגיקה קיימת.
+3. נוספו שני כרטיסים חדשים לפי עבודות שבוצעו בפועל בלבד:
+   - הוצאות 6% = בוצע בפועל * 0.06
+   - נשאר אחרי הוצאות = בוצע בפועל * 0.94
+4. החישוב לא כולל עבודות מתוזמנות ולא פוגע בחישובי פוטנציאל/יעד/ימי חופש קיימים.
+===============================================================================
+*/
+(function(){
+  if(window.__dashboardV438Applied) return;
+  window.__dashboardV438Applied=true;
+
+  function money438(n){
+    try{ return typeof money==='function' ? money(n) : '₪'+Number(n||0).toLocaleString('he-IL',{maximumFractionDigits:0}); }
+    catch(e){ return '₪'+Number(n||0).toLocaleString('he-IL',{maximumFractionDigits:0}); }
+  }
+  function safeArr438(a){ return Array.isArray(a)?a:[]; }
+  function isPlanned438(e){
+    if(!e) return false;
+    try{ if(typeof window.isPlannedV49==='function') return !!window.isPlannedV49(e); }catch(_e){}
+    return e.entryStatus==='planned' || e.planned===true || e.isPlanned===true || e.status==='planned';
+  }
+  function doneEntries438(){
+    return safeArr438(window.monthEntries || monthEntries).filter(function(e){ return !isPlanned438(e); });
+  }
+  function sum438(list){ return safeArr438(list).reduce(function(s,e){ return s + Number((e&&e.amount)||0); },0); }
+  function addClassByTitle438(box, text, cls){
+    try{
+      Array.from(box.querySelectorAll('.smart-card-v423,.smart-tip-v436,.smart-mini-v423')).forEach(function(card){
+        var title=card.querySelector('.smart-title') || card.firstChild;
+        var t=(title&&title.textContent?title.textContent:card.textContent)||'';
+        if(t.indexOf(text)!==-1) card.classList.add(cls);
+      });
+    }catch(e){}
+  }
+  function removeRegularDayTip438(box){
+    try{
+      Array.from(box.querySelectorAll('.smart-tip-v436')).forEach(function(tip){
+        if((tip.textContent||'').indexOf('צריך לכל יום רגיל')!==-1) tip.remove();
+      });
+    }catch(e){}
+  }
+  function applySoftColors438(box){
+    addClassByTitle438(box,'בוצע החודש','smart-soft-green-v438');
+    addClassByTitle438(box,'צריך לכל יום עבודה','smart-soft-green-v438');
+    addClassByTitle438(box,'עמידה ביעד','smart-soft-blue-v438');
+    addClassByTitle438(box,'פוטנציאל כולל','smart-soft-purple-v438');
+    addClassByTitle438(box,'חסר ליעד','smart-soft-red-v438');
+    addClassByTitle438(box,'ימים עבודה שנשארו','smart-soft-slate-v438');
+    addClassByTitle438(box,'ימי עבודה שנשארו','smart-soft-slate-v438');
+    addClassByTitle438(box,'תחזית סוף חודש','smart-soft-green-v438');
+    addClassByTitle438(box,'ימי חופש שסומנו','smart-soft-orange-v438');
+    addClassByTitle438(box,'ימי עבודה רגילים בחודש','smart-soft-blue-v438');
+    addClassByTitle438(box,'התקנות שבוצעו','smart-soft-blue-v438');
+    addClassByTitle438(box,'קריאות בתשלום','smart-soft-green-v438');
+    addClassByTitle438(box,'קריאות חוזרות','smart-soft-red-v438');
+  }
+  function injectExpenses438(box){
+    var done=doneEntries438();
+    var total=sum438(done); // חשוב: עבודות שבוצעו בפועל בלבד, בלי מתוזמנות.
+    var expenses=total*0.06;
+    var after=total-expenses;
+    var old=document.getElementById('expensesStripV438');
+    if(old) old.remove();
+    var wrap=document.createElement('div');
+    wrap.id='expensesStripV438';
+    wrap.className='expenses-strip-v438';
+    wrap.innerHTML='<div class="expenses-title-v438">💰 חישוב אחרי הוצאות קבועות</div>'+
+      '<div class="smart-subgrid-v436">'+
+        '<div class="smart-tip-v436 smart-soft-red-v438">הוצאות 6%<b>'+money438(expenses)+'</b><div class="expenses-note-v438">מחושב רק מעבודות שבוצעו בפועל, בלי מתוזמנות</div></div>'+
+        '<div class="smart-tip-v436 smart-soft-green-v438">נשאר אחרי הוצאות<b>'+money438(after)+'</b><div class="expenses-note-v438">סכום ביצוע בפועל פחות 6% הוצאות</div></div>'+
+      '</div>';
+    var grid=box.querySelector('.smart-grid-v423');
+    if(grid && grid.parentNode) grid.parentNode.insertBefore(wrap, grid.nextSibling);
+    else box.insertBefore(wrap, box.firstChild);
+  }
+  function polishDashboard438(){
+    var box=document.getElementById('smartDashboard');
+    if(!box) return;
+    removeRegularDayTip438(box);
+    injectExpenses438(box);
+    applySoftColors438(box);
+  }
+
+  var previousRender438=window.renderSmartDashboard;
+  window.renderSmartDashboard=function(){
+    if(typeof previousRender438==='function') previousRender438.apply(this,arguments);
+    polishDashboard438();
+  };
+  window.polishDashboardV438=polishDashboard438;
+
+  document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){try{polishDashboard438()}catch(e){}},300)});
+  window.addEventListener('load',function(){setTimeout(function(){try{polishDashboard438()}catch(e){}},700)});
+  try{ if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
+})();
+</script>
+
 </body>
 
 
@@ -12783,5 +12901,295 @@ CHANGELOG 4.35 - תיקון תקיעה במסך "מכין את סביבת העב
   setTimeout(scheduleRescue, 1000);
 
   try{ if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(e){}
+})();
+</script>
+
+
+<style id="v4-37-vacation-days-css">
+/* ===== v4.37: ימי חופש בלוח שנה וחישובי יעד ===== */
+.day.vacation-v437{
+  background:linear-gradient(180deg,#fff7ed,#ffedd5)!important;
+  border-color:#fb923c!important;
+  color:#9a3412!important;
+  cursor:pointer!important;
+  position:relative!important;
+}
+.day.vacation-v437 .day-num:before{content:"🏖️ ";font-size:12px}
+.day-vacation-label-v437{
+  color:#9a3412;
+  font-weight:900;
+  font-size:12px;
+  margin-top:6px;
+  line-height:1.15;
+}
+.day.vacation-v437 .day-total,
+.day.vacation-v437 .day-count,
+.day.vacation-v437 .day-planned-v49{
+  opacity:.55;
+  text-decoration:line-through;
+}
+.day-off-panel-v437{
+  background:#fff7ed;
+  border:1px solid #fed7aa;
+  color:#9a3412;
+  border-radius:22px;
+  padding:16px;
+  margin:12px 0;
+  font-weight:900;
+  line-height:1.55;
+}
+.day-off-tools-v437{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin:10px 0 14px;
+}
+.day-off-tools-v437 button{min-width:160px!important}
+.vacation-goal-strip-v437{
+  background:linear-gradient(135deg,#fff7ed,#eff6ff);
+  border:1px solid #fed7aa;
+  border-radius:24px;
+  padding:14px;
+  margin:12px 0;
+  box-shadow:0 10px 24px rgba(15,23,42,.06);
+}
+.vacation-goal-strip-v437 h3{margin-bottom:10px}
+.vacation-note-v437{font-size:12px;color:#64748b;font-weight:800;margin-top:4px;line-height:1.35}
+@media(max-width:800px){
+  .day-vacation-label-v437{font-size:10px;margin-top:4px}
+  .day-off-tools-v437{display:grid;grid-template-columns:1fr;width:100%}
+  .day-off-tools-v437 button{width:100%!important;min-width:0!important}
+}
+</style>
+
+<script id="v4-37-vacation-days-js">
+/*
+===============================================================================
+CHANGELOG 4.37 - ימי חופש בלוח שנה וחישובי יעד
+-------------------------------------------------------------------------------
+1. נוספה אפשרות לסמן יום רגיל כיום חופש מתוך לוח השנה.
+2. יום חופש מוצג בתוך הלוח עם סימון 🏖️ יום חופש.
+3. ביום חופש לא מוצג טופס הוספת עבודה; האפשרות היחידה היא ביטול יום החופש.
+4. חישובי הדשבורד ל־"צריך לכל יום עבודה" מורידים אוטומטית שבתות וימי חופש שסומנו.
+5. הנתונים נשמרים ב־Firestore באוסף workerDaysOff לפי עובד ותאריך, עם fallback מקומי במקרה של חסימת הרשאות.
+6. התיקון הוא תוספתי בלבד: לא נמחקו פונקציות קיימות של לוח שנה, דשבורד, session, אדמין או שמירת עבודות.
+===============================================================================
+*/
+(function(){
+  var PATCH='v4.37-vacation-days';
+  window.vacationDaysV437 = window.vacationDaysV437 || [];
+  window.vacationDaysLoadedForV437 = '';
+
+  function safeArr(v){return Array.isArray(v)?v:[]}
+  function wid437(){return (window.viewedWorker&&viewedWorker.id)||''}
+  function monthKey437(){try{return calendarDate.getFullYear()+'-'+pad(calendarDate.getMonth()+1)}catch(e){return ''}}
+  function dayOffDocId437(workerId,date){return String(workerId||'').replace(/[^a-zA-Z0-9_\-א-ת]/g,'_')+'_'+String(date||'').replace(/[^0-9]/g,'_')}
+  function localKey437(workerId){return 'workAppDaysOffV437_'+workerId}
+  function readLocal437(workerId){try{return JSON.parse(localStorage.getItem(localKey437(workerId))||'[]').filter(Boolean)}catch(e){return []}}
+  function writeLocal437(workerId,arr){try{localStorage.setItem(localKey437(workerId),JSON.stringify(Array.from(new Set(arr||[])).sort()))}catch(e){}}
+  function isPlanned437(e){try{return typeof isPlannedV49==='function'?isPlannedV49(e):(e&&e.entryStatus==='planned')}catch(_){return e&&e.entryStatus==='planned'}}
+  function done437(arr){return safeArr(arr).filter(function(e){return !isPlanned437(e)})}
+  function planned437(arr){return safeArr(arr).filter(isPlanned437)}
+  function sum437(arr){return safeArr(arr).reduce(function(s,e){return s+Number(e.amount||0)},0)}
+  function today437(){try{return formatDate(new Date())}catch(e){var d=new Date();return d.toISOString().slice(0,10)}}
+  function isVacation437(date){return safeArr(window.vacationDaysV437).indexOf(date)>=0}
+  window.isVacationDayV437 = isVacation437;
+
+  async function loadVacationDaysV437(){
+    var workerId=wid437();
+    if(!workerId){window.vacationDaysV437=[];return []}
+    var y=calendarDate.getFullYear(), m=calendarDate.getMonth(), last=new Date(y,m+1,0).getDate();
+    var start=y+'-'+pad(m+1)+'-01', end=y+'-'+pad(m+1)+'-'+pad(last);
+    var local=readLocal437(workerId).filter(function(d){return d>=start&&d<=end});
+    var days=local.slice();
+    try{
+      var snap=await db.collection('workerDaysOff').where('workerId','==',workerId).where('date','>=',start).where('date','<=',end).get();
+      snap.docs.forEach(function(doc){var d=doc.data()||{}; if(d.active!==false&&d.date)days.push(d.date)});
+    }catch(e){
+      console.warn(PATCH+' Firestore load fallback',e.code||e.message||e);
+    }
+    window.vacationDaysV437=Array.from(new Set(days)).sort();
+    window.vacationDaysLoadedForV437=workerId+'_'+monthKey437();
+    return window.vacationDaysV437;
+  }
+  window.loadVacationDaysV437=loadVacationDaysV437;
+
+  async function setVacationDayV437(date){
+    var workerId=wid437(); if(!workerId||!date)return;
+    if(new Date(date+'T00:00:00').getDay()===6){alert('שבת כבר חסומה אוטומטית ואין צורך לסמן אותה כיום חופש.');return;}
+    var all=safeArr(monthEntries).filter(function(e){return e.date===date});
+    if(all.length){
+      var ok=confirm('יש ביום הזה '+all.length+' עבודות/סידורים. סימון יום חופש יחסום הוספת עבודות חדשות ביום הזה, אבל לא ימחק נתונים קיימים. להמשיך?');
+      if(!ok)return;
+    }
+    var days=Array.from(new Set(readLocal437(workerId).concat([date]))).sort();
+    writeLocal437(workerId,days);
+    window.vacationDaysV437=Array.from(new Set(safeArr(window.vacationDaysV437).concat([date]))).sort();
+    try{
+      await db.collection('workerDaysOff').doc(dayOffDocId437(workerId,date)).set({
+        workerId:workerId,
+        workerName:(viewedWorker&&viewedWorker.name)||'',
+        date:date,
+        type:'vacation',
+        active:true,
+        source:'calendar',
+        appVersion:APP_VERSION,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+    }catch(e){
+      console.warn(PATCH+' Firestore save fallback',e.code||e.message||e);
+      alert('יום החופש נשמר מקומית במכשיר הזה. כדי שיסונכרן לכל מכשיר צריך לוודא שה־Security Rules מאפשרים כתיבה ל־workerDaysOff.');
+    }
+    try{renderCalendar()}catch(e){}
+    try{renderDay()}catch(e){}
+    try{renderStats()}catch(e){}
+    try{renderSmartDashboard()}catch(e){}
+  }
+  window.setVacationDayV437=setVacationDayV437;
+
+  async function cancelVacationDayV437(date){
+    var workerId=wid437(); if(!workerId||!date)return;
+    if(!confirm('לבטל את יום החופש בתאריך '+heDate(date)+'?'))return;
+    var days=readLocal437(workerId).filter(function(d){return d!==date});
+    writeLocal437(workerId,days);
+    window.vacationDaysV437=safeArr(window.vacationDaysV437).filter(function(d){return d!==date});
+    try{
+      await db.collection('workerDaysOff').doc(dayOffDocId437(workerId,date)).set({active:false,cancelledAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+    }catch(e){console.warn(PATCH+' Firestore cancel fallback',e.code||e.message||e)}
+    try{renderCalendar()}catch(e){}
+    try{renderDay()}catch(e){}
+    try{renderStats()}catch(e){}
+    try{renderSmartDashboard()}catch(e){}
+  }
+  window.cancelVacationDayV437=cancelVacationDayV437;
+
+  function remainingWorkDays437(){
+    try{
+      var now=new Date(), y=calendarDate.getFullYear(), m=calendarDate.getMonth();
+      var last=new Date(y,m+1,0).getDate();
+      var start=1;
+      if(now.getFullYear()===y && now.getMonth()===m) start=now.getDate();
+      if(new Date(y,m,last)<new Date(now.getFullYear(),now.getMonth(),now.getDate()) && !(now.getFullYear()===y&&now.getMonth()===m)) return 0;
+      var c=0;
+      for(var d=start;d<=last;d++){
+        var dt=new Date(y,m,d), ds=y+'-'+pad(m+1)+'-'+pad(d);
+        if(dt.getDay()===6)continue;
+        if(isVacation437(ds))continue;
+        c++;
+      }
+      return c;
+    }catch(e){return 0}
+  }
+  function regularDays437(){
+    try{
+      var y=calendarDate.getFullYear(), m=calendarDate.getMonth(), last=new Date(y,m+1,0).getDate(), c=0;
+      for(var d=1;d<=last;d++){var dt=new Date(y,m,d), ds=y+'-'+pad(m+1)+'-'+pad(d); if(dt.getDay()!==6&&!isVacation437(ds))c++;}
+      return c;
+    }catch(e){return 0}
+  }
+  window.remainingWorkDaysWithVacationsV437=remainingWorkDays437;
+
+  var oldLoadMonth437=window.loadMonth;
+  if(typeof oldLoadMonth437==='function'){
+    window.loadMonth=async function(){
+      await oldLoadMonth437.apply(this,arguments);
+      await loadVacationDaysV437();
+      try{renderCalendar()}catch(e){}
+      try{renderDay()}catch(e){}
+      try{renderStats()}catch(e){}
+      try{renderSmartDashboard()}catch(e){}
+    };
+  }
+
+  var oldRenderCalendar437=window.renderCalendar;
+  window.renderCalendar=function(){
+    var cal=$('calendar'); if(!cal){ if(typeof oldRenderCalendar437==='function')return oldRenderCalendar437(); return; }
+    cal.innerHTML='';
+    weekdays.forEach(function(w){var d=document.createElement('div');d.className='weekday';d.textContent=w;cal.appendChild(d)});
+    var y=calendarDate.getFullYear(),m=calendarDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0).getDate(),today=today437();
+    for(var i=0;i<first.getDay();i++){var e=document.createElement('div');e.className='day empty';cal.appendChild(e)}
+    for(var d=1;d<=last;d++){
+      var ds=y+'-'+pad(m+1)+'-'+pad(d), dt=new Date(y,m,d), sh=dt.getDay()===6, vac=isVacation437(ds);
+      var all=safeArr(monthEntries).filter(function(e){return e.date===ds});
+      var dn=done437(all), pl=planned437(all), total=sum437(dn), plannedTotal=sum437(pl);
+      var div=document.createElement('div'); div.className='day';
+      if(sh)div.classList.add('shabbat');
+      if(vac)div.classList.add('vacation-v437');
+      if(ds===today)div.classList.add('today');
+      if(ds===selectedDate)div.classList.add('selected');
+      div.innerHTML='<div class="day-num">'+d+'</div>'+
+        (vac?'<div class="day-vacation-label-v437">יום חופש</div>':'')+
+        (total&&!vac?'<div class="day-total">'+money(total)+'</div>':'')+
+        (dn.length&&!vac?'<div class="day-count">'+dn.length+' בוצע</div>':'')+
+        (pl.length&&!vac?'<div class="day-planned-v49">📋 '+pl.length+' מתוכנן<br>'+money(plannedTotal)+'</div>':'')+
+        (vac&&(dn.length||pl.length)?'<div class="day-count">יש נתונים קיימים</div>':'');
+      if(!sh || vac)div.onclick=(function(date){return function(){selectDay(date)}})(ds);
+      cal.appendChild(div);
+    }
+  };
+
+  var oldRenderDay437=window.renderDay;
+  window.renderDay=function(){
+    if(!selectedDate){hide('dayPanel');show('selectDayHint');return}
+    if(isVacation437(selectedDate)){
+      show('dayPanel');hide('selectDayHint');
+      text('dateTitle','יום '+heDate(selectedDate)+' — יום חופש');
+      var form=$('entryForm'); if(form)form.classList.add('hidden');
+      var edit=$('editEntryPanel'); if(edit)edit.classList.add('hidden');
+      var existingTools=document.getElementById('dayOffToolsV437'); if(existingTools)existingTools.remove();
+      var box=$('dayEntries');
+      if(box)box.innerHTML='<div class="day-off-panel-v437">🏖️ היום הזה מסומן כיום חופש ולכן הוא לא נספר כיום עבודה בדשבורד החכם.<br>אין אפשרות להוסיף עבודה ביום הזה עד שמבטלים את יום החופש.</div><div class="actions"><button class="btn-yellow" type="button" onclick="cancelVacationDayV437(\''+selectedDate+'\')">בטל יום חופש</button></div>';
+      return;
+    }
+    if(typeof oldRenderDay437==='function') oldRenderDay437.apply(this,arguments);
+    var form2=$('entryForm'); if(form2)form2.classList.remove('hidden');
+    var holder=document.getElementById('dayOffToolsV437');
+    if(!holder){
+      holder=document.createElement('div'); holder.id='dayOffToolsV437'; holder.className='day-off-tools-v437';
+      var title=$('dateTitle'); if(title&&title.parentNode) title.parentNode.insertBefore(holder,title.nextSibling);
+    }
+    holder.innerHTML='<button class="btn-light" type="button" onclick="setVacationDayV437(\''+selectedDate+'\')">🏖️ סמן כיום חופש</button>';
+  };
+
+  var oldRenderSmart437=window.renderSmartDashboard;
+  window.renderSmartDashboard=function(){
+    if(typeof oldRenderSmart437==='function') oldRenderSmart437.apply(this,arguments);
+    var box=$('smartDashboard'); if(!box)return;
+    var all=safeArr(monthEntries), dn=done437(all), total=sum437(dn), goal=Number((viewedWorker||{}).monthlyGoal||0), left=Math.max(goal-total,0);
+    var rem=remainingWorkDays437(), regular=regularDays437(), vacCount=safeArr(window.vacationDaysV437).length;
+    var need=goal&&rem?left/rem:0;
+    var avgDay=(new Set(dn.map(function(e){return e.date}).filter(Boolean))).size? total/(new Set(dn.map(function(e){return e.date}).filter(Boolean))).size : 0;
+    var forecast=dn.length? total + avgDay*Math.max(rem-1,0) : 0;
+    try{
+      Array.from(box.querySelectorAll('.smart-card-v423')).forEach(function(card){
+        var t=card.querySelector('.smart-title');
+        if(t&&t.textContent.indexOf('צריך לכל יום עבודה')!==-1){
+          var v=card.querySelector('.smart-value'); if(v)v.textContent=goal?money(need):'—';
+          var n=card.querySelector('.smart-note'); if(n)n.textContent='כדי להגיע ליעד אחרי הורדת ימי חופש';
+        }
+      });
+      Array.from(box.querySelectorAll('.smart-tip-v436')).forEach(function(tip){
+        var txt=tip.textContent||'', b=tip.querySelector('b');
+        if(!b)return;
+        if(txt.indexOf('ימים עבודה שנשארו')!==-1)b.textContent=rem;
+        if(txt.indexOf('תחזית סוף חודש')!==-1)b.textContent=dn.length?money(forecast):'—';
+      });
+    }catch(e){}
+    var html='<div class="vacation-goal-strip-v437"><h3>🏖️ ימי חופש והשפעה על היעד</h3><div class="smart-subgrid-v436">'+
+      '<div class="smart-tip-v436">ימי עבודה רגילים בחודש<b>'+regular+'</b><div class="vacation-note-v437">לא כולל שבתות וימי חופש</div></div>'+
+      '<div class="smart-tip-v436">ימי חופש שסומנו<b>'+vacCount+'</b><div class="vacation-note-v437">מורידים את ימי העבודה לחישוב</div></div>'+
+      '<div class="smart-tip-v436">ימי עבודה שנשארו<b>'+rem+'</b><div class="vacation-note-v437">מהיום עד סוף החודש</div></div>'+
+      '<div class="smart-tip-v436 smart-goal-focus-v436">צריך לכל יום עבודה<b>'+(goal?money(need):'—')+'</b><div class="vacation-note-v437">אחרי הורדת ימי החופש</div></div>'+
+      '</div>'+(goal?'<p class="muted">חסר ליעד: '+money(left)+' · תחזית לפי קצב נוכחי אחרי חישוב ימי חופש: '+(dn.length?money(forecast):'—')+'</p>':'<p class="muted">לא הוגדר יעד חודשי, לכן אין חישוב יומי.</p>')+'</div>';
+    var old=document.getElementById('vacationGoalStripV437');
+    if(old)old.remove();
+    var wrap=document.createElement('div');wrap.id='vacationGoalStripV437';wrap.innerHTML=html;
+    box.insertBefore(wrap,box.firstChild);
+  };
+
+  document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){loadVacationDaysV437().then(function(){try{renderCalendar()}catch(e){} try{renderDay()}catch(e){} try{renderSmartDashboard()}catch(e){}})},350)});
+  window.addEventListener('load',function(){setTimeout(function(){loadVacationDaysV437().then(function(){try{renderCalendar()}catch(e){} try{renderDay()}catch(e){} try{renderSmartDashboard()}catch(e){}})},550)});
+  try{setAppVersionUI&&setAppVersionUI()}catch(e){}
 })();
 </script>
