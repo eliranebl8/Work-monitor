@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -1125,7 +1124,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.29";
+const APP_VERSION = "4.31";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1140,13 +1139,13 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
-CHANGELOG 4.29 - תיקון מקור גרסה מרכזי
+CHANGELOG 4.31 - תיקון חזרה לאדמין מפתיחת מעקב
 -------------------------------------------------------------------------------
-1. נוספה גרסה אחת בלבד: APP_VERSION = "4.29".
-2. כל הצגת גרסה במסך, כותרת דפדפן, אזור סודי, footer, לוגים, גיבויים ושמות קבצים נמשכת מהקבוע בלבד.
-3. בוטלו עדכוני גרסה ישנים שכתבו 4.24/4.25/4.26/4.28 ישירות למסך וגרמו לקפיצות גרסה בזמן טעינה.
-4. נוסף מנגנון enforceAppVersionUI() שרץ אחרי טעינה/רינדור ומיישר כל טקסט גרסה לפי APP_VERSION בלי לפגוע בפונקציות הקיימות.
-5. אין שינוי לוגי בנתוני עובדים/מחירון/לוח שנה/גיבוי מעבר לאיחוד מקור הגרסה.
+1. APP_VERSION עודכן ל-"4.30" ונשאר מקור הגרסה היחיד בכל המסך, הלוגים ושמות הקבצים.
+2. נוסף כפתור "חזרה לאדמין" רק כאשר מנהל פותח עובד דרך "פתח מעקב" מתוך רשימת העובדים.
+3. עובד רגיל שנכנס עם שם משתמש וסיסמה לא מקבל את הכפתור בכלל, כדי למנוע הופעה ואז היעלמות.
+4. התיקון יושב כשכבת wrapper נקודתית בסוף הקובץ, בלי לשכתב את זרימת login/session/loadMonth הקיימת.
+5. אין שינוי לוגי בנתוני עובדים/מחירון/לוח שנה/גיבוי מעבר לתיקון ניווט האדמין.
 ===============================================================================
 */
 function appVersionFileSafe(){
@@ -11321,6 +11320,174 @@ body.worker-main-loading-v428 #startupView{
 })();
 </script>
 
+
+<style id="v4-30-admin-back-button-css">
+/* ===== v4.30: כפתור חזרה לאדמין רק בכניסה דרך פתח מעקב =====
+   תיקון נקודתי בלבד: אין כפתור סטטי ב-HTML, כדי שלא יופיע לעובד ואז ייעלם.
+   הכפתור נוצר דינמית רק כאשר session.role === "admin" ופתיחת העובד בוצעה דרך כפתור "פתח מעקב".
+*/
+.admin-back-to-panel-v430{
+  margin:0 0 12px!important;
+  padding:12px 14px!important;
+  border-radius:22px!important;
+  background:rgba(239,246,255,.92)!important;
+  border:1px solid #bfdbfe!important;
+  box-shadow:0 10px 24px rgba(37,99,235,.10)!important;
+  display:flex!important;
+  justify-content:space-between!important;
+  align-items:center!important;
+  gap:10px!important;
+  flex-wrap:wrap!important;
+}
+.admin-back-to-panel-v430 .admin-back-title-v430{
+  font-weight:900!important;
+  color:#1e3a8a!important;
+  line-height:1.35!important;
+}
+.admin-back-to-panel-v430 .admin-back-sub-v430{
+  font-size:13px!important;
+  color:#64748b!important;
+  font-weight:800!important;
+}
+.admin-back-to-panel-v430 button{
+  width:auto!important;
+  min-width:150px!important;
+}
+@media(max-width:800px){
+  .admin-back-to-panel-v430{align-items:stretch!important}
+  .admin-back-to-panel-v430 button{width:100%!important}
+}
+</style>
+
+<script id="v4-30-admin-back-button-js">
+/*
+===============================================================================
+CHANGELOG 4.30 - חזרה לאדמין מתוך מעקב עובד
+-------------------------------------------------------------------------------
+1. נוסף כפתור "חזרה לאדמין" רק כאשר מנהל פותח עובד דרך "פתח מעקב".
+2. עובד רגיל שנכנס עם שם משתמש וסיסמה לא מקבל את הכפתור בכלל — לא מוסתר אחרי רגע, אלא לא נוצר.
+3. התיקון הוא wrapper נקודתי סביב showWorkerById/showWorker/showAdmin/logout/showWorkerLogin, בלי לשכתב לוגיקה קיימת.
+4. נשמר מקור גרסה יחיד APP_VERSION, והקובץ מוכן להעלאה כגרסה 4.30.
+===============================================================================
+*/
+(function(){
+  const PATCH_ID = "v4.30-admin-back-button";
+
+  function isAdminSessionV430(){
+    try{ return !!(window.session && session.role === "admin"); }catch(e){ return false; }
+  }
+
+  function removeAdminBackButtonV430(){
+    try{
+      const el = document.getElementById("adminBackToPanelV430");
+      if(el) el.remove();
+    }catch(e){}
+  }
+
+  function markAdminWorkerOpenV430(on){
+    try{ window.__adminOpenedWorkerFromPanelV430 = !!on; }catch(e){}
+  }
+
+  function shouldShowAdminBackV430(){
+    try{ return isAdminSessionV430() && window.__adminOpenedWorkerFromPanelV430 === true; }catch(e){ return false; }
+  }
+
+  function ensureAdminBackButtonV430(){
+    try{
+      const workerView = document.getElementById("workerView");
+      if(!workerView) return;
+
+      if(!shouldShowAdminBackV430()){
+        removeAdminBackButtonV430();
+        return;
+      }
+
+      let bar = document.getElementById("adminBackToPanelV430");
+      if(!bar){
+        bar = document.createElement("div");
+        bar.id = "adminBackToPanelV430";
+        bar.className = "admin-back-to-panel-v430";
+        bar.innerHTML = `
+          <div>
+            <div class="admin-back-title-v430">מצב צפייה כמנהל</div>
+            <div class="admin-back-sub-v430">פתחת מעקב של עובד מתוך האדמין</div>
+          </div>
+          <button type="button" class="btn-light" onclick="returnToAdminPanelV430(event)">↩ חזרה לאדמין</button>
+        `;
+        workerView.insertBefore(bar, workerView.firstChild);
+      }
+    }catch(e){
+      console.warn(PATCH_ID + " ensure failed", e);
+    }
+  }
+
+  window.returnToAdminPanelV430 = async function(ev){
+    try{ if(ev && ev.preventDefault) ev.preventDefault(); }catch(e){}
+    markAdminWorkerOpenV430(false);
+    removeAdminBackButtonV430();
+    try{
+      if(typeof showAdmin === "function") await showAdmin();
+    }catch(e){
+      alert("שגיאה בחזרה לאדמין: " + (e.message || String(e)));
+    }
+    return false;
+  };
+
+  const oldShowWorkerByIdV430 = window.showWorkerById;
+  if(typeof oldShowWorkerByIdV430 === "function"){
+    window.showWorkerById = async function(id){
+      // אם הקריאה בוצעה בזמן שיש session של מנהל — זה אומר שהמנהל לחץ "פתח מעקב".
+      // אם זו כניסת עובד/שחזור workerSession — הדגל כבוי, ולכן הכפתור לא ייווצר.
+      markAdminWorkerOpenV430(isAdminSessionV430());
+      const result = await oldShowWorkerByIdV430.apply(this, arguments);
+      setTimeout(ensureAdminBackButtonV430, 0);
+      return result;
+    };
+  }
+
+  const oldShowWorkerV430 = window.showWorker;
+  if(typeof oldShowWorkerV430 === "function"){
+    window.showWorker = async function(worker){
+      const result = await oldShowWorkerV430.apply(this, arguments);
+      ensureAdminBackButtonV430();
+      return result;
+    };
+  }
+
+  const oldShowAdminV430 = window.showAdmin;
+  if(typeof oldShowAdminV430 === "function"){
+    window.showAdmin = async function(){
+      markAdminWorkerOpenV430(false);
+      removeAdminBackButtonV430();
+      return oldShowAdminV430.apply(this, arguments);
+    };
+  }
+
+  const oldShowWorkerLoginV430 = window.showWorkerLogin;
+  if(typeof oldShowWorkerLoginV430 === "function"){
+    window.showWorkerLogin = function(){
+      markAdminWorkerOpenV430(false);
+      removeAdminBackButtonV430();
+      return oldShowWorkerLoginV430.apply(this, arguments);
+    };
+  }
+
+  const oldLogoutV430 = window.logout;
+  if(typeof oldLogoutV430 === "function"){
+    window.logout = async function(){
+      markAdminWorkerOpenV430(false);
+      removeAdminBackButtonV430();
+      return oldLogoutV430.apply(this, arguments);
+    };
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    removeAdminBackButtonV430();
+    try{ if(typeof enforceAppVersionUI === "function") enforceAppVersionUI(); }catch(e){}
+  });
+})();
+</script>
+
 </body>
 </html>
 
@@ -11746,8 +11913,200 @@ html,body{max-width:100%!important;overflow-x:hidden!important;}
 </script>
 
 
-<script id="v4-29-central-version-enforcer-js">
-/* ===== v4.29: אכיפת גרסה מקונסט יחיד בלבד ===== */
+
+
+<style id="v4-31-admin-back-button-hard-fix-css">
+/* ===== v4.31: תיקון חזק לכפתור חזרה לאדמין =====
+   מה תוקן:
+   1. בגרסה הקודמת הבדיקה השתמשה ב-window.session, אבל session הוגדר כ-let ולכן לא תמיד קיים על window.
+   2. כעת הבדיקה קוראת את session ישירות ובטוח, ולכן מזהה נכון מצב מנהל.
+   3. הכפתור מוזרק שוב אחרי פתיחת עובד, אחרי רינדור המסך, ואחרי טעינת חודש — כדי שלא ייעלם בגלל hideAll/render מאוחר.
+   4. עובד רגיל עדיין לא יקבל את הכפתור, כי הדגל נדלק רק אם session.role === "admin" בזמן פתיחת עובד.
+*/
+.admin-back-to-panel-v431{
+  margin:0 0 12px!important;
+  padding:12px 14px!important;
+  border-radius:22px!important;
+  background:rgba(239,246,255,.96)!important;
+  border:1px solid #93c5fd!important;
+  box-shadow:0 10px 24px rgba(37,99,235,.12)!important;
+  display:flex!important;
+  justify-content:space-between!important;
+  align-items:center!important;
+  gap:10px!important;
+  flex-wrap:wrap!important;
+  position:relative!important;
+  z-index:15!important;
+}
+.admin-back-to-panel-v431 .admin-back-title-v431{font-weight:900!important;color:#1e3a8a!important;line-height:1.35!important;}
+.admin-back-to-panel-v431 .admin-back-sub-v431{font-size:13px!important;color:#64748b!important;font-weight:800!important;}
+.admin-back-to-panel-v431 button{width:auto!important;min-width:150px!important;}
+@media(max-width:800px){.admin-back-to-panel-v431{align-items:stretch!important}.admin-back-to-panel-v431 button{width:100%!important}}
+</style>
+
+<script id="v4-31-admin-back-button-hard-fix-js">
+/*
+===============================================================================
+CHANGELOG 4.31 - תיקון אמיתי לכפתור חזרה לאדמין
+-------------------------------------------------------------------------------
+1. תוקן זיהוי מנהל: לא משתמשים יותר ב-window.session כי session הוגדר עם let.
+2. הכפתור "חזרה לאדמין" מופיע רק כשהמנהל פתח עובד דרך "פתח מעקב".
+3. עובד רגיל שנכנס למערכת לא רואה את הכפתור בכלל.
+4. הזרקת הכפתור מתבצעת אחרי showWorkerById, אחרי showWorker, ואחרי loadMonth כדי למנוע מצב שרינדור מאוחר מוחק אותו.
+5. תיקון נקודתי בלבד; אין שינוי בנתוני עובדים, מחירון, גיבויים, לוגין או טעינת חודש.
+===============================================================================
+*/
+(function(){
+  const PATCH_ID = "v4.31-admin-back-button-hard-fix";
+
+  function getSessionRoleV431(){
+    try{
+      if(typeof session !== "undefined" && session && session.role) return session.role;
+    }catch(e){}
+    try{
+      const saved = localStorage.getItem("workSession");
+      if(saved){
+        const parsed = JSON.parse(saved);
+        if(parsed && parsed.role) return parsed.role;
+      }
+    }catch(e){}
+    return "";
+  }
+
+  function isAdminSessionV431(){
+    return getSessionRoleV431() === "admin";
+  }
+
+  function markAdminWorkerOpenV431(on){
+    try{ window.__adminOpenedWorkerFromPanelV431 = !!on; }catch(e){}
+    try{ window.__adminOpenedWorkerFromPanelV430 = !!on; }catch(e){}
+  }
+
+  function shouldShowAdminBackV431(){
+    try{ return isAdminSessionV431() && window.__adminOpenedWorkerFromPanelV431 === true; }catch(e){ return false; }
+  }
+
+  function removeAdminBackButtonV431(){
+    try{ document.querySelectorAll("#adminBackToPanelV431,#adminBackToPanelV430").forEach(function(el){ el.remove(); }); }catch(e){}
+  }
+
+  function ensureAdminBackButtonV431(){
+    try{
+      const workerView = document.getElementById("workerView");
+      if(!workerView) return;
+
+      if(!shouldShowAdminBackV431()){
+        removeAdminBackButtonV431();
+        return;
+      }
+
+      let bar = document.getElementById("adminBackToPanelV431");
+      if(!bar){
+        removeAdminBackButtonV431();
+        bar = document.createElement("div");
+        bar.id = "adminBackToPanelV431";
+        bar.className = "admin-back-to-panel-v431";
+        bar.innerHTML = '<div><div class="admin-back-title-v431">מצב צפייה כמנהל</div><div class="admin-back-sub-v431">פתחת מעקב של עובד מתוך האדמין</div></div><button type="button" class="btn-light" onclick="returnToAdminPanelV431(event)">↩ חזרה לאדמין</button>';
+        workerView.insertBefore(bar, workerView.firstChild);
+      }
+    }catch(e){
+      console.warn(PATCH_ID + " ensure failed", e);
+    }
+  }
+
+  window.returnToAdminPanelV431 = async function(ev){
+    try{ if(ev && ev.preventDefault) ev.preventDefault(); }catch(e){}
+    markAdminWorkerOpenV431(false);
+    removeAdminBackButtonV431();
+    try{
+      if(typeof showAdmin === "function") await showAdmin();
+    }catch(e){
+      alert("שגיאה בחזרה לאדמין: " + (e.message || String(e)));
+    }
+    return false;
+  };
+
+  // תאימות לכפתור הישן אם הדפדפן מחזיק קאש/HTML ישן חלקית.
+  window.returnToAdminPanelV430 = window.returnToAdminPanelV431;
+
+  const oldShowWorkerByIdV431 = window.showWorkerById;
+  if(typeof oldShowWorkerByIdV431 === "function" && !oldShowWorkerByIdV431.__v431HardFix){
+    window.showWorkerById = async function(id){
+      const openedFromAdmin = isAdminSessionV431();
+      markAdminWorkerOpenV431(openedFromAdmin);
+      const result = await oldShowWorkerByIdV431.apply(this, arguments);
+      setTimeout(ensureAdminBackButtonV431, 0);
+      setTimeout(ensureAdminBackButtonV431, 150);
+      setTimeout(ensureAdminBackButtonV431, 600);
+      return result;
+    };
+    window.showWorkerById.__v431HardFix = true;
+  }
+
+  const oldShowWorkerV431 = window.showWorker;
+  if(typeof oldShowWorkerV431 === "function" && !oldShowWorkerV431.__v431HardFix){
+    window.showWorker = async function(worker){
+      const result = await oldShowWorkerV431.apply(this, arguments);
+      setTimeout(ensureAdminBackButtonV431, 0);
+      setTimeout(ensureAdminBackButtonV431, 150);
+      return result;
+    };
+    window.showWorker.__v431HardFix = true;
+  }
+
+  const oldLoadMonthV431 = window.loadMonth;
+  if(typeof oldLoadMonthV431 === "function" && !oldLoadMonthV431.__v431HardFix){
+    window.loadMonth = async function(){
+      const result = await oldLoadMonthV431.apply(this, arguments);
+      setTimeout(ensureAdminBackButtonV431, 0);
+      setTimeout(ensureAdminBackButtonV431, 180);
+      return result;
+    };
+    window.loadMonth.__v431HardFix = true;
+  }
+
+  const oldShowAdminV431 = window.showAdmin;
+  if(typeof oldShowAdminV431 === "function" && !oldShowAdminV431.__v431HardFix){
+    window.showAdmin = async function(){
+      markAdminWorkerOpenV431(false);
+      removeAdminBackButtonV431();
+      return oldShowAdminV431.apply(this, arguments);
+    };
+    window.showAdmin.__v431HardFix = true;
+  }
+
+  const oldShowWorkerLoginV431 = window.showWorkerLogin;
+  if(typeof oldShowWorkerLoginV431 === "function" && !oldShowWorkerLoginV431.__v431HardFix){
+    window.showWorkerLogin = function(){
+      markAdminWorkerOpenV431(false);
+      removeAdminBackButtonV431();
+      return oldShowWorkerLoginV431.apply(this, arguments);
+    };
+    window.showWorkerLogin.__v431HardFix = true;
+  }
+
+  const oldLogoutV431 = window.logout;
+  if(typeof oldLogoutV431 === "function" && !oldLogoutV431.__v431HardFix){
+    window.logout = async function(){
+      markAdminWorkerOpenV431(false);
+      removeAdminBackButtonV431();
+      return oldLogoutV431.apply(this, arguments);
+    };
+    window.logout.__v431HardFix = true;
+  }
+
+  document.addEventListener("DOMContentLoaded", function(){
+    if(!shouldShowAdminBackV431()) removeAdminBackButtonV431();
+    try{ if(typeof enforceAppVersionUI === "function") enforceAppVersionUI(); }catch(e){}
+  });
+  window.addEventListener("load", function(){
+    setTimeout(function(){ if(shouldShowAdminBackV431()) ensureAdminBackButtonV431(); }, 400);
+  });
+})();
+</script>
+
+<script id="v4-30-central-version-enforcer-js">
+/* ===== v4.30: אכיפת גרסה מקונסט יחיד בלבד ===== */
 (function(){
   function runVersionEnforcerV429(){
     try{ if(typeof enforceAppVersionUI === "function") enforceAppVersionUI(); }catch(e){}
