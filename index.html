@@ -1124,7 +1124,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.33";
+const APP_VERSION = "4.34";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -11665,6 +11665,181 @@ body.worker-main-loading-v428 #startupView{
   };
 
   document.addEventListener('DOMContentLoaded', setVersionV432);
+})();
+</script>
+
+
+
+<script id="v434-remember-me-persistent-session-fix-js">
+/*
+  ===== CHANGELOG v4.34 =====
+  1. תיקון רגרסיה ב"השאר אותי מחובר": עובד שסימן שמור נשאר מחובר גם אחרי רענון, סגירת דפדפן ופתיחה מחדש.
+  2. הוספת שכבת שחזור סשן אחרונה אחרי כל תיקוני ה-Boot הקודמים, כדי שהטעינה החדשה של האדמין לא תמחק סשן עובד שמור.
+  3. isSessionExpired הוקשח: אם session.remember === true או "true" אין תוקף של שעתיים ואין יציאה אוטומטית.
+  4. logout עדיין מנקה הכול בכוונה — רק יציאה ידנית מנתקת משתמש שמור.
+  5. כל שימוש בגרסה בתוך התיקון הזה נמשך מהקבוע המרכזי APP_VERSION בלבד.
+*/
+(function(){
+  var REMEMBER_KEY_V434 = 'workSessionRememberV434';
+  var OLD_REMEMBER_KEY_V417 = 'workSessionRememberV417';
+  var bootLockV434 = false;
+
+  function elV434(id){ return document.getElementById(id); }
+  function isRememberSessionV434(sess){
+    return !!(sess && sess.role === 'worker' && sess.workerId && (sess.remember === true || sess.remember === 'true'));
+  }
+  function cookieSetV434(name,value,days){
+    try{
+      var d=new Date();
+      d.setTime(d.getTime() + (Number(days||365)*24*60*60*1000));
+      document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + d.toUTCString() + '; path=/; SameSite=Lax';
+    }catch(e){}
+  }
+  function cookieGetV434(name){
+    try{
+      var parts=String(document.cookie||'').split(';');
+      for(var i=0;i<parts.length;i++){
+        var p=parts[i].trim();
+        if(p.indexOf(name+'=')===0) return decodeURIComponent(p.substring(name.length+1));
+      }
+    }catch(e){}
+    return '';
+  }
+  function cookieDeleteV434(name){
+    try{ document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax'; }catch(e){}
+  }
+  function normalizeSessionV434(raw){
+    if(!raw) return null;
+    var s = raw;
+    if(typeof raw === 'string') s = JSON.parse(raw);
+    if(!s || typeof s !== 'object') return null;
+    if(s.role !== 'worker' || !s.workerId) return null;
+    if(s.remember === true || s.remember === 'true'){
+      s.remember = true;
+      s.expiresAt = null;
+    }
+    s.appVersion = (window.APP_VERSION || APP_VERSION);
+    return s;
+  }
+  function saveRememberSessionV434(sess){
+    try{
+      var s=normalizeSessionV434(sess);
+      if(!isRememberSessionV434(s)) return;
+      s.savedAt = Date.now();
+      s.expiresAt = null;
+      localStorage.setItem('workSession', JSON.stringify(s));
+      cookieSetV434(REMEMBER_KEY_V434, JSON.stringify(s), 365);
+      cookieSetV434(OLD_REMEMBER_KEY_V417, JSON.stringify(s), 365);
+      window.session = s;
+    }catch(e){ console.warn('saveRememberSessionV434 failed', e); }
+  }
+  function hydrateRememberSessionV434(){
+    try{
+      var raw = localStorage.getItem('workSession');
+      var s = null;
+      if(raw){
+        try{ s=normalizeSessionV434(raw); }catch(e){ s=null; }
+      }
+      if(!isRememberSessionV434(s)){
+        var cookieRaw = cookieGetV434(REMEMBER_KEY_V434) || cookieGetV434(OLD_REMEMBER_KEY_V417);
+        if(cookieRaw){
+          try{ s=normalizeSessionV434(cookieRaw); }catch(e){ s=null; }
+        }
+      }
+      if(isRememberSessionV434(s)){
+        saveRememberSessionV434(s);
+        return s;
+      }
+    }catch(e){ console.warn('hydrateRememberSessionV434 failed', e); }
+    return null;
+  }
+  async function setAuthLocalPersistenceV434(){
+    try{
+      if(window.firebase && firebase.auth && window.auth && auth.setPersistence && firebase.auth.Auth && firebase.auth.Auth.Persistence){
+        await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+      }
+    }catch(e){ console.warn('Auth LOCAL persistence skipped v'+(window.APP_VERSION||APP_VERSION), e); }
+  }
+
+  // שכבה אחרונה שמבטיחה שסשן שמור לא ייחשב פג תוקף בגלל expiresAt ישן.
+  var oldIsSessionExpiredV434 = window.isSessionExpired;
+  window.isSessionExpired = function(){
+    try{
+      var s = window.session || normalizeSessionV434(localStorage.getItem('workSession')) || hydrateRememberSessionV434();
+      if(isRememberSessionV434(s)) return false;
+    }catch(e){}
+    if(typeof oldIsSessionExpiredV434 === 'function') return oldIsSessionExpiredV434.apply(this, arguments);
+    return false;
+  };
+
+  var oldWorkerLoginV434 = window.workerLogin;
+  if(typeof oldWorkerLoginV434 === 'function'){
+    window.workerLogin = async function(){
+      var rememberChecked = !!(elV434('rememberMe') && elV434('rememberMe').checked);
+      await setAuthLocalPersistenceV434();
+      var result = await oldWorkerLoginV434.apply(this, arguments);
+      try{
+        if(window.session && window.session.role === 'worker'){
+          window.session.remember = rememberChecked;
+          window.session.expiresAt = rememberChecked ? null : (Date.now() + (2*60*60*1000));
+          window.session.appVersion = (window.APP_VERSION || APP_VERSION);
+          localStorage.setItem('workSession', JSON.stringify(window.session));
+          if(rememberChecked){
+            saveRememberSessionV434(window.session);
+          }else{
+            cookieDeleteV434(REMEMBER_KEY_V434);
+            cookieDeleteV434(OLD_REMEMBER_KEY_V417);
+          }
+        }
+      }catch(e){ console.warn('workerLogin remember patch v'+(window.APP_VERSION||APP_VERSION)+' failed', e); }
+      return result;
+    };
+  }
+
+  var oldLogoutV434 = window.logout;
+  if(typeof oldLogoutV434 === 'function'){
+    window.logout = function(){
+      cookieDeleteV434(REMEMBER_KEY_V434);
+      cookieDeleteV434(OLD_REMEMBER_KEY_V417);
+      try{ localStorage.removeItem('workSession'); }catch(e){}
+      return oldLogoutV434.apply(this, arguments);
+    };
+  }
+
+  var oldOnloadV434 = window.onload;
+  window.onload = async function(){
+    if(bootLockV434) return;
+    bootLockV434 = true;
+    await setAuthLocalPersistenceV434();
+    var remembered = hydrateRememberSessionV434();
+
+    // אם יש עובד שמור — לא נותנים ל-Boot הישן להראות מסך כניסה באמצע.
+    if(isRememberSessionV434(remembered) && typeof window.showWorkerById === 'function'){
+      try{
+        window.session = remembered;
+        if(typeof hideAll === 'function') hideAll();
+        if(elV434('startupView')) elV434('startupView').classList.remove('hidden');
+        await window.showWorkerById(remembered.workerId);
+        return;
+      }catch(e){
+        console.warn('remembered worker boot failed v'+(window.APP_VERSION||APP_VERSION), e);
+        // לא מוחקים את הסשן השמור על שגיאת רשת זמנית; רק מציגים כניסה אם אין ברירה.
+      }
+    }
+
+    if(typeof oldOnloadV434 === 'function'){
+      return await oldOnloadV434.apply(this, arguments);
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    hydrateRememberSessionV434();
+    setAuthLocalPersistenceV434();
+    try{ if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(e){}
+  });
+
+  // הרצה מיידית כדי שגם אם הסקריפט נטען אחרי שכבות קודמות, הסשן יחזור לפני האינטראקציה הבאה.
+  hydrateRememberSessionV434();
 })();
 </script>
 
