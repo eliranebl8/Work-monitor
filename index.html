@@ -1124,7 +1124,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.34";
+const APP_VERSION = "4.35";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -11843,6 +11843,231 @@ body.worker-main-loading-v428 #startupView{
 })();
 </script>
 
+
+
+<script id="v4-35-session-refresh-persistent-fix">
+/*
+CHANGELOG v4.35 — תיקון נקודתי בלבד, בלי דריסה של לוגיקה קיימת:
+1. תוקן רענון דפדפן שמחזיר עובד למסך כניסה למרות שיש workSession תקין.
+2. התיקון מעדכן גם את המשתנה הגלובלי הישן session וגם את window.session, כי בקובץ קיימות שכבות קוד שמשתמשות בשני הנתיבים.
+3. אם העובד סימן "השאר אותי מחובר" — הסשן לא פג ברענון/סגירה/פתיחה מחדש, ורק יציאה ידנית מוחקת אותו.
+4. אם העובד לא סימן "השאר אותי מחובר" — רענון רגיל עדיין לא מוציא אותו; הסשן נשמר עד תום expiresAt הקיים.
+5. לא נבנו מחדש פונקציות קיימות. נוספה שכבת Patch אחרונה שמתקנת Boot/Login/Logout בצורה מינימלית.
+6. כל שימוש בגרסה נמשך מהקבוע המרכזי APP_VERSION בלבד.
+*/
+(function(){
+  var REMEMBER_COOKIE_V435 = 'workSessionRememberV435';
+  var REMEMBER_COOKIE_OLD_V434 = 'workSessionRememberV434';
+  var REMEMBER_COOKIE_OLD_V417 = 'workSessionRememberV417';
+  var bootRunningV435 = false;
+
+  function v435Version(){ return String(window.APP_VERSION || (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '')); }
+  function elV435(id){ return document.getElementById(id); }
+  function nowV435(){ return Date.now(); }
+
+  function readStorageV435(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } }
+  function writeStorageV435(key,val){ try{ localStorage.setItem(key,val); }catch(e){} }
+  function removeStorageV435(key){ try{ localStorage.removeItem(key); }catch(e){} }
+
+  function cookieSetV435(name,value,days){
+    try{
+      var d=new Date();
+      d.setTime(d.getTime() + (Number(days||365)*24*60*60*1000));
+      document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + d.toUTCString() + '; path=/; SameSite=Lax';
+    }catch(e){}
+  }
+  function cookieGetV435(name){
+    try{
+      var parts=String(document.cookie||'').split(';');
+      for(var i=0;i<parts.length;i++){
+        var p=parts[i].trim();
+        if(p.indexOf(name+'=')===0) return decodeURIComponent(p.substring(name.length+1));
+      }
+    }catch(e){}
+    return '';
+  }
+  function cookieDeleteV435(name){
+    try{ document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax'; }catch(e){}
+  }
+
+  function parseSessionV435(raw){
+    if(!raw) return null;
+    try{
+      var s = (typeof raw === 'string') ? JSON.parse(raw) : raw;
+      if(!s || typeof s !== 'object' || !s.role) return null;
+      if(s.role === 'worker' && !s.workerId) return null;
+      s.appVersion = v435Version();
+      if(s.remember === 'true') s.remember = true;
+      if(s.remember === 'false') s.remember = false;
+      if(s.role === 'worker' && s.remember === true){ s.expiresAt = null; }
+      if(s.role === 'worker' && s.remember !== true && !s.expiresAt){ s.expiresAt = nowV435() + (2*60*60*1000); }
+      return s;
+    }catch(e){ return null; }
+  }
+
+  function setRuntimeSessionV435(s){
+    try{ session = s; }catch(e){}       // חשוב: הקובץ המקורי משתמש במשתנה let session, לא רק window.session.
+    try{ window.session = s; }catch(e){}
+    return s;
+  }
+
+  function persistSessionV435(s){
+    s = parseSessionV435(s);
+    if(!s) return null;
+    setRuntimeSessionV435(s);
+    var raw = JSON.stringify(s);
+    writeStorageV435('workSession', raw);
+    if(s.role === 'worker' && s.remember === true){
+      cookieSetV435(REMEMBER_COOKIE_V435, raw, 365);
+      cookieSetV435(REMEMBER_COOKIE_OLD_V434, raw, 365);
+      cookieSetV435(REMEMBER_COOKIE_OLD_V417, raw, 365);
+    }
+    return s;
+  }
+
+  function hydrateSessionV435(){
+    var s = parseSessionV435(readStorageV435('workSession'));
+    if(!s){
+      s = parseSessionV435(cookieGetV435(REMEMBER_COOKIE_V435)) ||
+          parseSessionV435(cookieGetV435(REMEMBER_COOKIE_OLD_V434)) ||
+          parseSessionV435(cookieGetV435(REMEMBER_COOKIE_OLD_V417));
+    }
+    if(s) return persistSessionV435(s);
+    return null;
+  }
+
+  function isExpiredV435(s){
+    s = parseSessionV435(s);
+    if(!s) return true;
+    if(s.role === 'admin') return false;
+    if(s.role === 'worker' && s.remember === true) return false;
+    if(s.role === 'worker' && s.expiresAt) return nowV435() > Number(s.expiresAt);
+    return false;
+  }
+
+  async function setAuthPersistenceV435(){
+    try{
+      if(window.firebase && firebase.auth && window.auth && auth.setPersistence && firebase.auth.Auth && firebase.auth.Auth.Persistence){
+        await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+      }
+    }catch(e){ console.warn('Auth persistence skipped v'+v435Version(), e); }
+  }
+
+  function showStartupV435(title, sub){
+    try{
+      if(typeof hideAll === 'function') hideAll();
+      var startup=elV435('startupView');
+      if(startup){
+        startup.classList.remove('hidden');
+        var h=startup.querySelector('h1');
+        var p=startup.querySelector('.startup-sub');
+        if(h) h.textContent=title || 'טוען נתונים';
+        if(p) p.textContent=sub || 'מחזיר את הסשן השמור...';
+      }
+      try{ if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(e){}
+    }catch(e){}
+  }
+
+  var oldIsSessionExpiredV435 = window.isSessionExpired;
+  window.isSessionExpired = function(){
+    try{
+      var s = hydrateSessionV435();
+      if(s) return isExpiredV435(s);
+    }catch(e){}
+    if(typeof oldIsSessionExpiredV435 === 'function') return oldIsSessionExpiredV435.apply(this, arguments);
+    return false;
+  };
+
+  var oldWorkerLoginV435 = window.workerLogin;
+  if(typeof oldWorkerLoginV435 === 'function'){
+    window.workerLogin = async function(){
+      await setAuthPersistenceV435();
+      var rememberChecked = !!(elV435('rememberMe') && elV435('rememberMe').checked);
+      var result = await oldWorkerLoginV435.apply(this, arguments);
+      try{
+        var s = parseSessionV435((typeof session !== 'undefined' && session) ? session : window.session);
+        if(s && s.role === 'worker'){
+          s.remember = rememberChecked;
+          s.expiresAt = rememberChecked ? null : (nowV435() + (2*60*60*1000));
+          persistSessionV435(s);
+          if(!rememberChecked){
+            cookieDeleteV435(REMEMBER_COOKIE_V435);
+            cookieDeleteV435(REMEMBER_COOKIE_OLD_V434);
+            cookieDeleteV435(REMEMBER_COOKIE_OLD_V417);
+          }
+        }
+      }catch(e){ console.warn('workerLogin patch failed v'+v435Version(), e); }
+      return result;
+    };
+  }
+
+  var oldAdminLoginV435 = window.adminLogin;
+  if(typeof oldAdminLoginV435 === 'function'){
+    window.adminLogin = async function(){
+      var result = await oldAdminLoginV435.apply(this, arguments);
+      try{
+        var s = parseSessionV435((typeof session !== 'undefined' && session) ? session : window.session);
+        if(s && s.role === 'admin') persistSessionV435(s);
+      }catch(e){}
+      return result;
+    };
+  }
+
+  var oldLogoutV435 = window.logout;
+  if(typeof oldLogoutV435 === 'function'){
+    window.logout = async function(){
+      cookieDeleteV435(REMEMBER_COOKIE_V435);
+      cookieDeleteV435(REMEMBER_COOKIE_OLD_V434);
+      cookieDeleteV435(REMEMBER_COOKIE_OLD_V417);
+      removeStorageV435('workSession');
+      setRuntimeSessionV435(null);
+      return await oldLogoutV435.apply(this, arguments);
+    };
+  }
+
+  var oldOnloadV435 = window.onload;
+  window.onload = async function(){
+    if(bootRunningV435) return;
+    bootRunningV435 = true;
+    await setAuthPersistenceV435();
+
+    var s = hydrateSessionV435();
+    if(s && !isExpiredV435(s)){
+      setRuntimeSessionV435(s);
+      if(s.role === 'admin' && typeof window.showAdmin === 'function'){
+        showStartupV435('טוען נתוני אדמין','מחזיר את פאנל האדמין מהסשן השמור...');
+        return await window.showAdmin();
+      }
+      if(s.role === 'worker' && typeof window.showWorkerById === 'function'){
+        showStartupV435('טוען נתונים','מחזיר את העובד מהסשן השמור...');
+        try{
+          return await window.showWorkerById(s.workerId);
+        }catch(e){
+          console.warn('worker session restore failed v'+v435Version(), e);
+          // לא מוחקים סשן תקין בגלל תקלה זמנית בטעינת Firestore.
+        }
+      }
+    }
+
+    if(s && isExpiredV435(s)){
+      removeStorageV435('workSession');
+      setRuntimeSessionV435(null);
+    }
+
+    if(typeof oldOnloadV435 === 'function') return await oldOnloadV435.apply(this, arguments);
+    if(typeof showWorkerLogin === 'function') showWorkerLogin();
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    hydrateSessionV435();
+    setAuthPersistenceV435();
+    try{ if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(e){}
+  });
+
+  // הרצה מיידית כדי שהסשן יושב לזיכרון עוד לפני רענון/טעינת onload.
+  hydrateSessionV435();
+})();
+</script>
 </body>
 </html>
 
