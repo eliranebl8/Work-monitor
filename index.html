@@ -1124,7 +1124,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.36";
+const APP_VERSION = "4.37";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -13272,5 +13272,217 @@ CHANGELOG v4.36 — תיקון נקודתי בלבד לכפתור "חזור לא
   document.addEventListener('click', function(){ setTimeout(syncBackButtonV436, 80); });
   setInterval(syncBackButtonV436, 800);
   syncBackButtonV436();
+})();
+</script>
+
+
+<style id="v4-37-admin-back-no-flash-css">
+/*
+CHANGELOG v4.37 — תיקון נקודתי לכפתור "חזור לאדמין" בלי הבהוב:
+1. הכפתור מוסתר ברמת CSS כברירת מחדל כדי שלא יופיע לשבריר שנייה ואז ייעלם.
+2. הכפתור מקבל תצוגה רק כאשר יש מקור ניווט אמיתי מאדמין: לחיצה בפועל מתוך פאנל אדמין על "פתח מעקב".
+3. לא נוגעים במנגנון התחברות, שמירת session, טעינת אדמין, מחירון, עובדים, גיבוי או יצוא.
+4. הגרסה ממשיכה להגיע רק מהקבוע המרכזי APP_VERSION.
+*/
+#backToAdminBtnV430{
+  display:none!important;
+  opacity:0!important;
+  visibility:hidden!important;
+}
+body.admin-worker-origin-v437 #backToAdminBtnV430{
+  display:inline-flex!important;
+  opacity:1!important;
+  visibility:visible!important;
+}
+</style>
+
+<script id="v4-37-admin-back-button-no-flash-patch">
+/*
+PATCH v4.37 — מניעת הופעה רגעית של "חזור לאדמין":
+- שכבות ישנות יכלו להציב window.__adminOpenedWorkerTrackingV430=true בזמן טעינת עובד, ולכן הכפתור הופיע לרגע ואז שכבת v4.36 הסתירה אותו.
+- כאן אנחנו מגנים על הדגל הזה עם getter/setter: true מתקבל רק אם לפניו הייתה לחיצה אמיתית מתוך האדמין.
+- הכפתור מוסתר כברירת מחדל ב-CSS, ולכן גם אם שכבה ישנה יוצרת אותו מוקדם — הוא לא מבזיק על המסך.
+*/
+(function(){
+  var STORAGE_KEY='adminOpenedWorkerTrackingV437';
+  var CLICK_ARM_MS=1800;
+  var armedUntil=0;
+
+  function now(){ return Date.now ? Date.now() : new Date().getTime(); }
+  function byId(id){ return document.getElementById(id); }
+
+  function getSession(){
+    try{ if(typeof session !== 'undefined' && session) return session; }catch(e){}
+    try{ if(window.session) return window.session; }catch(e){}
+    try{ return JSON.parse(localStorage.getItem('workSession')||'null'); }catch(e){ return null; }
+  }
+  function isAdminSession(){ var s=getSession(); return !!(s && s.role==='admin'); }
+  function workerViewVisible(){ var w=byId('workerView'); return !!(w && !w.classList.contains('hidden')); }
+  function storedOrigin(){ try{ return sessionStorage.getItem(STORAGE_KEY)==='1'; }catch(e){ return false; } }
+  function setStoredOrigin(on){ try{ on ? sessionStorage.setItem(STORAGE_KEY,'1') : sessionStorage.removeItem(STORAGE_KEY); }catch(e){} }
+  function isAllowed(){ return isAdminSession() && storedOrigin(); }
+
+  // הדגל הישן נשאר בשם הישן כדי לא לשבור קוד קיים, אבל true מאושר רק אחרי לחיצה אמיתית מתוך האדמין.
+  try{
+    Object.defineProperty(window,'__adminOpenedWorkerTrackingV430',{
+      configurable:true,
+      get:function(){ return isAllowed(); },
+      set:function(v){
+        if(v===true && isAdminSession() && now()<=armedUntil){
+          setStoredOrigin(true);
+        }else if(v===false){
+          setStoredOrigin(false);
+        }
+      }
+    });
+  }catch(e){
+    // אם הדפדפן לא מאפשר defineProperty, עדיין נשתמש בסנכרון CSS/DOM למטה.
+  }
+
+  function ensureButtonExists(){
+    var workerView=byId('workerView');
+    if(!workerView) return null;
+    var btn=byId('backToAdminBtnV430');
+    if(!btn){
+      var head=document.querySelector('#workerView .worker-tabs-head-v420') || document.querySelector('#workerView .card') || workerView;
+      btn=document.createElement('button');
+      btn.id='backToAdminBtnV430';
+      btn.type='button';
+      btn.className='btn-light admin-back-to-panel-v430 hidden';
+      btn.textContent='↩️ חזור לאדמין';
+      btn.onclick=function(){ return window.backToAdminPanelV430 && window.backToAdminPanelV430(); };
+      head.appendChild(btn);
+    }
+    return btn;
+  }
+
+  function syncBackButton(){
+    var btn=byId('backToAdminBtnV430');
+    var should=workerViewVisible() && isAllowed();
+    if(!btn && should) btn=ensureButtonExists();
+    if(!btn) return;
+
+    document.body.classList.toggle('admin-worker-origin-v437', should);
+    btn.classList.toggle('hidden', !should);
+    btn.setAttribute('aria-hidden', should ? 'false' : 'true');
+
+    // חשוב: כשלא צריך להציג — מסירים כל inline display ששכבות ישנות שמו, ואז מחזקים display none.
+    if(should){
+      btn.style.setProperty('display','inline-flex','important');
+      btn.style.setProperty('opacity','1','important');
+      btn.style.setProperty('visibility','visible','important');
+    }else{
+      btn.style.setProperty('display','none','important');
+      btn.style.setProperty('opacity','0','important');
+      btn.style.setProperty('visibility','hidden','important');
+    }
+  }
+
+  document.addEventListener('click',function(ev){
+    try{
+      var target=ev.target && ev.target.closest ? ev.target.closest('button,[onclick]') : null;
+      if(!target) return;
+      var adminView=byId('adminView');
+      var insideAdmin=!!(adminView && adminView.contains(target) && !adminView.classList.contains('hidden'));
+      var call=String(target.getAttribute('onclick')||'');
+      if(insideAdmin && isAdminSession() && call.indexOf('showWorkerById')!==-1){
+        armedUntil=now()+CLICK_ARM_MS;
+        setStoredOrigin(true);
+        try{ window.__adminOpenedWorkerTrackingV430=true; }catch(e){}
+      }
+    }catch(e){}
+  },true);
+
+  var oldShowWorkerById=window.showWorkerById;
+  if(typeof oldShowWorkerById==='function' && !oldShowWorkerById.__noFlashV437){
+    var wrappedShowWorkerById=async function(){
+      // אם לא הייתה לחיצה אמיתית מהאדמין, מנקים מקור כדי למנוע הבהוב.
+      if(!(isAdminSession() && now()<=armedUntil && storedOrigin())) setStoredOrigin(false);
+      var result=await oldShowWorkerById.apply(this,arguments);
+      syncBackButton();
+      setTimeout(syncBackButton,0);
+      setTimeout(syncBackButton,80);
+      setTimeout(syncBackButton,300);
+      return result;
+    };
+    wrappedShowWorkerById.__noFlashV437=true;
+    window.showWorkerById=wrappedShowWorkerById;
+  }
+
+  var oldShowWorker=window.showWorker;
+  if(typeof oldShowWorker==='function' && !oldShowWorker.__noFlashV437){
+    var wrappedShowWorker=async function(){
+      var result=await oldShowWorker.apply(this,arguments);
+      syncBackButton();
+      setTimeout(syncBackButton,0);
+      setTimeout(syncBackButton,80);
+      setTimeout(syncBackButton,300);
+      return result;
+    };
+    wrappedShowWorker.__noFlashV437=true;
+    window.showWorker=wrappedShowWorker;
+  }
+
+  var oldWorkerLogin=window.workerLogin;
+  if(typeof oldWorkerLogin==='function' && !oldWorkerLogin.__noFlashV437){
+    var wrappedWorkerLogin=async function(){
+      armedUntil=0;
+      setStoredOrigin(false);
+      var result=await oldWorkerLogin.apply(this,arguments);
+      setStoredOrigin(false);
+      syncBackButton();
+      return result;
+    };
+    wrappedWorkerLogin.__noFlashV437=true;
+    window.workerLogin=wrappedWorkerLogin;
+  }
+
+  var oldShowWorkerLogin=window.showWorkerLogin;
+  if(typeof oldShowWorkerLogin==='function' && !oldShowWorkerLogin.__noFlashV437){
+    var wrappedShowWorkerLogin=function(){
+      armedUntil=0;
+      setStoredOrigin(false);
+      var result=oldShowWorkerLogin.apply(this,arguments);
+      syncBackButton();
+      return result;
+    };
+    wrappedShowWorkerLogin.__noFlashV437=true;
+    window.showWorkerLogin=wrappedShowWorkerLogin;
+  }
+
+  var oldShowAdmin=window.showAdmin;
+  if(typeof oldShowAdmin==='function' && !oldShowAdmin.__noFlashV437){
+    var wrappedShowAdmin=async function(){
+      armedUntil=0;
+      setStoredOrigin(false);
+      var result=await oldShowAdmin.apply(this,arguments);
+      syncBackButton();
+      return result;
+    };
+    wrappedShowAdmin.__noFlashV437=true;
+    window.showAdmin=wrappedShowAdmin;
+  }
+
+  var oldBack=window.backToAdminPanelV430;
+  window.backToAdminPanelV430=async function(){
+    try{
+      armedUntil=0;
+      setStoredOrigin(false);
+      syncBackButton();
+      if(typeof oldBack==='function') return await oldBack.apply(this,arguments);
+      if(typeof window.showAdmin==='function') return await window.showAdmin();
+    }catch(e){ alert('שגיאה בחזרה לאדמין: '+((e&&e.message)||e)); }
+  };
+
+  try{
+    var obs=new MutationObserver(function(){ syncBackButton(); });
+    obs.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
+  }catch(e){}
+
+  document.addEventListener('DOMContentLoaded',function(){ syncBackButton(); setTimeout(syncBackButton,120); setTimeout(syncBackButton,700); });
+  window.addEventListener('load',function(){ syncBackButton(); setTimeout(syncBackButton,120); setTimeout(syncBackButton,900); });
+  document.addEventListener('click',function(){ setTimeout(syncBackButton,30); });
+  setInterval(syncBackButton,500);
+  syncBackButton();
 })();
 </script>
