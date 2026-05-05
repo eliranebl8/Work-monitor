@@ -1124,7 +1124,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.31";
+const APP_VERSION = "4.32";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -11485,6 +11485,133 @@ CHANGELOG 4.30 - חזרה לאדמין מתוך מעקב עובד
     removeAdminBackButtonV430();
     try{ if(typeof enforceAppVersionUI === "function") enforceAppVersionUI(); }catch(e){}
   });
+})();
+</script>
+
+
+
+<script id="v4-32-edit-install-items-save-fix-js">
+/*
+===============================================================================
+CHANGELOG 4.32 - תיקון עריכת התקנה: עדכון טקסט פריטים אחרי שינוי כמות/מחיר
+-------------------------------------------------------------------------------
+1. תיקון נקודתי בלבד לפונקציית saveEntryEdit האחרונה.
+2. בבדיקת העבודה המקורית משתמשים ישירות ב-monthEntries הקיים בקובץ, ולא ב-window.monthEntries.
+   הסיבה: monthEntries מוגדר כ-let ולכן אינו נגיש דרך window; בגלל זה נשמר רק הסכום ולא items.
+3. בשמירת עריכת התקנה נשמרים מחדש items, amount, installKind/priceType ו-description.
+4. לאחר השמירה מתבצע loadMonth(), ולכן הטקסט בכרטיס העבודה נבנה מחדש מה-items המעודכנים.
+5. לא בוצע שינוי בלוגיקת כניסה, אדמין, עובד, מנויים, גיבוי, מחירון או כפתור חזרה לאדמין.
+===============================================================================
+*/
+(function(){
+  function byIdV432(id){ return document.getElementById(id); }
+  function escV432(s){
+    try{ return esc(s); }catch(e){
+      return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});
+    }
+  }
+  function kindLabelV432(kind){
+    try{ if(typeof kindLabelV415 === 'function') return kindLabelV415(kind); }catch(e){}
+    kind=String(kind||'fiber').toLowerCase();
+    return kind==='rf' ? 'RF' : 'סיב';
+  }
+  function getCurrentEntriesV432(){
+    try{ if(Array.isArray(monthEntries)) return monthEntries; }catch(e){}
+    try{ if(Array.isArray(window.monthEntries)) return window.monthEntries; }catch(e){}
+    return [];
+  }
+  function getEditedDataV432(){
+    if(typeof window.getEditedInstallItems === 'function') return window.getEditedInstallItems();
+    if(typeof window.getEditedInstallItemsV415 === 'function') return window.getEditedInstallItemsV415();
+    if(typeof getEditedInstallItems === 'function') return getEditedInstallItems();
+    return null;
+  }
+  function descriptionForEditedInstallV432(edited){
+    if(edited && edited.kind){
+      return edited.kind === 'rf' ? 'התקנת RF' : 'התקנת סיב';
+    }
+    return 'התקנה';
+  }
+  function showSavedNoticeV432(){
+    try{
+      var box=byIdV432('entryMsg');
+      if(box) box.innerHTML='<div class="notice">העריכה נשמרה ✅ הכמויות, המחירים והפירוט עודכנו.</div>';
+    }catch(e){}
+    try{ if(typeof showSavedNoticeAfterEditV417 === 'function') showSavedNoticeAfterEditV417(); }catch(e){}
+  }
+
+  window.saveEntryEdit = async function(){
+    const id = val('editEntryId');
+    const customerNumber = val('editEntryCustomer');
+    const address = val('editEntryAddress');
+    const notes = val('editEntryNotes');
+    let amount = Number(val('editEntryAmount') || 0);
+    const editMsg = byIdV432('editEntryMsg');
+
+    if(!customerNumber || !/^\d+$/.test(customerNumber)){
+      if(editMsg) editMsg.innerHTML='<p class="danger">מספר לקוח חייב להיות ספרות בלבד.</p>';
+      return;
+    }
+    if(!address){
+      if(editMsg) editMsg.innerHTML='<p class="danger">חובה למלא כתובת.</p>';
+      return;
+    }
+
+    const original = getCurrentEntriesV432().find(function(x){ return x && x.id === id; });
+    const update = {
+      customerNumber: customerNumber,
+      address: address,
+      notes: notes,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    if(original && original.workType === 'install'){
+      const edited = getEditedDataV432();
+      if(!edited || !Array.isArray(edited.items) || !edited.items.length){
+        if(editMsg) editMsg.innerHTML='<p class="danger">חובה לבחור לפחות פריט התקנה אחד.</p>';
+        return;
+      }
+      update.items = edited.items.map(function(i){
+        var q = Number(i.quantity || 0);
+        var price = Number(i.price || 0);
+        return {
+          id: i.id || '',
+          name: i.name || '',
+          price: price,
+          quantity: q,
+          inputMode: i.inputMode || 'qty',
+          installKind: i.installKind || edited.kind || original.installKind || original.priceType || '',
+          priceType: i.priceType || edited.kind || original.priceType || original.installKind || '',
+          total: Number(i.total !== undefined ? i.total : (q * price))
+        };
+      });
+      update.amount = Number(edited.total || update.items.reduce(function(sum,i){ return sum + Number(i.total || 0); },0));
+      if(edited.kind){
+        update.installKind = edited.kind;
+        update.priceType = edited.kind;
+      }
+      update.description = descriptionForEditedInstallV432(edited);
+    }else{
+      if(Number.isNaN(amount) || amount < 0){
+        if(editMsg) editMsg.innerHTML='<p class="danger">סכום לא תקין.</p>';
+        return;
+      }
+      update.amount = amount;
+    }
+
+    try{
+      if(editMsg) editMsg.innerHTML='<div class="notice">שומר...</div>';
+      await db.collection('workEntries').doc(id).update(update);
+      try{ hide('editEntryPanel'); }catch(e){ var p=byIdV432('editEntryPanel'); if(p)p.classList.add('hidden'); }
+      await loadMonth();
+      showSavedNoticeV432();
+      try{ if(typeof cleanVisibleSlashN === 'function') cleanVisibleSlashN(); }catch(e){}
+    }catch(e){
+      if(editMsg) editMsg.innerHTML='<p class="danger">שגיאה בשמירה: '+escV432(e.message || e)+'</p>';
+    }
+  };
+
+  try{ if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(e){}
 })();
 </script>
 
