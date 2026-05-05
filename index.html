@@ -761,8 +761,50 @@ button:focus{
 }
 </style>
 
+
+
+<style id="v4-33-no-login-flash-on-saved-session">
+/*
+===============================================================================
+CHANGELOG 4.33 - מניעת הבהוב מסך כניסה כשיש התחברות שמורה
+-------------------------------------------------------------------------------
+1. בזמן בדיקת session שמור, מסכי כניסה/הרשמה/מנוי נשארים מוסתרים לחלוטין.
+2. מסך הטוען נתונים נשאר המסך היחיד עד שהמערכת מחליטה אם להכניס עובד/להציג כניסה.
+3. התיקון לא משנה לוגיקת התחברות, session, אדמין, עובד, מחירון או שמירת עבודות.
+===============================================================================
+*/
+body.app-booting-v433 #workerLoginView,
+body.app-booting-v433 #adminLoginView,
+body.app-booting-v433 #registerView,
+body.app-booting-v433 #expiredView,
+body.app-booting-v433 #workerView,
+body.app-booting-v433 #adminView{
+  display:none!important;
+}
+body.app-booting-v433 #startupView{
+  display:block!important;
+}
+</style>
+
+<style id="v4-34-saved-login-no-flash-css">
+/* ===== v4.34: מניעת הבהוב מסכי כניסה בזמן שחזור התחברות שמורה =====
+   תיקון נקודתי: בזמן boot כל מסכי הכניסה/אדמין/עובד חסומים להצגה, ורק startupView מוצג.
+   שחרור התצוגה מתבצע רק אחרי שהאפליקציה החליטה סופית אם להציג עובד, אדמין, מנוי או כניסה.
+*/
+body.app-booting-v434 #workerLoginView,
+body.app-booting-v434 #adminLoginView,
+body.app-booting-v434 #registerView,
+body.app-booting-v434 #expiredView,
+body.app-booting-v434 #workerView,
+body.app-booting-v434 #adminView{
+  display:none!important;
+}
+body.app-booting-v434 #startupView{
+  display:block!important;
+}
+</style>
 </head>
-<body>
+<body class="app-booting-v433 app-booting-v434">
 <div class="app">
 <div class="top"><div class="brand"><div class="logo">₪</div><div>מעקב עבודה<br><span id="userLine" class="muted" style="font-size:13px">טוען נתונים</span><div class="app-version-mini" title="גרסת האפליקציה">v<span data-app-version></span></div></div></div><button id="logoutBtn" class="btn-light hidden" onclick="logout()">יציאה</button></div>
 
@@ -1124,7 +1166,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.32";
+const APP_VERSION = "4.35";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -6806,7 +6848,7 @@ button.btn-light:hover{
       if(isStartupStillVisibleV34()){
         showSafeLoginV34("הטעינה לקחה יותר מדי זמן. אפשר להתחבר שוב.");
       }
-    }, 6500);
+    }, 60000);
 
     try{
       try{
@@ -6829,7 +6871,7 @@ button.btn-light:hover{
           if(session && session.role === "admin"){
             if(typeof clearLoginFields === "function") clearLoginFields();
             try{ if(typeof waitForAuthReadyV169 === "function") await Promise.race([waitForAuthReadyV169(), timeoutV34(3000,"auth_timeout")]); }catch(e){}
-            await Promise.race([showAdmin(), timeoutV34(6500,"show_admin_timeout")]);
+            await Promise.race([showAdmin(), timeoutV34(60000,"show_admin_timeout")]);
             clearTimeout(fallback); applySingleVersionV34(); return;
           }
           if(session && session.role === "worker"){
@@ -6839,7 +6881,7 @@ button.btn-light:hover{
             }
             if(typeof clearLoginFields === "function") clearLoginFields();
             try{ if(typeof waitForAuthReadyV169 === "function") await Promise.race([waitForAuthReadyV169(), timeoutV34(3000,"auth_timeout")]); }catch(e){}
-            await Promise.race([showWorkerById(session.workerId), timeoutV34(6500,"show_worker_timeout")]);
+            await Promise.race([showWorkerById(session.workerId), timeoutV34(60000,"show_worker_timeout")]);
             clearTimeout(fallback); applySingleVersionV34(); return;
           }
         }catch(e){
@@ -11615,7 +11657,164 @@ CHANGELOG 4.32 - תיקון עריכת התקנה: עדכון טקסט פריט�
 })();
 </script>
 
+
+
+<script id="v4-33-saved-session-loader-guard">
+/* ===== v4.33: Boot guard - בלי הבהוב מסך כניסה כשיש התחברות שמורה ===== */
+(function(){
+  function releaseBootGuardV433(){
+    try{ document.body.classList.remove("app-booting-v433"); }catch(e){}
+  }
+  window.releaseBootGuardV433 = releaseBootGuardV433;
+
+  function wrapBootReleaseV433(fnName){
+    try{
+      var original = window[fnName];
+      if(typeof original !== "function" || original.__bootReleaseWrappedV433) return;
+      var wrapped = function(){
+        var result;
+        try{ result = original.apply(this, arguments); }
+        catch(err){ releaseBootGuardV433(); throw err; }
+
+        if(result && typeof result.then === "function"){
+          return result.finally(function(){ releaseBootGuardV433(); });
+        }
+        releaseBootGuardV433();
+        return result;
+      };
+      wrapped.__bootReleaseWrappedV433 = true;
+      window[fnName] = wrapped;
+    }catch(e){}
+  }
+
+  function installBootGuardWrappersV433(){
+    [
+      "showWorkerLogin",
+      "showWorker",
+      "showWorkerById",
+      "showAdmin",
+      "showExpiredView",
+      "showRegister"
+    ].forEach(wrapBootReleaseV433);
+  }
+
+  installBootGuardWrappersV433();
+  document.addEventListener("DOMContentLoaded", installBootGuardWrappersV433);
+  window.addEventListener("load", function(){
+    installBootGuardWrappersV433();
+    setTimeout(function(){
+      // רשת איטית / שגיאה לא צפויה: לא משאירים את המשתמש תקוע על טוען נתונים לנצח.
+      releaseBootGuardV433();
+    }, 60000);
+  });
+})();
+</script>
+
 </body>
+
+
+<script id="v4-34-saved-login-no-flash-strong-js">
+/* ===== v4.34: Boot guard חזק יותר להתחברות שמורה =====
+   הבעיה: בטעינה עם עובד שמור, fallback ישן היה יכול להציג לרגע את מסך הכניסה לפני שהעובד סיים להיטען.
+   הפתרון: כל עוד קיימת התחברות שמורה שעדיין בבדיקה, showWorkerLogin לא מציג מסך כניסה אלא משאיר את מסך הטעינה.
+   אין שינוי בלוגיקה של עובדים, אדמין, שמירה, עריכה, מחירון או נתונים.
+*/
+(function(){
+  var savedSessionBootActiveV434 = false;
+
+  function hasSavedWorkerSessionV434(){
+    try{
+      var raw = localStorage.getItem('workSession');
+      if(!raw) return false;
+      var s = JSON.parse(raw);
+      return !!(s && s.role === 'worker' && s.workerId);
+    }catch(e){ return false; }
+  }
+
+  function showOnlyStartupV434(textLine){
+    try{ document.body.classList.add('app-booting-v434'); }catch(e){}
+    try{
+      ['workerLoginView','adminLoginView','registerView','expiredView','adminView','workerView'].forEach(function(id){
+        var el=document.getElementById(id);
+        if(el) el.classList.add('hidden');
+      });
+      var startup=document.getElementById('startupView');
+      if(startup) startup.classList.remove('hidden');
+      var sub=document.querySelector('#startupView .startup-sub');
+      if(sub) sub.textContent = textLine || 'משחזר התחברות שמורה וטוען נתונים...';
+      var title=document.querySelector('#startupView .big-title');
+      if(title) title.textContent='טוען נתונים';
+      if(typeof text === 'function') text('userLine','טוען נתונים');
+    }catch(e){}
+  }
+
+  function releaseBootV434(){
+    savedSessionBootActiveV434 = false;
+    try{ document.body.classList.remove('app-booting-v434'); }catch(e){}
+  }
+  window.releaseBootV434 = releaseBootV434;
+
+  // אם showWorkerLogin נקרא באמצע שחזור session שמור — לא מציגים כניסה לרגע.
+  var oldShowWorkerLoginV434 = window.showWorkerLogin;
+  if(typeof oldShowWorkerLoginV434 === 'function' && !oldShowWorkerLoginV434.__v434NoFlash){
+    window.showWorkerLogin = function(){
+      if(savedSessionBootActiveV434 && hasSavedWorkerSessionV434()){
+        showOnlyStartupV434('משחזר התחברות שמורה וטוען נתונים...');
+        return;
+      }
+      releaseBootV434();
+      return oldShowWorkerLoginV434.apply(this, arguments);
+    };
+    window.showWorkerLogin.__v434NoFlash = true;
+  }
+
+  function wrapReleaseV434(fnName){
+    var old = window[fnName];
+    if(typeof old !== 'function' || old.__v434Release) return;
+    var wrapped = function(){
+      var res = old.apply(this, arguments);
+      if(res && typeof res.then === 'function'){
+        return res.finally(function(){ releaseBootV434(); });
+      }
+      releaseBootV434();
+      return res;
+    };
+    wrapped.__v434Release = true;
+    window[fnName]=wrapped;
+  }
+  ['showWorker','showAdmin','showExpiredView','showRegister'].forEach(wrapReleaseV434);
+
+  // Boot אחרון ועדין: לא משכתב לוגיקה, רק מונע הופעת login בזמן שיש session שמור.
+  var previousOnloadV434 = window.onload;
+  window.onload = async function(){
+    savedSessionBootActiveV434 = hasSavedWorkerSessionV434();
+    if(savedSessionBootActiveV434) showOnlyStartupV434('משחזר התחברות שמורה וטוען נתונים...');
+    try{
+      if(typeof previousOnloadV434 === 'function'){
+        var res = previousOnloadV434.apply(this, arguments);
+        if(res && typeof res.then === 'function') await res;
+      }
+    }finally{
+      // אם עדיין יש session שמור והעובד עוד לא נחשף, ממשיכים להחזיק loader עוד קצת; לא מציגים login באמצע.
+      setTimeout(function(){
+        var workerVisible = document.getElementById('workerView') && !document.getElementById('workerView').classList.contains('hidden');
+        var adminVisible = document.getElementById('adminView') && !document.getElementById('adminView').classList.contains('hidden');
+        var expiredVisible = document.getElementById('expiredView') && !document.getElementById('expiredView').classList.contains('hidden');
+        if(workerVisible || adminVisible || expiredVisible || !hasSavedWorkerSessionV434()) releaseBootV434();
+      }, 120);
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    if(hasSavedWorkerSessionV434()){
+      savedSessionBootActiveV434 = true;
+      showOnlyStartupV434('משחזר התחברות שמורה וטוען נתונים...');
+    }
+  });
+
+  try{ if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(e){}
+})();
+</script>
 </html>
 
 <style id="v4-26-calendar-horizontal-scroll-exact-css">
@@ -12243,5 +12442,122 @@ CHANGELOG 4.31 - תיקון אמיתי לכפתור חזרה לאדמין
   window.addEventListener("load", runVersionEnforcerV429);
   document.addEventListener("click", function(){ setTimeout(runVersionEnforcerV429, 80); });
   setInterval(runVersionEnforcerV429, 900);
+})();
+</script>
+
+
+<script id="v4-35-saved-login-boot-rescue-js">
+/*
+===============================================================================
+CHANGELOG 4.35 - תיקון תקיעה במסך "מכין את סביבת העבודה שלך"
+-------------------------------------------------------------------------------
+1. תיקון נקודתי על v4.34: אם שחזור התחברות שמורה לא מגיע למסך עובד/אדמין/מנוי,
+   האפליקציה לא נשארת תקועה על מסך הטעינה.
+2. נוסף rescue שמנסה לפתוח ישירות את העובד לפי ה-session השמור.
+3. אם ה-session השמור לא תקין או שהעובד לא קיים, מנקים אותו ומציגים מסך כניסה רגיל.
+4. עובד רגיל עדיין לא רואה כפתור חזרה לאדמין; כפתור חזרה לאדמין נשאר רק בפתיחה מתוך אדמין.
+5. לא שונה כלום בשמירת עבודות, עריכת התקנות, מחירון, גיבוי, אדמין או נתוני Firestore.
+===============================================================================
+*/
+(function(){
+  var PATCH_ID = 'v4.35-saved-login-boot-rescue';
+  var rescueStarted = false;
+
+  function byId(id){ return document.getElementById(id); }
+  function isVisible(id){ var el=byId(id); return !!(el && !el.classList.contains('hidden') && getComputedStyle(el).display !== 'none'); }
+  function anyMainVisible(){ return isVisible('workerView') || isVisible('adminView') || isVisible('expiredView') || isVisible('workerLoginView') || isVisible('adminLoginView') || isVisible('registerView'); }
+  function startupVisible(){ return isVisible('startupView') || (byId('startupView') && !byId('startupView').classList.contains('hidden')); }
+
+  function getSavedSession(){
+    try{
+      var raw = localStorage.getItem('workSession');
+      if(!raw) return null;
+      return JSON.parse(raw);
+    }catch(e){ return null; }
+  }
+
+  function releaseAllBootLocks(){
+    try{ document.body.classList.remove('app-booting-v433','app-booting-v434'); }catch(e){}
+    try{ if(typeof window.releaseBootGuardV433 === 'function') window.releaseBootGuardV433(); }catch(e){}
+    try{ if(typeof window.releaseBootV434 === 'function') window.releaseBootV434(); }catch(e){}
+  }
+
+  function forceWorkerLogin(){
+    releaseAllBootLocks();
+    try{ localStorage.removeItem('workSession'); }catch(e){}
+    try{
+      if(typeof session !== 'undefined') session = null;
+      if(typeof viewedWorker !== 'undefined') viewedWorker = null;
+    }catch(e){}
+    try{
+      ['startupView','registerView','expiredView','adminLoginView','adminView','workerView'].forEach(function(id){ var el=byId(id); if(el) el.classList.add('hidden'); });
+      var login=byId('workerLoginView'); if(login) login.classList.remove('hidden');
+      var logout=byId('logoutBtn'); if(logout) logout.classList.add('hidden');
+      if(typeof text === 'function') text('userLine','לא מחובר');
+    }catch(e){
+      try{ if(typeof showWorkerLogin === 'function') showWorkerLogin(); }catch(_e){}
+    }
+  }
+
+  async function rescueSavedWorkerSession(){
+    if(rescueStarted) return;
+    rescueStarted = true;
+
+    var saved = getSavedSession();
+    if(!saved || saved.role !== 'worker' || !saved.workerId){
+      releaseAllBootLocks();
+      return;
+    }
+
+    // אם בזמן ההמתנה המסך כבר התקדם - רק משחררים נעילות ולא נוגעים בכלום.
+    if(isVisible('workerView') || isVisible('adminView') || isVisible('expiredView')){
+      releaseAllBootLocks();
+      return;
+    }
+
+    try{
+      releaseAllBootLocks();
+      if(typeof session !== 'undefined') session = saved;
+      if(typeof showWorkerById === 'function'){
+        await showWorkerById(saved.workerId);
+        setTimeout(releaseAllBootLocks, 50);
+        return;
+      }
+      forceWorkerLogin();
+    }catch(e){
+      console.warn(PATCH_ID + ' failed, clearing bad saved session', e);
+      forceWorkerLogin();
+    }
+  }
+
+  function scheduleRescue(){
+    // נותנים ל-boot הרגיל לעבוד קודם. אם הוא הצליח, לא נוגעים בכלום.
+    setTimeout(function(){
+      if(isVisible('workerView') || isVisible('adminView') || isVisible('expiredView')){ releaseAllBootLocks(); return; }
+      var saved = getSavedSession();
+      if(saved && saved.role === 'worker' && saved.workerId && startupVisible()){
+        rescueSavedWorkerSession();
+      }else{
+        releaseAllBootLocks();
+      }
+    }, 4500);
+
+    // רשת ביטחון אחרונה: לעולם לא נשארים תקועים על טוען נתונים.
+    setTimeout(function(){
+      if(isVisible('workerView') || isVisible('adminView') || isVisible('expiredView') || isVisible('workerLoginView')){ releaseAllBootLocks(); return; }
+      var saved = getSavedSession();
+      if(saved && saved.role === 'worker' && saved.workerId){
+        rescueSavedWorkerSession();
+      }else{
+        forceWorkerLogin();
+      }
+    }, 9000);
+  }
+
+  document.addEventListener('DOMContentLoaded', scheduleRescue);
+  window.addEventListener('load', scheduleRescue);
+  setTimeout(scheduleRescue, 1000);
+
+  try{ if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(e){}
 })();
 </script>
