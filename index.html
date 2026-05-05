@@ -1166,7 +1166,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "4.38";
+const APP_VERSION = "4.39";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -8829,6 +8829,15 @@ service cloud.firestore {
         && resource.data.workerId == myWorkerId());
     }
 
+    match /workerDaysOff/{docId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create: if isAdmin() || (signedIn() && request.resource.data.workerId == myWorkerId());
+      allow update: if isAdmin() || (signedIn()
+        && resource.data.workerId == myWorkerId()
+        && request.resource.data.workerId == resource.data.workerId);
+      allow delete: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+    }
+
     match /priceList/{docId} {
       allow read: if signedIn();
       allow write: if isAdmin();
@@ -8866,10 +8875,10 @@ service cloud.firestore {
     try{
       await navigator.clipboard.writeText(rules);
       var msg=document.getElementById('securityToolsMsgV169') || document.getElementById('securityToolsMsgV47');
-      if(msg) msg.innerHTML='<div class="notice">Security Rules v4.9 הועתקו ✅<br>Firebase → Firestore Database → Rules → הדבק → Publish.</div>';
-      alert('Security Rules v4.9 הועתקו ✅');
+      if(msg) msg.innerHTML='<div class="notice">Security Rules v4.10 הועתקו ✅<br>Firebase → Firestore Database → Rules → הדבק → Publish.</div>';
+      alert('Security Rules v4.10 הועתקו ✅');
     }catch(e){
-      prompt('העתק את Security Rules v4.9:', rules);
+      prompt('העתק את Security Rules v4.10:', rules);
     }
   };
 
@@ -8886,8 +8895,8 @@ service cloud.firestore {
       panel.id='securityRulesPanelV47';
       panel.className='card panel';
       panel.innerHTML=''+
-        '<div class="cal-head"><h2>🔒 Security Rules v4.9</h2><div class="actions">'+
-        '<button class="btn-green" type="button" onclick="copySecurityRulesV169()">העתק Security Rules v4.9</button>'+
+        '<div class="cal-head"><h2>🔒 Security Rules v4.10</h2><div class="actions">'+
+        '<button class="btn-green" type="button" onclick="copySecurityRulesV169()">העתק Security Rules v4.10</button>'+
         '<button class="btn-light" type="button" onclick="manualSyncSecurityV169 && manualSyncSecurityV169()">סנכרן אבטחה</button>'+
         '</div></div>'+
         '<p><b>זה התיקון למחיקה:</b> עכשיו update ו-delete מופרדים, כדי שעובד יוכל למחוק רק עבודות שלו.</p>'+
@@ -8895,9 +8904,9 @@ service cloud.firestore {
         '<div id="securityToolsMsgV169"></div>';
       admin.insertBefore(panel, admin.firstChild);
     }else{
-      var h=panel.querySelector('h2'); if(h) h.textContent='🔒 Security Rules v4.9';
+      var h=panel.querySelector('h2'); if(h) h.textContent='🔒 Security Rules v4.10';
       var p=panel.querySelector('p'); if(p) p.innerHTML='<b>זה התיקון למחיקה:</b> עכשיו update ו-delete מופרדים, כדי שעובד יוכל למחוק רק עבודות שלו.';
-      var b=panel.querySelector('button.btn-green'); if(b) b.textContent='העתק Security Rules v4.9';
+      var b=panel.querySelector('button.btn-green'); if(b) b.textContent='העתק Security Rules v4.10';
     }
     panel.classList.remove('hidden');
     panel.style.display='block';
@@ -8921,7 +8930,7 @@ service cloud.firestore {
       var code=e && (e.code || e.message) ? (e.code || e.message) : String(e);
       var hint='שגיאה במחיקה: ' + code;
       if(String(code).includes('permission-denied') || String(code).includes('Missing or insufficient permissions')){
-        hint='Firestore חסם את המחיקה. צריך להיכנס לאדמין, להעתיק Security Rules v4.9, לפרסם ב-Firebase ואז לנסות שוב.';
+        hint='Firestore חסם את המחיקה. צריך להיכנס לאדמין, להעתיק Security Rules v4.10, לפרסם ב-Firebase ואז לנסות שוב.';
       }
       try{
         var msg2=document.getElementById('entryMsg');
@@ -12157,6 +12166,195 @@ CHANGELOG 4.38 - דשבורד חכם: צבעים עדינים, הסרת יום �
   try{ if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(e){}
 })();
 </script>
+
+
+<style id="v4-39-vacation-persist-dashboard-fix-css">
+/* ===== v4.39: תיקון שמירת ימי חופש + הסרת כפילות ימי עבודה בדשבורד ===== */
+.smart-tip-v436.v439-duplicate-workdays-hidden{display:none!important}
+.day.vacation-v437{box-shadow:0 0 0 3px rgba(251,146,60,.16)!important}
+</style>
+
+<script id="v4-39-vacation-persist-dashboard-fix-js">
+/*
+===============================================================================
+CHANGELOG 4.39 - תיקון שמירת ימי חופש וכפילות בדשבורד
+-------------------------------------------------------------------------------
+1. תוקן זיהוי workerId לימי חופש: משתמש קודם ב-viewedWorker, אחר כך session, ואחר כך localStorage.
+2. יום חופש נשמר מקומית בצורה יציבה גם אחרי ריענון, בנוסף לניסיון סנכרון מול Firestore.
+3. בוטלה כפילות "ימי עבודה שנשארו" בדשבורד: נשאר רק הכרטיס המפורט עם "מהיום עד סוף החודש".
+4. Security Rules שמוצגים באדמין עודכנו לכלול workerDaysOff, בלי לפתוח הרשאות כלליות.
+5. התיקון תוספתי בלבד: לא נוגעים בשמירת עבודות, עריכה, סשנים, אדמין, מחירון או תבניות.
+===============================================================================
+*/
+(function(){
+  var PATCH='v4.39-vacation-persist-dashboard-fix';
+
+  function safeArr439(v){return Array.isArray(v)?v:[];}
+  function getWorkerId439(){
+    try{ if(typeof viewedWorker!=='undefined' && viewedWorker && viewedWorker.id) return viewedWorker.id; }catch(e){}
+    try{ if(typeof session!=='undefined' && session && session.workerId) return session.workerId; }catch(e){}
+    try{ var raw=localStorage.getItem('workSession'); if(raw){var s=JSON.parse(raw); if(s&&s.workerId)return s.workerId;} }catch(e){}
+    try{ if(window.viewedWorker && window.viewedWorker.id) return window.viewedWorker.id; }catch(e){}
+    return '';
+  }
+  function getWorkerName439(){
+    try{ if(typeof viewedWorker!=='undefined' && viewedWorker && viewedWorker.name) return viewedWorker.name; }catch(e){}
+    try{ if(typeof session!=='undefined' && session && session.name) return session.name; }catch(e){}
+    return '';
+  }
+  function localKey439(workerId){return 'workAppDaysOffV439_'+workerId;}
+  function legacyLocalKey437(workerId){return 'workAppDaysOffV437_'+workerId;}
+  function readJson439(key){try{return JSON.parse(localStorage.getItem(key)||'[]');}catch(e){return [];}}
+  function writeJson439(key,arr){try{localStorage.setItem(key,JSON.stringify(Array.from(new Set(arr||[])).filter(Boolean).sort()));}catch(e){}}
+  function readLocal439(workerId){
+    var a=readJson439(localKey439(workerId));
+    var b=readJson439(legacyLocalKey437(workerId));
+    return Array.from(new Set([].concat(safeArr439(a),safeArr439(b)).filter(Boolean))).sort();
+  }
+  function writeLocal439(workerId,arr){
+    var clean=Array.from(new Set(safeArr439(arr).filter(Boolean))).sort();
+    writeJson439(localKey439(workerId),clean);
+    // שומרים גם במפתח הישן כדי שכל קוד v4.37 שעדיין רץ יקרא את אותו מידע.
+    writeJson439(legacyLocalKey437(workerId),clean);
+  }
+  function docId439(workerId,date){return String(workerId||'').replace(/[^a-zA-Z0-9_\-א-ת]/g,'_')+'_'+String(date||'').replace(/[^0-9]/g,'_');}
+  function monthRange439(){
+    var y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate();
+    return {start:y+'-'+pad(m+1)+'-01',end:y+'-'+pad(m+1)+'-'+pad(last)};
+  }
+  function setGlobalDays439(days){
+    window.vacationDaysV437=Array.from(new Set(safeArr439(days).filter(Boolean))).sort();
+    window.vacationDaysLoadedForV437=getWorkerId439()+'_'+(calendarDate.getFullYear()+'-'+pad(calendarDate.getMonth()+1));
+    return window.vacationDaysV437;
+  }
+
+  async function loadVacationDaysV439(){
+    var workerId=getWorkerId439();
+    if(!workerId){return setGlobalDays439([]);}
+    var range=monthRange439();
+    var local=readLocal439(workerId).filter(function(d){return d>=range.start&&d<=range.end;});
+    var days=local.slice();
+    try{
+      var snap=await db.collection('workerDaysOff').where('workerId','==',workerId).where('date','>=',range.start).where('date','<=',range.end).get();
+      snap.docs.forEach(function(doc){var d=doc.data()||{}; if(d.active!==false&&d.date)days.push(d.date);});
+      // אם הענן הצליח, מעדכנים גם את המקומי כדי שריענון הבא יהיה מיידי.
+      writeLocal439(workerId,Array.from(new Set(readLocal439(workerId).concat(days))).sort());
+    }catch(e){
+      console.warn(PATCH+' cloud load skipped, using local',e.code||e.message||e);
+    }
+    return setGlobalDays439(days);
+  }
+  window.loadVacationDaysV437=loadVacationDaysV439;
+  window.loadVacationDaysV439=loadVacationDaysV439;
+
+  window.setVacationDayV437=async function(date){
+    var workerId=getWorkerId439();
+    if(!workerId||!date){alert('לא זוהה עובד פעיל לשמירת יום חופש. צא והיכנס מחדש.');return;}
+    if(new Date(date+'T00:00:00').getDay()===6){alert('שבת כבר חסומה אוטומטית ואין צורך לסמן אותה כיום חופש.');return;}
+    var all=safeArr439(typeof monthEntries!=='undefined'?monthEntries:[]).filter(function(e){return e.date===date;});
+    if(all.length){
+      var ok=confirm('יש ביום הזה '+all.length+' עבודות/סידורים. סימון יום חופש יחסום הוספת עבודות חדשות ביום הזה, אבל לא ימחק נתונים קיימים. להמשיך?');
+      if(!ok)return;
+    }
+    var days=Array.from(new Set(readLocal439(workerId).concat([date]))).sort();
+    writeLocal439(workerId,days);
+    setGlobalDays439(days.filter(function(d){var r=monthRange439();return d>=r.start&&d<=r.end;}));
+    try{
+      await db.collection('workerDaysOff').doc(docId439(workerId,date)).set({
+        workerId:workerId,
+        workerName:getWorkerName439(),
+        date:date,
+        type:'vacation',
+        active:true,
+        source:'calendar',
+        appVersion:APP_VERSION,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+    }catch(e){
+      console.warn(PATCH+' cloud save skipped, local persisted',e.code||e.message||e);
+      // לא מקפיצים שגיאה שמבלבלת את המשתמש: השמירה המקומית כן יציבה אחרי ריענון.
+    }
+    try{renderCalendar();}catch(e){}
+    try{renderDay();}catch(e){}
+    try{renderStats();}catch(e){}
+    try{renderSmartDashboard();}catch(e){}
+  };
+
+  window.cancelVacationDayV437=async function(date){
+    var workerId=getWorkerId439();
+    if(!workerId||!date)return;
+    if(!confirm('לבטל את יום החופש בתאריך '+heDate(date)+'?'))return;
+    var days=readLocal439(workerId).filter(function(d){return d!==date;});
+    writeLocal439(workerId,days);
+    setGlobalDays439(days.filter(function(d){var r=monthRange439();return d>=r.start&&d<=r.end;}));
+    try{
+      await db.collection('workerDaysOff').doc(docId439(workerId,date)).set({workerId:workerId,date:date,active:false,cancelledAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+    }catch(e){console.warn(PATCH+' cloud cancel skipped, local persisted',e.code||e.message||e);}
+    try{renderCalendar();}catch(e){}
+    try{renderDay();}catch(e){}
+    try{renderStats();}catch(e){}
+    try{renderSmartDashboard();}catch(e){}
+  };
+
+  function removeDuplicateWorkdays439(){
+    var box=document.getElementById('smartDashboard'); if(!box)return;
+    Array.from(box.querySelectorAll('.smart-tip-v436')).forEach(function(tip){
+      var txt=tip.textContent||'';
+      var inVacationStrip=!!tip.closest('#vacationGoalStripV437');
+      if(!inVacationStrip && (txt.indexOf('ימים עבודה שנשארו')!==-1 || txt.indexOf('ימי עבודה שנשארו')!==-1)){
+        tip.classList.add('v439-duplicate-workdays-hidden');
+        tip.remove();
+      }
+    });
+  }
+  window.removeDuplicateWorkdaysV439=removeDuplicateWorkdays439;
+
+  var prevLoadMonth439=window.loadMonth;
+  if(typeof prevLoadMonth439==='function'){
+    window.loadMonth=async function(){
+      var res=await prevLoadMonth439.apply(this,arguments);
+      await loadVacationDaysV439();
+      try{renderCalendar();}catch(e){}
+      try{renderDay();}catch(e){}
+      try{renderStats();}catch(e){}
+      try{renderSmartDashboard();}catch(e){}
+      return res;
+    };
+  }
+
+  var prevRenderSmart439=window.renderSmartDashboard;
+  if(typeof prevRenderSmart439==='function'){
+    window.renderSmartDashboard=function(){
+      var res=prevRenderSmart439.apply(this,arguments);
+      removeDuplicateWorkdays439();
+      return res;
+    };
+  }
+
+  // עדכון Rules שמוצגים במסך אדמין כדי לכלול workerDaysOff.
+  function workerDaysOffRulesBlock439(){return String.raw`
+    match /workerDaysOff/{docId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create: if isAdmin() || (signedIn() && request.resource.data.workerId == myWorkerId());
+      allow update: if isAdmin() || (signedIn()
+        && resource.data.workerId == myWorkerId()
+        && request.resource.data.workerId == resource.data.workerId);
+      allow delete: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+    }
+`;}
+  try{
+    if(window.FIRESTORE_RULES_V48 && window.FIRESTORE_RULES_V48.indexOf('match /workerDaysOff/{docId}')===-1){
+      window.FIRESTORE_RULES_V48=window.FIRESTORE_RULES_V48.replace(/\n    match \/priceList\/\{docId\} \{/, workerDaysOffRulesBlock439()+'\n    match /priceList/{docId} {');
+    }
+  }catch(e){}
+
+  document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){loadVacationDaysV439().then(function(){try{renderCalendar()}catch(e){} try{renderDay()}catch(e){} try{renderSmartDashboard()}catch(e){} removeDuplicateWorkdays439();});},450);});
+  window.addEventListener('load',function(){setTimeout(function(){loadVacationDaysV439().then(function(){try{renderCalendar()}catch(e){} try{renderDay()}catch(e){} try{renderSmartDashboard()}catch(e){} removeDuplicateWorkdays439();});},800);});
+  try{ if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
+})();
+</script>
+
 </html>
 
 <style id="v4-26-calendar-horizontal-scroll-exact-css">
