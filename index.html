@@ -1166,7 +1166,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "4.39";
+const APP_VERSION = "4.40";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -12352,6 +12352,191 @@ CHANGELOG 4.39 - תיקון שמירת ימי חופש וכפילות בדשבו
   document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){loadVacationDaysV439().then(function(){try{renderCalendar()}catch(e){} try{renderDay()}catch(e){} try{renderSmartDashboard()}catch(e){} removeDuplicateWorkdays439();});},450);});
   window.addEventListener('load',function(){setTimeout(function(){loadVacationDaysV439().then(function(){try{renderCalendar()}catch(e){} try{renderDay()}catch(e){} try{renderSmartDashboard()}catch(e){} removeDuplicateWorkdays439();});},800);});
   try{ if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
+})();
+</script>
+
+
+
+<style id="v4-40-dashboard-monthly-trend-css">
+/* ===== v4.40: דשבורד חכם - מגמת הכנסות לפי חודשים ===== */
+.smart-monthly-section-v440{
+  margin-top:12px!important;
+}
+.smart-monthly-scroll-v440{
+  max-height:330px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:3px 4px 3px 0;
+  border-radius:16px;
+  scrollbar-width:thin;
+  scrollbar-color:#cbd5e1 transparent;
+}
+.smart-monthly-scroll-v440::-webkit-scrollbar{width:8px}
+.smart-monthly-scroll-v440::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
+.smart-monthly-scroll-v440::-webkit-scrollbar-track{background:transparent}
+.smart-monthly-section-v440 .smart-bar-row-v423{
+  grid-template-columns:minmax(78px,120px) minmax(110px,1fr) 82px!important;
+}
+.smart-monthly-section-v440 .smart-bar-row-v423 > div:first-child{
+  font-weight:900!important;
+  color:#334155!important;
+}
+.smart-monthly-section-v440 .smart-bar-fill-v423.zero-v440{
+  width:0!important;
+  min-width:0!important;
+}
+.smart-monthly-note-v440{
+  margin:8px 0 0;
+  font-size:12px;
+  color:#64748b;
+  font-weight:800;
+  line-height:1.45;
+}
+@media(max-width:800px){
+  .smart-monthly-scroll-v440{max-height:300px}
+  .smart-monthly-section-v440 .smart-bar-row-v423{grid-template-columns:78px minmax(90px,1fr) 74px!important;gap:8px!important}
+}
+</style>
+
+<script id="v4-40-dashboard-monthly-income-trend-js">
+/*
+===============================================================================
+CHANGELOG 4.40 - דשבורד חכם: מגמת הכנסות לפי חודשים
+-------------------------------------------------------------------------------
+1. נוספה מתחת ל"מגמת הכנסות לפי ימים" מגמת הכנסות לפי חודשים לכל 12 חודשי השנה.
+2. חודשים ללא עבודות שבוצעו מוצגים כ־₪0, כדי שהשנה תישאר מלאה וברורה גם בתחילת שימוש.
+3. החישוב מתבסס רק על עבודות שבוצעו בפועל, ולא כולל עבודות מתוזמנות.
+4. העיצוב משתמש באותם רכיבי smart-bars / progress bar קיימים, עם גלילה פנימית עדינה.
+5. תיקון תוספתי בלבד: לא שונה לוגין, לא שונו שמירות, לא שונו ימי חופש, לא שונה אדמין.
+===============================================================================
+*/
+(function(){
+  if(window.__dashboardMonthlyTrendV440Applied) return;
+  window.__dashboardMonthlyTrendV440Applied=true;
+
+  try{ window.APP_VERSION = APP_VERSION; if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
+
+  var monthlyTrendRequestV440=0;
+  var monthNamesV440=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
+  function esc440(s){try{return esc(s)}catch(e){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]})}}
+  function money440(n){try{return money(n)}catch(e){return '₪'+Number(n||0).toLocaleString('he-IL',{maximumFractionDigits:0})}}
+  function isPlanned440(e){try{return (typeof isPlannedV49==='function' && isPlannedV49(e)) || e.entryStatus==='planned'}catch(_e){return e&&e.entryStatus==='planned'}}
+  function done440(arr){return (arr||[]).filter(function(e){return !isPlanned440(e)})}
+  function currentYear440(){try{return (calendarDate instanceof Date?calendarDate:new Date()).getFullYear()}catch(e){return new Date().getFullYear()}}
+  function currentWorkerId440(){try{return (viewedWorker&&viewedWorker.id)||''}catch(e){return ''}}
+
+  function ensureMonthlyTrendShell440(){
+    var box=document.getElementById('smartDashboard');
+    if(!box) return null;
+    var existing=document.getElementById('monthlyTrendSectionV440');
+    if(existing) return existing;
+
+    var html='<div id="monthlyTrendSectionV440" class="smart-section-v423 smart-monthly-section-v440">'+
+      '<h3>📊 מגמת הכנסות לפי חודשים</h3>'+
+      '<div id="monthlyTrendContentV440" class="smart-monthly-scroll-v440"><p class="muted">טוען נתוני שנה...</p></div>'+
+      '<div class="smart-monthly-note-v440">מציג את כל 12 חודשי השנה לפי עבודות שבוצעו בפועל בלבד.</div>'+
+      '</div>';
+
+    var dailySection=null;
+    Array.from(box.querySelectorAll('.smart-section-v423')).some(function(sec){
+      var h=sec.querySelector('h3');
+      if(h && (h.textContent||'').indexOf('מגמת הכנסות לפי ימים')!==-1){dailySection=sec;return true;}
+      return false;
+    });
+
+    if(dailySection && dailySection.parentNode){
+      // אם מגמת הימים נמצאת בתוך גריד דו־עמודתי, מכניסים את מגמת החודשים אחרי כל הבלוק כדי שלא תידחס ליד התובנות.
+      var two=dailySection.closest('.smart-two-v423');
+      if(two && two.parentNode){two.insertAdjacentHTML('afterend',html);}
+      else{dailySection.insertAdjacentHTML('afterend',html);}
+    }else{
+      box.insertAdjacentHTML('beforeend',html);
+    }
+    return document.getElementById('monthlyTrendSectionV440');
+  }
+
+  function renderMonthlyBars440(values,year){
+    var max=Math.max(1,...values.map(function(v){return Number(v||0)}));
+    var rows=values.map(function(v,i){
+      var width=v>0?Math.max(4,Math.round((Number(v||0)/max)*100)):0;
+      var zeroClass=v>0?'':' zero-v440';
+      return '<div class="smart-bar-row-v423">'+
+        '<div>'+esc440(monthNamesV440[i])+'</div>'+
+        '<div class="smart-bar-track-v423"><div class="smart-bar-fill-v423'+zeroClass+'" style="width:'+width+'%"></div></div>'+
+        '<div>'+money440(v)+'</div>'+
+      '</div>';
+    }).join('');
+    return '<div class="smart-bars-v423" aria-label="מגמת הכנסות חודשית '+year+'">'+rows+'</div>';
+  }
+
+  async function loadMonthlyTrend440(){
+    var section=ensureMonthlyTrendShell440();
+    if(!section) return;
+    var content=document.getElementById('monthlyTrendContentV440');
+    if(!content) return;
+    var workerId=currentWorkerId440();
+    var year=currentYear440();
+    var req=++monthlyTrendRequestV440;
+
+    if(!workerId){
+      content.innerHTML='<p class="muted">אין עובד פעיל להצגת מגמת חודשים.</p>';
+      return;
+    }
+
+    try{
+      content.innerHTML='<p class="muted">טוען מגמת חודשים...</p>';
+      var start=year+'-01-01';
+      var end=year+'-12-31';
+      var snap=await db.collection('workEntries').where('workerId','==',workerId).get();
+      if(req!==monthlyTrendRequestV440) return;
+      var values=new Array(12).fill(0);
+      snap.docs.map(function(d){return {id:d.id,...(d.data()||{})};})
+        .filter(function(e){return e.date>=start && e.date<=end;})
+        .filter(function(e){return !isPlanned440(e);})
+        .forEach(function(e){
+          var m=Number(String(e.date||'').slice(5,7));
+          if(m>=1 && m<=12) values[m-1]+=Number(e.amount||0);
+        });
+      content.innerHTML=renderMonthlyBars440(values,year);
+    }catch(e){
+      // במקרה של הרשאות/רשת, מציגים לפחות את החודש הנוכחי מתוך monthEntries כדי לא לשבור את הדשבורד.
+      var values=new Array(12).fill(0);
+      try{
+        done440(Array.isArray(monthEntries)?monthEntries:[]).forEach(function(e){
+          if(String(e.date||'').startsWith(String(year)+'-')){
+            var m=Number(String(e.date||'').slice(5,7));
+            if(m>=1 && m<=12) values[m-1]+=Number(e.amount||0);
+          }
+        });
+        content.innerHTML=renderMonthlyBars440(values,year)+'<p class="smart-monthly-note-v440">הוצג לפי הנתונים שכבר נטענו למסך. קריאת כל השנה נחסמה או נכשלה: '+esc440(e.code||e.message||e)+'</p>';
+      }catch(_e){
+        content.innerHTML='<p class="danger">שגיאה בטעינת מגמת חודשים: '+esc440(e.code||e.message||e)+'</p>';
+      }
+    }
+  }
+
+  var prevRenderSmart440=window.renderSmartDashboard;
+  if(typeof prevRenderSmart440==='function'){
+    window.renderSmartDashboard=function(){
+      var res=prevRenderSmart440.apply(this,arguments);
+      try{ensureMonthlyTrendShell440();}catch(e){}
+      setTimeout(function(){loadMonthlyTrend440();},40);
+      return res;
+    };
+  }
+
+  var prevLoadMonth440=window.loadMonth;
+  if(typeof prevLoadMonth440==='function'){
+    window.loadMonth=async function(){
+      var res=await prevLoadMonth440.apply(this,arguments);
+      try{loadMonthlyTrend440();}catch(e){}
+      return res;
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){try{loadMonthlyTrend440();}catch(e){}},600);});
+  window.addEventListener('load',function(){setTimeout(function(){try{loadMonthlyTrend440();}catch(e){}},950);});
 })();
 </script>
 
