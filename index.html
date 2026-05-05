@@ -1124,7 +1124,7 @@ button:focus{
 </div>
 
 <script>
-const APP_VERSION = "4.35";
+const APP_VERSION = "4.36";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -13092,3 +13092,185 @@ html,body{max-width:100%!important;overflow-x:hidden!important;}
 })();
 </script>
 
+
+
+<script id="v4-36-admin-back-button-strict-origin-fix">
+/*
+CHANGELOG v4.36 — תיקון נקודתי בלבד לכפתור "חזור לאדמין":
+1. הכפתור מוצג רק אם פתיחת העובד התחילה מלחיצה בפאנל אדמין על כפתור "פתח מעקב".
+2. כניסת עובד רגילה, רענון מסך עובד, שחזור session של עובד ופתיחה מחדש לא מציגים את הכפתור.
+3. לא נדרסו מנגנוני כניסה, טעינה, אדמין, עובד או שמירת session. נוספה שכבת Patch קטנה שמנהלת רק את מקור הניווט של הכפתור.
+4. הגרסה נשארת דרך הקבוע המרכזי APP_VERSION בלבד.
+*/
+(function(){
+  var ADMIN_ORIGIN_KEY_V436 = 'adminOpenedWorkerTrackingV436';
+
+  function getSessionV436(){
+    try{
+      if(typeof session !== 'undefined' && session) return session;
+    }catch(e){}
+    try{ return window.session || null; }catch(e){ return null; }
+  }
+
+  function isAdminSessionStrictV436(){
+    var s = getSessionV436();
+    return !!(s && s.role === 'admin');
+  }
+
+  function isWorkerSessionV436(){
+    var s = getSessionV436();
+    return !!(s && s.role === 'worker');
+  }
+
+  function isAdminOriginV436(){
+    try{ return sessionStorage.getItem(ADMIN_ORIGIN_KEY_V436) === '1'; }catch(e){ return false; }
+  }
+
+  function setAdminOriginV436(on){
+    try{
+      if(on) sessionStorage.setItem(ADMIN_ORIGIN_KEY_V436, '1');
+      else sessionStorage.removeItem(ADMIN_ORIGIN_KEY_V436);
+    }catch(e){}
+    try{ window.__adminOpenedWorkerTrackingV430 = !!on; }catch(e){}
+  }
+
+  function findBackBtnV436(){ return document.getElementById('backToAdminBtnV430'); }
+
+  function hideBackBtnV436(){
+    var btn = findBackBtnV436();
+    if(!btn) return;
+    btn.classList.add('hidden');
+    btn.setAttribute('aria-hidden','true');
+    try{ btn.style.setProperty('display','none','important'); }catch(e){ btn.style.display='none'; }
+  }
+
+  function showBackBtnV436(){
+    var btn = findBackBtnV436();
+    if(!btn) return;
+    btn.classList.remove('hidden');
+    btn.setAttribute('aria-hidden','false');
+    try{ btn.style.setProperty('display','inline-flex','important'); }catch(e){ btn.style.display='inline-flex'; }
+  }
+
+  function shouldShowBackBtnV436(){
+    var workerView = document.getElementById('workerView');
+    var workerVisible = !!(workerView && !workerView.classList.contains('hidden'));
+    return workerVisible && isAdminSessionStrictV436() && isAdminOriginV436();
+  }
+
+  function syncBackButtonV436(){
+    // אם המשתמש הוא עובד רגיל — מנקים מקור אדמין כדי למנוע זליגה מרענון/כניסה קודמת.
+    if(isWorkerSessionV436()) setAdminOriginV436(false);
+    if(shouldShowBackBtnV436()) showBackBtnV436();
+    else hideBackBtnV436();
+  }
+
+  // סימון מקור אדמין רק מתוך לחיצה אמיתית באזור האדמין על "פתח מעקב".
+  document.addEventListener('click', function(ev){
+    try{
+      var target = ev.target && ev.target.closest ? ev.target.closest('button,[onclick]') : null;
+      if(!target) return;
+      var adminView = document.getElementById('adminView');
+      var clickedInsideAdmin = !!(adminView && adminView.contains(target) && !adminView.classList.contains('hidden'));
+      var call = String(target.getAttribute('onclick') || '');
+      if(clickedInsideAdmin && isAdminSessionStrictV436() && call.indexOf('showWorkerById') !== -1){
+        setAdminOriginV436(true);
+      }
+    }catch(e){}
+  }, true);
+
+  // לא משנים את showWorkerById עצמו — רק מסנכרנים אחרי שהמסך התחלף.
+  var oldShowWorkerByIdV436 = window.showWorkerById;
+  if(typeof oldShowWorkerByIdV436 === 'function' && !oldShowWorkerByIdV436.__strictAdminBackV436){
+    var wrappedShowWorkerByIdV436 = async function(){
+      var result = await oldShowWorkerByIdV436.apply(this, arguments);
+      setTimeout(syncBackButtonV436, 0);
+      setTimeout(syncBackButtonV436, 120);
+      setTimeout(syncBackButtonV436, 600);
+      return result;
+    };
+    wrappedShowWorkerByIdV436.__strictAdminBackV436 = true;
+    window.showWorkerById = wrappedShowWorkerByIdV436;
+  }
+
+  var oldShowWorkerV436 = window.showWorker;
+  if(typeof oldShowWorkerV436 === 'function' && !oldShowWorkerV436.__strictAdminBackV436){
+    var wrappedShowWorkerV436 = async function(){
+      var result = await oldShowWorkerV436.apply(this, arguments);
+      setTimeout(syncBackButtonV436, 0);
+      setTimeout(syncBackButtonV436, 120);
+      setTimeout(syncBackButtonV436, 600);
+      return result;
+    };
+    wrappedShowWorkerV436.__strictAdminBackV436 = true;
+    window.showWorker = wrappedShowWorkerV436;
+  }
+
+  var oldShowWorkerLoginV436 = window.showWorkerLogin;
+  if(typeof oldShowWorkerLoginV436 === 'function' && !oldShowWorkerLoginV436.__strictAdminBackV436){
+    var wrappedShowWorkerLoginV436 = function(){
+      setAdminOriginV436(false);
+      var result = oldShowWorkerLoginV436.apply(this, arguments);
+      syncBackButtonV436();
+      return result;
+    };
+    wrappedShowWorkerLoginV436.__strictAdminBackV436 = true;
+    window.showWorkerLogin = wrappedShowWorkerLoginV436;
+  }
+
+  var oldWorkerLoginV436 = window.workerLogin;
+  if(typeof oldWorkerLoginV436 === 'function' && !oldWorkerLoginV436.__strictAdminBackV436){
+    var wrappedWorkerLoginV436 = async function(){
+      setAdminOriginV436(false);
+      var result = await oldWorkerLoginV436.apply(this, arguments);
+      setAdminOriginV436(false);
+      syncBackButtonV436();
+      return result;
+    };
+    wrappedWorkerLoginV436.__strictAdminBackV436 = true;
+    window.workerLogin = wrappedWorkerLoginV436;
+  }
+
+  var oldShowAdminV436 = window.showAdmin;
+  if(typeof oldShowAdminV436 === 'function' && !oldShowAdminV436.__strictAdminBackV436){
+    var wrappedShowAdminV436 = async function(){
+      setAdminOriginV436(false);
+      var result = await oldShowAdminV436.apply(this, arguments);
+      syncBackButtonV436();
+      return result;
+    };
+    wrappedShowAdminV436.__strictAdminBackV436 = true;
+    window.showAdmin = wrappedShowAdminV436;
+  }
+
+  var oldLogoutV436 = window.logout;
+  if(typeof oldLogoutV436 === 'function' && !oldLogoutV436.__strictAdminBackV436){
+    var wrappedLogoutV436 = async function(){
+      setAdminOriginV436(false);
+      hideBackBtnV436();
+      return await oldLogoutV436.apply(this, arguments);
+    };
+    wrappedLogoutV436.__strictAdminBackV436 = true;
+    window.logout = wrappedLogoutV436;
+  }
+
+  var oldBackToAdminV436 = window.backToAdminPanelV430;
+  window.backToAdminPanelV430 = async function(){
+    try{
+      setAdminOriginV436(false);
+      hideBackBtnV436();
+      if(typeof oldBackToAdminV436 === 'function') return await oldBackToAdminV436.apply(this, arguments);
+      if(typeof window.showAdmin === 'function') return await window.showAdmin();
+    }catch(e){
+      alert('שגיאה בחזרה לאדמין: ' + ((e && e.message) || e));
+    }
+  };
+
+  // סנכרון אחרון כדי לנצח שכבות ישנות שמנסות להציג את הכפתור אחרי טעינה.
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(syncBackButtonV436, 0); setTimeout(syncBackButtonV436, 700); });
+  window.addEventListener('load', function(){ setTimeout(syncBackButtonV436, 0); setTimeout(syncBackButtonV436, 600); setTimeout(syncBackButtonV436, 1600); });
+  document.addEventListener('click', function(){ setTimeout(syncBackButtonV436, 80); });
+  setInterval(syncBackButtonV436, 800);
+  syncBackButtonV436();
+})();
+</script>
