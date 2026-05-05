@@ -1166,7 +1166,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "4.35";
+const APP_VERSION = "4.36";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -11707,6 +11707,230 @@ CHANGELOG 4.32 - תיקון עריכת התקנה: עדכון טקסט פריט�
       releaseBootGuardV433();
     }, 60000);
   });
+})();
+</script>
+
+
+
+<style id="v4-36-smart-dashboard-goal-fix-css">
+/* ===== v4.36: שדרוג דשבורד חכם + תיקון ספירה של מתוזמן שסומן בוצע ===== */
+.smart-goal-focus-v436{
+  background:linear-gradient(135deg,#ecfdf5,#eff6ff)!important;
+  border:2px solid #86efac!important;
+}
+.smart-goal-focus-v436 .smart-value{color:#166534!important;font-size:28px!important}
+.smart-subgrid-v436{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+.smart-tip-v436{background:#fff;border:1px solid #dbeafe;border-radius:18px;padding:12px;font-weight:900;color:#1e3a8a;line-height:1.45}
+.smart-tip-v436 b{display:block;font-size:19px;color:#0f172a;margin-top:4px}
+.smart-warning-v436{background:#fff7ed!important;border-color:#fed7aa!important;color:#9a3412!important}
+.smart-success-v436{background:#ecfdf5!important;border-color:#bbf7d0!important;color:#166534!important}
+.smart-small-note-v436{font-size:12px;color:#64748b;font-weight:800;line-height:1.35;margin-top:7px}
+@media(max-width:800px){.smart-subgrid-v436{grid-template-columns:1fr 1fr}.smart-goal-focus-v436 .smart-value{font-size:24px!important}}
+</style>
+
+<script id="v4-36-smart-dashboard-goal-and-planned-done-fix-js">
+/*
+===============================================================================
+CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של סידור מתוזמן שבוצע
+-------------------------------------------------------------------------------
+1. דשבורד חכם קיבל כרטיס מרכזי: כמה כסף צריך לעשות בכל יום עבודה שנשאר כדי להגיע ליעד.
+2. נוספו נתונים מקצועיים: כמה ימים נשארו בחודש, יעד יומי לפי כל הימים שנותרו, יעד יומי לפי ימי עבודה בלבד,
+   פער מול הקצב הנוכחי, תחזית סוף חודש, וכמה עבודות ממוצעות צריך לפי ממוצע העבודה הנוכחי.
+3. סימון עבודה מתוזמנת כבוצעה מסמן אותה כ-convertedFromPlanned, כדי שהדשבורד יבין שזה לא ביקור חוזר חדש.
+4. תובנת "לקוח חוזר" בדשבורד מתעלמת מאותו לקוח באותו יום/כתובת/סוג עבודה כאשר מדובר בהמרה ממתוזמן לבוצע.
+5. תיקון תוספתי בלבד: לא נמחקו פונקציות קיימות, לא שונה לוגין, לא שונה אדמין, לא שונה שמירה/גיבוי/ייצוא.
+===============================================================================
+*/
+(function(){
+  try{ window.APP_VERSION = APP_VERSION; if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
+
+  function money436(n){try{return money(n)}catch(e){return '₪'+Number(n||0).toLocaleString('he-IL',{maximumFractionDigits:0})}}
+  function esc436(s){try{return esc(s)}catch(e){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]})}}
+  function date436(s){try{return heDate(s)}catch(e){return s||''}}
+  function sum436(arr){return (arr||[]).reduce(function(a,e){return a+Number(e&&e.amount||0)},0)}
+  function isPlanned436(e){try{return (typeof isPlannedV49==='function' && isPlannedV49(e)) || e.entryStatus==='planned'}catch(_e){return e&&e.entryStatus==='planned'}}
+  function done436(arr){return (arr||[]).filter(function(e){return !isPlanned436(e)})}
+  function planned436(arr){return (arr||[]).filter(isPlanned436)}
+  function pct436(a,b){return b?Math.round((Number(a||0)/Number(b||0))*100):0}
+  function today436(){try{return formatDate(new Date())}catch(e){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}}
+  function parse436(s){try{return parseDate(s)}catch(e){var p=String(s||'').split('-').map(Number);return new Date(p[0],p[1]-1,p[2])}}
+  function remainingDays436(onlyWorkDays){
+    try{
+      var base=calendarDate instanceof Date ? calendarDate : new Date();
+      var now=new Date();
+      var y=base.getFullYear(), m=base.getMonth();
+      var start=(now.getFullYear()===y && now.getMonth()===m)?now.getDate():1;
+      var last=new Date(y,m+1,0).getDate();
+      var count=0;
+      for(var d=start; d<=last; d++){
+        var dt=new Date(y,m,d);
+        if(onlyWorkDays && dt.getDay()===6) continue;
+        count++;
+      }
+      return Math.max(count,0);
+    }catch(e){return 0}
+  }
+  function group436(arr,keyFn){
+    var o={};
+    (arr||[]).forEach(function(e){
+      var k=keyFn(e)||'לא ידוע';
+      if(!o[k])o[k]={count:0,total:0,items:[]};
+      o[k].count++; o[k].total+=Number(e.amount||0); o[k].items.push(e);
+    });
+    return o;
+  }
+  function best436(o,field){var ks=Object.keys(o||{});return ks.length?ks.sort(function(a,b){return Number(o[b][field]||0)-Number(o[a][field]||0)})[0]:''}
+  function weekday436(dateStr){try{return ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][parse436(dateStr).getDay()]||''}catch(e){return ''}}
+  function monthDay436(dateStr){try{return date436(dateStr).slice(0,5)}catch(e){return dateStr||''}}
+  function renderBars436(obj,limit){
+    var rows=Object.keys(obj||{}).sort().slice(-(limit||10));
+    var max=Math.max(1,...rows.map(function(k){return Number(obj[k].total||0)}));
+    if(!rows.length)return '<p class="muted">אין מספיק נתונים להצגת מגמה.</p>';
+    return '<div class="smart-bars-v423">'+rows.map(function(k){return '<div class="smart-bar-row-v423"><div>'+esc436(monthDay436(k))+'</div><div class="smart-bar-track-v423"><div class="smart-bar-fill-v423" style="width:'+Math.max(4,Math.round((obj[k].total/max)*100))+'%"></div></div><div>'+money436(obj[k].total||0)+'</div></div>'}).join('')+'</div>';
+  }
+  function topItems436(entries){
+    var o={};
+    (entries||[]).forEach(function(e){(e.items||[]).forEach(function(i){var k=i.name||'פריט'; if(!o[k])o[k]={qty:0,total:0}; o[k].qty+=Number(i.quantity||0); o[k].total+=Number(i.total||0)})});
+    return Object.keys(o).sort(function(a,b){return o[b].total-o[a].total}).slice(0,5).map(function(k){return {name:k,qty:o[k].qty,total:o[k].total}});
+  }
+  function visitKey436(e){
+    // מפתח ביקור לצורך דשבורד בלבד. מונע מצב שבו סידור מתוזמן שהומר לבוצע נראה כמו ביקור חוזר.
+    return [e.customerNumber||'', e.date||'', String(e.address||'').trim().toLowerCase(), e.workType||'', e.convertedFromPlanned?'converted':'normal'].join('|');
+  }
+  function uniqueVisits436(entries){
+    var seen={}, out=[];
+    (entries||[]).forEach(function(e){
+      var k=visitKey436(e);
+      if(seen[k]) return;
+      seen[k]=1; out.push(e);
+    });
+    return out;
+  }
+  function repeatedClients436(entries){
+    var visits=uniqueVisits436(entries).filter(function(e){return e && e.customerNumber});
+    var by={};
+    visits.forEach(function(e){
+      var k=e.customerNumber;
+      if(!by[k]) by[k]={count:0,total:0,items:[]};
+      by[k].count++; by[k].total+=Number(e.amount||0); by[k].items.push(e);
+    });
+    return by;
+  }
+
+  // תיקון נקודתי: כשמסמנים סידור מתוזמן כבוצע, מסמנים שזה הגיע ממתוזמן ולא ביקור חוזר חדש.
+  var previousMarkDone436 = window.markEntryDoneV49;
+  window.markEntryDoneV49 = async function(id){
+    if(!id) return;
+    var e=(Array.isArray(monthEntries)?monthEntries:[]).find(function(x){return x.id===id});
+    var wasPlanned=isPlanned436(e);
+    if(!wasPlanned && typeof previousMarkDone436==='function') return previousMarkDone436(id);
+    var label=e ? ((e.workType==='install'?'ההתקנה':'קריאת השירות')+(e.customerNumber?' ללקוח '+e.customerNumber:'')) : 'העבודה';
+    if(!confirm('לסמן את '+label+' כבוצע ולהכניס להתחשבנות?')) return;
+    try{
+      await db.collection('workEntries').doc(id).set({
+        entryStatus:'done',
+        convertedFromPlanned:true,
+        plannedConvertedAt:new Date().toISOString(),
+        doneAt:new Date().toISOString(),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      if($('entryMsg')) $('entryMsg').innerHTML='<div class="notice">העבודה סומנה כבוצעה ונכנסה להתחשבנות ✅<br>הדשבורד לא יספור אותה כביקור חוזר נוסף.</div>';
+      await loadMonth();
+    }catch(err){ alert('שגיאה בסימון בוצע: '+(err.code||err.message||err)); }
+  };
+
+  window.renderSmartDashboard=function(){
+    var box=$('smartDashboard'); if(!box)return;
+    var all=Array.isArray(monthEntries)?monthEntries:[];
+    var done=done436(all), planned=planned436(all);
+    var total=sum436(done), plannedTotal=sum436(planned), potential=total+plannedTotal;
+    var services=done.filter(function(e){return e.workType==='service'}), installs=done.filter(function(e){return e.workType==='install'});
+    var plannedServices=planned.filter(function(e){return e.workType==='service'}), plannedInstalls=planned.filter(function(e){return e.workType==='install'});
+    var returnCalls=services.filter(function(e){return e.isReturnCall});
+    var paidServices=services.filter(function(e){return !e.isReturnCall});
+    var goal=Number((viewedWorker||{}).monthlyGoal||0), left=Math.max(goal-total,0), progress=goal?Math.min(100,pct436(total,goal)):0;
+    var dates=[...new Set(done.map(function(e){return e.date}).filter(Boolean))], workDays=dates.length, avg=workDays?total/workDays:0;
+    var remainingAll=remainingDays436(false), remainingWork=remainingDays436(true);
+    var needPerWorkDay=left>0 && remainingWork ? left/remainingWork : 0;
+    var needPerCalendarDay=left>0 && remainingAll ? left/remainingAll : 0;
+    var monthProjection=total + (avg * Math.max(remainingWork-1,0));
+    var projectedGap=goal ? monthProjection-goal : 0;
+    var avgJob=done.length ? total/done.length : 0;
+    var jobsNeeded=left>0 && avgJob ? Math.ceil(left/avgJob) : 0;
+    var byDate=group436(done,function(e){return e.date||'ללא תאריך'});
+    var byWeekday=group436(done,function(e){return weekday436(e.date)||'ללא יום'});
+    var byClient=repeatedClients436(done);
+    var bestDate=best436(byDate,'total'), bestWeekday=best436(byWeekday,'total'), topClient=best436(byClient,'count');
+    var installAvg=installs.length?sum436(installs)/installs.length:0, serviceAvg=paidServices.length?sum436(paidServices)/paidServices.length:0;
+    var closeRate=potential?pct436(total,potential):100;
+    var topItems=topItems436(done);
+    var today=today436();
+    var todayDone=done.filter(function(e){return e.date===today}), todayPlanned=planned.filter(function(e){return e.date===today});
+    var convertedCount=done.filter(function(e){return e.convertedFromPlanned===true}).length;
+
+    var insights=[];
+    if(goal){
+      insights.push(progress>=100?'<li class="good">🎯 היעד הושג. אתה על '+Math.round(progress)+'% — עכשיו אפשר להגדיל יעד או לשמור קצב.</li>':'<li class="warn">🎯 חסר ליעד '+money436(left)+'. כדי להגיע ליעד צריך בערך '+money436(needPerWorkDay)+' לכל יום עבודה שנשאר.</li>');
+      insights.push(projectedGap>=0?'<li class="good">📈 לפי הקצב הנוכחי, תחזית סוף חודש: '+money436(monthProjection)+' — מעל היעד בכ־'+money436(projectedGap)+'.</li>':'<li class="warn">📉 לפי הקצב הנוכחי, תחזית סוף חודש: '+money436(monthProjection)+' — חסר כ־'+money436(Math.abs(projectedGap))+'.</li>');
+      if(jobsNeeded) insights.push('<li class="info">🧮 לפי ממוצע עבודה נוכחי, צריך עוד בערך '+jobsNeeded+' עבודות ממוצעות כדי לסגור את היעד.</li>');
+    }else{
+      insights.push('<li class="info">🎯 לא הוגדר יעד חודשי. ברגע שתגדיר יעד, אחשב כמה צריך לעשות כל יום.</li>');
+    }
+    if(convertedCount) insights.push('<li class="good">✅ '+convertedCount+' עבודות הומרו ממתוזמן לבוצע. הן נספרות כביצוע רגיל, לא כביקור חוזר נוסף.</li>');
+    if(todayPlanned.length) insights.push('<li class="info">📌 להיום יש '+todayPlanned.length+' עבודות מתוזמנות בשווי '+money436(sum436(todayPlanned))+'.</li>');
+    if(planned.length) insights.push('<li class="info">📋 צבר מתוזמן: '+planned.length+' עבודות בשווי '+money436(plannedTotal)+'. פוטנציאל חודשי כולל: '+money436(potential)+'.</li>');
+    if(bestDate) insights.push('<li class="good">🔥 היום החזק בחודש: '+date436(bestDate)+' עם '+money436(byDate[bestDate].total)+'.</li>');
+    if(bestWeekday) insights.push('<li class="info">📈 יום '+esc436(bestWeekday)+' הוא היום החזק ביותר לפי דפוס החודש.</li>');
+    if(topClient && byClient[topClient].count>1) insights.push('<li class="warn">👤 לקוח חוזר אמיתי: '+esc436(topClient)+' עם '+byClient[topClient].count+' ביקורים שונים החודש. המרות ממתוזמן לבוצע לא נספרות כאן כפעמיים.</li>');
+    if(returnCalls.length) insights.push('<li class="danger">🔁 '+returnCalls.length+' קריאות חוזרות ללא תשלום. זה מדד שצריך לעקוב אחריו כי הוא אוכל זמן ולא מוסיף הכנסה.</li>');
+    if(installs.length && paidServices.length && installAvg>serviceAvg*1.6) insights.push('<li class="good">🛠️ התקנה ממוצעת שווה הרבה יותר מקריאת שירות. שווה לתת עדיפות להתקנות כשאפשר.</li>');
+    if(!done.length) insights.push('<li class="info">עדיין אין עבודות שבוצעו בחודש הזה. הדשבורד יתמלא אחרי שמירת עבודות.</li>');
+
+    var pills=[];
+    if(bestWeekday)pills.push('יום חזק: '+bestWeekday);
+    if(topClient && byClient[topClient].count>1)pills.push('לקוח חוזר: '+topClient);
+    if(topItems[0])pills.push('פריט מוביל: '+topItems[0].name);
+
+    box.innerHTML=`
+      <div class="smart-grid-v423">
+        <div class="smart-card-v423"><div class="smart-title">בוצע החודש</div><div class="smart-value">${money436(total)}</div><div class="smart-note">רק עבודות שבוצעו בפועל</div></div>
+        <div class="smart-card-v423 smart-goal-focus-v436"><div class="smart-title">צריך לכל יום עבודה</div><div class="smart-value">${goal?money436(needPerWorkDay):'—'}</div><div class="smart-note">כדי להגיע ליעד החודשי</div></div>
+        <div class="smart-card-v423"><div class="smart-title">עמידה ביעד</div><div class="smart-value">${Math.round(progress)}%</div><div class="smart-note">${goal?'יעד: '+money436(goal):'לא הוגדר יעד'}<div class="smart-progress-v423"><div style="width:${Math.max(0,Math.min(100,progress))}%"></div></div></div></div>
+        <div class="smart-card-v423"><div class="smart-title">פוטנציאל כולל</div><div class="smart-value">${money436(potential)}</div><div class="smart-note">בוצע + מתוזמן</div></div>
+      </div>
+      <div class="smart-subgrid-v436">
+        <div class="smart-tip-v436 ${left<=0&&goal?'smart-success-v436':''}">חסר ליעד<b>${goal?money436(left):'—'}</b></div>
+        <div class="smart-tip-v436">ימים עבודה שנשארו<b>${remainingWork}</b></div>
+        <div class="smart-tip-v436">צריך לכל יום רגיל<b>${goal?money436(needPerCalendarDay):'—'}</b></div>
+        <div class="smart-tip-v436 ${projectedGap<0&&goal?'smart-warning-v436':'smart-success-v436'}">תחזית סוף חודש<b>${done.length?money436(monthProjection):'—'}</b></div>
+      </div>
+      <div class="smart-quick-v423">
+        <div class="smart-mini-v423">התקנות שבוצעו<b>${installs.length}</b></div>
+        <div class="smart-mini-v423">קריאות בתשלום<b>${paidServices.length}</b></div>
+        <div class="smart-mini-v423">קריאות חוזרות<b>${returnCalls.length}</b></div>
+      </div>
+      <div class="smart-quick-v423">
+        <div class="smart-mini-v423">עבודות ממוצעות ליעד<b>${jobsNeeded||0}</b><span class="smart-small-note-v436">לפי ממוצע ${money436(avgJob)}</span></div>
+        <div class="smart-mini-v423">היום<b>${todayDone.length}/${todayDone.length+todayPlanned.length}</b><span class="smart-small-note-v436">בוצע מתוך מתוכנן</span></div>
+        <div class="smart-mini-v423">סגירה מול מתוזמן<b>${closeRate}%</b></div>
+      </div>
+      <div class="smart-pill-row-v423">${pills.map(function(p){return '<span class="smart-pill-v423">'+esc436(p)+'</span>'}).join('')}</div>
+      <div class="smart-two-v423">
+        <div class="smart-section-v423"><h3>📈 מגמת הכנסות לפי ימים</h3>${renderBars436(byDate,12)}</div>
+        <div class="smart-section-v423"><h3>🧠 תובנות אוטומטיות</h3><ul class="smart-insights-v423">${insights.slice(0,9).join('')}</ul></div>
+      </div>
+      <div class="smart-section-v423"><h3>⚖️ ניתוח מקצועי מהיר</h3>
+        <div class="smart-quick-v423">
+          <div class="smart-mini-v423">ממוצע התקנה<b>${money436(installAvg)}</b></div>
+          <div class="smart-mini-v423">ממוצע קריאה<b>${money436(serviceAvg)}</b></div>
+          <div class="smart-mini-v423">מתוזמן: התקנות / קריאות<b>${plannedInstalls.length} / ${plannedServices.length}</b></div>
+        </div>
+      </div>
+      <div class="smart-section-v423"><h3>🏆 פריטי התקנה מובילים</h3>${topItems.length?'<div class="smart-bars-v423">'+topItems.map(function(i){return '<div class="smart-bar-row-v423"><div>'+esc436(i.name)+'</div><div class="smart-bar-track-v423"><div class="smart-bar-fill-v423" style="width:'+Math.max(4,Math.min(100,pct436(i.total,topItems[0].total)))+'%"></div></div><div>'+money436(i.total)+'</div></div>'}).join('')+'</div>':'<p class="muted">אין עדיין פריטי התקנה החודש.</p>'}</div>`;
+  };
+
+  document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){try{setAppVersionUI&&setAppVersionUI()}catch(e){} try{renderSmartDashboard()}catch(e){}},220)});
+  window.addEventListener('load',function(){setTimeout(function(){try{setAppVersionUI&&setAppVersionUI()}catch(e){} try{renderSmartDashboard()}catch(e){}},260)});
 })();
 </script>
 
