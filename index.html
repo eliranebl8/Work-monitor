@@ -852,6 +852,7 @@ body.app-booting-v434 #startupView{
     <input id="paymentWorkerName" disabled placeholder="שם עובד">
     <input id="paymentWorkerUsername" disabled placeholder="שם משתמש">
     <input id="paymentWorkerId" disabled placeholder="מזהה משתמש במערכת">
+    <input id="paymentContactPhone" inputmode="tel" autocomplete="tel" placeholder="מספר טלפון ליצירת קשר - חובה">
   </div>
 
   <h2 style="text-align:center;margin-top:16px">בחר מסלול מנוי</h2>
@@ -1166,7 +1167,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "4.40";
+const APP_VERSION = "4.5";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1223,6 +1224,17 @@ function enforceAppVersionUI(){
     });
   }catch(e){}
 }
+
+/*
+===============================================================================
+CHANGELOG 4.41 - טלפון חובה במסך בחירת מנוי בלבד
+-------------------------------------------------------------------------------
+1. נוסף שדה "מספר טלפון ליצירת קשר" במסך סיום ניסיון/בחירת מנוי בלבד.
+2. אי אפשר ליצור בקשת תשלום בלי טלפון תקין.
+3. מספר הטלפון נשמר בתוך paymentRequests ומוצג בפאנל האדמין במעקב תשלומים.
+4. אין שינוי במסך הרשמה ואין שינוי בלוגיקת עובדים, דשבורד, ימי חופש או שמירת עבודות.
+===============================================================================
+*/
 const firebaseConfig={apiKey:"AIzaSyCR41hsAakxY7FgaPhJAhV63lnrgLIT9eM",authDomain:"work-monitor-a3bb9.firebaseapp.com",projectId:"work-monitor-a3bb9",storageBucket:"work-monitor-a3bb9.firebasestorage.app",messagingSenderId:"571499964314",appId:"1:571499964314:web:ec0f18ba9f1e6502fabc23",measurementId:"G-4SLEBPPYE8"};
 firebase.initializeApp(firebaseConfig);const db=firebase.firestore();const auth=firebase.auth ? firebase.auth() : null;
 let ADMIN_USERNAME="Eliran",ADMIN_PASSWORD_SHA256="a3548d64df7d2c4eeeb1c0480aa87b0b306b3e0b0f8faa8c8aef71140761a759",SERVICE_PRICE=65,DEFAULT_TRIAL_DAYS=90;
@@ -1815,6 +1827,7 @@ function showExpiredView(worker=null){
     if($("paymentWorkerUsername"))$("paymentWorkerUsername").value=window.expiredWorker.username||"";
     if($("paymentWorkerId"))$("paymentWorkerId").value=window.expiredWorker.id||"";
   }
+  if($("paymentContactPhone"))$("paymentContactPhone").value="";
   if($("paymentMsg"))$("paymentMsg").innerHTML="";
 }
 function addDaysToDate(days){const d=new Date();d.setDate(d.getDate()+Number(days||0));return formatDate(d)}
@@ -2499,12 +2512,33 @@ function buildPaymentLink(plan, paymentId, worker){
   return base + (base.includes("?")?"&":"?") + params.toString();
 }
 
+function cleanPhoneV441(phone){
+  return String(phone||"").trim().replace(/[\s\-()]/g,"");
+}
+function isValidPhoneV441(phone){
+  const clean=cleanPhoneV441(phone);
+  return /^\+?[0-9]{8,15}$/.test(clean);
+}
+
 async function startPaymentPlan(planKey){
   const plan=SUBSCRIPTION_PLANS[planKey];
   const worker=window.expiredWorker;
   const msg=$("paymentMsg");
   if(!plan || !worker || !worker.id){
     msg.innerHTML="<p class='danger'>לא נמצאו פרטי משתמש לשיוך התשלום. חזור למסך הכניסה ונסה שוב.</p>";
+    return;
+  }
+
+  const contactPhoneRaw = $("paymentContactPhone") ? $("paymentContactPhone").value.trim() : "";
+  const contactPhoneClean = cleanPhoneV441(contactPhoneRaw);
+  if(!contactPhoneRaw){
+    msg.innerHTML="<p class='danger'>חובה למלא מספר טלפון ליצירת קשר לפני בחירת מסלול.</p>";
+    if($("paymentContactPhone"))$("paymentContactPhone").focus();
+    return;
+  }
+  if(!isValidPhoneV441(contactPhoneRaw)){
+    msg.innerHTML="<p class='danger'>מספר הטלפון לא תקין. הכנס מספר עם 8-15 ספרות.</p>";
+    if($("paymentContactPhone"))$("paymentContactPhone").focus();
     return;
   }
   try{
@@ -2515,6 +2549,8 @@ async function startPaymentPlan(planKey){
       workerUsername:worker.username||"",
       authUid:worker.authUid||currentAuthUid(),
       authEmail:worker.authEmail||authEmailFromUsername(worker.username||worker.id||""),
+      contactPhone:contactPhoneRaw,
+      contactPhoneClean:contactPhoneClean,
       planKey:plan.key,
       planName:plan.name,
       amount:plan.amount,
@@ -2532,7 +2568,7 @@ async function startPaymentPlan(planKey){
       msg.innerHTML=`<div class='notice'>בקשת התשלום נשמרה ✅<br>מזהה תשלום: ${esc(ref.id)}<br>מעביר אותך לסליקה...</div>`;
       setTimeout(()=>{window.location.href=link},900);
     }else{
-      msg.innerHTML=`<div class='paywall'>בקשת התשלום נשמרה בהצלחה ✅<br><br><b>מזהה תשלום:</b> ${esc(ref.id)}<br><b>שם משתמש:</b> ${esc(worker.username||"")}<br><b>מסלול:</b> ${esc(plan.name)}<br><b>סכום:</b> ₪${plan.amount}<br><br>כרגע זה פלייסהולדר. אחרי שנחבר משולם, הכפתור יעביר לעמוד סליקה אמיתי.</div>`;
+      msg.innerHTML=`<div class='paywall'>בקשת התשלום נשמרה בהצלחה ✅<br><br><b>מזהה תשלום:</b> ${esc(ref.id)}<br><b>שם משתמש:</b> ${esc(worker.username||"")}<br><b>טלפון:</b> ${esc(contactPhoneRaw)}<br><b>מסלול:</b> ${esc(plan.name)}<br><b>סכום:</b> ₪${plan.amount}<br><br>כרגע זה פלייסהולדר. אחרי שנחבר משולם, הכפתור יעביר לעמוד סליקה אמיתי.</div>`;
     }
   }catch(e){
     msg.innerHTML=`<p class='danger'>שגיאה ביצירת בקשת תשלום: ${esc(e.message)}</p>`;
@@ -2567,6 +2603,7 @@ async function loadPaymentRequests(){
             <div class="item-title">${esc(r.workerName||"")} · ${esc(r.workerUsername||"")}</div>
             <div class="item-sub">
               מזהה עובד: ${esc(r.workerId||"")}<br>
+              טלפון ליצירת קשר: ${esc(r.contactPhone||r.contactPhoneClean||"לא הוזן")}<br>
               מסלול: ${esc(r.planName||r.planKey||"")} · סכום: ${money(r.amount||0)}<br>
               נוצר: ${esc(created)}<br>
               מזהה תשלום: ${esc(r.id)}<br>
@@ -12058,6 +12095,380 @@ CHANGELOG 4.38 - דשבורד חכם: צבעים עדינים, הסרת יום �
   document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){try{polishDashboard438()}catch(e){}},300)});
   window.addEventListener('load',function(){setTimeout(function(){try{polishDashboard438()}catch(e){}},700)});
   try{ if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
+})();
+</script>
+
+
+
+<script id="v2-20-worker-bug-report-contact">
+/*
+===============================================================================
+CHANGELOG 2.20 - דיווח על בעיה / צור קשר לעובד
+-------------------------------------------------------------------------------
+1. נוספה לעובד פעולה קטנה בתחתית המסך: "דיווח על בעיה / צור קשר".
+2. פתיחת טופס דיווח עם תיאור חופשי מפורט ושדה טלפון ליצירת קשר.
+3. הדיווח נשמר ב-appLogs עם action=workerBugReport כדי לא לשנות Security Rules קיימים.
+4. נוסף פאנל באדמין להצגת דיווחי עובדים, כולל שם עובד, שם משתמש, טלפון, זמן ותוכן הדיווח.
+5. התיקון הוא תוספתי בלבד ולא משנה לוגיקת הרשמה, מנוי, תשלום, לוח שנה, דשבורד או שמירת עבודות.
+===============================================================================
+*/
+(function(){
+  const BUG_ACTION_V220 = "workerBugReport";
+
+  function ensureBugReportStylesV220(){
+    if(document.getElementById("bugReportStylesV220")) return;
+    const style=document.createElement("style");
+    style.id="bugReportStylesV220";
+    style.textContent=`
+      .bug-contact-link-v220{
+        display:block;
+        width:max-content;
+        max-width:100%;
+        margin:18px auto 4px;
+        color:#64748b;
+        font-size:12px;
+        font-weight:900;
+        text-decoration:none;
+        cursor:pointer;
+        opacity:.82;
+        padding:6px 10px;
+        border-radius:999px;
+        background:rgba(248,250,252,.72);
+        border:1px solid rgba(226,232,240,.9);
+      }
+      .bug-contact-link-v220:hover{opacity:1;color:#1d4ed8;background:#eff6ff}
+      .bug-report-panel-v220{
+        margin:10px auto 0;
+        max-width:720px;
+        background:rgba(255,255,255,.94);
+        border:1px solid #dbeafe;
+        border-radius:22px;
+        padding:14px;
+        box-shadow:0 10px 24px rgba(15,23,42,.08);
+      }
+      .bug-report-panel-v220 textarea{min-height:130px}
+      .bug-report-admin-card-v220{
+        border:1px solid #e2e8f0;
+        border-radius:18px;
+        padding:13px;
+        margin:8px 0;
+        background:#fff;
+        box-shadow:0 8px 16px rgba(15,23,42,.055);
+      }
+      .bug-report-meta-v220{color:#64748b;font-size:13px;line-height:1.55;font-weight:800}
+      .bug-report-text-v220{white-space:pre-wrap;line-height:1.6;margin-top:8px;color:#0f172a;font-weight:700}
+      @media(max-width:800px){.bug-contact-link-v220{font-size:11.5px;margin-top:14px}.bug-report-panel-v220{padding:12px;border-radius:20px}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function safeEscV220(value){
+    if(typeof esc === "function") return esc(value);
+    return String(value||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  }
+
+  function setBugReportMsgV220(html){
+    const el=document.getElementById("bugReportMsgV220");
+    if(el) el.innerHTML=html;
+  }
+
+  function ensureWorkerBugReportUIV220(){
+    ensureBugReportStylesV220();
+    const workerView=document.getElementById("workerView");
+    if(!workerView || document.getElementById("bugContactLinkV220")) return;
+
+    const link=document.createElement("a");
+    link.id="bugContactLinkV220";
+    link.className="bug-contact-link-v220";
+    link.href="javascript:void(0)";
+    link.textContent="דיווח על בעיה / צור קשר";
+    link.onclick=function(){ toggleBugReportPanelV220(); };
+
+    const panel=document.createElement("div");
+    panel.id="bugReportPanelV220";
+    panel.className="bug-report-panel-v220 hidden";
+    panel.innerHTML=`
+      <h3>דיווח על בעיה / צור קשר</h3>
+      <p class="muted">כתוב כאן בפירוט מלא מה הבעיה, באיזה מסך זה קרה, מה לחצת, ומה ציפית שיקרה.</p>
+      <textarea id="bugReportTextV220" placeholder="דווח במפורט מה הבעיה, לפרטי פרטים..."></textarea>
+      <input id="bugReportPhoneV220" inputmode="tel" placeholder="טלפון ליצירת קשר - לא חובה">
+      <div class="actions">
+        <button class="btn-green" type="button" onclick="submitWorkerBugReportV220()">שלח דיווח</button>
+        <button class="btn-light" type="button" onclick="toggleBugReportPanelV220(false)">סגור</button>
+      </div>
+      <div id="bugReportMsgV220"></div>
+    `;
+
+    workerView.appendChild(link);
+    workerView.appendChild(panel);
+  }
+
+  window.toggleBugReportPanelV220=function(force){
+    ensureWorkerBugReportUIV220();
+    const panel=document.getElementById("bugReportPanelV220");
+    if(!panel) return;
+    const shouldShow = typeof force === "boolean" ? force : panel.classList.contains("hidden");
+    panel.classList.toggle("hidden", !shouldShow);
+    if(shouldShow){
+      setBugReportMsgV220("");
+      const phone=document.getElementById("bugReportPhoneV220");
+      if(phone && !phone.value && window.expiredWorker && window.expiredWorker.contactPhone){
+        phone.value=window.expiredWorker.contactPhone;
+      }
+      setTimeout(()=>{ const t=document.getElementById("bugReportTextV220"); if(t) t.focus(); },80);
+      try{ panel.scrollIntoView({behavior:"smooth",block:"center"}); }catch(e){}
+    }
+  };
+
+  window.submitWorkerBugReportV220=async function(){
+    const txtEl=document.getElementById("bugReportTextV220");
+    const phoneEl=document.getElementById("bugReportPhoneV220");
+    const textValue=(txtEl&&txtEl.value?txtEl.value.trim():"");
+    const phoneValue=(phoneEl&&phoneEl.value?phoneEl.value.trim():"");
+
+    if(!textValue || textValue.length < 8){
+      setBugReportMsgV220("<p class='danger'>חובה לפרט את הבעיה בכמה מילים לפחות.</p>");
+      return;
+    }
+
+    const worker=window.viewedWorker || viewedWorker || {};
+    const payload={
+      action:BUG_ACTION_V220,
+      pageVersion:(window.APP_VERSION||APP_VERSION||""),
+      bugReport:true,
+      status:"open",
+      workerId:worker.id||"",
+      workerName:worker.name||"",
+      workerUsername:worker.username||"",
+      contactPhone:phoneValue,
+      reportText:textValue,
+      currentScreen:"workerView",
+      currentTab:(document.querySelector(".worker-tab-btn-v420.active")||{}).textContent||"",
+      clientTime:new Date().toISOString(),
+      userAgent:navigator.userAgent||"",
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    try{
+      setBugReportMsgV220("<div class='notice'>שולח דיווח...</div>");
+      await db.collection("appLogs").add(payload);
+      if(txtEl) txtEl.value="";
+      setBugReportMsgV220("<div class='notice'>הדיווח נשלח בהצלחה ✅</div>");
+      setTimeout(()=>toggleBugReportPanelV220(false),900);
+    }catch(e){
+      setBugReportMsgV220("<p class='danger'>שגיאה בשליחת הדיווח: "+safeEscV220(e.message||e)+"</p>");
+    }
+  };
+
+  function ensureAdminBugReportsPanelV220(){
+    ensureBugReportStylesV220();
+    const admin=document.getElementById("adminView");
+    if(!admin || document.getElementById("bugReportsAdminPanelV220")) return;
+
+    const card=document.createElement("div");
+    card.id="bugReportsAdminPanelV220";
+    card.className="card";
+    card.innerHTML=`
+      <div class="cal-head">
+        <h2>🐞 דיווחי בעיות / יצירת קשר</h2>
+        <button class="btn-light" type="button" onclick="loadBugReportsAdminV220()">רענן דיווחים</button>
+      </div>
+      <p>כאן יופיעו דיווחים שהעובדים שלחו מתוך המסך שלהם, כולל טלפון ליצירת קשר אם מילאו.</p>
+      <div id="bugReportsAdminListV220"><p class="muted">אין נתונים עדיין.</p></div>
+    `;
+
+    const payments=document.getElementById("paymentRequestsAdmin");
+    const paymentCard=payments ? payments.closest(".card") : null;
+    if(paymentCard && paymentCard.parentNode){
+      paymentCard.parentNode.insertBefore(card, paymentCard.nextSibling);
+    }else{
+      admin.appendChild(card);
+    }
+  }
+
+  function formatBugDateV220(row){
+    try{
+      if(row.clientTime) return new Date(row.clientTime).toLocaleString("he-IL");
+      if(row.createdAt && typeof row.createdAt.toDate === "function") return row.createdAt.toDate().toLocaleString("he-IL");
+    }catch(e){}
+    return "";
+  }
+
+  window.loadBugReportsAdminV220=async function(){
+    ensureAdminBugReportsPanelV220();
+    const box=document.getElementById("bugReportsAdminListV220");
+    if(!box) return;
+    box.innerHTML="<p>טוען דיווחים...</p>";
+    try{
+      const snap=await db.collection("appLogs").where("action","==",BUG_ACTION_V220).get();
+      const rows=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(b.clientTime||"").localeCompare(String(a.clientTime||"")));
+      if(!rows.length){
+        box.innerHTML="<p class='muted'>אין דיווחי בעיות עדיין.</p>";
+        return;
+      }
+      box.innerHTML=`<div class="kpi-strip"><div class="kpi">סה״כ דיווחים<b>${rows.length}</b></div><div class="kpi">פתוחים<b>${rows.filter(r=>(r.status||"open")==="open").length}</b></div><div class="kpi">עם טלפון<b>${rows.filter(r=>r.contactPhone).length}</b></div><div class="kpi">גרסה<b>${safeEscV220(window.APP_VERSION||APP_VERSION||"")}</b></div></div>`;
+      rows.forEach(r=>{
+        const div=document.createElement("div");
+        div.className="bug-report-admin-card-v220";
+        div.innerHTML=`
+          <div class="client-head">
+            <div>
+              <div class="item-title">${safeEscV220(r.workerName||"עובד לא מזוהה")} · ${safeEscV220(r.workerUsername||"")}</div>
+              <div class="bug-report-meta-v220">
+                זמן: ${safeEscV220(formatBugDateV220(r))}<br>
+                טלפון: ${safeEscV220(r.contactPhone||"לא צוין")}<br>
+                עובד ID: ${safeEscV220(r.workerId||"")} · גרסה: ${safeEscV220(r.pageVersion||"")}<br>
+                מסך/טאב: ${safeEscV220(r.currentTab||"")}
+              </div>
+            </div>
+            <div class="payment-status-pending">${safeEscV220(r.status||"open")}</div>
+          </div>
+          <div class="bug-report-text-v220">${safeEscV220(r.reportText||"")}</div>
+        `;
+        box.appendChild(div);
+      });
+    }catch(e){
+      box.innerHTML="<p class='danger'>שגיאה בטעינת דיווחים: "+safeEscV220(e.message||e)+"</p>";
+    }
+  };
+
+  // Wrappers additive only: keep existing behavior and inject/report refresh after normal screens render.
+  const oldShowWorkerV220=window.showWorker;
+  if(typeof oldShowWorkerV220 === "function"){
+    window.showWorker=async function(worker){
+      const res=await oldShowWorkerV220.apply(this,arguments);
+      setTimeout(ensureWorkerBugReportUIV220,80);
+      return res;
+    };
+  }
+
+  const oldShowAdminV220=window.showAdmin;
+  if(typeof oldShowAdminV220 === "function"){
+    window.showAdmin=async function(){
+      const res=await oldShowAdminV220.apply(this,arguments);
+      setTimeout(function(){ ensureAdminBugReportsPanelV220(); loadBugReportsAdminV220(); },120);
+      return res;
+    };
+  }
+
+  window.addEventListener("load",function(){
+    setTimeout(function(){
+      ensureWorkerBugReportUIV220();
+      ensureAdminBugReportsPanelV220();
+    },300);
+  });
+})();
+</script>
+
+
+
+<script id="v4-5-bug-report-delete-admin">
+/*
+===============================================================================
+CHANGELOG 4.5 - מחיקת דיווחי בעיות מאדמין
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"4.5" לפי בקשת המנהל.
+2. נוסף כפתור "מחק דיווח" בכל דיווח בעיה בפאנל אדמין.
+3. המחיקה מתבצעת ישירות מ-appLogs לפי מזהה הדיווח, עם confirm לפני מחיקה.
+4. לאחר המחיקה רשימת הדיווחים נטענת מחדש.
+5. תיקון תוספתי בלבד: אין שינוי בהרשמה, מנויים, תשלומים, לוח שנה, דשבורד, עובדים או שמירת עבודות.
+===============================================================================
+*/
+(function(){
+  const BUG_ACTION_V45 = "workerBugReport";
+
+  function escV45(value){
+    if(typeof esc === "function") return esc(value);
+    return String(value||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  }
+
+  function moneyV45(n){
+    try{ return typeof money === "function" ? money(n) : "₪" + Number(n||0).toLocaleString("he-IL",{maximumFractionDigits:0}); }
+    catch(e){ return "₪0"; }
+  }
+
+  function formatBugDateV45(row){
+    try{
+      if(row.clientTime) return new Date(row.clientTime).toLocaleString("he-IL");
+      if(row.createdAt && typeof row.createdAt.toDate === "function") return row.createdAt.toDate().toLocaleString("he-IL");
+    }catch(e){}
+    return "";
+  }
+
+  window.deleteBugReportAdminV45 = async function(reportId){
+    if(!reportId) return;
+    if(!confirm("למחוק את דיווח הבעיה הזה מהפאנל?\n\nהמחיקה תמחק את הדיווח מ-appLogs ולא ניתן לשחזר אותו דרך המסך.")) return;
+    try{
+      await db.collection("appLogs").doc(reportId).delete();
+      if(typeof loadBugReportsAdminV220 === "function") await loadBugReportsAdminV220();
+      alert("הדיווח נמחק ✅");
+    }catch(e){
+      alert("שגיאה במחיקת הדיווח: " + (e.message || e));
+    }
+  };
+
+  window.loadBugReportsAdminV220 = async function(){
+    const admin=document.getElementById("adminView");
+    if(admin && !document.getElementById("bugReportsAdminPanelV220")){
+      const card=document.createElement("div");
+      card.id="bugReportsAdminPanelV220";
+      card.className="card";
+      card.innerHTML=`
+        <div class="cal-head">
+          <h2>🐞 דיווחי בעיות / יצירת קשר</h2>
+          <button class="btn-light" type="button" onclick="loadBugReportsAdminV220()">רענן דיווחים</button>
+        </div>
+        <p>כאן יופיעו דיווחים שהעובדים שלחו מתוך המסך שלהם, כולל טלפון ליצירת קשר אם מילאו.</p>
+        <div id="bugReportsAdminListV220"><p class="muted">אין נתונים עדיין.</p></div>`;
+      const payments=document.getElementById("paymentRequestsAdmin");
+      const paymentCard=payments ? payments.closest(".card") : null;
+      if(paymentCard && paymentCard.parentNode) paymentCard.parentNode.insertBefore(card, paymentCard.nextSibling);
+      else admin.appendChild(card);
+    }
+
+    const box=document.getElementById("bugReportsAdminListV220");
+    if(!box) return;
+    box.innerHTML="<p>טוען דיווחים...</p>";
+    try{
+      const snap=await db.collection("appLogs").where("action","==",BUG_ACTION_V45).get();
+      const rows=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(b.clientTime||"").localeCompare(String(a.clientTime||"")));
+      if(!rows.length){
+        box.innerHTML="<p class='muted'>אין דיווחי בעיות עדיין.</p>";
+        return;
+      }
+      box.innerHTML=`<div class="kpi-strip"><div class="kpi">סה״כ דיווחים<b>${rows.length}</b></div><div class="kpi">פתוחים<b>${rows.filter(r=>(r.status||"open")==="open").length}</b></div><div class="kpi">עם טלפון<b>${rows.filter(r=>r.contactPhone).length}</b></div><div class="kpi">גרסה<b>${escV45(window.APP_VERSION||APP_VERSION||"")}</b></div></div>`;
+      rows.forEach(r=>{
+        const div=document.createElement("div");
+        div.className="bug-report-admin-card-v220";
+        div.innerHTML=`
+          <div class="client-head">
+            <div>
+              <div class="item-title">${escV45(r.workerName||"עובד לא מזוהה")} · ${escV45(r.workerUsername||"")}</div>
+              <div class="bug-report-meta-v220">
+                זמן: ${escV45(formatBugDateV45(r))}<br>
+                טלפון: ${escV45(r.contactPhone||"לא צוין")}<br>
+                עובד ID: ${escV45(r.workerId||"")} · גרסה: ${escV45(r.pageVersion||"")}<br>
+                מסך/טאב: ${escV45(r.currentTab||"")}
+              </div>
+            </div>
+            <div>
+              <div class="payment-status-pending" style="margin-bottom:8px">${escV45(r.status||"open")}</div>
+              <button class="btn-red" type="button" onclick="deleteBugReportAdminV45('${escV45(r.id)}')">מחק דיווח</button>
+            </div>
+          </div>
+          <div class="bug-report-text-v220">${escV45(r.reportText||"")}</div>`;
+        box.appendChild(div);
+      });
+    }catch(e){
+      box.innerHTML="<p class='danger'>שגיאה בטעינת דיווחים: "+escV45(e.message||e)+"</p>";
+    }
+  };
+
+  try{
+    window.APP_VERSION = APP_VERSION;
+    if(typeof setAppVersionUI === "function") setAppVersionUI();
+    if(typeof enforceAppVersionUI === "function") enforceAppVersionUI();
+  }catch(e){}
 })();
 </script>
 
