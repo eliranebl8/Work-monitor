@@ -1167,7 +1167,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "4.77";
+const APP_VERSION = "4.82";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -15965,6 +15965,229 @@ CHANGELOG 4.76 - מקור אחד כללי לצ׳יינג׳לוג לכל העוב
     setTimeout(function(){if(q('adminView')&&!q('adminView').classList.contains('hidden')){ensureAdminPanel476();window.loadAdminChangelogV475();}},900);
   });
   setTimeout(ensureWorkerLink476,700);
+})();
+</script>
+
+<script id="v4-82-final-version-sort-and-vacation-persistence">
+/*
+===============================================================================
+CHANGELOG 4.82 - מיון גרסאות לפי מספר + תיקון שמירת ימי חופש
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"4.82" ונשאר מקור הגרסה המרכזי לתצוגה ולשמות קבצים.
+2. "מה חדש" ופאנל האדמין ממיינים גרסאות לפי מספר גרסה אמיתי, מהחדש לישן.
+3. המיון כבר לא תלוי ב-createdAt, כדי למנוע בלבול כשכמה גרסאות נוצרו באותו זמן.
+4. נוסף תיקון תאימות לימי חופש: טעינה מכל מפתחות localStorage הישנים והחדשים + Firestore.
+5. יום חופש שנשמר ונכנסים מחדש לא אמור להיעלם גם אם Firestore נחסם זמנית והיה fallback מקומי.
+6. התיקון הוא שכבת override אחרונה בלבד, בלי לשכתב לוגין, עובדים, מחירון, עבודות, מנויים או גיבויים.
+===============================================================================
+*/
+(function(){
+  var PATCH='v4.82-final-version-sort-and-vacation-persistence';
+  var COLLECTION='appChangelog';
+  var CURRENT_VERSION='4.82';
+
+  try{ window.APP_VERSION=CURRENT_VERSION; if(typeof setAppVersionUI==='function')setAppVersionUI(); if(typeof enforceAppVersionUI==='function')enforceAppVersionUI(); }catch(e){}
+
+  function q(id){return document.getElementById(id);} 
+  function safeEsc(s){try{ if(typeof esc==='function') return esc(s); }catch(e){} return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});}
+  function clean(s){return String(s||'').trim();}
+  function splitItems(text){ if(Array.isArray(text)) return text.map(clean).filter(Boolean); return String(text||'').split(/\n+/).map(function(x){return clean(x).replace(/^[-•*]\s*/,'');}).filter(Boolean); }
+  function todayHe(){var d=new Date();return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
+  function docId(version){var v=clean(version||'').replace(/^v/i,'');return 'v_'+v.replace(/[^0-9A-Za-z_\-.]/g,'_').replaceAll('.','_');}
+  function versionParts(v){
+    return String(v||'').replace(/^v/i,'').split(/[^0-9]+/).filter(Boolean).map(function(x){return parseInt(x,10)||0;});
+  }
+  function compareVersionsDesc(a,b){
+    var av=versionParts(a&&a.version), bv=versionParts(b&&b.version), len=Math.max(av.length,bv.length,4);
+    for(var i=0;i<len;i++){var x=av[i]||0,y=bv[i]||0;if(x!==y)return y-x;}
+    return String(b&&b.date||'').localeCompare(String(a&&a.date||''));
+  }
+  function normalizeRow(id,data,source,i){
+    data=data||{};
+    var version=clean(data.version||'').replace(/^v/i,'');
+    return {
+      id:id||data.id||docId(version),
+      version:version,
+      title:clean(data.title||''),
+      date:clean(data.date||''),
+      items:Array.isArray(data.items)?data.items:splitItems(data.itemsText||data.text||''),
+      active:data.active!==false,
+      order:Number(data.order||((Number(i||0)+1)*10)),
+      source:source||data.source||'',
+      createdAt:data.createdAt||null,
+      updatedAt:data.updatedAt||null
+    };
+  }
+  function localRows(){
+    var arr=[];
+    try{ if(Array.isArray(window.WHATS_NEW_ITEMS_V474)) arr=window.WHATS_NEW_ITEMS_V474.slice(); }catch(e){}
+    var current={
+      version:CURRENT_VERSION,
+      title:'מיון גרסאות ותיקון ימי חופש',
+      date:todayHe(),
+      items:[
+        'מיון הצ׳יינג׳לוג מתבצע לפי מספר גרסה אמיתי, מהחדש לישן, ולא לפי זמן יצירה.',
+        'פאנל האדמין מציג את אותן גרסאות באותו סדר כמו חלון “מה חדש”.',
+        'תוקנה תאימות ימי חופש: יום חופש שנשמר לא אמור להיעלם אחרי יציאה וכניסה מחדש.',
+        'הטעינה קוראת גם מ-Firestore וגם ממפתחות localStorage ישנים וחדשים כדי לא לאבד סימונים קיימים.'
+      ]
+    };
+    arr=arr.filter(function(x){return String(x&&x.version||'').replace(/^v/i,'')!==CURRENT_VERSION;});
+    arr.unshift(current);
+    return arr.map(function(x,i){return normalizeRow(docId(x.version),Object.assign({order:(i+1)*10,active:true},x),'local-file-v4-82',i);});
+  }
+  async function firebaseRows(){
+    try{var snap=await db.collection(COLLECTION).get();return snap.docs.map(function(d,i){return normalizeRow(d.id,d.data(),'firebase',i);});}
+    catch(e){console.warn(PATCH+' firebase changelog fallback',e&&e.message?e.message:e);return [];}
+  }
+  async function fetchChangelog(includeInactive){
+    var map={};
+    localRows().forEach(function(r){map[docId(r.version||r.id)]=r;});
+    (await firebaseRows()).forEach(function(r){
+      var key=docId(r.version||r.id);
+      var prev=map[key]||{};
+      map[key]=Object.assign({},prev,r,{id:r.id||prev.id||key,source:r.source||'firebase'});
+    });
+    return Object.keys(map).map(function(k){return map[k];}).filter(function(r){
+      if(!includeInactive && r.active===false) return false;
+      return !!(r.version||r.title||(r.items&&r.items.length));
+    }).sort(compareVersionsDesc);
+  }
+  window.fetchGlobalChangelogV476=fetchChangelog;
+  window.fetchGlobalChangelogV477=fetchChangelog;
+  window.fetchChangelogV475=fetchChangelog;
+
+  async function seedCurrentChangelog(){
+    try{
+      var row=localRows()[0];
+      await db.collection(COLLECTION).doc(docId(CURRENT_VERSION)).set({
+        version:row.version,title:row.title,date:row.date,items:row.items,active:true,order:10,
+        source:'file-seed-v4-82',pageVersion:CURRENT_VERSION,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+    }catch(e){console.warn(PATCH+' seed changelog skipped',e&&e.message?e.message:e);}
+  }
+
+  function ensureChangelogCss(){
+    try{ if(typeof ensureWhatsNewCss==='function') ensureWhatsNewCss(); }catch(e){}
+    var st=q('adminChangelogCssV482'); if(st) return;
+    st=document.createElement('style'); st.id='adminChangelogCssV482';
+    st.textContent='.worker-bottom-links-v474{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:10px auto 2px;text-align:center}a.whats-new-link-v474,a.whats-new-link-v475{display:inline-flex!important;align-items:center!important;justify-content:center!important;background:transparent!important;color:#64748b!important;border:0!important;box-shadow:none!important;font-size:12px!important;font-weight:900!important;padding:3px 6px!important;min-height:0!important;width:auto!important;text-decoration:underline!important;text-underline-offset:3px!important;cursor:pointer!important}.admin-changelog-panel-v475 .admin-changelog-form-v475{background:rgba(248,250,252,.72);border:1px solid #e2e8f0;border-radius:20px;padding:14px;margin:10px 0}.admin-changelog-scroll-v475{max-height:420px;overflow-y:auto;overflow-x:hidden;border:1px solid #e2e8f0;border-radius:20px;padding:8px;background:rgba(255,255,255,.72);scrollbar-width:thin;overscroll-behavior:contain}.admin-changelog-row-v475{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:13px;margin-bottom:8px;box-shadow:0 8px 18px rgba(15,23,42,.055)}.admin-changelog-row-head-v475{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}.admin-changelog-version-v475{font-weight:900;color:#2563eb;white-space:nowrap}.admin-changelog-title-v475{font-weight:900}.admin-changelog-meta-v475{color:#94a3b8;font-size:12px;font-weight:800;margin-top:3px}.admin-changelog-list-v475{margin:8px 0 0;padding:0 18px 0 0;color:#334155;line-height:1.5;font-size:13px}.admin-changelog-list-v475 li{margin-bottom:3px}';
+    document.head.appendChild(st);
+  }
+  function rowsHtml(rows,admin){
+    return (rows||[]).map(function(r){
+      var controls=admin?'<div class="actions" style="margin-top:10px"><button class="btn-yellow" type="button" onclick="editChangelogVersionV475(\''+safeEsc(r.id)+'\')">ערוך</button><button class="btn-red" type="button" onclick="deleteChangelogVersionV475(\''+safeEsc(r.id)+'\')">מחק</button></div>':'';
+      return '<div class="admin-changelog-row-v475"><div class="admin-changelog-row-head-v475"><div><div class="admin-changelog-title-v475">'+safeEsc(r.title||'ללא כותרת')+'</div><div class="admin-changelog-meta-v475">'+safeEsc(r.date||'')+' · מיון לפי גרסה</div></div><div class="admin-changelog-version-v475">v'+safeEsc(r.version||'')+'</div></div><ul class="admin-changelog-list-v475">'+(r.items||[]).map(function(i){return '<li>'+safeEsc(i)+'</li>';}).join('')+'</ul>'+controls+'</div>';
+    }).join('');
+  }
+  function ensureAdminPanel(){
+    ensureChangelogCss(); var admin=q('adminView'); if(!admin) return;
+    var existing=q('adminChangelogPanelV475'); if(existing) existing.remove();
+    var panel=document.createElement('div'); panel.id='adminChangelogPanelV475'; panel.className='card admin-changelog-panel-v475';
+    panel.innerHTML='<div class="cal-head"><h2>📝 ניהול גרסאות / Changelog</h2><div class="actions"><button class="btn-light" type="button" onclick="loadAdminChangelogV475()">רענן</button></div></div><p>רשימה כללית אחת לכל העובדים. המיון כאן לפי מספר גרסה אמיתי, מהחדש לישן.</p><div class="admin-changelog-form-v475"><input id="changelogEditIdV475" type="hidden"><div class="grid3"><input id="changelogVersionV475" placeholder="גרסה, למשל 4.82"><input id="changelogTitleV475" placeholder="כותרת קצרה לגרסה"><input id="changelogDateV475" placeholder="תאריך, למשל 06/05/2026"></div><textarea id="changelogItemsV475" placeholder="שורת שינוי אחת בכל שורה"></textarea><div class="actions"><button class="btn-green" type="button" onclick="saveChangelogVersionV475()">שמור / הוסף גרסה</button><button class="btn-light" type="button" onclick="resetChangelogFormV475()">נקה טופס</button></div><div id="changelogAdminMsgV475"></div></div><div class="admin-changelog-scroll-v475" id="adminChangelogListV475"><p class="muted">טוען גרסאות...</p></div>';
+    var after=q('adminDataToolsPrimary')||admin.firstElementChild; if(after&&after.parentNode===admin) after.insertAdjacentElement('afterend',panel); else admin.insertBefore(panel,admin.firstChild);
+  }
+  window.ensureAdminChangelogPanelV475=ensureAdminPanel;
+  window.resetChangelogFormV475=function(){['changelogEditIdV475','changelogVersionV475','changelogTitleV475','changelogItemsV475'].forEach(function(id){var el=q(id);if(el)el.value='';});var date=q('changelogDateV475');if(date)date.value=todayHe();var msg=q('changelogAdminMsgV475');if(msg)msg.innerHTML='';};
+  window.loadAdminChangelogV475=async function(){ensureAdminPanel();var box=q('adminChangelogListV475');if(!box)return;box.innerHTML='<p class="muted">טוען גרסאות...</p>';var rows=await fetchChangelog(false);box.innerHTML=rows.length?rowsHtml(rows,true):'<p class="muted">אין גרסאות עדיין.</p>';};
+  window.editChangelogVersionV475=async function(id){ensureAdminPanel();var rows=await fetchChangelog(true);var r=rows.find(function(x){return x.id===id;})||rows.find(function(x){return docId(x.version)===id;});if(!r)return alert('הגרסה לא נמצאה. לחץ רענן ונסה שוב.');q('changelogEditIdV475').value=r.id||docId(r.version);q('changelogVersionV475').value=r.version||'';q('changelogTitleV475').value=r.title||'';q('changelogDateV475').value=r.date||todayHe();q('changelogItemsV475').value=(r.items||[]).join('\n');try{q('adminChangelogPanelV475').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}};
+  window.saveChangelogVersionV475=async function(){var msg=q('changelogAdminMsgV475');var editId=clean(q('changelogEditIdV475')&&q('changelogEditIdV475').value);var version=clean(q('changelogVersionV475')&&q('changelogVersionV475').value).replace(/^v/i,'');var title=clean(q('changelogTitleV475')&&q('changelogTitleV475').value);var date=clean(q('changelogDateV475')&&q('changelogDateV475').value)||todayHe();var items=splitItems(q('changelogItemsV475')&&q('changelogItemsV475').value);if(!version){if(msg)msg.innerHTML='<p class="danger">חובה למלא מספר גרסה.</p>';return;}if(!title){if(msg)msg.innerHTML='<p class="danger">חובה למלא כותרת.</p>';return;}if(!items.length){if(msg)msg.innerHTML='<p class="danger">חובה למלא לפחות שורת שינוי אחת.</p>';return;}try{var rows=await fetchChangelog(true);var old=rows.find(function(r){return r.id===editId;})||rows.find(function(r){return docId(r.version)===docId(version);});var id=editId||docId(version);if(editId&&editId.indexOf('v_')!==0)id=docId(version);await db.collection(COLLECTION).doc(id).set({version:version,title:title,date:date,items:items,active:true,order:old?Number(old.order||10):10,source:'admin-crud-v4-82',pageVersion:CURRENT_VERSION,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),createdAt:old&&old.createdAt?old.createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});if(msg)msg.innerHTML='<div class="notice">הגרסה נשמרה לכל העובדים ✅</div>';window.resetChangelogFormV475();await window.loadAdminChangelogV475();}catch(e){if(msg)msg.innerHTML='<p class="danger">שגיאה בשמירה: '+safeEsc(e.message||e)+'</p>';}};
+  window.deleteChangelogVersionV475=async function(id){if(!confirm('למחוק את הגרסה מהחלון "מה חדש" לכל העובדים?'))return;try{var rows=await fetchChangelog(true);var r=rows.find(function(x){return x.id===id;})||rows.find(function(x){return docId(x.version)===id;});var did=(r&&r.version)?docId(r.version):id;await db.collection(COLLECTION).doc(did).set({version:r&&r.version?r.version:'',title:r&&r.title?r.title:'',date:r&&r.date?r.date:'',items:r&&r.items?r.items:[],active:false,source:'admin-deleted-v4-82',deletedAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});await window.loadAdminChangelogV475();}catch(e){alert('שגיאה במחיקת גרסה: '+(e.message||e));}};
+  function whatsHtml(rows){return (rows||[]).map(function(v){return '<div class="whats-new-version-v474"><div class="whats-new-version-head-v474"><div><div class="whats-new-version-title-v474">'+safeEsc(v.title)+'</div><div class="whats-new-date-v474">'+safeEsc(v.date||'')+'</div></div><div class="whats-new-ver-v474">v'+safeEsc(v.version)+'</div></div><ul class="whats-new-list-v474">'+(v.items||[]).map(function(i){return '<li>'+safeEsc(i)+'</li>';}).join('')+'</ul></div>';}).join('');}
+  window.openWhatsNewV474=async function(){ensureChangelogCss();var old=q('whatsNewOverlayV474');if(old)old.remove();var overlay=document.createElement('div');overlay.id='whatsNewOverlayV474';overlay.className='whats-new-overlay-v474';overlay.innerHTML='<div class="whats-new-card-v474" role="dialog" aria-modal="true"><div class="whats-new-head-v474"><div class="whats-new-title-v474">✨ מה חדש באפליקציה</div><button class="whats-new-close-v474" type="button" id="whatsNewCloseV474">×</button></div><div class="whats-new-body-v474" id="whatsNewBodyV474"><p class="muted">טוען גרסאות...</p></div><div class="whats-new-footer-v474">מעודכן לגרסה '+safeEsc(window.APP_VERSION||CURRENT_VERSION)+'</div></div>';try{document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden';}catch(e){}document.body.appendChild(overlay);var body=overlay.querySelector('#whatsNewBodyV474');function close(){try{overlay.remove();}catch(e){}try{document.documentElement.style.overflow='';document.body.style.overflow='';}catch(e){}}overlay.querySelector('#whatsNewCloseV474').onclick=close;overlay.addEventListener('click',function(ev){if(ev.target===overlay)close();});try{body.innerHTML=whatsHtml(await fetchChangelog(false));}catch(e){body.innerHTML=whatsHtml(localRows());}};
+  function ensureWorkerLink(){ensureChangelogCss();var worker=q('workerView');if(!worker)return;var shell=q('workerBottomLinksV474');if(!shell){shell=document.createElement('div');shell.id='workerBottomLinksV474';shell.className='worker-bottom-links-v474';worker.appendChild(shell);}var old=q('whatsNewLinkV474');if(old&&old.tagName&&old.tagName.toLowerCase()!=='a'){try{old.remove();}catch(e){}}if(!q('whatsNewLinkV474')){var link=document.createElement('a');link.id='whatsNewLinkV474';link.href='#';link.className='whats-new-link-v474 whats-new-link-v475';link.textContent='מה חדש';link.onclick=function(ev){ev.preventDefault();window.openWhatsNewV474();};shell.appendChild(link);}else{q('whatsNewLinkV474').onclick=function(ev){if(ev&&ev.preventDefault)ev.preventDefault();window.openWhatsNewV474();};}}
+  window.ensureWhatsNewLinkV474=ensureWorkerLink; window.ensureWorkerLinksV475=ensureWorkerLink;
+
+  // ===== Vacation persistence compatibility =====
+  window.vacationDaysV437 = Array.isArray(window.vacationDaysV437) ? window.vacationDaysV437 : [];
+  function workerId(){try{if(viewedWorker&&viewedWorker.id)return viewedWorker.id;}catch(e){} try{if(session&&session.workerId)return session.workerId;}catch(e){} try{var raw=localStorage.getItem('workSession');if(raw){var s=JSON.parse(raw);if(s&&s.workerId)return s.workerId;}}catch(e){} return '';}
+  function fmtDate(d){try{return typeof formatDate==='function'?formatDate(d):d.toISOString().slice(0,10);}catch(e){return '';}}
+  function monthKey(){try{return calendarDate.getFullYear()+'-'+String(calendarDate.getMonth()+1).padStart(2,'0');}catch(e){return String(new Date().toISOString().slice(0,7));}}
+  function legacyKeys(wid){var mk=monthKey();return ['workAppDaysOffV437_'+wid,'workerDaysOff_'+wid+'_'+mk,'workerDaysOff_'+wid];}
+  function readLocalDays(wid){
+    var out=[]; legacyKeys(wid).forEach(function(k){try{var arr=JSON.parse(localStorage.getItem(k)||'[]');if(Array.isArray(arr))out=out.concat(arr);}catch(e){}});
+    return Array.from(new Set(out.filter(Boolean))).sort();
+  }
+  function writeLocalDays(wid,days){
+    days=Array.from(new Set(days||[])).filter(Boolean).sort();
+    legacyKeys(wid).forEach(function(k){try{localStorage.setItem(k,JSON.stringify(days));}catch(e){}});
+  }
+  function docIds(wid,date){
+    var safeWid=String(wid||'worker').replace(/[^a-zA-Z0-9_\-א-ת]/g,'_');
+    return Array.from(new Set([
+      safeWid+'_'+String(date||'').replace(/[^0-9]/g,'_'),
+      String(wid||'worker')+'_'+String(date||'date').replace(/[^0-9a-zA-Zא-ת_-]/g,'_')
+    ]));
+  }
+  window.isVacationDayV437=function(date){return Array.isArray(window.vacationDaysV437)&&window.vacationDaysV437.indexOf(date)>=0;};
+  window.loadVacationDaysV482=async function(){
+    var wid=workerId(); if(!wid){window.vacationDaysV437=[];return [];} 
+    var y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate();
+    var start=y+'-'+String(m+1).padStart(2,'0')+'-01', end=y+'-'+String(m+1).padStart(2,'0')+'-'+String(last).padStart(2,'0');
+    var days=readLocalDays(wid).filter(function(d){return d>=start&&d<=end;});
+    try{
+      var snap=await db.collection('workerDaysOff').where('workerId','==',wid).where('date','>=',start).where('date','<=',end).get();
+      snap.docs.forEach(function(doc){var d=doc.data()||{}; if(d.active!==false&&d.date) days.push(d.date);});
+    }catch(e){console.warn(PATCH+' workerDaysOff Firestore load fallback',e&&e.message?e.message:e);}
+    window.vacationDaysV437=Array.from(new Set(days)).sort();
+    writeLocalDays(wid,Array.from(new Set(readLocalDays(wid).concat(window.vacationDaysV437))).sort());
+    return window.vacationDaysV437;
+  };
+  window.loadVacationDaysV437=window.loadVacationDaysV482;
+  window.loadVacationDaysV439=window.loadVacationDaysV482;
+
+  var oldSetVacation=window.setVacationDayV437;
+  if(typeof oldSetVacation==='function'&&!oldSetVacation.__wrappedV482){
+    var setVacationWrap=async function(date){
+      var res=await oldSetVacation.apply(this,arguments);
+      try{var wid=workerId(); if(wid&&date){var days=Array.from(new Set(readLocalDays(wid).concat([date]))).sort();writeLocalDays(wid,days);window.vacationDaysV437=days.filter(function(d){return d.slice(0,7)===monthKey();});}}catch(e){}
+      try{await window.loadVacationDaysV482();}catch(e){}
+      try{renderCalendar();renderDay();renderStats();renderSmartDashboard();}catch(e){}
+      return res;
+    };
+    setVacationWrap.__wrappedV482=true;
+    window.setVacationDayV437=setVacationWrap;
+    window.setVacationDayV439=setVacationWrap;
+    window.setVacationDayV46=setVacationWrap;
+    window.setVacationDayV47=setVacationWrap;
+    window.setVacationDayV473=setVacationWrap;
+  }
+  window.cancelVacationDayV437=async function(date){
+    var wid=workerId(); if(!wid||!date)return;
+    if(!confirm('לבטל את יום החופש בתאריך '+(typeof heDate==='function'?heDate(date):date)+'?'))return;
+    var days=readLocalDays(wid).filter(function(d){return d!==date;}); writeLocalDays(wid,days);
+    window.vacationDaysV437=Array.isArray(window.vacationDaysV437)?window.vacationDaysV437.filter(function(d){return d!==date;}):[];
+    try{for(var i=0;i<docIds(wid,date).length;i++){await db.collection('workerDaysOff').doc(docIds(wid,date)[i]).set({workerId:wid,date:date,active:false,cancelledAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});}}catch(e){console.warn(PATCH+' cancel vacation cloud fallback',e&&e.message?e.message:e);}
+    try{renderCalendar();renderDay();renderStats();renderSmartDashboard();}catch(e){}
+  };
+
+  var oldLoadMonth=window.loadMonth;
+  if(typeof oldLoadMonth==='function'&&!oldLoadMonth.__wrappedV482){
+    var loadMonthWrap=async function(){
+      var res=await oldLoadMonth.apply(this,arguments);
+      try{await window.loadVacationDaysV482();}catch(e){}
+      try{renderCalendar();renderDay();renderStats();renderSmartDashboard();}catch(e){}
+      return res;
+    };
+    loadMonthWrap.__wrappedV482=true;
+    window.loadMonth=loadMonthWrap;
+  }
+
+  var oldShowAdmin=window.showAdmin;
+  if(typeof oldShowAdmin==='function'&&!oldShowAdmin.__wrappedV482){
+    var adminWrap=async function(){var res=await oldShowAdmin.apply(this,arguments);try{await seedCurrentChangelog();ensureAdminPanel();window.resetChangelogFormV475();await window.loadAdminChangelogV475();}catch(e){console.warn(PATCH+' admin wrap',e&&e.message?e.message:e);}return res;};
+    adminWrap.__wrappedV482=true; window.showAdmin=adminWrap;
+  }
+  var oldShowWorker=window.showWorker;
+  if(typeof oldShowWorker==='function'&&!oldShowWorker.__wrappedV482){
+    var workerWrap=async function(){var res=await oldShowWorker.apply(this,arguments);try{await window.loadVacationDaysV482();setTimeout(ensureWorkerLink,80);setTimeout(ensureWorkerLink,350);}catch(e){}return res;};
+    workerWrap.__wrappedV482=true; window.showWorker=workerWrap;
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){try{setTimeout(ensureWorkerLink,300);setTimeout(function(){if(q('adminView')&&!q('adminView').classList.contains('hidden')){ensureAdminPanel();window.loadAdminChangelogV475();}},800);}catch(e){}});
+  window.addEventListener('load',function(){try{setTimeout(ensureWorkerLink,300);setTimeout(ensureWorkerLink,1200);setTimeout(function(){if(q('adminView')&&!q('adminView').classList.contains('hidden')){ensureAdminPanel();window.loadAdminChangelogV475();}},1000);}catch(e){}});
 })();
 </script>
 
