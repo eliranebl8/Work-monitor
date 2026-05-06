@@ -1167,7 +1167,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "4.73";
+const APP_VERSION = "4.74";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -14895,5 +14895,215 @@ CHANGELOG 4.73 - תיקון חלון אזהרת יום חופש
   window.setVacationDayV46=setVacationFinal473;
   window.setVacationDayV47=setVacationFinal473;
   window.setVacationDayV473=setVacationFinal473;
+})();
+</script>
+
+
+<script id="v4-74-whats-new-changelog">
+/*
+===============================================================================
+CHANGELOG 4.74 - מה חדש לעובדים
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"4.74" דרך הקבוע המרכזי בלבד.
+2. נוסף לינק קטן באזור העובד: "מה חדש" ליד "דיווח על בעיה / צור קשר".
+3. בלחיצה נפתח חלון קטן עם גלילה פנימית ורשימת גרסאות/שינויים.
+4. הרשימה נשמרת בקוד כמערך אחד WHATS_NEW_ITEMS_V474, כדי שבכל עדכון עתידי נוסיף שורה חדשה בלבד.
+5. אין שינוי בלוגיקת יום חופש, מחיקה, דיווחי בעיות, מנויים, הרשמה, דשבורד, מחירון או Firebase.
+===============================================================================
+*/
+(function(){
+  var PATCH='v4.74-whats-new';
+  try{ window.APP_VERSION = APP_VERSION; if(typeof setAppVersionUI==='function')setAppVersionUI(); if(typeof enforceAppVersionUI==='function')enforceAppVersionUI(); }catch(e){}
+
+  var WHATS_NEW_ITEMS_V474 = [
+    {
+      version:'4.74',
+      title:'נוסף מסך מה חדש',
+      date:'06/05/2026',
+      items:[
+        'נוסף לינק קטן במסך העובד: מה חדש.',
+        'נפתח חלון מסודר עם גלילה שמציג גרסאות ושינויים.',
+        'מעכשיו בכל עדכון חדש נוסיף כאן מה השתנה, כדי שתוכל לעקוב אחרי ההיסטוריה של האפליקציה.'
+      ]
+    },
+    {
+      version:'4.73',
+      title:'תיקון סופי לחלון אזהרת יום חופש',
+      date:'06/05/2026',
+      items:[
+        'סודר חלון האזהרה של יום חופש כך שהרקע לא יגלול מאחורה.',
+        'רק התוכן בתוך החלון גולל, והכפתורים נשארים גלויים תמיד.',
+        'לא בוצע שינוי בלוגיקת המחיקה עצמה.'
+      ]
+    },
+    {
+      version:'4.72',
+      title:'שיפור חלון אזהרת יום חופש',
+      date:'06/05/2026',
+      items:[
+        'החלון הוקטן ונוספה גלילה פנימית.',
+        'הכפתורים הופרדו מאזור התוכן כדי שלא ייעלמו במסכים קטנים.'
+      ]
+    },
+    {
+      version:'4.7',
+      title:'יום חופש מוחק נתוני יום אחרי אישור',
+      date:'06/05/2026',
+      items:[
+        'תוקנה שכבת override שדרסה את הודעת המחיקה.',
+        'כאשר מסמנים יום חופש ויש נתונים קיימים, מוצגת אזהרה לפני מחיקה.'
+      ]
+    },
+    {
+      version:'4.5',
+      title:'דיווחי בעיות ומחיקה מאדמין',
+      date:'06/05/2026',
+      items:[
+        'נוסף אזור דיווח על בעיה / צור קשר לעובד.',
+        'נוסף פאנל אדמין לצפייה בדיווחים.',
+        'נוסף כפתור מחיקת דיווחים מפאנל האדמין.'
+      ]
+    },
+    {
+      version:'4.41',
+      title:'טלפון חובה במסך מנוי בלבד',
+      date:'06/05/2026',
+      items:[
+        'נוסף שדה טלפון חובה רק במסך בחירת מנוי לאחר סיום ניסיון.',
+        'הטלפון נשמר בבקשת התשלום ומוצג באדמין.',
+        'מסך ההרשמה לא שונה.'
+      ]
+    },
+    {
+      version:'4.40',
+      title:'מגמת הכנסות לפי חודשים',
+      date:'06/05/2026',
+      items:[
+        'נוספה מגמת הכנסות לפי כל 12 חודשי השנה.',
+        'חודשים ללא מידע מוצגים כ-₪0.',
+        'העיצוב נשאר באותו סגנון של מגמת ההכנסות לפי ימים.'
+      ]
+    }
+  ];
+  window.WHATS_NEW_ITEMS_V474 = WHATS_NEW_ITEMS_V474;
+
+  function esc(s){
+    try{ if(typeof window.esc==='function') return window.esc(s); }catch(e){}
+    return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+  }
+  function ensureWhatsNewCss(){
+    if(document.getElementById('whatsNewCssV474')) return;
+    var st=document.createElement('style');
+    st.id='whatsNewCssV474';
+    st.textContent=`
+      .worker-bottom-links-v474{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:10px auto 2px;text-align:center}
+      .whats-new-link-v474{display:inline-flex;align-items:center;justify-content:center;background:transparent!important;color:#64748b!important;border:0!important;box-shadow:none!important;font-size:12px!important;font-weight:900!important;padding:3px 6px!important;min-height:0!important;width:auto!important;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+      .whats-new-link-v474:hover{color:#2563eb!important;filter:none!important;box-shadow:none!important}
+      .whats-new-overlay-v474{position:fixed;inset:0;background:rgba(15,23,42,.48);z-index:99998;display:flex;align-items:center;justify-content:center;padding:14px;direction:rtl}
+      .whats-new-card-v474{width:min(92vw,520px);max-height:82vh;background:rgba(255,255,255,.98);border:1px solid #e2e8f0;border-radius:24px;box-shadow:0 26px 70px rgba(15,23,42,.28);display:flex;flex-direction:column;overflow:hidden;color:#0f172a}
+      .whats-new-head-v474{padding:16px 18px;border-bottom:1px solid #e2e8f0;background:linear-gradient(135deg,#eff6ff,#f8fafc);display:flex;align-items:center;justify-content:space-between;gap:10px;flex:0 0 auto}
+      .whats-new-title-v474{font-weight:900;font-size:19px;line-height:1.25}
+      .whats-new-close-v474{background:#f8fafc!important;color:#0f172a!important;border:1px solid #e2e8f0!important;box-shadow:none!important;border-radius:999px!important;width:38px!important;min-width:38px!important;height:38px!important;min-height:38px!important;padding:0!important;font-size:18px!important;flex:0 0 auto!important}
+      .whats-new-body-v474{padding:14px;overflow-y:auto;overflow-x:hidden;flex:1 1 auto;min-height:0;scrollbar-width:thin;overscroll-behavior:contain}
+      .whats-new-version-v474{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:13px;margin-bottom:10px;box-shadow:0 8px 18px rgba(15,23,42,.06)}
+      .whats-new-version-head-v474{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+      .whats-new-ver-v474{font-weight:900;color:#2563eb;font-size:15px;white-space:nowrap}
+      .whats-new-version-title-v474{font-weight:900;font-size:15px;line-height:1.3}
+      .whats-new-date-v474{font-size:12px;color:#94a3b8;font-weight:800;margin-top:2px}
+      .whats-new-list-v474{margin:7px 0 0;padding:0 18px 0 0;color:#334155;line-height:1.55;font-size:13px}
+      .whats-new-list-v474 li{margin-bottom:4px}
+      .whats-new-footer-v474{padding:11px 14px;border-top:1px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:12px;font-weight:800;text-align:center;flex:0 0 auto}
+      @media(max-width:800px){.whats-new-card-v474{width:94vw;max-height:78vh;border-radius:22px}.whats-new-title-v474{font-size:17px}.whats-new-body-v474{padding:11px}.whats-new-link-v474{font-size:11.5px!important}}
+    `;
+    document.head.appendChild(st);
+  }
+  function buildWhatsNewHtml(){
+    return WHATS_NEW_ITEMS_V474.map(function(v){
+      return '<div class="whats-new-version-v474">'+
+        '<div class="whats-new-version-head-v474">'+
+          '<div><div class="whats-new-version-title-v474">'+esc(v.title)+'</div><div class="whats-new-date-v474">'+esc(v.date||'')+'</div></div>'+
+          '<div class="whats-new-ver-v474">v'+esc(v.version)+'</div>'+
+        '</div>'+
+        '<ul class="whats-new-list-v474">'+(v.items||[]).map(function(i){return '<li>'+esc(i)+'</li>';}).join('')+'</ul>'+
+      '</div>';
+    }).join('');
+  }
+  function lockPage(lock){
+    try{
+      if(lock){
+        window.__wnScrollY474=window.scrollY||document.documentElement.scrollTop||0;
+        document.documentElement.style.overflow='hidden';
+        document.body.style.overflow='hidden';
+      }else{
+        document.documentElement.style.overflow='';
+        document.body.style.overflow='';
+        if(typeof window.__wnScrollY474==='number') window.scrollTo(0,window.__wnScrollY474);
+      }
+    }catch(e){}
+  }
+  window.openWhatsNewV474=function(){
+    ensureWhatsNewCss();
+    var old=document.getElementById('whatsNewOverlayV474');
+    if(old) old.remove();
+    var overlay=document.createElement('div');
+    overlay.id='whatsNewOverlayV474';
+    overlay.className='whats-new-overlay-v474';
+    overlay.innerHTML='<div class="whats-new-card-v474" role="dialog" aria-modal="true">'+
+      '<div class="whats-new-head-v474"><div class="whats-new-title-v474">✨ מה חדש באפליקציה</div><button class="whats-new-close-v474" type="button" id="whatsNewCloseV474">×</button></div>'+
+      '<div class="whats-new-body-v474" id="whatsNewBodyV474">'+buildWhatsNewHtml()+'</div>'+
+      '<div class="whats-new-footer-v474">מעודכן לגרסה '+esc(window.APP_VERSION||APP_VERSION||'')+'</div>'+
+    '</div>';
+    lockPage(true);
+    document.body.appendChild(overlay);
+    var body=overlay.querySelector('#whatsNewBodyV474');
+    function close(){try{overlay.remove();}catch(e){} lockPage(false);}
+    overlay.querySelector('#whatsNewCloseV474').onclick=close;
+    overlay.addEventListener('click',function(ev){if(ev.target===overlay)close();});
+    overlay.addEventListener('wheel',function(ev){ if(body && !body.contains(ev.target)) ev.preventDefault(); },{passive:false});
+    overlay.addEventListener('touchmove',function(ev){ if(body && !body.contains(ev.target)) ev.preventDefault(); },{passive:false});
+  };
+  function ensureWorkerLinks(){
+    ensureWhatsNewCss();
+    var worker=document.getElementById('workerView');
+    if(!worker) return;
+    var shell=document.getElementById('workerBottomLinksV474');
+    if(!shell){
+      shell=document.createElement('div');
+      shell.id='workerBottomLinksV474';
+      shell.className='worker-bottom-links-v474';
+      worker.appendChild(shell);
+    }
+    var bug=document.getElementById('bugContactLinkV220');
+    if(bug && bug.parentNode!==shell){
+      try{shell.appendChild(bug);}catch(e){}
+    }
+    if(!document.getElementById('whatsNewLinkV474')){
+      var link=document.createElement('button');
+      link.id='whatsNewLinkV474';
+      link.type='button';
+      link.className='whats-new-link-v474';
+      link.textContent='מה חדש';
+      link.onclick=function(){window.openWhatsNewV474();};
+      shell.appendChild(link);
+    }
+    var panel=document.getElementById('bugReportPanelV220');
+    if(panel && panel.parentNode!==worker){
+      try{worker.appendChild(panel);}catch(e){}
+    }
+  }
+  window.ensureWhatsNewLinkV474=ensureWorkerLinks;
+  var oldShowWorker=window.showWorker;
+  if(typeof oldShowWorker==='function' && !oldShowWorker.__whatsNewWrappedV474){
+    var wrapped=async function(){
+      var res=await oldShowWorker.apply(this,arguments);
+      try{setTimeout(ensureWorkerLinks,80);setTimeout(ensureWorkerLinks,350);}catch(e){}
+      return res;
+    };
+    wrapped.__whatsNewWrappedV474=true;
+    window.showWorker=wrapped;
+  }
+  document.addEventListener('DOMContentLoaded',function(){setTimeout(ensureWorkerLinks,300);});
+  window.addEventListener('load',function(){setTimeout(ensureWorkerLinks,300);setTimeout(ensureWorkerLinks,1200);});
+  setTimeout(ensureWorkerLinks,500);
 })();
 </script>
