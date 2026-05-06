@@ -1167,7 +1167,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "4.82";
+const APP_VERSION = "4.89";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -12574,164 +12574,6 @@ CHANGELOG 4.5 - מחיקת דיווחי בעיות מאדמין
 }
 </style>
 
-<script id="v4-6-vacation-delete-warning-js">
-/*
-===============================================================================
-CHANGELOG 4.6 - יום חופש מוחק נתוני יום אחרי אזהרה מפורטת
--------------------------------------------------------------------------------
-1. תיקון סופי ונקודתי לפעולת יום חופש: אם קיימות עבודות/מתוזמנות ביום, מוצגת אזהרה גדולה וברורה.
-2. האזהרה מציגה כמה עבודות בוצעו, כמה מתוזמנות/עתידיות, כמה כסף עומד להימחק, ופירוט קצר של הרשומות.
-3. רק לאחר אישור מפורש, כל רשומות workEntries של אותו עובד באותו תאריך נמחקות באמת מ-Firestore.
-4. לאחר המחיקה היום נשמר כיום חופש ב-workerDaysOff ונעלם מהחישובים/הדשבורד.
-5. התיקון יושב בסוף הקובץ כ-override אחרון ולא משנה הרשמה, מנויים, אדמין, דשבורד, דיווחי באגים או מחירון.
-===============================================================================
-*/
-(function(){
-  var PATCH='v4.6-vacation-delete-warning';
-
-  function arr46(v){return Array.isArray(v)?v:[];}
-  function workerId46(){
-    try{ if(typeof viewedWorker!=='undefined' && viewedWorker && viewedWorker.id) return viewedWorker.id; }catch(e){}
-    try{ if(typeof session!=='undefined' && session && session.workerId) return session.workerId; }catch(e){}
-    try{ var raw=localStorage.getItem('workSession'); if(raw){var s=JSON.parse(raw); if(s&&s.workerId)return s.workerId;} }catch(e){}
-    return '';
-  }
-  function workerName46(){
-    try{ if(typeof viewedWorker!=='undefined' && viewedWorker && viewedWorker.name) return viewedWorker.name; }catch(e){}
-    try{ if(typeof session!=='undefined' && session && session.name) return session.name; }catch(e){}
-    return '';
-  }
-  function localKey46(workerId){return 'workAppDaysOffV439_'+workerId;}
-  function legacyLocalKey46(workerId){return 'workAppDaysOffV437_'+workerId;}
-  function readLocal46(workerId,key){try{return JSON.parse(localStorage.getItem(key||localKey46(workerId))||'[]');}catch(e){return [];}}
-  function writeLocal46(workerId,days){
-    var clean=Array.from(new Set(arr46(days).filter(Boolean))).sort();
-    try{localStorage.setItem(localKey46(workerId),JSON.stringify(clean));}catch(e){}
-    try{localStorage.setItem(legacyLocalKey46(workerId),JSON.stringify(clean));}catch(e){}
-  }
-  function docId46(workerId,date){return String(workerId||'').replace(/[^a-zA-Z0-9_\-א-ת]/g,'_')+'_'+String(date||'').replace(/[^0-9]/g,'_');}
-  function isPlanned46(e){
-    try{ if(typeof window.isPlannedV49==='function') return !!window.isPlannedV49(e); }catch(_e){}
-    return !!(e && (e.entryStatus==='planned' || e.status==='planned' || e.planned===true || e.isPlanned===true));
-  }
-  function money46(n){try{return money(n);}catch(e){return '₪'+Number(n||0).toLocaleString('he-IL',{maximumFractionDigits:0});}}
-  function heDate46(s){try{return heDate(s);}catch(e){return s;}}
-  function esc46(s){try{return esc(s);}catch(e){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]});}}
-
-  async function getEntriesForDay46(workerId,date){
-    var list=[];
-    try{
-      var snap=await db.collection('workEntries').where('workerId','==',workerId).where('date','==',date).get();
-      list=snap.docs.map(function(d){return {id:d.id,ref:d.ref,data:d.data()||{}};});
-    }catch(e){
-      console.warn(PATCH+' query failed, using monthEntries fallback',e.code||e.message||e);
-      list=arr46(typeof monthEntries!=='undefined'?monthEntries:[]).filter(function(e){return e&&e.date===date&&e.workerId===workerId;}).map(function(e){return {id:e.id,data:e};});
-    }
-    return list;
-  }
-
-  function showVacationDeleteWarning46(date,entries){
-    return new Promise(function(resolve){
-      var planned=entries.filter(function(x){return isPlanned46(x.data||x);});
-      var done=entries.filter(function(x){return !isPlanned46(x.data||x);});
-      var total=entries.reduce(function(s,x){return s+Number((x.data||x).amount||0);},0);
-      var rows=entries.slice(0,12).map(function(x){
-        var e=x.data||x;
-        return '<div>'+ (isPlanned46(e)?'📋 מתוזמנת':'✅ בוצעה') +' · '+esc46(e.description||e.workType||'עבודה')+' · לקוח: '+esc46(e.customerNumber||'')+' · '+money46(e.amount||0)+'</div>';
-      }).join('');
-      if(entries.length>12){rows+='<div>ועוד '+(entries.length-12)+' רשומות...</div>';}
-      var overlay=document.createElement('div');
-      overlay.className='vacation-delete-modal-v46';
-      overlay.innerHTML='\
-        <div class="vacation-delete-card-v46" role="dialog" aria-modal="true">\
-          <div class="vacation-delete-title-v46">⚠️ אזהרה לפני סימון יום חופש</div>\
-          <div class="vacation-delete-sub-v46">בתאריך <b>'+heDate46(date)+'</b> קיימים נתונים. אם תאשר, היום יהפוך ליום חופש וכל הנתונים של היום הזה יימחקו לצמיתות.</div>\
-          <div class="vacation-delete-grid-v46">\
-            <div class="vacation-delete-stat-v46">בוצעו בפועל<b>'+done.length+'</b></div>\
-            <div class="vacation-delete-stat-v46">מתוזמנות / עתידיות<b>'+planned.length+'</b></div>\
-            <div class="vacation-delete-stat-v46">סה״כ רשומות<b>'+entries.length+'</b></div>\
-          </div>\
-          <div class="vacation-delete-money-v46">סכום שיימחק מהיום הזה: '+money46(total)+'</div>\
-          <div class="vacation-delete-sub-v46"><b>שים לב:</b> יום חופש לא נספר כיום עבודה בדשבורד. לכן כל עבודה או קריאה שהייתה ביום הזה תימחק אם תאשר.</div>\
-          <div class="vacation-delete-list-v46">'+(rows||'<div>אין פירוט רשומות</div>')+'</div>\
-          <div class="vacation-delete-actions-v46">\
-            <button type="button" class="btn-light" id="vacCancelV46">ביטול — לא למחוק כלום</button>\
-            <button type="button" class="btn-red" id="vacConfirmV46">כן, למחוק הכול ולסמן יום חופש</button>\
-          </div>\
-        </div>';
-      document.body.appendChild(overlay);
-      var doneResolve=function(v){try{overlay.remove();}catch(e){} resolve(v);};
-      overlay.querySelector('#vacCancelV46').onclick=function(){doneResolve(false);};
-      overlay.querySelector('#vacConfirmV46').onclick=function(){doneResolve(true);};
-      overlay.addEventListener('click',function(ev){if(ev.target===overlay)doneResolve(false);});
-    });
-  }
-
-  async function deleteEntriesForVacation46(entries){
-    if(!entries.length)return;
-    var batch=db.batch();
-    var count=0;
-    for(var i=0;i<entries.length;i++){
-      var x=entries[i];
-      var ref=x.ref || (x.id ? db.collection('workEntries').doc(x.id) : null);
-      if(ref){batch.delete(ref);count++;}
-    }
-    if(count) await batch.commit();
-  }
-
-  window.setVacationDayV437=async function(date){
-    var workerId=workerId46();
-    if(!workerId||!date){alert('לא זוהה עובד פעיל לשמירת יום חופש. צא והיכנס מחדש.');return;}
-    if(new Date(date+'T00:00:00').getDay()===6){alert('שבת כבר חסומה אוטומטית ואין צורך לסמן אותה כיום חופש.');return;}
-
-    var entries=await getEntriesForDay46(workerId,date);
-    if(entries.length){
-      var ok=await showVacationDeleteWarning46(date,entries);
-      if(!ok)return;
-      try{
-        await deleteEntriesForVacation46(entries);
-        try{ if(typeof monthEntries!=='undefined' && Array.isArray(monthEntries)) monthEntries=monthEntries.filter(function(e){return e.date!==date;}); }catch(e){}
-      }catch(e){
-        alert('לא הצלחתי למחוק את נתוני היום ולכן לא סימנתי יום חופש. שגיאה: '+(e.message||e));
-        return;
-      }
-    }
-
-    var current=Array.from(new Set(readLocal46(workerId).concat(readLocal46(workerId,legacyLocalKey46(workerId))).concat([date]))).sort();
-    writeLocal46(workerId,current);
-    window.vacationDaysV437=Array.from(new Set(arr46(window.vacationDaysV437).concat([date]))).sort();
-    try{
-      await db.collection('workerDaysOff').doc(docId46(workerId,date)).set({
-        workerId:workerId,
-        workerName:workerName46(),
-        date:date,
-        type:'vacation',
-        active:true,
-        deletedEntriesCount:entries.length,
-        deletedEntriesAmount:entries.reduce(function(s,x){return s+Number((x.data||x).amount||0);},0),
-        source:'calendar-delete-confirmed',
-        appVersion:APP_VERSION,
-        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
-        createdAt:firebase.firestore.FieldValue.serverTimestamp()
-      },{merge:true});
-    }catch(e){
-      console.warn(PATCH+' workerDaysOff cloud save skipped; local persisted',e.code||e.message||e);
-    }
-
-    try{await (window.loadVacationDaysV439||window.loadVacationDaysV437||function(){})();}catch(e){}
-    try{renderCalendar();}catch(e){}
-    try{renderDay();}catch(e){}
-    try{renderStats();}catch(e){}
-    try{renderSmartDashboard();}catch(e){}
-    if(entries.length){alert('יום החופש סומן ✅\nנמחקו '+entries.length+' רשומות מהיום הזה.');}
-  };
-
-  window.setVacationDayV46=window.setVacationDayV437;
-})();
-</script>
-
-
-
 <style id="v4-72-compact-vacation-delete-modal">
 /*
 ===============================================================================
@@ -13359,6 +13201,426 @@ CHANGELOG 4.77 - Changelog כללי עם CRUD בלבד
 })();
 </script>
 
+
+
+<script id="v4-87-firestore-vacation-clean-core">
+/*
+===============================================================================
+CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"4.89" ונשאר מקור הגרסה המרכזי לתצוגה, לוגים ושמות קבצים.
+2. פונקציית cancelVacationDay שונתה בליבה: היא מאתרת את כל מסמכי יום החופש של העובד לאותו תאריך לפי workerId בלבד, ומבטלת את כולם ב-batch.
+3. התיקון פותר מצב שבו יום חופש נטען ממסמך ישן/אקראי אבל כפתור הביטול עדכן רק docId חדש ודטרמיניסטי.
+4. אין שימוש ב-localStorage לימי חופש ואין fallback מקומי.
+5. הקריאה עדיין לא דורשת אינדקס מורכב: query לפי workerId בלבד וסינון תאריך בצד הלקוח.
+6. אחרי ביטול יום חופש המערך המקומי, לוח השנה, סטטיסטיקות ודשבורד מתרעננים מ-Firestore בלבד.
+===============================================================================
+*/
+(function(){
+  var PATCH='v4.89-firestore-vacation-cancel-core';
+  var CURRENT_VERSION='4.89';
+  var ALERT_ONCE_KEY='__vacationAuthAlertV487';
+
+  try{ window.APP_VERSION=CURRENT_VERSION; if(typeof setAppVersionUI==='function')setAppVersionUI(); if(typeof enforceAppVersionUI==='function')enforceAppVersionUI(); }catch(e){}
+
+  window.vacationDaysV437=[];
+  window.vacationDaysLoadedForV437='';
+
+  function q(id){return document.getElementById(id);}
+  function safeArr(v){return Array.isArray(v)?v:[];}
+  function pad2(n){return String(n).padStart(2,'0');}
+  function fmt(d){try{return typeof formatDate==='function'?formatDate(d):(d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()));}catch(e){return '';}}
+  function moneySafe(n){try{return typeof money==='function'?money(n):('₪'+Number(n||0).toLocaleString('he-IL',{maximumFractionDigits:0}));}catch(e){return '₪'+(n||0);}}
+  function heDateSafe(s){try{return typeof heDate==='function'?heDate(s):s;}catch(e){return s;}}
+  function escSafe(s){try{return typeof esc==='function'?esc(s):String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});}catch(e){return String(s||'');}}
+  function selectedWorkerId(){
+    try{ if(typeof viewedWorker!=='undefined' && viewedWorker && viewedWorker.id) return viewedWorker.id; }catch(e){}
+    try{ if(typeof session!=='undefined' && session && session.workerId) return session.workerId; }catch(e){}
+    return '';
+  }
+  function selectedWorkerName(){
+    try{ if(typeof viewedWorker!=='undefined' && viewedWorker && viewedWorker.name) return viewedWorker.name; }catch(e){}
+    try{ if(typeof session!=='undefined' && session && session.name) return session.name; }catch(e){}
+    return '';
+  }
+  function docIdDayOff(workerId,date){return String(workerId||'worker').replace(/[^a-zA-Z0-9_\-א-ת]/g,'_')+'_'+String(date||'date').replace(/[^0-9]/g,'_');}
+  function monthKey(){try{return calendarDate.getFullYear()+'-'+pad2(calendarDate.getMonth()+1);}catch(e){return '';}}
+  function currentMonthRange(){
+    var d=(typeof calendarDate!=='undefined' && calendarDate) ? calendarDate : new Date();
+    var y=d.getFullYear(), m=d.getMonth(), last=new Date(y,m+1,0).getDate();
+    return {start:y+'-'+pad2(m+1)+'-01',end:y+'-'+pad2(m+1)+'-'+pad2(last),year:y,month:m,last:last};
+  }
+  function authCurrentUser(){try{return (typeof auth!=='undefined' && auth && auth.currentUser) ? auth.currentUser : null;}catch(e){return null;}}
+  function authReadyPossible(){try{return !!(typeof firebase!=='undefined' && firebase.auth && typeof auth!=='undefined' && auth);}catch(e){return false;}}
+  function waitForAuthReadyV487(timeoutMs){
+    timeoutMs=Number(timeoutMs||3500);
+    return new Promise(function(resolve){
+      if(!authReadyPossible()) return resolve(null);
+      var u=authCurrentUser();
+      if(u) return resolve(u);
+      var done=false,unsub=null;
+      var timer=setTimeout(function(){ if(done)return; done=true; try{if(unsub)unsub();}catch(e){} resolve(authCurrentUser()); },timeoutMs);
+      try{
+        unsub=auth.onAuthStateChanged(function(user){
+          if(done)return;
+          if(user){done=true;clearTimeout(timer);try{if(unsub)unsub();}catch(e){}resolve(user);}
+        });
+      }catch(e){clearTimeout(timer);resolve(authCurrentUser());}
+    });
+  }
+  async function ensureAuthBeforeFirestoreV487(){
+    try{ if(authReadyPossible() && firebase.auth.Auth && firebase.auth.Auth.Persistence){ await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(){}); } }catch(e){}
+    return await waitForAuthReadyV487(4200);
+  }
+  function isPlannedEntry(e){
+    e=e||{};
+    try{ if(typeof window.isPlannedV49==='function') return !!window.isPlannedV49(e); }catch(_e){}
+    return e.entryStatus==='planned'||e.status==='planned'||e.isPlanned===true||e.planned===true||e.workStatus==='planned';
+  }
+  function isVacation(date){return safeArr(window.vacationDaysV437).indexOf(date)>=0;}
+  window.isVacationDayV437=isVacation;
+  window.isVacationDayV439=isVacation;
+  window.isVacationDayV487=isVacation;
+  window.isVacationDayV489=isVacation;
+
+  async function fetchVacationDaysFirestore(workerId,start,end){
+    /*
+      v4.88: אין יותר query עם workerId + date range.
+      ב-Firestore שילוב כזה דורש composite index, וכשאין אינדקס מתקבלת שגיאת failed-precondition.
+      לכן טוענים את ימי החופש של העובד בלבד לפי workerId, ואת סינון החודש עושים כאן בצד הלקוח.
+      זה שינוי ישיר של פונקציית הליבה, לא patch חיצוני.
+    */
+    var snap=await db.collection('workerDaysOff')
+      .where('workerId','==',workerId)
+      .get();
+    var days=[];
+    snap.docs.forEach(function(doc){
+      var d=doc.data()||{};
+      var date=String(d.date||'');
+      if(d.active!==false && date && date>=start && date<=end) days.push(date);
+    });
+    return Array.from(new Set(days.filter(Boolean))).sort();
+  }
+
+  async function loadVacationDaysV487(){
+    var workerId=selectedWorkerId();
+    if(!workerId){window.vacationDaysV437=[];return [];}
+    var range=currentMonthRange();
+    try{
+      await ensureAuthBeforeFirestoreV487();
+      window.vacationDaysV437=await fetchVacationDaysFirestore(workerId,range.start,range.end);
+      window.vacationDaysLoadedForV437=workerId+'_'+monthKey();
+      return window.vacationDaysV437;
+    }catch(e){
+      window.vacationDaysV437=[];
+      console.error(PATCH+' workerDaysOff load failed', e && (e.code||e.message) ? (e.code||e.message) : e);
+      if(!window[ALERT_ONCE_KEY]){
+        window[ALERT_ONCE_KEY]=true;
+        try{ alert('לא הצלחתי לטעון ימי חופש מ-Firestore.\nבגרסה 4.88 הקריאה כבר לא דורשת אינדקס מורכב. אם זה חוזר — בדוק שה-Rules פורסמו ושהעובד מחובר Auth.\nשגיאה: '+((e&&e.code)||e.message||e)); }catch(_e){}
+      }
+      return [];
+    }
+  }
+  window.loadVacationDaysV437=loadVacationDaysV487;
+  window.loadVacationDaysV439=loadVacationDaysV487;
+  window.loadVacationDaysV482=loadVacationDaysV487;
+  window.loadVacationDaysV486=loadVacationDaysV487;
+  window.loadVacationDaysV487=loadVacationDaysV487;
+  window.loadVacationDaysV489=loadVacationDaysV487;
+
+  async function fetchDayEntries(workerId,date){
+    var out=[];
+    try{
+      var snap=await db.collection('workEntries').where('workerId','==',workerId).where('date','==',date).get();
+      snap.docs.forEach(function(d){out.push({id:d.id,ref:d.ref,data:d.data()});});
+    }catch(e){
+      out=safeArr(typeof monthEntries!=='undefined'?monthEntries:[])
+        .filter(function(x){return x&&x.workerId===workerId&&x.date===date;})
+        .map(function(x){return {id:x.id,ref:x.id?db.collection('workEntries').doc(x.id):null,data:x};});
+    }
+    return out;
+  }
+  function showVacationDeleteWarning(date,entries){
+    return new Promise(function(resolve){
+      var planned=entries.filter(function(x){return isPlannedEntry(x.data||x);});
+      var done=entries.filter(function(x){return !isPlannedEntry(x.data||x);});
+      var total=entries.reduce(function(s,x){return s+Number((x.data||x).amount||0);},0);
+      var rows=entries.slice(0,14).map(function(x){var e=x.data||x;return '<div>'+(isPlannedEntry(e)?'📋 מתוזמנת / עתידית':'✅ בוצעה בפועל')+' · '+escSafe(e.description||e.workType||'עבודה')+' · לקוח: '+escSafe(e.customerNumber||'')+' · '+escSafe(e.address||'')+' · '+moneySafe(e.amount||0)+'</div>';}).join('');
+      if(entries.length>14) rows+='<div>ועוד '+(entries.length-14)+' רשומות נוספות...</div>';
+      var overlay=document.createElement('div');
+      overlay.className='vacation-delete-modal-v473';
+      overlay.innerHTML='\
+        <div class="vacation-delete-card-v473" role="dialog" aria-modal="true">\
+          <div class="vacation-delete-head-v473"><div class="vacation-delete-title-v473">⚠️ סימון יום חופש ימחק נתונים</div></div>\
+          <div class="vacation-delete-body-v473">\
+            <div class="vacation-delete-text-v473">בתאריך <b>'+heDateSafe(date)+'</b> קיימים נתונים. אם תאשר — כל הרשומות של היום הזה יימחקו לצמיתות, והיום יישמר כיום חופש ב-Firestore בלבד.</div>\
+            <div class="vacation-delete-grid-v473">\
+              <div class="vacation-delete-stat-v473">בוצעו בפועל<b>'+done.length+'</b></div>\
+              <div class="vacation-delete-stat-v473">מתוזמנות / עתידיות<b>'+planned.length+'</b></div>\
+              <div class="vacation-delete-stat-v473">סה״כ רשומות<b>'+entries.length+'</b></div>\
+              <div class="vacation-delete-stat-v473">כסף שיימחק<b>'+moneySafe(total)+'</b></div>\
+            </div>\
+            <div class="vacation-delete-alert-v473">אישור הפעולה ימחק את כל הנתונים של היום הזה. אי אפשר לשחזר בלי גיבוי.</div>\
+            <div class="vacation-delete-list-v473">'+(rows||'<div>אין פירוט רשומות</div>')+'</div>\
+          </div>\
+          <div class="vacation-delete-actions-v473">\
+            <button type="button" class="btn-light" id="vacCancelV487">ביטול</button>\
+            <button type="button" class="btn-red" id="vacConfirmV487">כן, למחוק ולסמן חופש</button>\
+          </div>\
+        </div>';
+      document.body.appendChild(overlay);
+      function finish(v){try{overlay.remove();}catch(e){} resolve(v);}
+      overlay.querySelector('#vacCancelV487').onclick=function(){finish(false);};
+      overlay.querySelector('#vacConfirmV487').onclick=function(){finish(true);};
+      overlay.addEventListener('click',function(ev){if(ev.target===overlay)finish(false);});
+    });
+  }
+  async function deleteEntries(entries){
+    if(!entries.length)return 0;
+    var deleted=0,batch=db.batch();
+    entries.forEach(function(x){var ref=x.ref||(x.id?db.collection('workEntries').doc(x.id):null); if(ref){batch.delete(ref); deleted++;}});
+    if(deleted) await batch.commit();
+    return deleted;
+  }
+  async function saveDayOffFirestore(workerId,date,deletedCount,deletedAmount){
+    await ensureAuthBeforeFirestoreV487();
+    await db.collection('workerDaysOff').doc(docIdDayOff(workerId,date)).set({
+      workerId:workerId,
+      workerName:selectedWorkerName(),
+      authUid:(authCurrentUser()&&authCurrentUser().uid)||'',
+      date:date,
+      type:'vacation',
+      active:true,
+      deletedEntriesCount:deletedCount||0,
+      deletedEntriesAmount:deletedAmount||0,
+      source:'firestore-only-clean-v4-89',
+      appVersion:CURRENT_VERSION,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+  }
+  async function setVacationDay(date){
+    var workerId=selectedWorkerId();
+    if(!workerId||!date){alert('לא זוהה עובד פעיל לשמירת יום חופש. צא והיכנס מחדש.');return;}
+    if(new Date(date+'T00:00:00').getDay()===6){alert('שבת כבר חסומה אוטומטית ואין צורך לסמן אותה כיום חופש.');return;}
+    var entries=await fetchDayEntries(workerId,date);
+    var total=entries.reduce(function(s,x){return s+Number((x.data||x).amount||0);},0);
+    if(entries.length){
+      var ok=await showVacationDeleteWarning(date,entries);
+      if(!ok)return;
+      try{
+        var deleted=await deleteEntries(entries);
+        if(deleted!==entries.length){alert('נמחקו רק '+deleted+' מתוך '+entries.length+' רשומות. יום החופש לא יסומן כדי לא ליצור מצב לא תקין.');return;}
+        try{ if(Array.isArray(monthEntries)) monthEntries=monthEntries.filter(function(e){return e.date!==date;}); }catch(e){}
+      }catch(e){alert('לא הצלחתי למחוק את נתוני היום ולכן לא סימנתי יום חופש. שגיאה: '+(e.message||e));return;}
+    }
+    try{
+      await saveDayOffFirestore(workerId,date,entries.length,total);
+    }catch(e){
+      alert('יום החופש לא נשמר ב-Firestore. לא נשמר שום fallback מקומי.\nבדוק Rules ל-workerDaysOff ושהעובד מחובר Firebase Auth.\nשגיאה: '+((e&&e.code)||e.message||e));
+      return;
+    }
+    window.vacationDaysV437=Array.from(new Set(safeArr(window.vacationDaysV437).concat([date]))).sort();
+    await loadVacationDaysV487().catch(function(){});
+    await refreshAfterVacation();
+    if(entries.length)alert('יום החופש סומן ✅\nנמחקו '+entries.length+' רשומות מהיום הזה.');
+  }
+  window.setVacationDayV437=setVacationDay;
+  window.setVacationDayV439=setVacationDay;
+  window.setVacationDayV46=setVacationDay;
+  window.setVacationDayV47=setVacationDay;
+  window.setVacationDayV473=setVacationDay;
+  window.setVacationDayV486=setVacationDay;
+  window.setVacationDayV487=setVacationDay;
+  window.setVacationDayV489=setVacationDay;
+
+  async function cancelVacationDay(date){
+    var workerId=selectedWorkerId();
+    if(!workerId||!date){alert('לא זוהה עובד או תאריך לביטול יום חופש. צא והיכנס מחדש.');return;}
+    if(!confirm('לבטל את יום החופש בתאריך '+heDateSafe(date)+'?'))return;
+    try{
+      await ensureAuthBeforeFirestoreV487();
+
+      /*
+        v4.89: ביטול יום חופש אמיתי.
+        בעבר הביטול עדכן רק מסמך בשם דטרמיניסטי workerId_date.
+        אם היום נטען ממסמך ישן/אקראי שנוצר בגרסה קודמת, המסמך הישן נשאר active:true ולכן אחרי רענון היום עדיין הופיע כחופש.
+        לכן כאן טוענים את כל ימי החופש של העובד לפי workerId בלבד, מסננים את התאריך בצד הלקוח,
+        ומבטלים את כל המסמכים המתאימים ב-batch. אין localStorage ואין query שדורש אינדקס מורכב.
+      */
+      var snap=await db.collection('workerDaysOff')
+        .where('workerId','==',workerId)
+        .get();
+      var batch=db.batch();
+      var matched=0;
+      snap.docs.forEach(function(doc){
+        var d=doc.data()||{};
+        if(String(d.date||'')===String(date) && d.active!==false){
+          matched++;
+          batch.set(doc.ref,{
+            active:false,
+            cancelledAt:new Date().toISOString(),
+            cancelledByWorkerId:workerId,
+            appVersion:CURRENT_VERSION,
+            updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+          },{merge:true});
+        }
+      });
+
+      // גם אם לא נמצא מסמך ישן, מבטלים את המסמך הדטרמיניסטי כדי לנקות מצב עתידי/חלקי.
+      var deterministicRef=db.collection('workerDaysOff').doc(docIdDayOff(workerId,date));
+      batch.set(deterministicRef,{
+        workerId:workerId,
+        workerName:selectedWorkerName(),
+        authUid:(authCurrentUser()&&authCurrentUser().uid)||'',
+        date:date,
+        type:'vacation',
+        active:false,
+        cancelledAt:new Date().toISOString(),
+        cancelledByWorkerId:workerId,
+        appVersion:CURRENT_VERSION,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      await batch.commit();
+    }catch(e){alert('לא הצלחתי לבטל את יום החופש ב-Firestore. לא בוצע שינוי מקומי. שגיאה: '+((e&&e.code)||e.message||e));return;}
+
+    window.vacationDaysV437=safeArr(window.vacationDaysV437).filter(function(d){return d!==date;});
+    window.vacationDaysLoadedForV437='';
+    await loadVacationDaysV487().catch(function(){});
+    await refreshAfterVacation();
+  }
+  window.cancelVacationDayV437=cancelVacationDay;
+  window.cancelVacationDayV439=cancelVacationDay;
+  window.cancelVacationDayV486=cancelVacationDay;
+  window.cancelVacationDayV487=cancelVacationDay;
+  window.cancelVacationDayV489=cancelVacationDay;
+
+  function doneEntries(arr){return safeArr(arr).filter(function(e){return !isPlannedEntry(e);});}
+  function plannedEntries(arr){return safeArr(arr).filter(isPlannedEntry);}
+  function sumAmount(arr){return safeArr(arr).reduce(function(s,e){return s+Number(e.amount||0);},0);}
+  function todayStrSafe(){try{return formatDate(new Date());}catch(e){return fmt(new Date());}}
+  function remainingWorkDaysWithVacations(){
+    try{
+      var now=new Date(), range=currentMonthRange(), y=range.year, m=range.month, last=range.last;
+      var start=(now.getFullYear()===y && now.getMonth()===m)?now.getDate():1;
+      if(new Date(y,m,last)<new Date(now.getFullYear(),now.getMonth(),now.getDate()) && !(now.getFullYear()===y&&now.getMonth()===m)) return 0;
+      var c=0;
+      for(var d=start;d<=last;d++){var ds=y+'-'+pad2(m+1)+'-'+pad2(d), dt=new Date(y,m,d); if(dt.getDay()!==6 && !isVacation(ds)) c++;}
+      return c;
+    }catch(e){return 0;}
+  }
+  function regularWorkDaysInMonth(){
+    try{var range=currentMonthRange(), c=0; for(var d=1;d<=range.last;d++){var ds=range.year+'-'+pad2(range.month+1)+'-'+pad2(d), dt=new Date(range.year,range.month,d); if(dt.getDay()!==6&&!isVacation(ds))c++;} return c;}catch(e){return 0;}
+  }
+  window.remainingWorkDaysWithVacationsV437=remainingWorkDaysWithVacations;
+  window.remainingWorkDaysWithVacationsV487=remainingWorkDaysWithVacations;
+  window.remainingWorkDaysWithVacationsV489=remainingWorkDaysWithVacations;
+
+  var baseLoadMonth=window.loadMonth;
+  if(typeof baseLoadMonth==='function' && !baseLoadMonth.__vacationCleanV487){
+    window.loadMonth=async function(){
+      var res=await baseLoadMonth.apply(this,arguments);
+      await loadVacationDaysV487().catch(function(e){console.warn(PATCH+' loadMonth vacation load',e&&e.message?e.message:e);});
+      try{ renderCalendar(); renderDay(); renderStats(); renderSmartDashboard(); }catch(e){}
+      return res;
+    };
+    window.loadMonth.__vacationCleanV487=true;
+  }
+
+  var baseShowWorker=window.showWorker;
+  if(typeof baseShowWorker==='function' && !baseShowWorker.__vacationCleanV487){
+    window.showWorker=async function(){
+      var res=await baseShowWorker.apply(this,arguments);
+      await loadVacationDaysV487().catch(function(){});
+      try{ renderCalendar(); renderDay(); renderStats(); renderSmartDashboard(); }catch(e){}
+      return res;
+    };
+    window.showWorker.__vacationCleanV487=true;
+  }
+
+  var baseRenderCalendar=window.renderCalendar;
+  window.renderCalendar=function(){
+    var cal=q('calendar');
+    if(!cal){ if(typeof baseRenderCalendar==='function')return baseRenderCalendar.apply(this,arguments); return; }
+    cal.innerHTML='';
+    try{weekdays.forEach(function(w){var wd=document.createElement('div');wd.className='weekday';wd.textContent=w;cal.appendChild(wd);});}catch(e){}
+    var range=currentMonthRange(), today=todayStrSafe();
+    var first=new Date(range.year,range.month,1);
+    for(var i=0;i<first.getDay();i++){var empty=document.createElement('div');empty.className='day empty';cal.appendChild(empty);}
+    for(var d=1;d<=range.last;d++){
+      var ds=range.year+'-'+pad2(range.month+1)+'-'+pad2(d), dt=new Date(range.year,range.month,d), sh=dt.getDay()===6, vac=isVacation(ds);
+      var all=safeArr(typeof monthEntries!=='undefined'?monthEntries:[]).filter(function(e){return e.date===ds;});
+      var done=doneEntries(all), planned=plannedEntries(all), total=sumAmount(done), plannedTotal=sumAmount(planned);
+      var div=document.createElement('div'); div.className='day';
+      if(sh) div.classList.add('shabbat');
+      if(vac) div.classList.add('vacation-v437');
+      if(ds===today) div.classList.add('today');
+      try{ if(ds===selectedDate) div.classList.add('selected'); }catch(e){}
+      div.innerHTML='<div class="day-num">'+d+'</div>'+
+        (vac?'<div class="day-vacation-label-v437">יום חופש</div>':'')+
+        (total&&!vac?'<div class="day-total">'+moneySafe(total)+'</div>':'')+
+        (done.length&&!vac?'<div class="day-count">'+done.length+' בוצע</div>':'')+
+        (planned.length&&!vac?'<div class="day-planned-v49">📋 '+planned.length+' מתוכנן<br>'+moneySafe(plannedTotal)+'</div>':'')+
+        (vac&&(done.length||planned.length)?'<div class="day-count">יש נתונים קיימים</div>':'');
+      if(!sh || vac) div.onclick=(function(date){return function(){selectDay(date);};})(ds);
+      cal.appendChild(div);
+    }
+  };
+
+  var baseRenderDay=window.renderDay;
+  window.renderDay=function(){
+    try{ if(!selectedDate){hide('dayPanel');show('selectDayHint');return;} }catch(e){}
+    if(isVacation(selectedDate)){
+      show('dayPanel'); hide('selectDayHint');
+      text('dateTitle','יום '+heDateSafe(selectedDate)+' — יום חופש');
+      var form=q('entryForm'); if(form) form.classList.add('hidden');
+      var edit=q('editEntryPanel'); if(edit) edit.classList.add('hidden');
+      var holder=q('dayOffToolsV437'); if(holder) holder.remove();
+      var box=q('dayEntries');
+      if(box) box.innerHTML='<div class="day-off-panel-v437">🏖️ היום הזה מסומן כיום חופש ולכן הוא לא נספר כיום עבודה בדשבורד החכם.<br>אין אפשרות להוסיף עבודה ביום הזה עד שמבטלים את יום החופש.</div><div class="actions"><button class="btn-yellow" type="button" onclick="cancelVacationDayV437(\''+selectedDate+'\')">בטל יום חופש</button></div>';
+      return;
+    }
+    if(typeof baseRenderDay==='function') baseRenderDay.apply(this,arguments);
+    var form2=q('entryForm'); if(form2) form2.classList.remove('hidden');
+    var holder2=q('dayOffToolsV437');
+    if(!holder2){holder2=document.createElement('div');holder2.id='dayOffToolsV437';holder2.className='day-off-tools-v437';var title=q('dateTitle'); if(title&&title.parentNode) title.parentNode.insertBefore(holder2,title.nextSibling);}
+    if(holder2) holder2.innerHTML='<button class="btn-light" type="button" onclick="setVacationDayV437(\''+selectedDate+'\')">🏖️ סמן כיום חופש</button>';
+  };
+
+  var baseRenderSmart=window.renderSmartDashboard;
+  window.renderSmartDashboard=function(){
+    if(typeof baseRenderSmart==='function') baseRenderSmart.apply(this,arguments);
+    var box=q('smartDashboard'); if(!box)return;
+    var all=safeArr(typeof monthEntries!=='undefined'?monthEntries:[]), dn=doneEntries(all), total=sumAmount(dn), goal=Number((typeof viewedWorker!=='undefined'&&viewedWorker?viewedWorker.monthlyGoal:0)||0), left=Math.max(goal-total,0);
+    var rem=remainingWorkDaysWithVacations(), regular=regularWorkDaysInMonth(), vacCount=safeArr(window.vacationDaysV437).length;
+    var need=goal&&rem?left/rem:0;
+    var uniqueDays=new Set(dn.map(function(e){return e.date;}).filter(Boolean));
+    var avgDay=uniqueDays.size? total/uniqueDays.size : 0;
+    var forecast=dn.length? total + avgDay*Math.max(rem-1,0) : 0;
+    try{
+      Array.from(box.querySelectorAll('.smart-card-v423')).forEach(function(card){var t=card.querySelector('.smart-title'); if(t&&t.textContent.indexOf('צריך לכל יום עבודה')!==-1){var v=card.querySelector('.smart-value'); if(v)v.textContent=goal?moneySafe(need):'—'; var n=card.querySelector('.smart-note'); if(n)n.textContent='כדי להגיע ליעד אחרי הורדת ימי חופש';}});
+      Array.from(box.querySelectorAll('.smart-tip-v436')).forEach(function(tip){var txt=tip.textContent||'', b=tip.querySelector('b'); if(!b)return; if(txt.indexOf('ימים עבודה שנשארו')!==-1)b.textContent=rem; if(txt.indexOf('תחזית סוף חודש')!==-1)b.textContent=dn.length?moneySafe(forecast):'—';});
+    }catch(e){}
+    var old=q('vacationGoalStripV437'); if(old) old.remove();
+    var wrap=document.createElement('div'); wrap.id='vacationGoalStripV437';
+    wrap.innerHTML='<div class="vacation-goal-strip-v437"><h3>🏖️ ימי חופש והשפעה על היעד</h3><div class="smart-subgrid-v436">'+
+      '<div class="smart-tip-v436">ימי עבודה רגילים בחודש<b>'+regular+'</b><div class="vacation-note-v437">לא כולל שבתות וימי חופש</div></div>'+
+      '<div class="smart-tip-v436">ימי חופש שסומנו<b>'+vacCount+'</b><div class="vacation-note-v437">מ-Firestore בלבד</div></div>'+
+      '<div class="smart-tip-v436">ימי עבודה שנשארו<b>'+rem+'</b><div class="vacation-note-v437">מהיום עד סוף החודש</div></div>'+
+      '<div class="smart-tip-v436 smart-goal-focus-v436">צריך לכל יום עבודה<b>'+(goal?moneySafe(need):'—')+'</b><div class="vacation-note-v437">אחרי הורדת ימי החופש</div></div>'+
+      '</div>'+(goal?'<p class="muted">חסר ליעד: '+moneySafe(left)+' · תחזית לפי קצב נוכחי אחרי חישוב ימי חופש: '+(dn.length?moneySafe(forecast):'—')+'</p>':'<p class="muted">לא הוגדר יעד חודשי, לכן אין חישוב יומי.</p>')+'</div>';
+    box.insertBefore(wrap,box.firstChild);
+  };
+
+  async function refreshAfterVacation(){
+    try{ if(typeof loadMonth==='function') await loadMonth(); else {renderCalendar();renderDay();renderStats();renderSmartDashboard();} }catch(e){try{renderCalendar();renderDay();renderStats();renderSmartDashboard();}catch(_e){}}
+  }
+
+  // לא מריצים טעינת ימי חופש לפני שיש עובד פעיל. זה היה מקור ההרשאות ברענון.
+  document.addEventListener('DOMContentLoaded',function(){try{setTimeout(function(){if(typeof viewedWorker!=='undefined'&&viewedWorker&&viewedWorker.id){loadVacationDaysV487().then(function(){try{renderCalendar();renderDay();renderSmartDashboard();}catch(e){}});}},900);}catch(e){}});
+})();
+</script>
+
 </body>
 
 
@@ -13471,189 +13733,6 @@ CHANGELOG 4.77 - Changelog כללי עם CRUD בלבד
 .smart-tip-v436.v439-duplicate-workdays-hidden{display:none!important}
 .day.vacation-v437{box-shadow:0 0 0 3px rgba(251,146,60,.16)!important}
 </style>
-
-<script id="v4-39-vacation-persist-dashboard-fix-js">
-/*
-===============================================================================
-CHANGELOG 4.39 - תיקון שמירת ימי חופש וכפילות בדשבורד
--------------------------------------------------------------------------------
-1. תוקן זיהוי workerId לימי חופש: משתמש קודם ב-viewedWorker, אחר כך session, ואחר כך localStorage.
-2. יום חופש נשמר מקומית בצורה יציבה גם אחרי ריענון, בנוסף לניסיון סנכרון מול Firestore.
-3. בוטלה כפילות "ימי עבודה שנשארו" בדשבורד: נשאר רק הכרטיס המפורט עם "מהיום עד סוף החודש".
-4. Security Rules שמוצגים באדמין עודכנו לכלול workerDaysOff, בלי לפתוח הרשאות כלליות.
-5. התיקון תוספתי בלבד: לא נוגעים בשמירת עבודות, עריכה, סשנים, אדמין, מחירון או תבניות.
-===============================================================================
-*/
-(function(){
-  var PATCH='v4.39-vacation-persist-dashboard-fix';
-
-  function safeArr439(v){return Array.isArray(v)?v:[];}
-  function getWorkerId439(){
-    try{ if(typeof viewedWorker!=='undefined' && viewedWorker && viewedWorker.id) return viewedWorker.id; }catch(e){}
-    try{ if(typeof session!=='undefined' && session && session.workerId) return session.workerId; }catch(e){}
-    try{ var raw=localStorage.getItem('workSession'); if(raw){var s=JSON.parse(raw); if(s&&s.workerId)return s.workerId;} }catch(e){}
-    try{ if(window.viewedWorker && window.viewedWorker.id) return window.viewedWorker.id; }catch(e){}
-    return '';
-  }
-  function getWorkerName439(){
-    try{ if(typeof viewedWorker!=='undefined' && viewedWorker && viewedWorker.name) return viewedWorker.name; }catch(e){}
-    try{ if(typeof session!=='undefined' && session && session.name) return session.name; }catch(e){}
-    return '';
-  }
-  function localKey439(workerId){return 'workAppDaysOffV439_'+workerId;}
-  function legacyLocalKey437(workerId){return 'workAppDaysOffV437_'+workerId;}
-  function readJson439(key){try{return JSON.parse(localStorage.getItem(key)||'[]');}catch(e){return [];}}
-  function writeJson439(key,arr){try{localStorage.setItem(key,JSON.stringify(Array.from(new Set(arr||[])).filter(Boolean).sort()));}catch(e){}}
-  function readLocal439(workerId){
-    var a=readJson439(localKey439(workerId));
-    var b=readJson439(legacyLocalKey437(workerId));
-    return Array.from(new Set([].concat(safeArr439(a),safeArr439(b)).filter(Boolean))).sort();
-  }
-  function writeLocal439(workerId,arr){
-    var clean=Array.from(new Set(safeArr439(arr).filter(Boolean))).sort();
-    writeJson439(localKey439(workerId),clean);
-    // שומרים גם במפתח הישן כדי שכל קוד v4.37 שעדיין רץ יקרא את אותו מידע.
-    writeJson439(legacyLocalKey437(workerId),clean);
-  }
-  function docId439(workerId,date){return String(workerId||'').replace(/[^a-zA-Z0-9_\-א-ת]/g,'_')+'_'+String(date||'').replace(/[^0-9]/g,'_');}
-  function monthRange439(){
-    var y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate();
-    return {start:y+'-'+pad(m+1)+'-01',end:y+'-'+pad(m+1)+'-'+pad(last)};
-  }
-  function setGlobalDays439(days){
-    window.vacationDaysV437=Array.from(new Set(safeArr439(days).filter(Boolean))).sort();
-    window.vacationDaysLoadedForV437=getWorkerId439()+'_'+(calendarDate.getFullYear()+'-'+pad(calendarDate.getMonth()+1));
-    return window.vacationDaysV437;
-  }
-
-  async function loadVacationDaysV439(){
-    var workerId=getWorkerId439();
-    if(!workerId){return setGlobalDays439([]);}
-    var range=monthRange439();
-    var local=readLocal439(workerId).filter(function(d){return d>=range.start&&d<=range.end;});
-    var days=local.slice();
-    try{
-      var snap=await db.collection('workerDaysOff').where('workerId','==',workerId).where('date','>=',range.start).where('date','<=',range.end).get();
-      snap.docs.forEach(function(doc){var d=doc.data()||{}; if(d.active!==false&&d.date)days.push(d.date);});
-      // אם הענן הצליח, מעדכנים גם את המקומי כדי שריענון הבא יהיה מיידי.
-      writeLocal439(workerId,Array.from(new Set(readLocal439(workerId).concat(days))).sort());
-    }catch(e){
-      console.warn(PATCH+' cloud load skipped, using local',e.code||e.message||e);
-    }
-    return setGlobalDays439(days);
-  }
-  window.loadVacationDaysV437=loadVacationDaysV439;
-  window.loadVacationDaysV439=loadVacationDaysV439;
-
-  window.setVacationDayV437=async function(date){
-    var workerId=getWorkerId439();
-    if(!workerId||!date){alert('לא זוהה עובד פעיל לשמירת יום חופש. צא והיכנס מחדש.');return;}
-    if(new Date(date+'T00:00:00').getDay()===6){alert('שבת כבר חסומה אוטומטית ואין צורך לסמן אותה כיום חופש.');return;}
-    var all=safeArr439(typeof monthEntries!=='undefined'?monthEntries:[]).filter(function(e){return e.date===date;});
-    if(all.length){
-      var ok=confirm('יש ביום הזה '+all.length+' עבודות/סידורים. סימון יום חופש יחסום הוספת עבודות חדשות ביום הזה, אבל לא ימחק נתונים קיימים. להמשיך?');
-      if(!ok)return;
-    }
-    var days=Array.from(new Set(readLocal439(workerId).concat([date]))).sort();
-    writeLocal439(workerId,days);
-    setGlobalDays439(days.filter(function(d){var r=monthRange439();return d>=r.start&&d<=r.end;}));
-    try{
-      await db.collection('workerDaysOff').doc(docId439(workerId,date)).set({
-        workerId:workerId,
-        workerName:getWorkerName439(),
-        date:date,
-        type:'vacation',
-        active:true,
-        source:'calendar',
-        appVersion:APP_VERSION,
-        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
-        createdAt:firebase.firestore.FieldValue.serverTimestamp()
-      },{merge:true});
-    }catch(e){
-      console.warn(PATCH+' cloud save skipped, local persisted',e.code||e.message||e);
-      // לא מקפיצים שגיאה שמבלבלת את המשתמש: השמירה המקומית כן יציבה אחרי ריענון.
-    }
-    try{renderCalendar();}catch(e){}
-    try{renderDay();}catch(e){}
-    try{renderStats();}catch(e){}
-    try{renderSmartDashboard();}catch(e){}
-  };
-
-  window.cancelVacationDayV437=async function(date){
-    var workerId=getWorkerId439();
-    if(!workerId||!date)return;
-    if(!confirm('לבטל את יום החופש בתאריך '+heDate(date)+'?'))return;
-    var days=readLocal439(workerId).filter(function(d){return d!==date;});
-    writeLocal439(workerId,days);
-    setGlobalDays439(days.filter(function(d){var r=monthRange439();return d>=r.start&&d<=r.end;}));
-    try{
-      await db.collection('workerDaysOff').doc(docId439(workerId,date)).set({workerId:workerId,date:date,active:false,cancelledAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
-    }catch(e){console.warn(PATCH+' cloud cancel skipped, local persisted',e.code||e.message||e);}
-    try{renderCalendar();}catch(e){}
-    try{renderDay();}catch(e){}
-    try{renderStats();}catch(e){}
-    try{renderSmartDashboard();}catch(e){}
-  };
-
-  function removeDuplicateWorkdays439(){
-    var box=document.getElementById('smartDashboard'); if(!box)return;
-    Array.from(box.querySelectorAll('.smart-tip-v436')).forEach(function(tip){
-      var txt=tip.textContent||'';
-      var inVacationStrip=!!tip.closest('#vacationGoalStripV437');
-      if(!inVacationStrip && (txt.indexOf('ימים עבודה שנשארו')!==-1 || txt.indexOf('ימי עבודה שנשארו')!==-1)){
-        tip.classList.add('v439-duplicate-workdays-hidden');
-        tip.remove();
-      }
-    });
-  }
-  window.removeDuplicateWorkdaysV439=removeDuplicateWorkdays439;
-
-  var prevLoadMonth439=window.loadMonth;
-  if(typeof prevLoadMonth439==='function'){
-    window.loadMonth=async function(){
-      var res=await prevLoadMonth439.apply(this,arguments);
-      await loadVacationDaysV439();
-      try{renderCalendar();}catch(e){}
-      try{renderDay();}catch(e){}
-      try{renderStats();}catch(e){}
-      try{renderSmartDashboard();}catch(e){}
-      return res;
-    };
-  }
-
-  var prevRenderSmart439=window.renderSmartDashboard;
-  if(typeof prevRenderSmart439==='function'){
-    window.renderSmartDashboard=function(){
-      var res=prevRenderSmart439.apply(this,arguments);
-      removeDuplicateWorkdays439();
-      return res;
-    };
-  }
-
-  // עדכון Rules שמוצגים במסך אדמין כדי לכלול workerDaysOff.
-  function workerDaysOffRulesBlock439(){return String.raw`
-    match /workerDaysOff/{docId} {
-      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
-      allow create: if isAdmin() || (signedIn() && request.resource.data.workerId == myWorkerId());
-      allow update: if isAdmin() || (signedIn()
-        && resource.data.workerId == myWorkerId()
-        && request.resource.data.workerId == resource.data.workerId);
-      allow delete: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
-    }
-`;}
-  try{
-    if(window.FIRESTORE_RULES_V48 && window.FIRESTORE_RULES_V48.indexOf('match /workerDaysOff/{docId}')===-1){
-      window.FIRESTORE_RULES_V48=window.FIRESTORE_RULES_V48.replace(/\n    match \/priceList\/\{docId\} \{/, workerDaysOffRulesBlock439()+'\n    match /priceList/{docId} {');
-    }
-  }catch(e){}
-
-  document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){loadVacationDaysV439().then(function(){try{renderCalendar()}catch(e){} try{renderDay()}catch(e){} try{renderSmartDashboard()}catch(e){} removeDuplicateWorkdays439();});},450);});
-  window.addEventListener('load',function(){setTimeout(function(){loadVacationDaysV439().then(function(){try{renderCalendar()}catch(e){} try{renderDay()}catch(e){} try{renderSmartDashboard()}catch(e){} removeDuplicateWorkdays439();});},800);});
-  try{ if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
-})();
-</script>
-
-
 
 <style id="v4-40-dashboard-monthly-trend-css">
 /* ===== v4.40: דשבורד חכם - מגמת הכנסות לפי חודשים ===== */
@@ -14643,240 +14722,6 @@ CHANGELOG 4.35 - תיקון תקיעה במסך "מכין את סביבת העב
 }
 </style>
 
-<script id="v4-37-vacation-days-js">
-/*
-===============================================================================
-CHANGELOG 4.37 - ימי חופש בלוח שנה וחישובי יעד
--------------------------------------------------------------------------------
-1. נוספה אפשרות לסמן יום רגיל כיום חופש מתוך לוח השנה.
-2. יום חופש מוצג בתוך הלוח עם סימון 🏖️ יום חופש.
-3. ביום חופש לא מוצג טופס הוספת עבודה; האפשרות היחידה היא ביטול יום החופש.
-4. חישובי הדשבורד ל־"צריך לכל יום עבודה" מורידים אוטומטית שבתות וימי חופש שסומנו.
-5. הנתונים נשמרים ב־Firestore באוסף workerDaysOff לפי עובד ותאריך, עם fallback מקומי במקרה של חסימת הרשאות.
-6. התיקון הוא תוספתי בלבד: לא נמחקו פונקציות קיימות של לוח שנה, דשבורד, session, אדמין או שמירת עבודות.
-===============================================================================
-*/
-(function(){
-  var PATCH='v4.37-vacation-days';
-  window.vacationDaysV437 = window.vacationDaysV437 || [];
-  window.vacationDaysLoadedForV437 = '';
-
-  function safeArr(v){return Array.isArray(v)?v:[]}
-  function wid437(){return (window.viewedWorker&&viewedWorker.id)||''}
-  function monthKey437(){try{return calendarDate.getFullYear()+'-'+pad(calendarDate.getMonth()+1)}catch(e){return ''}}
-  function dayOffDocId437(workerId,date){return String(workerId||'').replace(/[^a-zA-Z0-9_\-א-ת]/g,'_')+'_'+String(date||'').replace(/[^0-9]/g,'_')}
-  function localKey437(workerId){return 'workAppDaysOffV437_'+workerId}
-  function readLocal437(workerId){try{return JSON.parse(localStorage.getItem(localKey437(workerId))||'[]').filter(Boolean)}catch(e){return []}}
-  function writeLocal437(workerId,arr){try{localStorage.setItem(localKey437(workerId),JSON.stringify(Array.from(new Set(arr||[])).sort()))}catch(e){}}
-  function isPlanned437(e){try{return typeof isPlannedV49==='function'?isPlannedV49(e):(e&&e.entryStatus==='planned')}catch(_){return e&&e.entryStatus==='planned'}}
-  function done437(arr){return safeArr(arr).filter(function(e){return !isPlanned437(e)})}
-  function planned437(arr){return safeArr(arr).filter(isPlanned437)}
-  function sum437(arr){return safeArr(arr).reduce(function(s,e){return s+Number(e.amount||0)},0)}
-  function today437(){try{return formatDate(new Date())}catch(e){var d=new Date();return d.toISOString().slice(0,10)}}
-  function isVacation437(date){return safeArr(window.vacationDaysV437).indexOf(date)>=0}
-  window.isVacationDayV437 = isVacation437;
-
-  async function loadVacationDaysV437(){
-    var workerId=wid437();
-    if(!workerId){window.vacationDaysV437=[];return []}
-    var y=calendarDate.getFullYear(), m=calendarDate.getMonth(), last=new Date(y,m+1,0).getDate();
-    var start=y+'-'+pad(m+1)+'-01', end=y+'-'+pad(m+1)+'-'+pad(last);
-    var local=readLocal437(workerId).filter(function(d){return d>=start&&d<=end});
-    var days=local.slice();
-    try{
-      var snap=await db.collection('workerDaysOff').where('workerId','==',workerId).where('date','>=',start).where('date','<=',end).get();
-      snap.docs.forEach(function(doc){var d=doc.data()||{}; if(d.active!==false&&d.date)days.push(d.date)});
-    }catch(e){
-      console.warn(PATCH+' Firestore load fallback',e.code||e.message||e);
-    }
-    window.vacationDaysV437=Array.from(new Set(days)).sort();
-    window.vacationDaysLoadedForV437=workerId+'_'+monthKey437();
-    return window.vacationDaysV437;
-  }
-  window.loadVacationDaysV437=loadVacationDaysV437;
-
-  async function setVacationDayV437(date){
-    var workerId=wid437(); if(!workerId||!date)return;
-    if(new Date(date+'T00:00:00').getDay()===6){alert('שבת כבר חסומה אוטומטית ואין צורך לסמן אותה כיום חופש.');return;}
-    var all=safeArr(monthEntries).filter(function(e){return e.date===date});
-    if(all.length){
-      var ok=confirm('יש ביום הזה '+all.length+' עבודות/סידורים. סימון יום חופש יחסום הוספת עבודות חדשות ביום הזה, אבל לא ימחק נתונים קיימים. להמשיך?');
-      if(!ok)return;
-    }
-    var days=Array.from(new Set(readLocal437(workerId).concat([date]))).sort();
-    writeLocal437(workerId,days);
-    window.vacationDaysV437=Array.from(new Set(safeArr(window.vacationDaysV437).concat([date]))).sort();
-    try{
-      await db.collection('workerDaysOff').doc(dayOffDocId437(workerId,date)).set({
-        workerId:workerId,
-        workerName:(viewedWorker&&viewedWorker.name)||'',
-        date:date,
-        type:'vacation',
-        active:true,
-        source:'calendar',
-        appVersion:APP_VERSION,
-        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
-        createdAt:firebase.firestore.FieldValue.serverTimestamp()
-      },{merge:true});
-    }catch(e){
-      console.warn(PATCH+' Firestore save fallback',e.code||e.message||e);
-      alert('יום החופש נשמר מקומית במכשיר הזה. כדי שיסונכרן לכל מכשיר צריך לוודא שה־Security Rules מאפשרים כתיבה ל־workerDaysOff.');
-    }
-    try{renderCalendar()}catch(e){}
-    try{renderDay()}catch(e){}
-    try{renderStats()}catch(e){}
-    try{renderSmartDashboard()}catch(e){}
-  }
-  window.setVacationDayV437=setVacationDayV437;
-
-  async function cancelVacationDayV437(date){
-    var workerId=wid437(); if(!workerId||!date)return;
-    if(!confirm('לבטל את יום החופש בתאריך '+heDate(date)+'?'))return;
-    var days=readLocal437(workerId).filter(function(d){return d!==date});
-    writeLocal437(workerId,days);
-    window.vacationDaysV437=safeArr(window.vacationDaysV437).filter(function(d){return d!==date});
-    try{
-      await db.collection('workerDaysOff').doc(dayOffDocId437(workerId,date)).set({active:false,cancelledAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
-    }catch(e){console.warn(PATCH+' Firestore cancel fallback',e.code||e.message||e)}
-    try{renderCalendar()}catch(e){}
-    try{renderDay()}catch(e){}
-    try{renderStats()}catch(e){}
-    try{renderSmartDashboard()}catch(e){}
-  }
-  window.cancelVacationDayV437=cancelVacationDayV437;
-
-  function remainingWorkDays437(){
-    try{
-      var now=new Date(), y=calendarDate.getFullYear(), m=calendarDate.getMonth();
-      var last=new Date(y,m+1,0).getDate();
-      var start=1;
-      if(now.getFullYear()===y && now.getMonth()===m) start=now.getDate();
-      if(new Date(y,m,last)<new Date(now.getFullYear(),now.getMonth(),now.getDate()) && !(now.getFullYear()===y&&now.getMonth()===m)) return 0;
-      var c=0;
-      for(var d=start;d<=last;d++){
-        var dt=new Date(y,m,d), ds=y+'-'+pad(m+1)+'-'+pad(d);
-        if(dt.getDay()===6)continue;
-        if(isVacation437(ds))continue;
-        c++;
-      }
-      return c;
-    }catch(e){return 0}
-  }
-  function regularDays437(){
-    try{
-      var y=calendarDate.getFullYear(), m=calendarDate.getMonth(), last=new Date(y,m+1,0).getDate(), c=0;
-      for(var d=1;d<=last;d++){var dt=new Date(y,m,d), ds=y+'-'+pad(m+1)+'-'+pad(d); if(dt.getDay()!==6&&!isVacation437(ds))c++;}
-      return c;
-    }catch(e){return 0}
-  }
-  window.remainingWorkDaysWithVacationsV437=remainingWorkDays437;
-
-  var oldLoadMonth437=window.loadMonth;
-  if(typeof oldLoadMonth437==='function'){
-    window.loadMonth=async function(){
-      await oldLoadMonth437.apply(this,arguments);
-      await loadVacationDaysV437();
-      try{renderCalendar()}catch(e){}
-      try{renderDay()}catch(e){}
-      try{renderStats()}catch(e){}
-      try{renderSmartDashboard()}catch(e){}
-    };
-  }
-
-  var oldRenderCalendar437=window.renderCalendar;
-  window.renderCalendar=function(){
-    var cal=$('calendar'); if(!cal){ if(typeof oldRenderCalendar437==='function')return oldRenderCalendar437(); return; }
-    cal.innerHTML='';
-    weekdays.forEach(function(w){var d=document.createElement('div');d.className='weekday';d.textContent=w;cal.appendChild(d)});
-    var y=calendarDate.getFullYear(),m=calendarDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0).getDate(),today=today437();
-    for(var i=0;i<first.getDay();i++){var e=document.createElement('div');e.className='day empty';cal.appendChild(e)}
-    for(var d=1;d<=last;d++){
-      var ds=y+'-'+pad(m+1)+'-'+pad(d), dt=new Date(y,m,d), sh=dt.getDay()===6, vac=isVacation437(ds);
-      var all=safeArr(monthEntries).filter(function(e){return e.date===ds});
-      var dn=done437(all), pl=planned437(all), total=sum437(dn), plannedTotal=sum437(pl);
-      var div=document.createElement('div'); div.className='day';
-      if(sh)div.classList.add('shabbat');
-      if(vac)div.classList.add('vacation-v437');
-      if(ds===today)div.classList.add('today');
-      if(ds===selectedDate)div.classList.add('selected');
-      div.innerHTML='<div class="day-num">'+d+'</div>'+
-        (vac?'<div class="day-vacation-label-v437">יום חופש</div>':'')+
-        (total&&!vac?'<div class="day-total">'+money(total)+'</div>':'')+
-        (dn.length&&!vac?'<div class="day-count">'+dn.length+' בוצע</div>':'')+
-        (pl.length&&!vac?'<div class="day-planned-v49">📋 '+pl.length+' מתוכנן<br>'+money(plannedTotal)+'</div>':'')+
-        (vac&&(dn.length||pl.length)?'<div class="day-count">יש נתונים קיימים</div>':'');
-      if(!sh || vac)div.onclick=(function(date){return function(){selectDay(date)}})(ds);
-      cal.appendChild(div);
-    }
-  };
-
-  var oldRenderDay437=window.renderDay;
-  window.renderDay=function(){
-    if(!selectedDate){hide('dayPanel');show('selectDayHint');return}
-    if(isVacation437(selectedDate)){
-      show('dayPanel');hide('selectDayHint');
-      text('dateTitle','יום '+heDate(selectedDate)+' — יום חופש');
-      var form=$('entryForm'); if(form)form.classList.add('hidden');
-      var edit=$('editEntryPanel'); if(edit)edit.classList.add('hidden');
-      var existingTools=document.getElementById('dayOffToolsV437'); if(existingTools)existingTools.remove();
-      var box=$('dayEntries');
-      if(box)box.innerHTML='<div class="day-off-panel-v437">🏖️ היום הזה מסומן כיום חופש ולכן הוא לא נספר כיום עבודה בדשבורד החכם.<br>אין אפשרות להוסיף עבודה ביום הזה עד שמבטלים את יום החופש.</div><div class="actions"><button class="btn-yellow" type="button" onclick="cancelVacationDayV437(\''+selectedDate+'\')">בטל יום חופש</button></div>';
-      return;
-    }
-    if(typeof oldRenderDay437==='function') oldRenderDay437.apply(this,arguments);
-    var form2=$('entryForm'); if(form2)form2.classList.remove('hidden');
-    var holder=document.getElementById('dayOffToolsV437');
-    if(!holder){
-      holder=document.createElement('div'); holder.id='dayOffToolsV437'; holder.className='day-off-tools-v437';
-      var title=$('dateTitle'); if(title&&title.parentNode) title.parentNode.insertBefore(holder,title.nextSibling);
-    }
-    holder.innerHTML='<button class="btn-light" type="button" onclick="setVacationDayV437(\''+selectedDate+'\')">🏖️ סמן כיום חופש</button>';
-  };
-
-  var oldRenderSmart437=window.renderSmartDashboard;
-  window.renderSmartDashboard=function(){
-    if(typeof oldRenderSmart437==='function') oldRenderSmart437.apply(this,arguments);
-    var box=$('smartDashboard'); if(!box)return;
-    var all=safeArr(monthEntries), dn=done437(all), total=sum437(dn), goal=Number((viewedWorker||{}).monthlyGoal||0), left=Math.max(goal-total,0);
-    var rem=remainingWorkDays437(), regular=regularDays437(), vacCount=safeArr(window.vacationDaysV437).length;
-    var need=goal&&rem?left/rem:0;
-    var avgDay=(new Set(dn.map(function(e){return e.date}).filter(Boolean))).size? total/(new Set(dn.map(function(e){return e.date}).filter(Boolean))).size : 0;
-    var forecast=dn.length? total + avgDay*Math.max(rem-1,0) : 0;
-    try{
-      Array.from(box.querySelectorAll('.smart-card-v423')).forEach(function(card){
-        var t=card.querySelector('.smart-title');
-        if(t&&t.textContent.indexOf('צריך לכל יום עבודה')!==-1){
-          var v=card.querySelector('.smart-value'); if(v)v.textContent=goal?money(need):'—';
-          var n=card.querySelector('.smart-note'); if(n)n.textContent='כדי להגיע ליעד אחרי הורדת ימי חופש';
-        }
-      });
-      Array.from(box.querySelectorAll('.smart-tip-v436')).forEach(function(tip){
-        var txt=tip.textContent||'', b=tip.querySelector('b');
-        if(!b)return;
-        if(txt.indexOf('ימים עבודה שנשארו')!==-1)b.textContent=rem;
-        if(txt.indexOf('תחזית סוף חודש')!==-1)b.textContent=dn.length?money(forecast):'—';
-      });
-    }catch(e){}
-    var html='<div class="vacation-goal-strip-v437"><h3>🏖️ ימי חופש והשפעה על היעד</h3><div class="smart-subgrid-v436">'+
-      '<div class="smart-tip-v436">ימי עבודה רגילים בחודש<b>'+regular+'</b><div class="vacation-note-v437">לא כולל שבתות וימי חופש</div></div>'+
-      '<div class="smart-tip-v436">ימי חופש שסומנו<b>'+vacCount+'</b><div class="vacation-note-v437">מורידים את ימי העבודה לחישוב</div></div>'+
-      '<div class="smart-tip-v436">ימי עבודה שנשארו<b>'+rem+'</b><div class="vacation-note-v437">מהיום עד סוף החודש</div></div>'+
-      '<div class="smart-tip-v436 smart-goal-focus-v436">צריך לכל יום עבודה<b>'+(goal?money(need):'—')+'</b><div class="vacation-note-v437">אחרי הורדת ימי החופש</div></div>'+
-      '</div>'+(goal?'<p class="muted">חסר ליעד: '+money(left)+' · תחזית לפי קצב נוכחי אחרי חישוב ימי חופש: '+(dn.length?money(forecast):'—')+'</p>':'<p class="muted">לא הוגדר יעד חודשי, לכן אין חישוב יומי.</p>')+'</div>';
-    var old=document.getElementById('vacationGoalStripV437');
-    if(old)old.remove();
-    var wrap=document.createElement('div');wrap.id='vacationGoalStripV437';wrap.innerHTML=html;
-    box.insertBefore(wrap,box.firstChild);
-  };
-
-  document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){loadVacationDaysV437().then(function(){try{renderCalendar()}catch(e){} try{renderDay()}catch(e){} try{renderSmartDashboard()}catch(e){}})},350)});
-  window.addEventListener('load',function(){setTimeout(function(){loadVacationDaysV437().then(function(){try{renderCalendar()}catch(e){} try{renderDay()}catch(e){} try{renderSmartDashboard()}catch(e){}})},550)});
-  try{setAppVersionUI&&setAppVersionUI()}catch(e){}
-})();
-</script>
-
-
-
 <style id="v4-7-final-vacation-delete-override-css">
 /* ===== v4.7: תיקון סופי - יום חופש מוחק נתוני יום בפועל ===== */
 .vacation-delete-modal-v47{position:fixed;inset:0;z-index:2147483647;background:rgba(15,23,42,.68);display:flex;align-items:center;justify-content:center;padding:18px;direction:rtl}
@@ -14892,174 +14737,6 @@ CHANGELOG 4.37 - ימי חופש בלוח שנה וחישובי יעד
 .vacation-delete-actions-v47{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.vacation-delete-actions-v47 button{width:100%!important}
 @media(max-width:700px){.vacation-delete-card-v47{padding:18px;border-radius:24px}.vacation-delete-title-v47{font-size:22px}.vacation-delete-grid-v47{grid-template-columns:repeat(2,1fr)}.vacation-delete-actions-v47{grid-template-columns:1fr}}
 </style>
-<script id="v4-7-final-vacation-delete-override-js">
-/*
-===============================================================================
-CHANGELOG 4.7 - תיקון סופי למחיקת נתונים ביום חופש
--------------------------------------------------------------------------------
-1. override אחרון בסוף הקובץ, אחרי כל שכבות v4.37/v4.39/v4.6 שדרסו אחת את השנייה.
-2. הודעת יום חופש מציינת חד־משמעית שהנתונים יימחקו.
-3. אחרי אישור המשתמש, כל workEntries של העובד באותו תאריך נמחקות בפועל מ-Firestore.
-4. רק אחרי מחיקה מוצלחת היום נשמר כיום חופש.
-5. לא נוגע בהרשמה, מנויים, דיווחי בעיות, דשבורד, אדמין או מחירון.
-===============================================================================
-*/
-(function(){
-  var PATCH='v4.7-final-vacation-delete-override';
-  function safeArr(v){return Array.isArray(v)?v:[];}
-  function getWorkerId(){
-    try{ if(typeof viewedWorker!=='undefined' && viewedWorker && viewedWorker.id) return viewedWorker.id; }catch(e){}
-    try{ if(typeof session!=='undefined' && session && session.workerId) return session.workerId; }catch(e){}
-    try{ var raw=localStorage.getItem('workSession'); if(raw){var s=JSON.parse(raw); if(s&&s.workerId)return s.workerId;} }catch(e){}
-    return '';
-  }
-  function getWorkerName(){
-    try{ if(typeof viewedWorker!=='undefined' && viewedWorker && viewedWorker.name) return viewedWorker.name; }catch(e){}
-    try{ if(typeof session!=='undefined' && session && session.name) return session.name; }catch(e){}
-    return '';
-  }
-  function localKey(workerId){return 'workAppDaysOffV439_'+workerId;}
-  function legacyLocalKey(workerId){return 'workAppDaysOffV437_'+workerId;}
-  function readLocal(workerId,key){try{return JSON.parse(localStorage.getItem(key||localKey(workerId))||'[]');}catch(e){return [];}}
-  function writeLocal(workerId,days){
-    var clean=Array.from(new Set(safeArr(days).filter(Boolean))).sort();
-    try{localStorage.setItem(localKey(workerId),JSON.stringify(clean));}catch(e){}
-    try{localStorage.setItem(legacyLocalKey(workerId),JSON.stringify(clean));}catch(e){}
-  }
-  function docId(workerId,date){return String(workerId||'').replace(/[^a-zA-Z0-9_\-א-ת]/g,'_')+'_'+String(date||'').replace(/[^0-9]/g,'_');}
-  function isPlanned(e){
-    try{ if(typeof window.isPlannedV49==='function') return !!window.isPlannedV49(e); }catch(_e){}
-    return !!(e && (e.entryStatus==='planned' || e.status==='planned' || e.planned===true || e.isPlanned===true));
-  }
-  function moneySafe(n){try{return money(n);}catch(e){return '₪'+Number(n||0).toLocaleString('he-IL',{maximumFractionDigits:0});}}
-  function heDateSafe(s){try{return heDate(s);}catch(e){return s;}}
-  function escSafe(s){try{return esc(s);}catch(e){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]});}}
-
-  async function fetchDayEntries(workerId,date){
-    var list=[];
-    try{
-      var snap=await db.collection('workEntries').where('workerId','==',workerId).where('date','==',date).get();
-      list=snap.docs.map(function(d){return {id:d.id,ref:d.ref,data:d.data()||{}};});
-    }catch(e){
-      console.warn(PATCH+' Firestore query failed, using monthEntries fallback',e.code||e.message||e);
-      list=safeArr(typeof monthEntries!=='undefined'?monthEntries:[])
-        .filter(function(e){return e&&e.date===date&&(!e.workerId||e.workerId===workerId);})
-        .map(function(e){return {id:e.id,ref:e.id?db.collection('workEntries').doc(e.id):null,data:e};});
-    }
-    return list;
-  }
-
-  function showFinalWarning(date,entries){
-    return new Promise(function(resolve){
-      var planned=entries.filter(function(x){return isPlanned(x.data||x);});
-      var done=entries.filter(function(x){return !isPlanned(x.data||x);});
-      var total=entries.reduce(function(s,x){return s+Number((x.data||x).amount||0);},0);
-      var rows=entries.slice(0,16).map(function(x){
-        var e=x.data||x;
-        return '<div>'+(isPlanned(e)?'📋 מתוזמנת / עתידית':'✅ בוצעה בפועל')+' · '+escSafe(e.description||e.workType||'עבודה')+' · לקוח: '+escSafe(e.customerNumber||'')+' · '+escSafe(e.address||'')+' · '+moneySafe(e.amount||0)+'</div>';
-      }).join('');
-      if(entries.length>16) rows+='<div>ועוד '+(entries.length-16)+' רשומות נוספות...</div>';
-      var overlay=document.createElement('div');
-      overlay.className='vacation-delete-modal-v47';
-      overlay.innerHTML='\
-        <div class="vacation-delete-card-v47" role="dialog" aria-modal="true">\
-          <div class="vacation-delete-title-v47">⚠️ סימון יום חופש ימחק נתונים</div>\
-          <div class="vacation-delete-text-v47">בתאריך <b>'+heDateSafe(date)+'</b> קיימים נתונים במערכת. יום חופש הוא יום שלא נספר בכלל בדשבורד ולכן אם תאשר — כל הרשומות של היום הזה יימחקו לצמיתות.</div>\
-          <div class="vacation-delete-grid-v47">\
-            <div class="vacation-delete-stat-v47">בוצעו בפועל<b>'+done.length+'</b></div>\
-            <div class="vacation-delete-stat-v47">מתוזמנות / עתידיות<b>'+planned.length+'</b></div>\
-            <div class="vacation-delete-stat-v47">סה״כ רשומות<b>'+entries.length+'</b></div>\
-            <div class="vacation-delete-stat-v47">כסף שיימחק<b>'+moneySafe(total)+'</b></div>\
-          </div>\
-          <div class="vacation-delete-alert-v47">אישור הפעולה ימחק את כל הנתונים של היום הזה. אי אפשר לשחזר בלי גיבוי.</div>\
-          <div class="vacation-delete-list-v47">'+(rows||'<div>אין פירוט רשומות</div>')+'</div>\
-          <div class="vacation-delete-actions-v47">\
-            <button type="button" class="btn-light" id="vacCancelV47">ביטול — לא למחוק</button>\
-            <button type="button" class="btn-red" id="vacConfirmV47">כן, למחוק הכול ולסמן יום חופש</button>\
-          </div>\
-        </div>';
-      document.body.appendChild(overlay);
-      function finish(v){try{overlay.remove();}catch(e){} resolve(v);}
-      overlay.querySelector('#vacCancelV47').onclick=function(){finish(false);};
-      overlay.querySelector('#vacConfirmV47').onclick=function(){finish(true);};
-      overlay.addEventListener('click',function(ev){if(ev.target===overlay)finish(false);});
-    });
-  }
-
-  async function deleteEntries(entries){
-    if(!entries.length) return 0;
-    var deleted=0;
-    var batch=db.batch();
-    entries.forEach(function(x){
-      var ref=x.ref || (x.id?db.collection('workEntries').doc(x.id):null);
-      if(ref){ batch.delete(ref); deleted++; }
-    });
-    if(deleted) await batch.commit();
-    return deleted;
-  }
-
-  async function saveDayOff(workerId,date,deletedCount,deletedAmount){
-    var days=Array.from(new Set(readLocal(workerId).concat(readLocal(workerId,legacyLocalKey(workerId))).concat([date]))).sort();
-    writeLocal(workerId,days);
-    window.vacationDaysV437=Array.from(new Set(safeArr(window.vacationDaysV437).concat([date]))).sort();
-    try{
-      await db.collection('workerDaysOff').doc(docId(workerId,date)).set({
-        workerId:workerId,
-        workerName:getWorkerName(),
-        date:date,
-        type:'vacation',
-        active:true,
-        deletedEntriesCount:deletedCount||0,
-        deletedEntriesAmount:deletedAmount||0,
-        source:'calendar-delete-confirmed-final-v47',
-        appVersion:APP_VERSION,
-        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
-        createdAt:firebase.firestore.FieldValue.serverTimestamp()
-      },{merge:true});
-    }catch(e){
-      console.warn(PATCH+' workerDaysOff cloud save failed; local saved',e.code||e.message||e);
-    }
-  }
-
-  async function finalSetVacationDay(date){
-    var workerId=getWorkerId();
-    if(!workerId||!date){alert('לא זוהה עובד פעיל לשמירת יום חופש. צא והיכנס מחדש.');return;}
-    if(new Date(date+'T00:00:00').getDay()===6){alert('שבת כבר חסומה אוטומטית ואין צורך לסמן אותה כיום חופש.');return;}
-
-    var entries=await fetchDayEntries(workerId,date);
-    var total=entries.reduce(function(s,x){return s+Number((x.data||x).amount||0);},0);
-    if(entries.length){
-      var ok=await showFinalWarning(date,entries);
-      if(!ok)return;
-      try{
-        var deleted=await deleteEntries(entries);
-        if(deleted!==entries.length){
-          alert('נמחקו רק '+deleted+' מתוך '+entries.length+' רשומות. יום החופש לא יסומן כדי לא ליצור מצב לא תקין.');
-          return;
-        }
-        try{ if(typeof monthEntries!=='undefined' && Array.isArray(monthEntries)) monthEntries=monthEntries.filter(function(e){return e.date!==date;}); }catch(e){}
-      }catch(e){
-        alert('לא הצלחתי למחוק את נתוני היום ולכן לא סימנתי יום חופש. שגיאה: '+(e.message||e));
-        return;
-      }
-    }
-
-    await saveDayOff(workerId,date,entries.length,total);
-    try{ if(typeof window.loadVacationDaysV439==='function') await window.loadVacationDaysV439(); else if(typeof window.loadVacationDaysV437==='function') await window.loadVacationDaysV437(); }catch(e){}
-    try{ if(typeof loadMonth==='function') await loadMonth(); }catch(e){ try{renderCalendar();renderDay();renderStats();renderSmartDashboard();}catch(_e){} }
-    if(entries.length) alert('יום החופש סומן ✅\nנמחקו '+entries.length+' רשומות מהיום הזה.');
-  }
-
-  window.setVacationDayV437=finalSetVacationDay;
-  window.setVacationDayV439=finalSetVacationDay;
-  window.setVacationDayV46=finalSetVacationDay;
-  window.setVacationDayV47=finalSetVacationDay;
-
-  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();if(typeof enforceAppVersionUI==='function')enforceAppVersionUI();}catch(e){}
-})();
-</script>
-
-
 <style id="v4-73-vacation-modal-final-css">
 /* ===== v4.73: חלון אזהרת יום חופש קומפקטי - גלילה רק לתוכן, כפתורים תמיד גלויים ===== */
 .vacation-delete-modal-v473{
@@ -15201,165 +14878,6 @@ CHANGELOG 4.7 - תיקון סופי למחיקת נתונים ביום חופש
   .vacation-delete-actions-v473 button{height:38px!important;min-height:38px!important;font-size:11.5px!important;}
 }
 </style>
-
-<script id="v4-73-vacation-modal-final-js">
-/*
-===============================================================================
-CHANGELOG 4.73 - תיקון חלון אזהרת יום חופש
--------------------------------------------------------------------------------
-1. לא שונתה לוגיקת המחיקה: אישור עדיין מוחק את כל רשומות היום ואז מסמן יום חופש.
-2. הוחלף חלון האזהרה לחלון קומפקטי עם שלושה אזורים: כותרת, תוכן גולל, כפתורים קבועים.
-3. בזמן שהחלון פתוח, גלילת הרקע של ממשק העובד ננעלת כדי שהגלילה תהיה בתוך החלון בלבד.
-===============================================================================
-*/
-(function(){
-  var PATCH='v4.73-vacation-modal-final';
-  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();if(typeof enforceAppVersionUI==='function')enforceAppVersionUI();}catch(e){}
-
-  function safeArr(x){return Array.isArray(x)?x:[];}
-  function escSafe(s){try{return typeof esc==='function'?esc(s):String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});}catch(e){return String(s||'');}}
-  function moneySafe(n){try{return typeof money==='function'?money(n):('₪'+Number(n||0).toLocaleString('he-IL',{maximumFractionDigits:0}));}catch(e){return '₪'+(n||0);}}
-  function heDateSafe(s){try{return typeof heDate==='function'?heDate(s):s;}catch(e){return s;}}
-  function fmt(d){try{return typeof formatDate==='function'?formatDate(d):d.toISOString().slice(0,10);}catch(e){return '';}}
-  function getWorkerId(){
-    try{if(typeof viewedWorker!=='undefined'&&viewedWorker&&viewedWorker.id)return viewedWorker.id;}catch(e){}
-    try{if(typeof session!=='undefined'&&session&&session.workerId)return session.workerId;}catch(e){}
-    try{var raw=localStorage.getItem('workSession');if(raw){var s=JSON.parse(raw);if(s&&s.workerId)return s.workerId;}}catch(e){}
-    return '';
-  }
-  function getWorkerName(){
-    try{if(typeof viewedWorker!=='undefined'&&viewedWorker&&viewedWorker.name)return viewedWorker.name;}catch(e){}
-    try{if(typeof session!=='undefined'&&session&&session.name)return session.name;}catch(e){}
-    return '';
-  }
-  function monthKey(date){return String(date||'').slice(0,7);}
-  function localKey(workerId){return 'workerDaysOff_'+workerId+'_'+monthKey(fmt(typeof calendarDate!=='undefined'?calendarDate:new Date()));}
-  function legacyKey(workerId){return 'workerDaysOff_'+workerId;}
-  function readLocal(workerId,key){try{return JSON.parse(localStorage.getItem(key||localKey(workerId))||'[]');}catch(e){return [];}}
-  function writeLocal(workerId,days){try{localStorage.setItem(localKey(workerId),JSON.stringify(days));localStorage.setItem(legacyKey(workerId),JSON.stringify(days));}catch(e){}}
-  function docId(workerId,date){return String(workerId||'worker')+'_'+String(date||'date').replace(/[^0-9a-zA-Zא-ת_-]/g,'_');}
-  function isPlannedEntry(e){
-    e=e||{};
-    try{if(typeof window.isPlannedV49==='function')return !!window.isPlannedV49(e);}catch(_e){}
-    return e.entryStatus==='planned'||e.status==='planned'||e.isPlanned===true||e.planned===true||e.workStatus==='planned';
-  }
-  async function fetchDayEntries(workerId,date){
-    var out=[];
-    try{
-      var snap=await db.collection('workEntries').where('workerId','==',workerId).where('date','==',date).get();
-      snap.docs.forEach(function(d){out.push({id:d.id,ref:d.ref,data:d.data()});});
-    }catch(e){
-      try{out=safeArr(typeof monthEntries!=='undefined'?monthEntries:[]).filter(function(x){return x&&x.workerId===workerId&&x.date===date;}).map(function(x){return {id:x.id,ref:x.id?db.collection('workEntries').doc(x.id):null,data:x};});}catch(_e){}
-    }
-    return out;
-  }
-  function lockScroll(lock){
-    try{
-      if(lock){
-        window.__vacationScrollY473=window.scrollY||document.documentElement.scrollTop||0;
-        document.documentElement.style.overflow='hidden';
-        document.body.style.overflow='hidden';
-        document.body.style.position='fixed';
-        document.body.style.top='-'+window.__vacationScrollY473+'px';
-        document.body.style.left='0';
-        document.body.style.right='0';
-        document.body.style.width='100%';
-      }else{
-        var y=window.__vacationScrollY473||0;
-        document.documentElement.style.overflow='';
-        document.body.style.overflow='';
-        document.body.style.position='';
-        document.body.style.top='';
-        document.body.style.left='';
-        document.body.style.right='';
-        document.body.style.width='';
-        window.scrollTo(0,y);
-      }
-    }catch(e){}
-  }
-  function showWarningModal(date,entries){
-    return new Promise(function(resolve){
-      var planned=entries.filter(function(x){return isPlannedEntry(x.data||x);});
-      var done=entries.filter(function(x){return !isPlannedEntry(x.data||x);});
-      var total=entries.reduce(function(s,x){return s+Number((x.data||x).amount||0);},0);
-      var rows=entries.slice(0,14).map(function(x){var e=x.data||x;return '<div>'+(isPlannedEntry(e)?'📋 מתוזמנת / עתידית':'✅ בוצעה בפועל')+' · '+escSafe(e.description||e.workType||'עבודה')+' · לקוח: '+escSafe(e.customerNumber||'')+' · '+escSafe(e.address||'')+' · '+moneySafe(e.amount||0)+'</div>';}).join('');
-      if(entries.length>14)rows+='<div>ועוד '+(entries.length-14)+' רשומות נוספות...</div>';
-      var overlay=document.createElement('div');
-      overlay.className='vacation-delete-modal-v473';
-      overlay.innerHTML='\
-        <div class="vacation-delete-card-v473" role="dialog" aria-modal="true">\
-          <div class="vacation-delete-head-v473"><div class="vacation-delete-title-v473">⚠️ סימון יום חופש ימחק נתונים</div></div>\
-          <div class="vacation-delete-body-v473">\
-            <div class="vacation-delete-text-v473">בתאריך <b>'+heDateSafe(date)+'</b> קיימים נתונים. אם תאשר — כל הרשומות של היום הזה יימחקו לצמיתות, והיום לא ייספר בדשבורד.</div>\
-            <div class="vacation-delete-grid-v473">\
-              <div class="vacation-delete-stat-v473">בוצעו בפועל<b>'+done.length+'</b></div>\
-              <div class="vacation-delete-stat-v473">מתוזמנות / עתידיות<b>'+planned.length+'</b></div>\
-              <div class="vacation-delete-stat-v473">סה״כ רשומות<b>'+entries.length+'</b></div>\
-              <div class="vacation-delete-stat-v473">כסף שיימחק<b>'+moneySafe(total)+'</b></div>\
-            </div>\
-            <div class="vacation-delete-alert-v473">אישור הפעולה ימחק את כל הנתונים של היום הזה. אי אפשר לשחזר בלי גיבוי.</div>\
-            <div class="vacation-delete-list-v473">'+(rows||'<div>אין פירוט רשומות</div>')+'</div>\
-          </div>\
-          <div class="vacation-delete-actions-v473">\
-            <button type="button" class="btn-light" id="vacCancelV473">ביטול</button>\
-            <button type="button" class="btn-red" id="vacConfirmV473">כן, למחוק ולסמן חופש</button>\
-          </div>\
-        </div>';
-      lockScroll(true);
-      document.body.appendChild(overlay);
-      var body=overlay.querySelector('.vacation-delete-body-v473');
-      function stopBg(ev){ if(ev.target===overlay){ev.preventDefault();} }
-      overlay.addEventListener('wheel',stopBg,{passive:false});
-      overlay.addEventListener('touchmove',function(ev){ if(!body.contains(ev.target)){ev.preventDefault();} },{passive:false});
-      function finish(v){try{overlay.remove();}catch(e){} lockScroll(false); resolve(v);}
-      overlay.querySelector('#vacCancelV473').onclick=function(){finish(false);};
-      overlay.querySelector('#vacConfirmV473').onclick=function(){finish(true);};
-      overlay.addEventListener('click',function(ev){if(ev.target===overlay)finish(false);});
-    });
-  }
-  async function deleteEntries(entries){
-    if(!entries.length)return 0;
-    var deleted=0,batch=db.batch();
-    entries.forEach(function(x){var ref=x.ref||(x.id?db.collection('workEntries').doc(x.id):null);if(ref){batch.delete(ref);deleted++;}});
-    if(deleted)await batch.commit();
-    return deleted;
-  }
-  async function saveDayOff(workerId,date,deletedCount,deletedAmount){
-    var days=Array.from(new Set(readLocal(workerId).concat(readLocal(workerId,legacyKey(workerId))).concat([date]))).sort();
-    writeLocal(workerId,days);
-    try{window.vacationDaysV437=Array.from(new Set(safeArr(window.vacationDaysV437).concat([date]))).sort();}catch(e){}
-    try{
-      await db.collection('workerDaysOff').doc(docId(workerId,date)).set({workerId:workerId,workerName:getWorkerName(),date:date,type:'vacation',active:true,deletedEntriesCount:deletedCount||0,deletedEntriesAmount:deletedAmount||0,source:'calendar-delete-confirmed-final-v473',appVersion:APP_VERSION,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
-    }catch(e){console.warn(PATCH+' workerDaysOff cloud save failed; local saved',e.code||e.message||e);}
-  }
-  async function setVacationFinal473(date){
-    var workerId=getWorkerId();
-    if(!workerId||!date){alert('לא זוהה עובד פעיל לשמירת יום חופש. צא והיכנס מחדש.');return;}
-    if(new Date(date+'T00:00:00').getDay()===6){alert('שבת כבר חסומה אוטומטית ואין צורך לסמן אותה כיום חופש.');return;}
-    var entries=await fetchDayEntries(workerId,date);
-    var total=entries.reduce(function(s,x){return s+Number((x.data||x).amount||0);},0);
-    if(entries.length){
-      var ok=await showWarningModal(date,entries);
-      if(!ok)return;
-      try{
-        var deleted=await deleteEntries(entries);
-        if(deleted!==entries.length){alert('נמחקו רק '+deleted+' מתוך '+entries.length+' רשומות. יום החופש לא יסומן כדי לא ליצור מצב לא תקין.');return;}
-        try{if(typeof monthEntries!=='undefined'&&Array.isArray(monthEntries))monthEntries=monthEntries.filter(function(e){return e.date!==date;});}catch(e){}
-      }catch(e){alert('לא הצלחתי למחוק את נתוני היום ולכן לא סימנתי יום חופש. שגיאה: '+(e.message||e));return;}
-    }
-    await saveDayOff(workerId,date,entries.length,total);
-    try{if(typeof window.loadVacationDaysV439==='function')await window.loadVacationDaysV439();else if(typeof window.loadVacationDaysV437==='function')await window.loadVacationDaysV437();}catch(e){}
-    try{if(typeof loadMonth==='function')await loadMonth();else{renderCalendar();renderDay();renderStats();renderSmartDashboard();}}catch(e){}
-    if(entries.length)alert('יום החופש סומן ✅\nנמחקו '+entries.length+' רשומות מהיום הזה.');
-  }
-  window.setVacationDayV437=setVacationFinal473;
-  window.setVacationDayV439=setVacationFinal473;
-  window.setVacationDayV46=setVacationFinal473;
-  window.setVacationDayV47=setVacationFinal473;
-  window.setVacationDayV473=setVacationFinal473;
-})();
-</script>
-
 
 <script id="v4-74-whats-new-changelog">
 /*
@@ -15965,229 +15483,6 @@ CHANGELOG 4.76 - מקור אחד כללי לצ׳יינג׳לוג לכל העוב
     setTimeout(function(){if(q('adminView')&&!q('adminView').classList.contains('hidden')){ensureAdminPanel476();window.loadAdminChangelogV475();}},900);
   });
   setTimeout(ensureWorkerLink476,700);
-})();
-</script>
-
-<script id="v4-82-final-version-sort-and-vacation-persistence">
-/*
-===============================================================================
-CHANGELOG 4.82 - מיון גרסאות לפי מספר + תיקון שמירת ימי חופש
--------------------------------------------------------------------------------
-1. APP_VERSION עודכן ל-"4.82" ונשאר מקור הגרסה המרכזי לתצוגה ולשמות קבצים.
-2. "מה חדש" ופאנל האדמין ממיינים גרסאות לפי מספר גרסה אמיתי, מהחדש לישן.
-3. המיון כבר לא תלוי ב-createdAt, כדי למנוע בלבול כשכמה גרסאות נוצרו באותו זמן.
-4. נוסף תיקון תאימות לימי חופש: טעינה מכל מפתחות localStorage הישנים והחדשים + Firestore.
-5. יום חופש שנשמר ונכנסים מחדש לא אמור להיעלם גם אם Firestore נחסם זמנית והיה fallback מקומי.
-6. התיקון הוא שכבת override אחרונה בלבד, בלי לשכתב לוגין, עובדים, מחירון, עבודות, מנויים או גיבויים.
-===============================================================================
-*/
-(function(){
-  var PATCH='v4.82-final-version-sort-and-vacation-persistence';
-  var COLLECTION='appChangelog';
-  var CURRENT_VERSION='4.82';
-
-  try{ window.APP_VERSION=CURRENT_VERSION; if(typeof setAppVersionUI==='function')setAppVersionUI(); if(typeof enforceAppVersionUI==='function')enforceAppVersionUI(); }catch(e){}
-
-  function q(id){return document.getElementById(id);} 
-  function safeEsc(s){try{ if(typeof esc==='function') return esc(s); }catch(e){} return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});}
-  function clean(s){return String(s||'').trim();}
-  function splitItems(text){ if(Array.isArray(text)) return text.map(clean).filter(Boolean); return String(text||'').split(/\n+/).map(function(x){return clean(x).replace(/^[-•*]\s*/,'');}).filter(Boolean); }
-  function todayHe(){var d=new Date();return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
-  function docId(version){var v=clean(version||'').replace(/^v/i,'');return 'v_'+v.replace(/[^0-9A-Za-z_\-.]/g,'_').replaceAll('.','_');}
-  function versionParts(v){
-    return String(v||'').replace(/^v/i,'').split(/[^0-9]+/).filter(Boolean).map(function(x){return parseInt(x,10)||0;});
-  }
-  function compareVersionsDesc(a,b){
-    var av=versionParts(a&&a.version), bv=versionParts(b&&b.version), len=Math.max(av.length,bv.length,4);
-    for(var i=0;i<len;i++){var x=av[i]||0,y=bv[i]||0;if(x!==y)return y-x;}
-    return String(b&&b.date||'').localeCompare(String(a&&a.date||''));
-  }
-  function normalizeRow(id,data,source,i){
-    data=data||{};
-    var version=clean(data.version||'').replace(/^v/i,'');
-    return {
-      id:id||data.id||docId(version),
-      version:version,
-      title:clean(data.title||''),
-      date:clean(data.date||''),
-      items:Array.isArray(data.items)?data.items:splitItems(data.itemsText||data.text||''),
-      active:data.active!==false,
-      order:Number(data.order||((Number(i||0)+1)*10)),
-      source:source||data.source||'',
-      createdAt:data.createdAt||null,
-      updatedAt:data.updatedAt||null
-    };
-  }
-  function localRows(){
-    var arr=[];
-    try{ if(Array.isArray(window.WHATS_NEW_ITEMS_V474)) arr=window.WHATS_NEW_ITEMS_V474.slice(); }catch(e){}
-    var current={
-      version:CURRENT_VERSION,
-      title:'מיון גרסאות ותיקון ימי חופש',
-      date:todayHe(),
-      items:[
-        'מיון הצ׳יינג׳לוג מתבצע לפי מספר גרסה אמיתי, מהחדש לישן, ולא לפי זמן יצירה.',
-        'פאנל האדמין מציג את אותן גרסאות באותו סדר כמו חלון “מה חדש”.',
-        'תוקנה תאימות ימי חופש: יום חופש שנשמר לא אמור להיעלם אחרי יציאה וכניסה מחדש.',
-        'הטעינה קוראת גם מ-Firestore וגם ממפתחות localStorage ישנים וחדשים כדי לא לאבד סימונים קיימים.'
-      ]
-    };
-    arr=arr.filter(function(x){return String(x&&x.version||'').replace(/^v/i,'')!==CURRENT_VERSION;});
-    arr.unshift(current);
-    return arr.map(function(x,i){return normalizeRow(docId(x.version),Object.assign({order:(i+1)*10,active:true},x),'local-file-v4-82',i);});
-  }
-  async function firebaseRows(){
-    try{var snap=await db.collection(COLLECTION).get();return snap.docs.map(function(d,i){return normalizeRow(d.id,d.data(),'firebase',i);});}
-    catch(e){console.warn(PATCH+' firebase changelog fallback',e&&e.message?e.message:e);return [];}
-  }
-  async function fetchChangelog(includeInactive){
-    var map={};
-    localRows().forEach(function(r){map[docId(r.version||r.id)]=r;});
-    (await firebaseRows()).forEach(function(r){
-      var key=docId(r.version||r.id);
-      var prev=map[key]||{};
-      map[key]=Object.assign({},prev,r,{id:r.id||prev.id||key,source:r.source||'firebase'});
-    });
-    return Object.keys(map).map(function(k){return map[k];}).filter(function(r){
-      if(!includeInactive && r.active===false) return false;
-      return !!(r.version||r.title||(r.items&&r.items.length));
-    }).sort(compareVersionsDesc);
-  }
-  window.fetchGlobalChangelogV476=fetchChangelog;
-  window.fetchGlobalChangelogV477=fetchChangelog;
-  window.fetchChangelogV475=fetchChangelog;
-
-  async function seedCurrentChangelog(){
-    try{
-      var row=localRows()[0];
-      await db.collection(COLLECTION).doc(docId(CURRENT_VERSION)).set({
-        version:row.version,title:row.title,date:row.date,items:row.items,active:true,order:10,
-        source:'file-seed-v4-82',pageVersion:CURRENT_VERSION,
-        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
-        createdAt:firebase.firestore.FieldValue.serverTimestamp()
-      },{merge:true});
-    }catch(e){console.warn(PATCH+' seed changelog skipped',e&&e.message?e.message:e);}
-  }
-
-  function ensureChangelogCss(){
-    try{ if(typeof ensureWhatsNewCss==='function') ensureWhatsNewCss(); }catch(e){}
-    var st=q('adminChangelogCssV482'); if(st) return;
-    st=document.createElement('style'); st.id='adminChangelogCssV482';
-    st.textContent='.worker-bottom-links-v474{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:10px auto 2px;text-align:center}a.whats-new-link-v474,a.whats-new-link-v475{display:inline-flex!important;align-items:center!important;justify-content:center!important;background:transparent!important;color:#64748b!important;border:0!important;box-shadow:none!important;font-size:12px!important;font-weight:900!important;padding:3px 6px!important;min-height:0!important;width:auto!important;text-decoration:underline!important;text-underline-offset:3px!important;cursor:pointer!important}.admin-changelog-panel-v475 .admin-changelog-form-v475{background:rgba(248,250,252,.72);border:1px solid #e2e8f0;border-radius:20px;padding:14px;margin:10px 0}.admin-changelog-scroll-v475{max-height:420px;overflow-y:auto;overflow-x:hidden;border:1px solid #e2e8f0;border-radius:20px;padding:8px;background:rgba(255,255,255,.72);scrollbar-width:thin;overscroll-behavior:contain}.admin-changelog-row-v475{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:13px;margin-bottom:8px;box-shadow:0 8px 18px rgba(15,23,42,.055)}.admin-changelog-row-head-v475{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}.admin-changelog-version-v475{font-weight:900;color:#2563eb;white-space:nowrap}.admin-changelog-title-v475{font-weight:900}.admin-changelog-meta-v475{color:#94a3b8;font-size:12px;font-weight:800;margin-top:3px}.admin-changelog-list-v475{margin:8px 0 0;padding:0 18px 0 0;color:#334155;line-height:1.5;font-size:13px}.admin-changelog-list-v475 li{margin-bottom:3px}';
-    document.head.appendChild(st);
-  }
-  function rowsHtml(rows,admin){
-    return (rows||[]).map(function(r){
-      var controls=admin?'<div class="actions" style="margin-top:10px"><button class="btn-yellow" type="button" onclick="editChangelogVersionV475(\''+safeEsc(r.id)+'\')">ערוך</button><button class="btn-red" type="button" onclick="deleteChangelogVersionV475(\''+safeEsc(r.id)+'\')">מחק</button></div>':'';
-      return '<div class="admin-changelog-row-v475"><div class="admin-changelog-row-head-v475"><div><div class="admin-changelog-title-v475">'+safeEsc(r.title||'ללא כותרת')+'</div><div class="admin-changelog-meta-v475">'+safeEsc(r.date||'')+' · מיון לפי גרסה</div></div><div class="admin-changelog-version-v475">v'+safeEsc(r.version||'')+'</div></div><ul class="admin-changelog-list-v475">'+(r.items||[]).map(function(i){return '<li>'+safeEsc(i)+'</li>';}).join('')+'</ul>'+controls+'</div>';
-    }).join('');
-  }
-  function ensureAdminPanel(){
-    ensureChangelogCss(); var admin=q('adminView'); if(!admin) return;
-    var existing=q('adminChangelogPanelV475'); if(existing) existing.remove();
-    var panel=document.createElement('div'); panel.id='adminChangelogPanelV475'; panel.className='card admin-changelog-panel-v475';
-    panel.innerHTML='<div class="cal-head"><h2>📝 ניהול גרסאות / Changelog</h2><div class="actions"><button class="btn-light" type="button" onclick="loadAdminChangelogV475()">רענן</button></div></div><p>רשימה כללית אחת לכל העובדים. המיון כאן לפי מספר גרסה אמיתי, מהחדש לישן.</p><div class="admin-changelog-form-v475"><input id="changelogEditIdV475" type="hidden"><div class="grid3"><input id="changelogVersionV475" placeholder="גרסה, למשל 4.82"><input id="changelogTitleV475" placeholder="כותרת קצרה לגרסה"><input id="changelogDateV475" placeholder="תאריך, למשל 06/05/2026"></div><textarea id="changelogItemsV475" placeholder="שורת שינוי אחת בכל שורה"></textarea><div class="actions"><button class="btn-green" type="button" onclick="saveChangelogVersionV475()">שמור / הוסף גרסה</button><button class="btn-light" type="button" onclick="resetChangelogFormV475()">נקה טופס</button></div><div id="changelogAdminMsgV475"></div></div><div class="admin-changelog-scroll-v475" id="adminChangelogListV475"><p class="muted">טוען גרסאות...</p></div>';
-    var after=q('adminDataToolsPrimary')||admin.firstElementChild; if(after&&after.parentNode===admin) after.insertAdjacentElement('afterend',panel); else admin.insertBefore(panel,admin.firstChild);
-  }
-  window.ensureAdminChangelogPanelV475=ensureAdminPanel;
-  window.resetChangelogFormV475=function(){['changelogEditIdV475','changelogVersionV475','changelogTitleV475','changelogItemsV475'].forEach(function(id){var el=q(id);if(el)el.value='';});var date=q('changelogDateV475');if(date)date.value=todayHe();var msg=q('changelogAdminMsgV475');if(msg)msg.innerHTML='';};
-  window.loadAdminChangelogV475=async function(){ensureAdminPanel();var box=q('adminChangelogListV475');if(!box)return;box.innerHTML='<p class="muted">טוען גרסאות...</p>';var rows=await fetchChangelog(false);box.innerHTML=rows.length?rowsHtml(rows,true):'<p class="muted">אין גרסאות עדיין.</p>';};
-  window.editChangelogVersionV475=async function(id){ensureAdminPanel();var rows=await fetchChangelog(true);var r=rows.find(function(x){return x.id===id;})||rows.find(function(x){return docId(x.version)===id;});if(!r)return alert('הגרסה לא נמצאה. לחץ רענן ונסה שוב.');q('changelogEditIdV475').value=r.id||docId(r.version);q('changelogVersionV475').value=r.version||'';q('changelogTitleV475').value=r.title||'';q('changelogDateV475').value=r.date||todayHe();q('changelogItemsV475').value=(r.items||[]).join('\n');try{q('adminChangelogPanelV475').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}};
-  window.saveChangelogVersionV475=async function(){var msg=q('changelogAdminMsgV475');var editId=clean(q('changelogEditIdV475')&&q('changelogEditIdV475').value);var version=clean(q('changelogVersionV475')&&q('changelogVersionV475').value).replace(/^v/i,'');var title=clean(q('changelogTitleV475')&&q('changelogTitleV475').value);var date=clean(q('changelogDateV475')&&q('changelogDateV475').value)||todayHe();var items=splitItems(q('changelogItemsV475')&&q('changelogItemsV475').value);if(!version){if(msg)msg.innerHTML='<p class="danger">חובה למלא מספר גרסה.</p>';return;}if(!title){if(msg)msg.innerHTML='<p class="danger">חובה למלא כותרת.</p>';return;}if(!items.length){if(msg)msg.innerHTML='<p class="danger">חובה למלא לפחות שורת שינוי אחת.</p>';return;}try{var rows=await fetchChangelog(true);var old=rows.find(function(r){return r.id===editId;})||rows.find(function(r){return docId(r.version)===docId(version);});var id=editId||docId(version);if(editId&&editId.indexOf('v_')!==0)id=docId(version);await db.collection(COLLECTION).doc(id).set({version:version,title:title,date:date,items:items,active:true,order:old?Number(old.order||10):10,source:'admin-crud-v4-82',pageVersion:CURRENT_VERSION,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),createdAt:old&&old.createdAt?old.createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});if(msg)msg.innerHTML='<div class="notice">הגרסה נשמרה לכל העובדים ✅</div>';window.resetChangelogFormV475();await window.loadAdminChangelogV475();}catch(e){if(msg)msg.innerHTML='<p class="danger">שגיאה בשמירה: '+safeEsc(e.message||e)+'</p>';}};
-  window.deleteChangelogVersionV475=async function(id){if(!confirm('למחוק את הגרסה מהחלון "מה חדש" לכל העובדים?'))return;try{var rows=await fetchChangelog(true);var r=rows.find(function(x){return x.id===id;})||rows.find(function(x){return docId(x.version)===id;});var did=(r&&r.version)?docId(r.version):id;await db.collection(COLLECTION).doc(did).set({version:r&&r.version?r.version:'',title:r&&r.title?r.title:'',date:r&&r.date?r.date:'',items:r&&r.items?r.items:[],active:false,source:'admin-deleted-v4-82',deletedAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});await window.loadAdminChangelogV475();}catch(e){alert('שגיאה במחיקת גרסה: '+(e.message||e));}};
-  function whatsHtml(rows){return (rows||[]).map(function(v){return '<div class="whats-new-version-v474"><div class="whats-new-version-head-v474"><div><div class="whats-new-version-title-v474">'+safeEsc(v.title)+'</div><div class="whats-new-date-v474">'+safeEsc(v.date||'')+'</div></div><div class="whats-new-ver-v474">v'+safeEsc(v.version)+'</div></div><ul class="whats-new-list-v474">'+(v.items||[]).map(function(i){return '<li>'+safeEsc(i)+'</li>';}).join('')+'</ul></div>';}).join('');}
-  window.openWhatsNewV474=async function(){ensureChangelogCss();var old=q('whatsNewOverlayV474');if(old)old.remove();var overlay=document.createElement('div');overlay.id='whatsNewOverlayV474';overlay.className='whats-new-overlay-v474';overlay.innerHTML='<div class="whats-new-card-v474" role="dialog" aria-modal="true"><div class="whats-new-head-v474"><div class="whats-new-title-v474">✨ מה חדש באפליקציה</div><button class="whats-new-close-v474" type="button" id="whatsNewCloseV474">×</button></div><div class="whats-new-body-v474" id="whatsNewBodyV474"><p class="muted">טוען גרסאות...</p></div><div class="whats-new-footer-v474">מעודכן לגרסה '+safeEsc(window.APP_VERSION||CURRENT_VERSION)+'</div></div>';try{document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden';}catch(e){}document.body.appendChild(overlay);var body=overlay.querySelector('#whatsNewBodyV474');function close(){try{overlay.remove();}catch(e){}try{document.documentElement.style.overflow='';document.body.style.overflow='';}catch(e){}}overlay.querySelector('#whatsNewCloseV474').onclick=close;overlay.addEventListener('click',function(ev){if(ev.target===overlay)close();});try{body.innerHTML=whatsHtml(await fetchChangelog(false));}catch(e){body.innerHTML=whatsHtml(localRows());}};
-  function ensureWorkerLink(){ensureChangelogCss();var worker=q('workerView');if(!worker)return;var shell=q('workerBottomLinksV474');if(!shell){shell=document.createElement('div');shell.id='workerBottomLinksV474';shell.className='worker-bottom-links-v474';worker.appendChild(shell);}var old=q('whatsNewLinkV474');if(old&&old.tagName&&old.tagName.toLowerCase()!=='a'){try{old.remove();}catch(e){}}if(!q('whatsNewLinkV474')){var link=document.createElement('a');link.id='whatsNewLinkV474';link.href='#';link.className='whats-new-link-v474 whats-new-link-v475';link.textContent='מה חדש';link.onclick=function(ev){ev.preventDefault();window.openWhatsNewV474();};shell.appendChild(link);}else{q('whatsNewLinkV474').onclick=function(ev){if(ev&&ev.preventDefault)ev.preventDefault();window.openWhatsNewV474();};}}
-  window.ensureWhatsNewLinkV474=ensureWorkerLink; window.ensureWorkerLinksV475=ensureWorkerLink;
-
-  // ===== Vacation persistence compatibility =====
-  window.vacationDaysV437 = Array.isArray(window.vacationDaysV437) ? window.vacationDaysV437 : [];
-  function workerId(){try{if(viewedWorker&&viewedWorker.id)return viewedWorker.id;}catch(e){} try{if(session&&session.workerId)return session.workerId;}catch(e){} try{var raw=localStorage.getItem('workSession');if(raw){var s=JSON.parse(raw);if(s&&s.workerId)return s.workerId;}}catch(e){} return '';}
-  function fmtDate(d){try{return typeof formatDate==='function'?formatDate(d):d.toISOString().slice(0,10);}catch(e){return '';}}
-  function monthKey(){try{return calendarDate.getFullYear()+'-'+String(calendarDate.getMonth()+1).padStart(2,'0');}catch(e){return String(new Date().toISOString().slice(0,7));}}
-  function legacyKeys(wid){var mk=monthKey();return ['workAppDaysOffV437_'+wid,'workerDaysOff_'+wid+'_'+mk,'workerDaysOff_'+wid];}
-  function readLocalDays(wid){
-    var out=[]; legacyKeys(wid).forEach(function(k){try{var arr=JSON.parse(localStorage.getItem(k)||'[]');if(Array.isArray(arr))out=out.concat(arr);}catch(e){}});
-    return Array.from(new Set(out.filter(Boolean))).sort();
-  }
-  function writeLocalDays(wid,days){
-    days=Array.from(new Set(days||[])).filter(Boolean).sort();
-    legacyKeys(wid).forEach(function(k){try{localStorage.setItem(k,JSON.stringify(days));}catch(e){}});
-  }
-  function docIds(wid,date){
-    var safeWid=String(wid||'worker').replace(/[^a-zA-Z0-9_\-א-ת]/g,'_');
-    return Array.from(new Set([
-      safeWid+'_'+String(date||'').replace(/[^0-9]/g,'_'),
-      String(wid||'worker')+'_'+String(date||'date').replace(/[^0-9a-zA-Zא-ת_-]/g,'_')
-    ]));
-  }
-  window.isVacationDayV437=function(date){return Array.isArray(window.vacationDaysV437)&&window.vacationDaysV437.indexOf(date)>=0;};
-  window.loadVacationDaysV482=async function(){
-    var wid=workerId(); if(!wid){window.vacationDaysV437=[];return [];} 
-    var y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate();
-    var start=y+'-'+String(m+1).padStart(2,'0')+'-01', end=y+'-'+String(m+1).padStart(2,'0')+'-'+String(last).padStart(2,'0');
-    var days=readLocalDays(wid).filter(function(d){return d>=start&&d<=end;});
-    try{
-      var snap=await db.collection('workerDaysOff').where('workerId','==',wid).where('date','>=',start).where('date','<=',end).get();
-      snap.docs.forEach(function(doc){var d=doc.data()||{}; if(d.active!==false&&d.date) days.push(d.date);});
-    }catch(e){console.warn(PATCH+' workerDaysOff Firestore load fallback',e&&e.message?e.message:e);}
-    window.vacationDaysV437=Array.from(new Set(days)).sort();
-    writeLocalDays(wid,Array.from(new Set(readLocalDays(wid).concat(window.vacationDaysV437))).sort());
-    return window.vacationDaysV437;
-  };
-  window.loadVacationDaysV437=window.loadVacationDaysV482;
-  window.loadVacationDaysV439=window.loadVacationDaysV482;
-
-  var oldSetVacation=window.setVacationDayV437;
-  if(typeof oldSetVacation==='function'&&!oldSetVacation.__wrappedV482){
-    var setVacationWrap=async function(date){
-      var res=await oldSetVacation.apply(this,arguments);
-      try{var wid=workerId(); if(wid&&date){var days=Array.from(new Set(readLocalDays(wid).concat([date]))).sort();writeLocalDays(wid,days);window.vacationDaysV437=days.filter(function(d){return d.slice(0,7)===monthKey();});}}catch(e){}
-      try{await window.loadVacationDaysV482();}catch(e){}
-      try{renderCalendar();renderDay();renderStats();renderSmartDashboard();}catch(e){}
-      return res;
-    };
-    setVacationWrap.__wrappedV482=true;
-    window.setVacationDayV437=setVacationWrap;
-    window.setVacationDayV439=setVacationWrap;
-    window.setVacationDayV46=setVacationWrap;
-    window.setVacationDayV47=setVacationWrap;
-    window.setVacationDayV473=setVacationWrap;
-  }
-  window.cancelVacationDayV437=async function(date){
-    var wid=workerId(); if(!wid||!date)return;
-    if(!confirm('לבטל את יום החופש בתאריך '+(typeof heDate==='function'?heDate(date):date)+'?'))return;
-    var days=readLocalDays(wid).filter(function(d){return d!==date;}); writeLocalDays(wid,days);
-    window.vacationDaysV437=Array.isArray(window.vacationDaysV437)?window.vacationDaysV437.filter(function(d){return d!==date;}):[];
-    try{for(var i=0;i<docIds(wid,date).length;i++){await db.collection('workerDaysOff').doc(docIds(wid,date)[i]).set({workerId:wid,date:date,active:false,cancelledAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});}}catch(e){console.warn(PATCH+' cancel vacation cloud fallback',e&&e.message?e.message:e);}
-    try{renderCalendar();renderDay();renderStats();renderSmartDashboard();}catch(e){}
-  };
-
-  var oldLoadMonth=window.loadMonth;
-  if(typeof oldLoadMonth==='function'&&!oldLoadMonth.__wrappedV482){
-    var loadMonthWrap=async function(){
-      var res=await oldLoadMonth.apply(this,arguments);
-      try{await window.loadVacationDaysV482();}catch(e){}
-      try{renderCalendar();renderDay();renderStats();renderSmartDashboard();}catch(e){}
-      return res;
-    };
-    loadMonthWrap.__wrappedV482=true;
-    window.loadMonth=loadMonthWrap;
-  }
-
-  var oldShowAdmin=window.showAdmin;
-  if(typeof oldShowAdmin==='function'&&!oldShowAdmin.__wrappedV482){
-    var adminWrap=async function(){var res=await oldShowAdmin.apply(this,arguments);try{await seedCurrentChangelog();ensureAdminPanel();window.resetChangelogFormV475();await window.loadAdminChangelogV475();}catch(e){console.warn(PATCH+' admin wrap',e&&e.message?e.message:e);}return res;};
-    adminWrap.__wrappedV482=true; window.showAdmin=adminWrap;
-  }
-  var oldShowWorker=window.showWorker;
-  if(typeof oldShowWorker==='function'&&!oldShowWorker.__wrappedV482){
-    var workerWrap=async function(){var res=await oldShowWorker.apply(this,arguments);try{await window.loadVacationDaysV482();setTimeout(ensureWorkerLink,80);setTimeout(ensureWorkerLink,350);}catch(e){}return res;};
-    workerWrap.__wrappedV482=true; window.showWorker=workerWrap;
-  }
-
-  document.addEventListener('DOMContentLoaded',function(){try{setTimeout(ensureWorkerLink,300);setTimeout(function(){if(q('adminView')&&!q('adminView').classList.contains('hidden')){ensureAdminPanel();window.loadAdminChangelogV475();}},800);}catch(e){}});
-  window.addEventListener('load',function(){try{setTimeout(ensureWorkerLink,300);setTimeout(ensureWorkerLink,1200);setTimeout(function(){if(q('adminView')&&!q('adminView').classList.contains('hidden')){ensureAdminPanel();window.loadAdminChangelogV475();}},1000);}catch(e){}});
 })();
 </script>
 
