@@ -1167,7 +1167,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "4.89";
+const APP_VERSION = "4.94";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1179,6 +1179,64 @@ function setAppVersionUI(){
 setAppVersionUI();
 window.addEventListener("DOMContentLoaded", setAppVersionUI);
 window.addEventListener("load", setAppVersionUI);
+
+/*
+===============================================================================
+CHANGELOG 4.94 - ניקוי מנגנוני Changelog כפולים
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"4.94" ונשאר מקור הגרסה המרכזי בכל תצוגות הגרסה.
+2. הוסרו מנגנוני Changelog ישנים וכפולים שדרסו אחד את השני וגרמו לאדמין ולעובד לראות רק עד v4.82.
+3. נוסף מנגנון Changelog יחיד ונקי: קורא מ-appChangelog, מוסיף ל-Firebase רק גרסאות ברירת מחדל שחסרות, ואז מציג את הרשימה מאותו מקור.
+4. נשמרה עריכה ידנית של גרסאות קיימות באדמין; אין דריסה של רשומות קיימות.
+5. התיקון לא משנה לוגין, עובדים, ימי חופש, עבודות, מחירון, גיבוי או מנויים.
+===============================================================================
+*/
+/*
+===============================================================================
+CHANGELOG 4.93 - השלמת גרסאות חסרות ב-Changelog מול Firebase
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"4.93" ונשאר מקור הגרסה המרכזי בכל תצוגות הגרסה.
+2. תוקנה לוגיקת appChangelog: אם קיימים נתונים ישנים ב-Firebase, המערכת מוסיפה רק גרסאות ברירת מחדל שחסרות ולא דורסת עריכות קיימות.
+3. Firestore נשאר מקור האמת היחיד להצגה: אחרי השלמת החסר, התצוגה נטענת מחדש מתוך Firebase בלבד.
+4. התיקון נוגע רק למנגנון Changelog/מה חדש, ולא משנה לוגין, עובדים, ימי חופש, עבודות, מחירון, גיבויים או מנויים.
+===============================================================================
+*/
+
+/*
+===============================================================================
+CHANGELOG 4.92 - ברירות מחדל נשמרות ב-Firebase בלבד
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"4.92" ונשאר מקור הגרסה המרכזי בכל תצוגות הגרסה.
+2. לוגיקת Changelog שונתה כך ש-Firestore הוא מקור האמת היחיד: אם קיימות רשומות ב-appChangelog מציגים רק אותן.
+3. אם appChangelog ריק לחלוטין, המערכת יוצרת פעם אחת את רשומות ברירת המחדל בתוך Firebase ואז מציגה אותן משם.
+4. לא משתמשים ב-localStorage ולא מערבבים רשומות fallback מקומיות עם נתונים שכבר קיימים בדאטהבייס.
+5. התיקון נעשה בתוך פונקציות fetchGlobalChangelogV477/localRows477 הקיימות, עם הערות קוד ליד השינוי.
+===============================================================================
+*/
+
+/*
+===============================================================================
+CHANGELOG 4.91 - הצגת תיקון הסיסמה בתוך Changelog/מה חדש
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"4.91".
+2. נוספה רשומת Changelog גלויה עבור 4.90 כדי שהתיקון של שינוי הסיסמה יופיע גם בחלון "מה חדש" ולא רק כהערת קוד.
+3. נוספה רשומת Changelog עבור 4.91 שמסבירה את תיקון ניהול הגרסאות עצמו.
+4. עדכון ה-Changelog נעשה בתוך פונקציית localRows477 הקיימת שממנה חלון "מה חדש" והאדמין מקבלים fallback מקומי.
+5. לא שונתה לוגיקת התחברות, ימי חופש, עבודות, מחירון, מנויים או שינוי סיסמה.
+===============================================================================
+*/
+
+/*
+===============================================================================
+CHANGELOG 4.90 - תיקון שינוי סיסמה מהגדרות העובד
+-------------------------------------------------------------------------------
+1. שינוי סיסמה מהגדרות העובד מעדכן עכשיו קודם את Firebase Auth בפועל.
+2. רק אחרי הצלחת Auth מתעדכן passwordHash במסמך העובד, כדי למנוע מצב שהסיסמה החדשה לא עובדת.
+3. הוגדר מינימום 6 תווים בהתאם לדרישת Firebase Auth.
+4. נוספו הודעות שגיאה ברורות אם Auth לא מוכן או אם נדרש login מחדש.
+5. אין שינוי בימי חופש, לוח שנה, עבודות, מנויים או Changelog קיים.
+===============================================================================
+*/
 
 /*
 ===============================================================================
@@ -1802,18 +1860,76 @@ function renderInstallItemsSummary(obj){
 function toggleWorkerSettings(){const p=$("workerSettingsPanel");p.classList.toggle("hidden");if(viewedWorker&&$("selfMonthlyGoal"))$("selfMonthlyGoal").value=Number(viewedWorker.monthlyGoal||0)}
 async function saveWorkerSelfSettings(){
   if(!viewedWorker)return;
+
+  const msg=$("selfSettingsMsg");
   const goal=Number(val("selfMonthlyGoal")||0);
   const pass=val("selfNewPassword");
-  if(Number.isNaN(goal)||goal<0)return $("selfSettingsMsg").innerHTML="<p class='danger'>יעד חודשי לא תקין.</p>";
-  const update={monthlyGoal:goal,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-  if(pass){
-    if(pass.length<4)return $("selfSettingsMsg").innerHTML="<p class='danger'>סיסמה קצרה מדי.</p>";
-    update.passwordHash=await sha256(pass);
+
+  if(Number.isNaN(goal)||goal<0){
+    if(msg) msg.innerHTML="<p class='danger'>יעד חודשי לא תקין.</p>";
+    return;
   }
-  await db.collection("workers").doc(viewedWorker.id).update(update);
+
+  const update={
+    monthlyGoal:goal,
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  if(pass){
+    // v4.90 FIX:
+    // שינוי סיסמה של עובד חייב לעדכן את Firebase Auth לפני עדכון passwordHash במסמך העובד.
+    // בגרסאות הקודמות עודכן רק passwordHash, אבל הכניסה בפועל מתבצעת דרך Auth ולכן הסיסמה החדשה לא התקבלה אחרי יציאה.
+    if(pass.length<6){
+      if(msg) msg.innerHTML="<p class='danger'>סיסמה חייבת להיות לפחות 6 תווים.</p>";
+      return;
+    }
+
+    if(!firebaseAuthReady() || !auth.currentUser){
+      if(msg) msg.innerHTML="<p class='danger'>Firebase Auth עדיין לא מוכן. צא והיכנס שוב ואז שנה סיסמה.</p>";
+      return;
+    }
+
+    if(viewedWorker.authUid && auth.currentUser.uid && viewedWorker.authUid!==auth.currentUser.uid){
+      if(msg) msg.innerHTML="<p class='danger'>המשתמש המחובר ב־Auth לא תואם לעובד הנוכחי. צא והיכנס מחדש.</p>";
+      return;
+    }
+
+    try{
+      await auth.currentUser.updatePassword(pass);
+    }catch(e){
+      const code=e && e.code ? e.code : "";
+      const needsRelogin = code==="auth/requires-recent-login" || String(e.message||"").includes("recent");
+      const humanMsg = needsRelogin
+        ? "מטעמי אבטחה Firebase דורש התחברות מחדש לפני שינוי סיסמה. צא, היכנס עם הסיסמה הנוכחית, ואז שנה שוב."
+        : "שגיאה בעדכון סיסמת Firebase Auth: "+(e.message||e);
+      if(msg) msg.innerHTML=`<p class='danger'>${esc(humanMsg)}</p>`;
+      if(typeof writeAppLogV167==="function"){
+        await writeAppLogV167("workerSelfPasswordUpdateFailedV490",{
+          workerId:viewedWorker.id||"",
+          authUid:auth.currentUser ? auth.currentUser.uid : "",
+          errorCode:code,
+          errorMessage:e.message||String(e)
+        }).catch(()=>{});
+      }
+      return;
+    }
+
+    // v4.90 FIX:
+    // רק לאחר שהסיסמה עודכנה בהצלחה ב־Auth, מעדכנים את ההאש במסמך העובד כדי שהנתונים יישארו מסונכרנים.
+    update.passwordHash=await sha256(pass);
+    update.passwordChangedAt=firebase.firestore.FieldValue.serverTimestamp();
+  }
+
+  await db.collection("workers").doc(viewedWorker.id).set(update,{merge:true});
   viewedWorker.monthlyGoal=goal;
-  $("selfNewPassword").value="";
-  $("selfSettingsMsg").innerHTML="<div class='notice'>ההגדרות נשמרו ✅</div>";
+  if(pass){
+    viewedWorker.passwordHash=update.passwordHash;
+    viewedWorker.passwordChangedAt=new Date().toISOString();
+  }
+  if($("selfNewPassword")) $("selfNewPassword").value="";
+  if(msg) msg.innerHTML=pass
+    ? "<div class='notice'>ההגדרות והסיסמה נשמרו ✅<br>בכניסה הבאה השתמש בסיסמה החדשה.</div>"
+    : "<div class='notice'>ההגדרות נשמרו ✅</div>";
   renderStats();
 }
 
@@ -12741,468 +12857,6 @@ try{
 
 
 
-<script id="v4-75-admin-editable-changelog">
-/*
-===============================================================================
-CHANGELOG 4.75 - ניהול גרסאות וצ׳יינג׳לוג מהאדמין
--------------------------------------------------------------------------------
-1. APP_VERSION עודכן ל-"4.75" דרך הקבוע המרכזי בלבד.
-2. נוסף פאנל אדמין "ניהול גרסאות / Changelog" להוספה, עריכה ומחיקה של גרסאות.
-3. רשימת הגרסאות באדמין יושבת בתוך חלון גלילה פנימי כדי שתוכל להכיל הרבה גרסאות.
-4. לינק "מה חדש" באזור העובד מוצג כקישור טקסט קטן ולא ככפתור רגיל.
-5. חלון "מה חדש" טוען קודם גרסאות מ-Firebase, ואם אין נתונים משתמש ברשימת ברירת המחדל הקיימת.
-6. התיקון הוא שכבת wrapper/additive בלבד: לא שוכתבו לוגין, אדמין, עובד, מחירון, גיבוי, מנויים או שמירת עבודות.
-===============================================================================
-*/
-(function(){
-  var PATCH='v4.75-admin-editable-changelog';
-  var CHANGELOG_COLLECTION_V475='appChangelog';
-
-  try{
-    window.APP_VERSION = APP_VERSION;
-    if(typeof setAppVersionUI==='function') setAppVersionUI();
-    if(typeof enforceAppVersionUI==='function') enforceAppVersionUI();
-  }catch(e){}
-
-  function q(id){return document.getElementById(id);}
-  function safeEsc(s){
-    try{ if(typeof window.esc==='function') return window.esc(s); }catch(e){}
-    return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
-  }
-  function cleanText(s){return String(s||'').trim();}
-  function splitItems(text){
-    return String(text||'')
-      .split(/\n+/)
-      .map(function(x){return cleanText(x).replace(/^[-•*]\s*/, '');})
-      .filter(Boolean);
-  }
-  function todayHeV475(){
-    try{
-      var d=new Date();
-      return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
-    }catch(e){return '';}
-  }
-  function changelogDocIdV475(version){
-    var v=cleanText(version||'').replace(/^v/i,'');
-    return 'v_'+v.replace(/[^0-9A-Za-z_\-\.]/g,'_').replaceAll('.','_');
-  }
-  function defaultWhatsNewItemsV475(){
-    var arr=[];
-    try{ if(Array.isArray(window.WHATS_NEW_ITEMS_V474)) arr=window.WHATS_NEW_ITEMS_V474.slice(); }catch(e){}
-    var hasCurrent=arr.some(function(x){return String(x.version||'')===String(APP_VERSION);});
-    if(!hasCurrent){
-      arr.unshift({
-        version:String(APP_VERSION),
-        title:'ניהול גרסאות וצ׳יינג׳לוג מהאדמין',
-        date:todayHeV475(),
-        items:[
-          'נוסף פאנל באדמין להוספה, עריכה ומחיקה של גרסאות.',
-          'רשימת הגרסאות באדמין נמצאת בתוך חלון גלילה פנימי.',
-          'חלון מה חדש אצל העובד מציג את הגרסאות שנשמרו מהאדמין.'
-        ]
-      });
-    }
-    return arr;
-  }
-  function normalizeChangelogRowV475(id,data){
-    data=data||{};
-    var items=Array.isArray(data.items)?data.items:splitItems(data.itemsText||data.text||'');
-    return {
-      id:id||data.id||changelogDocIdV475(data.version||''),
-      version:cleanText(data.version||''),
-      title:cleanText(data.title||''),
-      date:cleanText(data.date||''),
-      items:items,
-      active:data.active!==false,
-      order:Number(data.order||0),
-      updatedAt:data.updatedAt||null,
-      createdAt:data.createdAt||null
-    };
-  }
-  function sortChangelogV475(list){
-    return (list||[]).slice().sort(function(a,b){
-      var ao=Number(a.order||0), bo=Number(b.order||0);
-      if(ao!==bo) return ao-bo;
-      return String(b.version||'').localeCompare(String(a.version||''), undefined, {numeric:true});
-    });
-  }
-  function getFallbackChangelogV475(){
-    return sortChangelogV475(defaultWhatsNewItemsV475().map(function(x,i){
-      return normalizeChangelogRowV475(changelogDocIdV475(x.version), Object.assign({order:(i+1)*10,active:true},x));
-    }));
-  }
-
-  async function fetchChangelogV475(includeInactive){
-    try{
-      var snap=await db.collection(CHANGELOG_COLLECTION_V475).get();
-      var rows=snap.docs.map(function(d){return normalizeChangelogRowV475(d.id,d.data());});
-      rows=rows.filter(function(r){return includeInactive || r.active!==false;});
-      rows=rows.filter(function(r){return r.version || r.title || (r.items&&r.items.length);});
-      if(rows.length) return sortChangelogV475(rows);
-    }catch(e){console.warn(PATCH,'fetch fallback',e&&e.message?e.message:e);}
-    return getFallbackChangelogV475().filter(function(r){return includeInactive || r.active!==false;});
-  }
-  window.fetchChangelogV475=fetchChangelogV475;
-
-  async function seedDefaultChangelogV475(){
-    try{
-      var snap=await db.collection(CHANGELOG_COLLECTION_V475).limit(1).get();
-      if(!snap.empty) return false;
-      var batch=db.batch();
-      getFallbackChangelogV475().forEach(function(r,i){
-        var ref=db.collection(CHANGELOG_COLLECTION_V475).doc(r.id||changelogDocIdV475(r.version));
-        batch.set(ref,{
-          version:r.version,
-          title:r.title,
-          date:r.date,
-          items:r.items||[],
-          active:true,
-          order:Number(r.order||((i+1)*10)),
-          source:'seeded-from-v4-75',
-          createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-          updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-        },{merge:true});
-      });
-      await batch.commit();
-      return true;
-    }catch(e){console.warn(PATCH,'seed failed',e&&e.message?e.message:e);return false;}
-  }
-  window.seedDefaultChangelogV475=seedDefaultChangelogV475;
-
-  function ensureChangelogCssV475(){
-    if(q('adminChangelogCssV475')) return;
-    var st=document.createElement('style');
-    st.id='adminChangelogCssV475';
-    st.textContent=`
-      .worker-bottom-links-v474{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:10px auto 2px;text-align:center}
-      a.whats-new-link-v474,a.whats-new-link-v475{display:inline-flex!important;align-items:center!important;justify-content:center!important;background:transparent!important;color:#64748b!important;border:0!important;box-shadow:none!important;font-size:12px!important;font-weight:900!important;padding:3px 6px!important;min-height:0!important;width:auto!important;text-decoration:underline!important;text-underline-offset:3px!important;cursor:pointer!important}
-      a.whats-new-link-v474:hover,a.whats-new-link-v475:hover{color:#2563eb!important}
-      .admin-changelog-panel-v475 .admin-changelog-form-v475{background:rgba(248,250,252,.72);border:1px solid #e2e8f0;border-radius:20px;padding:14px;margin:10px 0}
-      .admin-changelog-scroll-v475{max-height:420px;overflow-y:auto;overflow-x:hidden;border:1px solid #e2e8f0;border-radius:20px;padding:8px;background:rgba(255,255,255,.72);scrollbar-width:thin;overscroll-behavior:contain}
-      .admin-changelog-scroll-v475::-webkit-scrollbar{width:8px}.admin-changelog-scroll-v475::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}.admin-changelog-scroll-v475::-webkit-scrollbar-track{background:transparent}
-      .admin-changelog-row-v475{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:13px;margin-bottom:8px;box-shadow:0 8px 18px rgba(15,23,42,.055)}
-      .admin-changelog-row-head-v475{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
-      .admin-changelog-version-v475{font-weight:900;color:#2563eb;white-space:nowrap}.admin-changelog-title-v475{font-weight:900}.admin-changelog-meta-v475{color:#94a3b8;font-size:12px;font-weight:800;margin-top:3px}
-      .admin-changelog-list-v475{margin:8px 0 0;padding:0 18px 0 0;color:#334155;line-height:1.5;font-size:13px}.admin-changelog-list-v475 li{margin-bottom:3px}
-      @media(max-width:800px){.admin-changelog-scroll-v475{max-height:360px}.admin-changelog-panel-v475 .grid3{grid-template-columns:1fr!important}}
-    `;
-    document.head.appendChild(st);
-  }
-
-  function ensureAdminChangelogPanelV475(){
-    ensureChangelogCssV475();
-    var admin=q('adminView');
-    if(!admin) return;
-    if(q('adminChangelogPanelV475')) return;
-    var panel=document.createElement('div');
-    panel.id='adminChangelogPanelV475';
-    panel.className='card admin-changelog-panel-v475';
-    panel.innerHTML=`
-      <div class="cal-head">
-        <h2>📝 ניהול גרסאות / Changelog</h2>
-        <div class="actions">
-          <button class="btn-light" type="button" onclick="loadAdminChangelogV475()">רענן</button>
-          <button class="btn-yellow" type="button" onclick="seedDefaultChangelogV475().then(loadAdminChangelogV475)">ייבא ברירות מחדל</button>
-        </div>
-      </div>
-      <p>כאן אתה מנהל את החלון "מה חדש" שהעובדים רואים. כל גרסה חדשה שמכינים — מוסיפים פה כותרת ושורות שינוי.</p>
-      <div class="admin-changelog-form-v475">
-        <input id="changelogEditIdV475" type="hidden">
-        <div class="grid3">
-          <input id="changelogVersionV475" placeholder="גרסה, למשל 4.75">
-          <input id="changelogTitleV475" placeholder="כותרת קצרה לגרסה">
-          <input id="changelogDateV475" placeholder="תאריך, למשל 06/05/2026">
-        </div>
-        <textarea id="changelogItemsV475" placeholder="שורת שינוי אחת בכל שורה"></textarea>
-        <div class="actions">
-          <button class="btn-green" type="button" onclick="saveChangelogVersionV475()">שמור גרסה</button>
-          <button class="btn-light" type="button" onclick="resetChangelogFormV475()">נקה טופס</button>
-        </div>
-        <div id="changelogAdminMsgV475"></div>
-      </div>
-      <div class="admin-changelog-scroll-v475" id="adminChangelogListV475"><p class="muted">טוען גרסאות...</p></div>
-    `;
-    var after=q('adminDataToolsPrimary') || admin.firstElementChild;
-    if(after && after.parentNode===admin) after.insertAdjacentElement('afterend',panel);
-    else admin.insertBefore(panel,admin.firstChild);
-  }
-  window.ensureAdminChangelogPanelV475=ensureAdminChangelogPanelV475;
-
-  window.resetChangelogFormV475=function(){
-    ['changelogEditIdV475','changelogVersionV475','changelogTitleV475','changelogItemsV475'].forEach(function(id){var el=q(id); if(el) el.value='';});
-    var date=q('changelogDateV475'); if(date) date.value=todayHeV475();
-    var msg=q('changelogAdminMsgV475'); if(msg) msg.innerHTML='';
-  };
-
-  window.loadAdminChangelogV475=async function(){
-    ensureAdminChangelogPanelV475();
-    var box=q('adminChangelogListV475');
-    if(!box) return;
-    box.innerHTML='<p class="muted">טוען גרסאות...</p>';
-    var rows=await fetchChangelogV475(false);
-    if(!rows.length){box.innerHTML='<p class="muted">אין גרסאות עדיין.</p>';return;}
-    box.innerHTML='';
-    rows.forEach(function(r){
-      var div=document.createElement('div');
-      div.className='admin-changelog-row-v475';
-      div.innerHTML=`
-        <div class="admin-changelog-row-head-v475">
-          <div>
-            <div class="admin-changelog-title-v475">${safeEsc(r.title||'ללא כותרת')}</div>
-            <div class="admin-changelog-meta-v475">${safeEsc(r.date||'')} · סדר: ${Number(r.order||0)}</div>
-          </div>
-          <div class="admin-changelog-version-v475">v${safeEsc(r.version||'')}</div>
-        </div>
-        <ul class="admin-changelog-list-v475">${(r.items||[]).map(function(i){return '<li>'+safeEsc(i)+'</li>';}).join('')}</ul>
-        <div class="actions" style="margin-top:10px">
-          <button class="btn-yellow" type="button" onclick="editChangelogVersionV475('${safeEsc(r.id)}')">ערוך</button>
-          <button class="btn-red" type="button" onclick="deleteChangelogVersionV475('${safeEsc(r.id)}')">מחק</button>
-        </div>
-      `;
-      box.appendChild(div);
-    });
-  };
-
-  window.editChangelogVersionV475=async function(id){
-    ensureAdminChangelogPanelV475();
-    var rows=await fetchChangelogV475(true);
-    var r=rows.find(function(x){return x.id===id;});
-    if(!r) return alert('הגרסה לא נמצאה. לחץ רענן ונסה שוב.');
-    q('changelogEditIdV475').value=r.id||'';
-    q('changelogVersionV475').value=r.version||'';
-    q('changelogTitleV475').value=r.title||'';
-    q('changelogDateV475').value=r.date||todayHeV475();
-    q('changelogItemsV475').value=(r.items||[]).join('\n');
-    try{q('adminChangelogPanelV475').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}
-  };
-
-  window.saveChangelogVersionV475=async function(){
-    var msg=q('changelogAdminMsgV475');
-    var editId=cleanText(q('changelogEditIdV475')&&q('changelogEditIdV475').value);
-    var version=cleanText(q('changelogVersionV475')&&q('changelogVersionV475').value).replace(/^v/i,'');
-    var title=cleanText(q('changelogTitleV475')&&q('changelogTitleV475').value);
-    var date=cleanText(q('changelogDateV475')&&q('changelogDateV475').value)||todayHeV475();
-    var items=splitItems(q('changelogItemsV475')&&q('changelogItemsV475').value);
-    if(!version){ if(msg) msg.innerHTML='<p class="danger">חובה למלא מספר גרסה.</p>'; return; }
-    if(!title){ if(msg) msg.innerHTML='<p class="danger">חובה למלא כותרת.</p>'; return; }
-    if(!items.length){ if(msg) msg.innerHTML='<p class="danger">חובה למלא לפחות שורת שינוי אחת.</p>'; return; }
-    try{
-      var id=editId||changelogDocIdV475(version);
-      var existing=await fetchChangelogV475(true);
-      var maxOrder=existing.reduce(function(m,r){return Math.max(m,Number(r.order||0));},0);
-      var old=existing.find(function(r){return r.id===id;});
-      await db.collection(CHANGELOG_COLLECTION_V475).doc(id).set({
-        version:version,
-        title:title,
-        date:date,
-        items:items,
-        active:true,
-        order:old?Number(old.order||10):Math.max(10,maxOrder+10),
-        updatedBy:'admin-panel',
-        pageVersion:APP_VERSION,
-        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
-        createdAt:old?(old.createdAt||firebase.firestore.FieldValue.serverTimestamp()):firebase.firestore.FieldValue.serverTimestamp()
-      },{merge:true});
-      if(editId && editId!==changelogDocIdV475(version)){
-        // אם שינו מספר גרסה, משאירים את אותו מסמך כדי לא לאבד היסטוריה פנימית.
-      }
-      if(msg) msg.innerHTML='<div class="notice">הגרסה נשמרה ✅</div>';
-      window.resetChangelogFormV475();
-      await window.loadAdminChangelogV475();
-    }catch(e){ if(msg) msg.innerHTML='<p class="danger">שגיאה בשמירה: '+safeEsc(e.message||e)+'</p>'; }
-  };
-
-  window.deleteChangelogVersionV475=async function(id){
-    if(!confirm('למחוק את הגרסה מהחלון "מה חדש"?')) return;
-    try{
-      await db.collection(CHANGELOG_COLLECTION_V475).doc(id).set({active:false,deletedAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
-      await window.loadAdminChangelogV475();
-    }catch(e){alert('שגיאה במחיקת גרסה: '+(e.message||e));}
-  };
-
-  function buildWhatsNewHtmlFromRowsV475(rows){
-    return (rows||[]).map(function(v){
-      return '<div class="whats-new-version-v474">'+
-        '<div class="whats-new-version-head-v474">'+
-          '<div><div class="whats-new-version-title-v474">'+safeEsc(v.title)+'</div><div class="whats-new-date-v474">'+safeEsc(v.date||'')+'</div></div>'+
-          '<div class="whats-new-ver-v474">v'+safeEsc(v.version)+'</div>'+
-        '</div>'+
-        '<ul class="whats-new-list-v474">'+(v.items||[]).map(function(i){return '<li>'+safeEsc(i)+'</li>';}).join('')+'</ul>'+
-      '</div>';
-    }).join('');
-  }
-
-  window.openWhatsNewV474=async function(){
-    try{ if(typeof ensureWhatsNewCss==='function') ensureWhatsNewCss(); }catch(e){}
-    ensureChangelogCssV475();
-    var old=q('whatsNewOverlayV474');
-    if(old) old.remove();
-    var overlay=document.createElement('div');
-    overlay.id='whatsNewOverlayV474';
-    overlay.className='whats-new-overlay-v474';
-    overlay.innerHTML='<div class="whats-new-card-v474" role="dialog" aria-modal="true">'+
-      '<div class="whats-new-head-v474"><div class="whats-new-title-v474">✨ מה חדש באפליקציה</div><button class="whats-new-close-v474" type="button" id="whatsNewCloseV474">×</button></div>'+
-      '<div class="whats-new-body-v474" id="whatsNewBodyV474"><p class="muted">טוען גרסאות...</p></div>'+
-      '<div class="whats-new-footer-v474">מעודכן לגרסה '+safeEsc(window.APP_VERSION||APP_VERSION||'')+'</div>'+
-    '</div>';
-    try{document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden';}catch(e){}
-    document.body.appendChild(overlay);
-    var body=overlay.querySelector('#whatsNewBodyV474');
-    function close(){try{overlay.remove();}catch(e){} try{document.documentElement.style.overflow='';document.body.style.overflow='';}catch(e){}}
-    overlay.querySelector('#whatsNewCloseV474').onclick=close;
-    overlay.addEventListener('click',function(ev){if(ev.target===overlay)close();});
-    overlay.addEventListener('wheel',function(ev){ if(body && !body.contains(ev.target)) ev.preventDefault(); },{passive:false});
-    overlay.addEventListener('touchmove',function(ev){ if(body && !body.contains(ev.target)) ev.preventDefault(); },{passive:false});
-    try{
-      var rows=await fetchChangelogV475(false);
-      body.innerHTML=buildWhatsNewHtmlFromRowsV475(rows);
-    }catch(e){
-      body.innerHTML=buildWhatsNewHtmlFromRowsV475(getFallbackChangelogV475());
-    }
-  };
-
-  function ensureWorkerLinksV475(){
-    ensureChangelogCssV475();
-    var worker=q('workerView');
-    if(!worker) return;
-    var shell=q('workerBottomLinksV474');
-    if(!shell){
-      shell=document.createElement('div');
-      shell.id='workerBottomLinksV474';
-      shell.className='worker-bottom-links-v474';
-      worker.appendChild(shell);
-    }
-    var oldBtn=q('whatsNewLinkV474');
-    if(oldBtn && oldBtn.tagName && oldBtn.tagName.toLowerCase()!=='a'){
-      try{oldBtn.remove();}catch(e){}
-    }
-    if(!q('whatsNewLinkV474')){
-      var link=document.createElement('a');
-      link.id='whatsNewLinkV474';
-      link.href='#';
-      link.className='whats-new-link-v474 whats-new-link-v475';
-      link.textContent='מה חדש';
-      link.onclick=function(ev){ev.preventDefault();window.openWhatsNewV474();};
-      shell.appendChild(link);
-    }
-    var bug=q('bugContactLinkV220');
-    if(bug && bug.parentNode!==shell){try{shell.insertBefore(bug,q('whatsNewLinkV474'));}catch(e){}}
-    var panel=q('bugReportPanelV220');
-    if(panel && panel.parentNode!==worker){try{worker.appendChild(panel);}catch(e){}}
-  }
-  window.ensureWhatsNewLinkV474=ensureWorkerLinksV475;
-  window.ensureWorkerLinksV475=ensureWorkerLinksV475;
-
-  var oldShowAdmin=window.showAdmin;
-  if(typeof oldShowAdmin==='function' && !oldShowAdmin.__changelogWrappedV475){
-    var adminWrapped=async function(){
-      var res=await oldShowAdmin.apply(this,arguments);
-      try{ensureAdminChangelogPanelV475(); window.resetChangelogFormV475(); await seedDefaultChangelogV475(); await window.loadAdminChangelogV475();}catch(e){console.warn(PATCH,e&&e.message?e.message:e);}
-      return res;
-    };
-    adminWrapped.__changelogWrappedV475=true;
-    window.showAdmin=adminWrapped;
-  }
-  var oldShowWorker=window.showWorker;
-  if(typeof oldShowWorker==='function' && !oldShowWorker.__workerLinksWrappedV475){
-    var workerWrapped=async function(){
-      var res=await oldShowWorker.apply(this,arguments);
-      try{setTimeout(ensureWorkerLinksV475,80);setTimeout(ensureWorkerLinksV475,350);}catch(e){}
-      return res;
-    };
-    workerWrapped.__workerLinksWrappedV475=true;
-    window.showWorker=workerWrapped;
-  }
-  document.addEventListener('DOMContentLoaded',function(){setTimeout(ensureWorkerLinksV475,300);setTimeout(function(){if(q('adminView')&&!q('adminView').classList.contains('hidden')){ensureAdminChangelogPanelV475();window.loadAdminChangelogV475();}},600);});
-  window.addEventListener('load',function(){setTimeout(ensureWorkerLinksV475,300);setTimeout(ensureWorkerLinksV475,1200);});
-  setTimeout(ensureWorkerLinksV475,500);
-})();
-</script>
-
-
-
-<script id="v4-77-global-changelog-crud-only">
-/*
-===============================================================================
-CHANGELOG 4.77 - Changelog כללי עם CRUD בלבד
--------------------------------------------------------------------------------
-1. הצ׳יינג׳לוג נשאר כללי לכל האפליקציה ולכל העובדים, לא לפי עובד.
-2. האדמין מנהל את אותו מקור שהעובדים רואים: appChangelog + ההיסטוריה הקיימת בקובץ.
-3. בפאנל האדמין נשארו רק פעולות פשוטות: הוספה/שמירה, עריכה, מחיקה ורענון.
-4. הוסר כפתור סנכרון/ייבוא מהאדמין כדי למנוע בלבול בין מקורות.
-5. התיקון הוא override אחרון בלבד ולא נוגע בלוגין, עובדים, עבודות, מחירון, גיבויים או מנויים.
-===============================================================================
-*/
-(function(){
-  var COLLECTION='appChangelog';
-  try{ window.APP_VERSION=APP_VERSION; if(typeof setAppVersionUI==='function')setAppVersionUI(); if(typeof enforceAppVersionUI==='function')enforceAppVersionUI(); }catch(e){}
-  function q(id){return document.getElementById(id);}
-  function esc477(s){try{if(typeof window.esc==='function')return window.esc(s);}catch(e){} return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');}
-  function clean477(s){return String(s||'').trim();}
-  function splitItems477(text){if(Array.isArray(text))return text.map(clean477).filter(Boolean);return String(text||'').split(/\n+/).map(function(x){return clean477(x).replace(/^[-•*]\s*/,'');}).filter(Boolean);}
-  function todayHe477(){var d=new Date();return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
-  function docId477(version){var v=clean477(version||'').replace(/^v/i,'');return 'v_'+v.replace(/[^0-9A-Za-z_\-\.]/g,'_').replaceAll('.','_');}
-  function row477(id,data,source,i){data=data||{};var version=clean477(data.version||'').replace(/^v/i,'');return {id:id||data.id||docId477(version),version:version,title:clean477(data.title||''),date:clean477(data.date||''),items:Array.isArray(data.items)?data.items:splitItems477(data.itemsText||data.text||''),active:data.active!==false,order:Number(data.order||((Number(i||0)+1)*10)),source:source||data.source||'',createdAt:data.createdAt||null,updatedAt:data.updatedAt||null};}
-  function score477(v){return String(v||'').replace(/^v/i,'').split('.').map(function(p){return parseInt(p,10)||0;});}
-  function sort477(rows){return (rows||[]).slice().sort(function(a,b){var av=score477(a.version),bv=score477(b.version),len=Math.max(av.length,bv.length,4);for(var i=0;i<len;i++){var x=av[i]||0,y=bv[i]||0;if(x!==y)return y-x;}return Number(a.order||0)-Number(b.order||0);});}
-  function localRows477(){
-    var arr=[];
-    try{ if(Array.isArray(window.WHATS_NEW_ITEMS_V474)) arr=window.WHATS_NEW_ITEMS_V474.slice(); }catch(e){}
-    if(!arr.some(function(x){return String(x.version||'').replace(/^v/i,'')==='4.77';})){
-      arr.unshift({version:'4.77',title:'Changelog כללי עם ניהול פשוט',date:todayHe477(),items:[
-        'הצ׳יינג׳לוג נשאר כללי לכל העובדים ולא נפרד לכל עובד.',
-        'האדמין והעובדים משתמשים באותה רשימת גרסאות בדיוק.',
-        'באדמין נשארו רק הוספה, עריכה ומחיקה של גרסאות.'
-      ]});
-    }
-    return arr.map(function(x,i){return row477(docId477(x.version),Object.assign({order:(i+1)*10,active:true},x),'local-worker-source',i);});
-  }
-  async function fbRows477(){try{var snap=await db.collection(COLLECTION).get();return snap.docs.map(function(d,i){return row477(d.id,d.data(),'firebase',i);});}catch(e){console.warn('v4.77 changelog firebase fallback',e&&e.message?e.message:e);return [];}}
-  async function fetchGlobalChangelogV477(includeInactive){
-    var map={};
-    localRows477().forEach(function(r){map[docId477(r.version||r.id)]=r;});
-    (await fbRows477()).forEach(function(r){var key=docId477(r.version||r.id);var prev=map[key]||{};map[key]=Object.assign({},prev,r,{id:r.id||prev.id||key,source:'firebase'});});
-    return sort477(Object.keys(map).map(function(k){return map[k];}).filter(function(r){if(!includeInactive&&r.active===false)return false;return !!(r.version||r.title||(r.items&&r.items.length));}));
-  }
-  window.fetchGlobalChangelogV476=fetchGlobalChangelogV477;
-  window.fetchGlobalChangelogV477=fetchGlobalChangelogV477;
-  window.fetchChangelogV475=fetchGlobalChangelogV477;
-  function ensureCss477(){
-    try{ if(typeof ensureWhatsNewCss==='function') ensureWhatsNewCss(); }catch(e){}
-    var st=q('adminChangelogCssV475');
-    if(st) return;
-    st=document.createElement('style');st.id='adminChangelogCssV475';
-    st.textContent='.worker-bottom-links-v474{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:10px auto 2px;text-align:center}a.whats-new-link-v474,a.whats-new-link-v475{display:inline-flex!important;align-items:center!important;justify-content:center!important;background:transparent!important;color:#64748b!important;border:0!important;box-shadow:none!important;font-size:12px!important;font-weight:900!important;padding:3px 6px!important;min-height:0!important;width:auto!important;text-decoration:underline!important;text-underline-offset:3px!important;cursor:pointer!important}.admin-changelog-panel-v475 .admin-changelog-form-v475{background:rgba(248,250,252,.72);border:1px solid #e2e8f0;border-radius:20px;padding:14px;margin:10px 0}.admin-changelog-scroll-v475{max-height:420px;overflow-y:auto;overflow-x:hidden;border:1px solid #e2e8f0;border-radius:20px;padding:8px;background:rgba(255,255,255,.72);scrollbar-width:thin;overscroll-behavior:contain}.admin-changelog-row-v475{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:13px;margin-bottom:8px;box-shadow:0 8px 18px rgba(15,23,42,.055)}.admin-changelog-row-head-v475{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}.admin-changelog-version-v475{font-weight:900;color:#2563eb;white-space:nowrap}.admin-changelog-title-v475{font-weight:900}.admin-changelog-meta-v475{color:#94a3b8;font-size:12px;font-weight:800;margin-top:3px}.admin-changelog-list-v475{margin:8px 0 0;padding:0 18px 0 0;color:#334155;line-height:1.5;font-size:13px}.admin-changelog-list-v475 li{margin-bottom:3px}';
-    document.head.appendChild(st);
-  }
-  function ensureAdminPanel477(){
-    ensureCss477();var admin=q('adminView');if(!admin)return;
-    var existing=q('adminChangelogPanelV475');
-    if(existing) existing.remove();
-    var panel=document.createElement('div');panel.id='adminChangelogPanelV475';panel.className='card admin-changelog-panel-v475';
-    panel.innerHTML='<div class="cal-head"><h2>📝 ניהול גרסאות / Changelog</h2><div class="actions"><button class="btn-light" type="button" onclick="loadAdminChangelogV475()">רענן</button></div></div><p>רשימה כללית אחת לכל העובדים. כאן מנהלים רק הוספה, עריכה ומחיקה של הגרסאות שמופיעות ב״מה חדש״.</p><div class="admin-changelog-form-v475"><input id="changelogEditIdV475" type="hidden"><div class="grid3"><input id="changelogVersionV475" placeholder="גרסה, למשל 4.77"><input id="changelogTitleV475" placeholder="כותרת קצרה לגרסה"><input id="changelogDateV475" placeholder="תאריך, למשל 06/05/2026"></div><textarea id="changelogItemsV475" placeholder="שורת שינוי אחת בכל שורה"></textarea><div class="actions"><button class="btn-green" type="button" onclick="saveChangelogVersionV475()">שמור / הוסף גרסה</button><button class="btn-light" type="button" onclick="resetChangelogFormV475()">נקה טופס</button></div><div id="changelogAdminMsgV475"></div></div><div class="admin-changelog-scroll-v475" id="adminChangelogListV475"><p class="muted">טוען גרסאות...</p></div>';
-    var after=q('adminDataToolsPrimary')||admin.firstElementChild;if(after&&after.parentNode===admin)after.insertAdjacentElement('afterend',panel);else admin.insertBefore(panel,admin.firstChild);
-  }
-  window.ensureAdminChangelogPanelV475=ensureAdminPanel477;
-  window.resetChangelogFormV475=function(){['changelogEditIdV475','changelogVersionV475','changelogTitleV475','changelogItemsV475'].forEach(function(id){var el=q(id);if(el)el.value='';});var date=q('changelogDateV475');if(date)date.value=todayHe477();var msg=q('changelogAdminMsgV475');if(msg)msg.innerHTML='';};
-  function rowsHtml477(rows,admin){return (rows||[]).map(function(r){var ctr=admin?'<div class="actions" style="margin-top:10px"><button class="btn-yellow" type="button" onclick="editChangelogVersionV475(\''+esc477(r.id)+'\')">ערוך</button><button class="btn-red" type="button" onclick="deleteChangelogVersionV475(\''+esc477(r.id)+'\')">מחק</button></div>':'';return '<div class="admin-changelog-row-v475"><div class="admin-changelog-row-head-v475"><div><div class="admin-changelog-title-v475">'+esc477(r.title||'ללא כותרת')+'</div><div class="admin-changelog-meta-v475">'+esc477(r.date||'')+'</div></div><div class="admin-changelog-version-v475">v'+esc477(r.version||'')+'</div></div><ul class="admin-changelog-list-v475">'+(r.items||[]).map(function(i){return '<li>'+esc477(i)+'</li>';}).join('')+'</ul>'+ctr+'</div>';}).join('');}
-  window.loadAdminChangelogV475=async function(){ensureAdminPanel477();var box=q('adminChangelogListV475');if(!box)return;box.innerHTML='<p class="muted">טוען גרסאות...</p>';var rows=await fetchGlobalChangelogV477(false);box.innerHTML=rows.length?rowsHtml477(rows,true):'<p class="muted">אין גרסאות עדיין.</p>';};
-  window.editChangelogVersionV475=async function(id){ensureAdminPanel477();var rows=await fetchGlobalChangelogV477(true);var r=rows.find(function(x){return x.id===id;})||rows.find(function(x){return docId477(x.version)===id;});if(!r)return alert('הגרסה לא נמצאה. לחץ רענן ונסה שוב.');q('changelogEditIdV475').value=r.id||docId477(r.version);q('changelogVersionV475').value=r.version||'';q('changelogTitleV475').value=r.title||'';q('changelogDateV475').value=r.date||todayHe477();q('changelogItemsV475').value=(r.items||[]).join('\n');try{q('adminChangelogPanelV475').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}};
-  window.saveChangelogVersionV475=async function(){var msg=q('changelogAdminMsgV475');var editId=clean477(q('changelogEditIdV475')&&q('changelogEditIdV475').value);var version=clean477(q('changelogVersionV475')&&q('changelogVersionV475').value).replace(/^v/i,'');var title=clean477(q('changelogTitleV475')&&q('changelogTitleV475').value);var date=clean477(q('changelogDateV475')&&q('changelogDateV475').value)||todayHe477();var items=splitItems477(q('changelogItemsV475')&&q('changelogItemsV475').value);if(!version){if(msg)msg.innerHTML='<p class="danger">חובה למלא מספר גרסה.</p>';return;}if(!title){if(msg)msg.innerHTML='<p class="danger">חובה למלא כותרת.</p>';return;}if(!items.length){if(msg)msg.innerHTML='<p class="danger">חובה למלא לפחות שורת שינוי אחת.</p>';return;}try{var rows=await fetchGlobalChangelogV477(true);var old=rows.find(function(r){return r.id===editId;})||rows.find(function(r){return docId477(r.version)===docId477(version);});var id=editId||docId477(version);if(editId&&editId.indexOf('v_')!==0)id=docId477(version);await db.collection(COLLECTION).doc(id).set({version:version,title:title,date:date,items:items,active:true,order:old?Number(old.order||10):10,source:'admin-crud-v4-77',pageVersion:APP_VERSION,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),createdAt:old&&old.createdAt?old.createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});if(msg)msg.innerHTML='<div class="notice">הגרסה נשמרה לכל העובדים ✅</div>';window.resetChangelogFormV475();await window.loadAdminChangelogV475();}catch(e){if(msg)msg.innerHTML='<p class="danger">שגיאה בשמירה: '+esc477(e.message||e)+'</p>';}};
-  window.deleteChangelogVersionV475=async function(id){if(!confirm('למחוק את הגרסה מהחלון "מה חדש" לכל העובדים?'))return;try{var rows=await fetchGlobalChangelogV477(true);var r=rows.find(function(x){return x.id===id;})||rows.find(function(x){return docId477(x.version)===id;});var docId=(r&&r.version)?docId477(r.version):id;await db.collection(COLLECTION).doc(docId).set({version:r&&r.version?r.version:'',title:r&&r.title?r.title:'',date:r&&r.date?r.date:'',items:r&&r.items?r.items:[],active:false,source:'admin-deleted-v4-77',deletedAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});await window.loadAdminChangelogV475();}catch(e){alert('שגיאה במחיקת גרסה: '+(e.message||e));}};
-  function whatsHtml477(rows){return (rows||[]).map(function(v){return '<div class="whats-new-version-v474"><div class="whats-new-version-head-v474"><div><div class="whats-new-version-title-v474">'+esc477(v.title)+'</div><div class="whats-new-date-v474">'+esc477(v.date||'')+'</div></div><div class="whats-new-ver-v474">v'+esc477(v.version)+'</div></div><ul class="whats-new-list-v474">'+(v.items||[]).map(function(i){return '<li>'+esc477(i)+'</li>';}).join('')+'</ul></div>';}).join('');}
-  window.openWhatsNewV474=async function(){ensureCss477();var old=q('whatsNewOverlayV474');if(old)old.remove();var overlay=document.createElement('div');overlay.id='whatsNewOverlayV474';overlay.className='whats-new-overlay-v474';overlay.innerHTML='<div class="whats-new-card-v474" role="dialog" aria-modal="true"><div class="whats-new-head-v474"><div class="whats-new-title-v474">✨ מה חדש באפליקציה</div><button class="whats-new-close-v474" type="button" id="whatsNewCloseV474">×</button></div><div class="whats-new-body-v474" id="whatsNewBodyV474"><p class="muted">טוען גרסאות...</p></div><div class="whats-new-footer-v474">מעודכן לגרסה '+esc477(window.APP_VERSION||APP_VERSION||'')+'</div></div>';try{document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden';}catch(e){}document.body.appendChild(overlay);var body=overlay.querySelector('#whatsNewBodyV474');function close(){try{overlay.remove();}catch(e){}try{document.documentElement.style.overflow='';document.body.style.overflow='';}catch(e){}}overlay.querySelector('#whatsNewCloseV474').onclick=close;overlay.addEventListener('click',function(ev){if(ev.target===overlay)close();});try{body.innerHTML=whatsHtml477(await fetchGlobalChangelogV477(false));}catch(e){body.innerHTML=whatsHtml477(localRows477());}};
-  function ensureWorkerLink477(){ensureCss477();var worker=q('workerView');if(!worker)return;var shell=q('workerBottomLinksV474');if(!shell){shell=document.createElement('div');shell.id='workerBottomLinksV474';shell.className='worker-bottom-links-v474';worker.appendChild(shell);}var old=q('whatsNewLinkV474');if(old&&old.tagName&&old.tagName.toLowerCase()!=='a'){try{old.remove();}catch(e){}}if(!q('whatsNewLinkV474')){var link=document.createElement('a');link.id='whatsNewLinkV474';link.href='#';link.className='whats-new-link-v474 whats-new-link-v475';link.textContent='מה חדש';link.onclick=function(ev){ev.preventDefault();window.openWhatsNewV474();};shell.appendChild(link);}else{q('whatsNewLinkV474').onclick=function(ev){if(ev&&ev.preventDefault)ev.preventDefault();window.openWhatsNewV474();};}var bug=q('bugContactLinkV220');if(bug&&bug.parentNode!==shell){try{shell.insertBefore(bug,q('whatsNewLinkV474'));}catch(e){}}}
-  window.ensureWhatsNewLinkV474=ensureWorkerLink477;window.ensureWorkerLinksV475=ensureWorkerLink477;
-  var oldAdmin=window.showAdmin;if(typeof oldAdmin==='function'&&!oldAdmin.__changelogWrappedV477){var adminWrap=async function(){var res=await oldAdmin.apply(this,arguments);try{ensureAdminPanel477();window.resetChangelogFormV475();await window.loadAdminChangelogV475();}catch(e){console.warn('v4.77 changelog',e&&e.message?e.message:e);}return res;};adminWrap.__changelogWrappedV477=true;window.showAdmin=adminWrap;}
-  var oldWorker=window.showWorker;if(typeof oldWorker==='function'&&!oldWorker.__workerLinksWrappedV477){var workerWrap=async function(){var res=await oldWorker.apply(this,arguments);try{setTimeout(ensureWorkerLink477,80);setTimeout(ensureWorkerLink477,350);}catch(e){}return res;};workerWrap.__workerLinksWrappedV477=true;window.showWorker=workerWrap;}
-  document.addEventListener('DOMContentLoaded',function(){setTimeout(ensureWorkerLink477,300);setTimeout(function(){if(q('adminView')&&!q('adminView').classList.contains('hidden')){ensureAdminPanel477();window.loadAdminChangelogV475();}},700);});
-  window.addEventListener('load',function(){setTimeout(ensureWorkerLink477,300);setTimeout(ensureWorkerLink477,1200);setTimeout(function(){if(q('adminView')&&!q('adminView').classList.contains('hidden')){ensureAdminPanel477();window.loadAdminChangelogV475();}},950);});
-})();
-</script>
-
-
-
 <script id="v4-87-firestore-vacation-clean-core">
 /*
 ===============================================================================
@@ -13218,7 +12872,7 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
 */
 (function(){
   var PATCH='v4.89-firestore-vacation-cancel-core';
-  var CURRENT_VERSION='4.89';
+  var CURRENT_VERSION='4.92';
   var ALERT_ONCE_KEY='__vacationAuthAlertV487';
 
   try{ window.APP_VERSION=CURRENT_VERSION; if(typeof setAppVersionUI==='function')setAppVersionUI(); if(typeof enforceAppVersionUI==='function')enforceAppVersionUI(); }catch(e){}
@@ -14879,610 +14533,250 @@ CHANGELOG 4.35 - תיקון תקיעה במסך "מכין את סביבת העב
 }
 </style>
 
-<script id="v4-74-whats-new-changelog">
+<script id="v4-94-changelog-single-clean-core">
 /*
 ===============================================================================
-CHANGELOG 4.74 - מה חדש לעובדים
+CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
 -------------------------------------------------------------------------------
-1. APP_VERSION עודכן ל-"4.74" דרך הקבוע המרכזי בלבד.
-2. נוסף לינק קטן באזור העובד: "מה חדש" ליד "דיווח על בעיה / צור קשר".
-3. בלחיצה נפתח חלון קטן עם גלילה פנימית ורשימת גרסאות/שינויים.
-4. הרשימה נשמרת בקוד כמערך אחד WHATS_NEW_ITEMS_V474, כדי שבכל עדכון עתידי נוסיף שורה חדשה בלבד.
-5. אין שינוי בלוגיקת יום חופש, מחיקה, דיווחי בעיות, מנויים, הרשמה, דשבורד, מחירון או Firebase.
+1. הסקריפט הזה מחליף את כל מנגנוני הצ׳יינג׳לוג הישנים שהיו בקובץ.
+2. Firestore collection appChangelog הוא מקור האמת: קיימות רשומות? מציגים אותן.
+3. אם חסרות גרסאות ברירת מחדל חדשות, האדמין מוסיף אותן ל-Firebase בלי לדרוס רשומות קיימות.
+4. אם כתיבה ל-Firebase נכשלת אצל עובד ללא הרשאת כתיבה, התצוגה עדיין לא נשברת ומציגה fallback זמני בלבד.
+5. כל השינויים מרוכזים כאן כדי למנוע פאץ׳ על פאץ׳ בהמשך.
 ===============================================================================
 */
 (function(){
-  var PATCH='v4.74-whats-new';
-  try{ window.APP_VERSION = APP_VERSION; if(typeof setAppVersionUI==='function')setAppVersionUI(); if(typeof enforceAppVersionUI==='function')enforceAppVersionUI(); }catch(e){}
-
-  var WHATS_NEW_ITEMS_V474 = [
-    {
-      version:'4.74',
-      title:'נוסף מסך מה חדש',
-      date:'06/05/2026',
-      items:[
-        'נוסף לינק קטן במסך העובד: מה חדש.',
-        'נפתח חלון מסודר עם גלילה שמציג גרסאות ושינויים.',
-        'מעכשיו בכל עדכון חדש נוסיף כאן מה השתנה, כדי שתוכל לעקוב אחרי ההיסטוריה של האפליקציה.'
-      ]
-    },
-    {
-      version:'4.73',
-      title:'תיקון סופי לחלון אזהרת יום חופש',
-      date:'06/05/2026',
-      items:[
-        'סודר חלון האזהרה של יום חופש כך שהרקע לא יגלול מאחורה.',
-        'רק התוכן בתוך החלון גולל, והכפתורים נשארים גלויים תמיד.',
-        'לא בוצע שינוי בלוגיקת המחיקה עצמה.'
-      ]
-    },
-    {
-      version:'4.72',
-      title:'שיפור חלון אזהרת יום חופש',
-      date:'06/05/2026',
-      items:[
-        'החלון הוקטן ונוספה גלילה פנימית.',
-        'הכפתורים הופרדו מאזור התוכן כדי שלא ייעלמו במסכים קטנים.'
-      ]
-    },
-    {
-      version:'4.7',
-      title:'יום חופש מוחק נתוני יום אחרי אישור',
-      date:'06/05/2026',
-      items:[
-        'תוקנה שכבת override שדרסה את הודעת המחיקה.',
-        'כאשר מסמנים יום חופש ויש נתונים קיימים, מוצגת אזהרה לפני מחיקה.'
-      ]
-    },
-    {
-      version:'4.5',
-      title:'דיווחי בעיות ומחיקה מאדמין',
-      date:'06/05/2026',
-      items:[
-        'נוסף אזור דיווח על בעיה / צור קשר לעובד.',
-        'נוסף פאנל אדמין לצפייה בדיווחים.',
-        'נוסף כפתור מחיקת דיווחים מפאנל האדמין.'
-      ]
-    },
-    {
-      version:'4.41',
-      title:'טלפון חובה במסך מנוי בלבד',
-      date:'06/05/2026',
-      items:[
-        'נוסף שדה טלפון חובה רק במסך בחירת מנוי לאחר סיום ניסיון.',
-        'הטלפון נשמר בבקשת התשלום ומוצג באדמין.',
-        'מסך ההרשמה לא שונה.'
-      ]
-    },
-    {
-      version:'4.40',
-      title:'מגמת הכנסות לפי חודשים',
-      date:'06/05/2026',
-      items:[
-        'נוספה מגמת הכנסות לפי כל 12 חודשי השנה.',
-        'חודשים ללא מידע מוצגים כ-₪0.',
-        'העיצוב נשאר באותו סגנון של מגמת ההכנסות לפי ימים.'
-      ]
-    }
-  ];
-  window.WHATS_NEW_ITEMS_V474 = WHATS_NEW_ITEMS_V474;
-
+  var COLLECTION = 'appChangelog';
+  try{ window.APP_VERSION = APP_VERSION; if(typeof setAppVersionUI==='function') setAppVersionUI(); if(typeof enforceAppVersionUI==='function') enforceAppVersionUI(); }catch(e){}
+  function q(id){ return document.getElementById(id); }
   function esc(s){
     try{ if(typeof window.esc==='function') return window.esc(s); }catch(e){}
     return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
   }
-  function ensureWhatsNewCss(){
-    if(document.getElementById('whatsNewCssV474')) return;
-    var st=document.createElement('style');
-    st.id='whatsNewCssV474';
-    st.textContent=`
-      .worker-bottom-links-v474{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:10px auto 2px;text-align:center}
-      .whats-new-link-v474{display:inline-flex;align-items:center;justify-content:center;background:transparent!important;color:#64748b!important;border:0!important;box-shadow:none!important;font-size:12px!important;font-weight:900!important;padding:3px 6px!important;min-height:0!important;width:auto!important;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
-      .whats-new-link-v474:hover{color:#2563eb!important;filter:none!important;box-shadow:none!important}
-      .whats-new-overlay-v474{position:fixed;inset:0;background:rgba(15,23,42,.48);z-index:99998;display:flex;align-items:center;justify-content:center;padding:14px;direction:rtl}
-      .whats-new-card-v474{width:min(92vw,520px);max-height:82vh;background:rgba(255,255,255,.98);border:1px solid #e2e8f0;border-radius:24px;box-shadow:0 26px 70px rgba(15,23,42,.28);display:flex;flex-direction:column;overflow:hidden;color:#0f172a}
-      .whats-new-head-v474{padding:16px 18px;border-bottom:1px solid #e2e8f0;background:linear-gradient(135deg,#eff6ff,#f8fafc);display:flex;align-items:center;justify-content:space-between;gap:10px;flex:0 0 auto}
-      .whats-new-title-v474{font-weight:900;font-size:19px;line-height:1.25}
-      .whats-new-close-v474{background:#f8fafc!important;color:#0f172a!important;border:1px solid #e2e8f0!important;box-shadow:none!important;border-radius:999px!important;width:38px!important;min-width:38px!important;height:38px!important;min-height:38px!important;padding:0!important;font-size:18px!important;flex:0 0 auto!important}
-      .whats-new-body-v474{padding:14px;overflow-y:auto;overflow-x:hidden;flex:1 1 auto;min-height:0;scrollbar-width:thin;overscroll-behavior:contain}
-      .whats-new-version-v474{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:13px;margin-bottom:10px;box-shadow:0 8px 18px rgba(15,23,42,.06)}
-      .whats-new-version-head-v474{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
-      .whats-new-ver-v474{font-weight:900;color:#2563eb;font-size:15px;white-space:nowrap}
-      .whats-new-version-title-v474{font-weight:900;font-size:15px;line-height:1.3}
-      .whats-new-date-v474{font-size:12px;color:#94a3b8;font-weight:800;margin-top:2px}
-      .whats-new-list-v474{margin:7px 0 0;padding:0 18px 0 0;color:#334155;line-height:1.55;font-size:13px}
-      .whats-new-list-v474 li{margin-bottom:4px}
-      .whats-new-footer-v474{padding:11px 14px;border-top:1px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:12px;font-weight:800;text-align:center;flex:0 0 auto}
-      @media(max-width:800px){.whats-new-card-v474{width:94vw;max-height:78vh;border-radius:22px}.whats-new-title-v474{font-size:17px}.whats-new-body-v474{padding:11px}.whats-new-link-v474{font-size:11.5px!important}}
-    `;
-    document.head.appendChild(st);
+  function clean(s){ return String(s||'').trim(); }
+  function todayHe(){ var d=new Date(); return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear(); }
+  function splitItems(text){
+    if(Array.isArray(text)) return text.map(clean).filter(Boolean);
+    return String(text||'').split(/\n+/).map(function(x){return clean(x).replace(/^[-•*]\s*/,'');}).filter(Boolean);
   }
-  function buildWhatsNewHtml(){
-    return WHATS_NEW_ITEMS_V474.map(function(v){
-      return '<div class="whats-new-version-v474">'+
-        '<div class="whats-new-version-head-v474">'+
-          '<div><div class="whats-new-version-title-v474">'+esc(v.title)+'</div><div class="whats-new-date-v474">'+esc(v.date||'')+'</div></div>'+
-          '<div class="whats-new-ver-v474">v'+esc(v.version)+'</div>'+
-        '</div>'+
-        '<ul class="whats-new-list-v474">'+(v.items||[]).map(function(i){return '<li>'+esc(i)+'</li>';}).join('')+'</ul>'+
-      '</div>';
-    }).join('');
+  function docId(version){
+    var v=clean(version||'').replace(/^v/i,'');
+    return 'v_' + v.replace(/[^0-9A-Za-z_\-\.]/g,'_').replaceAll('.','_');
   }
-  function lockPage(lock){
-    try{
-      if(lock){
-        window.__wnScrollY474=window.scrollY||document.documentElement.scrollTop||0;
-        document.documentElement.style.overflow='hidden';
-        document.body.style.overflow='hidden';
-      }else{
-        document.documentElement.style.overflow='';
-        document.body.style.overflow='';
-        if(typeof window.__wnScrollY474==='number') window.scrollTo(0,window.__wnScrollY474);
-      }
-    }catch(e){}
-  }
-  window.openWhatsNewV474=function(){
-    ensureWhatsNewCss();
-    var old=document.getElementById('whatsNewOverlayV474');
-    if(old) old.remove();
-    var overlay=document.createElement('div');
-    overlay.id='whatsNewOverlayV474';
-    overlay.className='whats-new-overlay-v474';
-    overlay.innerHTML='<div class="whats-new-card-v474" role="dialog" aria-modal="true">'+
-      '<div class="whats-new-head-v474"><div class="whats-new-title-v474">✨ מה חדש באפליקציה</div><button class="whats-new-close-v474" type="button" id="whatsNewCloseV474">×</button></div>'+
-      '<div class="whats-new-body-v474" id="whatsNewBodyV474">'+buildWhatsNewHtml()+'</div>'+
-      '<div class="whats-new-footer-v474">מעודכן לגרסה '+esc(window.APP_VERSION||APP_VERSION||'')+'</div>'+
-    '</div>';
-    lockPage(true);
-    document.body.appendChild(overlay);
-    var body=overlay.querySelector('#whatsNewBodyV474');
-    function close(){try{overlay.remove();}catch(e){} lockPage(false);}
-    overlay.querySelector('#whatsNewCloseV474').onclick=close;
-    overlay.addEventListener('click',function(ev){if(ev.target===overlay)close();});
-    overlay.addEventListener('wheel',function(ev){ if(body && !body.contains(ev.target)) ev.preventDefault(); },{passive:false});
-    overlay.addEventListener('touchmove',function(ev){ if(body && !body.contains(ev.target)) ev.preventDefault(); },{passive:false});
-  };
-  function ensureWorkerLinks(){
-    ensureWhatsNewCss();
-    var worker=document.getElementById('workerView');
-    if(!worker) return;
-    var shell=document.getElementById('workerBottomLinksV474');
-    if(!shell){
-      shell=document.createElement('div');
-      shell.id='workerBottomLinksV474';
-      shell.className='worker-bottom-links-v474';
-      worker.appendChild(shell);
-    }
-    var bug=document.getElementById('bugContactLinkV220');
-    if(bug && bug.parentNode!==shell){
-      try{shell.appendChild(bug);}catch(e){}
-    }
-    if(!document.getElementById('whatsNewLinkV474')){
-      var link=document.createElement('button');
-      link.id='whatsNewLinkV474';
-      link.type='button';
-      link.className='whats-new-link-v474';
-      link.textContent='מה חדש';
-      link.onclick=function(){window.openWhatsNewV474();};
-      shell.appendChild(link);
-    }
-    var panel=document.getElementById('bugReportPanelV220');
-    if(panel && panel.parentNode!==worker){
-      try{worker.appendChild(panel);}catch(e){}
-    }
-  }
-  window.ensureWhatsNewLinkV474=ensureWorkerLinks;
-  var oldShowWorker=window.showWorker;
-  if(typeof oldShowWorker==='function' && !oldShowWorker.__whatsNewWrappedV474){
-    var wrapped=async function(){
-      var res=await oldShowWorker.apply(this,arguments);
-      try{setTimeout(ensureWorkerLinks,80);setTimeout(ensureWorkerLinks,350);}catch(e){}
-      return res;
-    };
-    wrapped.__whatsNewWrappedV474=true;
-    window.showWorker=wrapped;
-  }
-  document.addEventListener('DOMContentLoaded',function(){setTimeout(ensureWorkerLinks,300);});
-  window.addEventListener('load',function(){setTimeout(ensureWorkerLinks,300);setTimeout(ensureWorkerLinks,1200);});
-  setTimeout(ensureWorkerLinks,500);
-})();
-</script>
-
-
-<script id="v4-76-global-changelog-single-source-fix">
-/*
-===============================================================================
-CHANGELOG 4.76 - מקור אחד כללי לצ׳יינג׳לוג לכל העובדים והאדמין
--------------------------------------------------------------------------------
-1. תיקון חשוב: הצ׳יינג׳לוג הוא כללי לכל האפליקציה, לא לפי עובד.
-2. האדמין והעובדים קוראים עכשיו מאותו מקור מאוחד: ההיסטוריה הקיימת שהעובד ראה + appChangelog ב-Firebase.
-3. אם קיימת גרסה ב-Firebase היא גוברת על הגרסה הקשיחה בקובץ, כדי שעריכות מהאדמין יוצגו לכולם.
-4. מחיקה מהאדמין יוצרת סימון inactive ב-Firebase, ולכן גם גרסאות ברירת מחדל יכולות להיעלם מהחלון.
-5. התיקון יושב כ-override אחרון בלבד, בלי לגעת בלוגין, עובדים, אדמין, עבודות, מחירון, גיבויים או מנויים.
-===============================================================================
-*/
-(function(){
-  var PATCH='v4.76-global-changelog-single-source';
-  var COLLECTION='appChangelog';
-
-  try{
-    window.APP_VERSION = APP_VERSION;
-    if(typeof setAppVersionUI==='function') setAppVersionUI();
-    if(typeof enforceAppVersionUI==='function') enforceAppVersionUI();
-  }catch(e){}
-
-  function q(id){return document.getElementById(id);}
-  function esc476(s){
-    try{ if(typeof window.esc==='function') return window.esc(s); }catch(e){}
-    return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
-  }
-  function clean476(s){return String(s||'').trim();}
-  function splitItems476(text){
-    if(Array.isArray(text)) return text.map(clean476).filter(Boolean);
-    return String(text||'').split(/\n+/).map(function(x){return clean476(x).replace(/^[-•*]\s*/,'');}).filter(Boolean);
-  }
-  function todayHe476(){
-    var d=new Date();
-    return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
-  }
-  function docId476(version){
-    var v=clean476(version||'').replace(/^v/i,'');
-    return 'v_'+v.replace(/[^0-9A-Za-z_\-\.]/g,'_').replaceAll('.','_');
-  }
-  function row476(id,data,source,orderIndex){
+  function row(id,data,source,i){
     data=data||{};
-    var version=clean476(data.version||'').replace(/^v/i,'');
-    var items=Array.isArray(data.items)?data.items:splitItems476(data.itemsText||data.text||'');
+    var version=clean(data.version||'').replace(/^v/i,'');
     return {
-      id:id||data.id||docId476(version),
+      id:id||data.id||docId(version),
       version:version,
-      title:clean476(data.title||''),
-      date:clean476(data.date||''),
-      items:items,
+      title:clean(data.title||''),
+      date:clean(data.date||''),
+      items:Array.isArray(data.items)?data.items:splitItems(data.itemsText||data.text||''),
       active:data.active!==false,
-      order:Number(data.order||((Number(orderIndex||0)+1)*10)),
+      order:Number(data.order||((Number(i||0)+1)*10)),
       source:source||data.source||'',
       createdAt:data.createdAt||null,
       updatedAt:data.updatedAt||null
     };
   }
-  function versionScore476(v){
-    return String(v||'').replace(/^v/i,'').split('.').reduce(function(arr,p){arr.push(parseInt(p,10)||0);return arr;},[]);
+  function versionScore(v){ return String(v||'').replace(/^v/i,'').split('.').map(function(p){return parseInt(p,10)||0;}); }
+  function sortRows(rows){
+    return (rows||[]).slice().sort(function(a,b){
+      var av=versionScore(a.version), bv=versionScore(b.version), len=Math.max(av.length,bv.length,4);
+      for(var i=0;i<len;i++){ var x=av[i]||0, y=bv[i]||0; if(x!==y) return y-x; }
+      return Number(a.order||0)-Number(b.order||0);
+    });
   }
-  function compareVersionDesc476(a,b){
-    var av=versionScore476(a.version), bv=versionScore476(b.version);
-    var len=Math.max(av.length,bv.length,4);
-    for(var i=0;i<len;i++){
-      var x=av[i]||0, y=bv[i]||0;
-      if(x!==y) return y-x;
-    }
-    return Number(a.order||0)-Number(b.order||0);
+  function requiredChangelogRows(){
+    var d=todayHe();
+    return [
+      {version:'4.94',title:'ניקוי מנגנוני Changelog כפולים',date:d,items:[
+        'הוסר מצב שבו סקריפטים ישנים של Changelog דרסו את התיקונים החדשים.',
+        'האדמין והעובד נטענים עכשיו ממנגנון Changelog אחד ונקי.',
+        'גרסאות חסרות מ-v4.87 עד v4.94 נוצרות ב-Firebase בלי לדרוס עריכות קיימות.',
+        'נוספו הערות קוד ליד מנגנון ה-Changelog כדי שיהיה ברור מה שונה ולמה.'
+      ]},
+      {version:'4.93',title:'השלמת גרסאות חסרות ב-Changelog',date:d,items:[
+        'אם ב-Firebase קיימות גרסאות ישנות בלבד, המערכת מוסיפה אוטומטית רק את גרסאות ברירת המחדל שחסרות.',
+        'גרסאות קיימות שהאדמין ערך לא נדרסות ולא מוחלפות.',
+        'אחרי השלמת החסר, חלון מה חדש ופאנל האדמין נטענים מחדש מתוך Firebase בלבד.'
+      ]},
+      {version:'4.92',title:'ברירות מחדל מ-Firebase בלבד',date:d,items:[
+        'Firestore appChangelog הפך למקור האמת של חלון מה חדש וניהול הגרסאות.',
+        'אם אין רשומות בכלל, ברירות המחדל נוצרות פעם אחת בתוך Firebase.',
+        'לא נעשה שימוש ב-localStorage עבור Changelog.'
+      ]},
+      {version:'4.91',title:'תיקון תצוגת Changelog',date:d,items:[
+        'תיקון הסיסמה מגרסה 4.90 נוסף לחלון מה חדש.',
+        'נוסף רישום Changelog ברור לתיקונים האחרונים.'
+      ]},
+      {version:'4.90',title:'תיקון שינוי סיסמה מהגדרות עובד',date:d,items:[
+        'שינוי סיסמה מהגדרות העובד מעדכן את Firebase Auth בפועל.',
+        'אחרי שינוי הסיסמה ניתן לצאת ולהיכנס עם הסיסמה החדשה.',
+        'הסיסמה הישנה כבר לא מתקבלת אחרי שינוי מוצלח.'
+      ]},
+      {version:'4.89',title:'ביטול יום חופש אמיתי',date:d,items:[
+        'ביטול יום חופש מבטל את כל מסמכי יום החופש של אותו עובד ואותו תאריך.',
+        'הטעינה והביטול מתבצעים מול Firestore בלבד ללא localStorage.',
+        'נמנע מצב שבו יום חופש חוזר אחרי רענון בגלל מסמך ישן שנשאר פעיל.'
+      ]},
+      {version:'4.88',title:'טעינת ימי חופש בלי אינדקס מורכב',date:d,items:[
+        'טעינת ימי חופש מבצעת query לפי workerId בלבד וסינון תאריך בצד הלקוח.',
+        'נפתרה שגיאת failed-precondition של Firestore שנבעה מדרישת אינדקס מורכב.'
+      ]},
+      {version:'4.87',title:'ימי חופש מ-Firestore בלבד',date:d,items:[
+        'ימי חופש הועברו לליבה אחת מול Firestore בלבד.',
+        'הוסרה תלות ב-localStorage עבור ימי חופש.',
+        'טעינת ימי חופש מתבצעת רק אחרי זיהוי עובד פעיל.'
+      ]},
+      {version:'4.86',title:'העברת ימי חופש מ-localStorage ל-Firestore',date:d,items:[
+        'ימי חופש אינם נשמרים יותר ב-localStorage.',
+        'הנתונים נטענים ונשמרים מול Firebase כדי לשרוד רענון וכניסה מחדש.'
+      ]}
+    ].map(function(x,i){ return row(docId(x.version),Object.assign({active:true,order:(i+1)*10},x),'required-default-v4-94',i); });
   }
-  function sortRows476(rows){return (rows||[]).slice().sort(compareVersionDesc476);}
-
-  function localChangelogRows476(){
-    var arr=[];
-    try{ if(Array.isArray(window.WHATS_NEW_ITEMS_V474)) arr=window.WHATS_NEW_ITEMS_V474.slice(); }catch(e){}
-
-    var has476=arr.some(function(x){return String(x.version||'').replace(/^v/i,'')==='4.76';});
-    if(!has476){
-      arr.unshift({
-        version:'4.76',
-        title:'מקור אחד כללי לצ׳יינג׳לוג',
-        date:todayHe476(),
-        items:[
-          'הצ׳יינג׳לוג מוגדר כרשימה כללית אחת לכל האפליקציה ולכל העובדים.',
-          'האדמין והעובדים קוראים מאותו מקור מאוחד, כדי שלא תהיה כפילות בין מסך עובד למסך אדמין.',
-          'עריכה/מחיקה/הוספה מהאדמין נשמרת ב-Firebase ומוצגת לכולם.'
-        ]
-      });
-    }
-
-    return arr.map(function(x,i){return row476(docId476(x.version), Object.assign({order:(i+1)*10,active:true},x),'local-worker-source',i);});
-  }
-
-  async function firebaseChangelogRows476(){
+  async function firebaseRows(){
     try{
       var snap=await db.collection(COLLECTION).get();
-      return snap.docs.map(function(d,i){return row476(d.id,d.data(),'firebase',i);});
+      return snap.docs.map(function(d,i){ return row(d.id,d.data(),'firebase',i); });
     }catch(e){
-      console.warn(PATCH,'firebase read fallback',e&&e.message?e.message:e);
-      return [];
+      console.warn('v4.94 changelog read failed', e && e.message ? e.message : e);
+      return null;
     }
   }
-
-  async function fetchGlobalChangelogV476(includeInactive){
-    var map={};
-
-    // קודם מכניסים את מה שהעובד כבר ראה בקוד הישן.
-    localChangelogRows476().forEach(function(r){
-      var key=docId476(r.version||r.id);
-      map[key]=r;
+  async function seedMissingRows(existingRows){
+    /*
+      v4.94 CORE FIX:
+      מוסיף ל-Firebase רק רשומות חסרות. לא מוחק, לא משנה ולא דורס גרסאות קיימות שהאדמין ערך.
+      זה פותר מצב שבו Firebase נשאר תקוע עד v4.82 למרות שהקובץ כבר בגרסאות גבוהות יותר.
+    */
+    var existing=Array.isArray(existingRows)?existingRows:[];
+    var existingMap={};
+    existing.forEach(function(r){ existingMap[docId(r.version||r.id)] = true; });
+    var missing=requiredChangelogRows().filter(function(r){ return !existingMap[docId(r.version||r.id)]; });
+    if(!missing.length) return existing;
+    var batch=db.batch();
+    missing.forEach(function(r,i){
+      batch.set(db.collection(COLLECTION).doc(docId(r.version)),{
+        version:r.version,
+        title:r.title,
+        date:r.date,
+        items:r.items||[],
+        active:true,
+        order:Number(r.order||((i+1)*10)),
+        source:'firebase-missing-seed-v4-94',
+        seedVersion:APP_VERSION,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:false});
     });
-
-    // אחר כך Firebase גובר: עריכה מהאדמין מחליפה גרסה מקומית, ומחיקה inactive מסתירה אותה.
-    var fb=await firebaseChangelogRows476();
-    fb.forEach(function(r){
-      var key=docId476(r.version||r.id);
-      if(!r.version && r.id) key=r.id;
-      var prev=map[key]||{};
-      map[key]=Object.assign({},prev,r,{id:r.id||prev.id||key,source:'firebase'});
-    });
-
-    var rows=Object.keys(map).map(function(k){return map[k];}).filter(function(r){
-      if(!includeInactive && r.active===false) return false;
-      return !!(r.version || r.title || (r.items&&r.items.length));
-    });
-    return sortRows476(rows);
+    await batch.commit();
+    return await firebaseRows() || existing.concat(missing);
   }
-  window.fetchGlobalChangelogV476=fetchGlobalChangelogV476;
-  window.fetchChangelogV475=fetchGlobalChangelogV476;
-
-  async function seedDefaultChangelogV476(){
-    try{
-      var existing=await firebaseChangelogRows476();
-      var existingKeys={};
-      existing.forEach(function(r){existingKeys[docId476(r.version||r.id)]=true;});
-      var batch=db.batch();
-      var count=0;
-      localChangelogRows476().forEach(function(r,i){
-        var id=docId476(r.version);
-        if(existingKeys[id]) return;
-        var ref=db.collection(COLLECTION).doc(id);
-        batch.set(ref,{
-          version:r.version,
-          title:r.title,
-          date:r.date,
-          items:r.items||[],
-          active:true,
-          order:Number(r.order||((i+1)*10)),
-          source:'seeded-from-worker-source-v4-76',
-          createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-          updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-        },{merge:true});
-        count++;
-      });
-      if(count) await batch.commit();
-      return count;
-    }catch(e){
-      console.warn(PATCH,'seed failed',e&&e.message?e.message:e);
-      return 0;
+  async function fetchChangelog(includeInactive){
+    var fb=await firebaseRows();
+    if(Array.isArray(fb)){
+      try{ fb=await seedMissingRows(fb); }
+      catch(e){
+        /*
+          v4.94 SAFE FALLBACK:
+          לעובד רגיל אין תמיד הרשאת כתיבה ל-appChangelog. אם השלמת החסר נכשלה,
+          עדיין ממזגים את ברירות המחדל לתצוגה כדי שהעובד לא יישאר תקוע על v4.82.
+          בפעם הבאה שאדמין ייכנס, הרשומות החסרות יישמרו בפועל ב-Firebase.
+        */
+        console.warn('v4.94 changelog seed failed; using display fallback', e && e.message ? e.message : e);
+        var map={};
+        fb.forEach(function(r){ map[docId(r.version||r.id)] = r; });
+        requiredChangelogRows().forEach(function(r){ if(!map[docId(r.version)]) fb.push(r); });
+      }
+      return sortRows(fb.filter(function(r){ return (includeInactive||r.active!==false) && !!(r.version||r.title||(r.items&&r.items.length)); }));
     }
+    return sortRows(requiredChangelogRows().filter(function(r){ return includeInactive || r.active!==false; }));
   }
-  window.seedDefaultChangelogV475=seedDefaultChangelogV476;
-  window.seedDefaultChangelogV476=seedDefaultChangelogV476;
+  window.fetchGlobalChangelogV476 = fetchChangelog;
+  window.fetchGlobalChangelogV477 = fetchChangelog;
+  window.fetchChangelogV475 = fetchChangelog;
+  window.fetchCleanChangelogV494 = fetchChangelog;
 
-  function ensureCss476(){
-    try{ if(typeof ensureWhatsNewCss==='function') ensureWhatsNewCss(); }catch(e){}
-    if(q('adminChangelogCssV475')) return;
+  function ensureCss(){
+    if(q('cleanChangelogCssV494')) return;
     var st=document.createElement('style');
-    st.id='adminChangelogCssV475';
-    st.textContent=''+
-      '.worker-bottom-links-v474{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:10px auto 2px;text-align:center}'+
-      'a.whats-new-link-v474,a.whats-new-link-v475,button.whats-new-link-v474{display:inline-flex!important;align-items:center!important;justify-content:center!important;background:transparent!important;color:#64748b!important;border:0!important;box-shadow:none!important;font-size:12px!important;font-weight:900!important;padding:3px 6px!important;min-height:0!important;width:auto!important;text-decoration:underline!important;text-underline-offset:3px!important;cursor:pointer!important}'+
-      'a.whats-new-link-v474:hover,a.whats-new-link-v475:hover,button.whats-new-link-v474:hover{color:#2563eb!important}'+
-      '.admin-changelog-panel-v475 .admin-changelog-form-v475{background:rgba(248,250,252,.72);border:1px solid #e2e8f0;border-radius:20px;padding:14px;margin:10px 0}'+
-      '.admin-changelog-scroll-v475{max-height:420px;overflow-y:auto;overflow-x:hidden;border:1px solid #e2e8f0;border-radius:20px;padding:8px;background:rgba(255,255,255,.72);scrollbar-width:thin;overscroll-behavior:contain}'+
-      '.admin-changelog-row-v475{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:13px;margin-bottom:8px;box-shadow:0 8px 18px rgba(15,23,42,.055)}'+
-      '.admin-changelog-row-head-v475{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}'+
-      '.admin-changelog-version-v475{font-weight:900;color:#2563eb;white-space:nowrap}.admin-changelog-title-v475{font-weight:900}.admin-changelog-meta-v475{color:#94a3b8;font-size:12px;font-weight:800;margin-top:3px}'+
-      '.admin-changelog-list-v475{margin:8px 0 0;padding:0 18px 0 0;color:#334155;line-height:1.5;font-size:13px}.admin-changelog-list-v475 li{margin-bottom:3px}';
+    st.id='cleanChangelogCssV494';
+    st.textContent='\
+      .worker-bottom-links-v474{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:10px auto 2px;text-align:center}\
+      a.whats-new-link-v474,a.whats-new-link-v475{display:inline-flex!important;align-items:center!important;justify-content:center!important;background:transparent!important;color:#64748b!important;border:0!important;box-shadow:none!important;font-size:12px!important;font-weight:900!important;text-decoration:underline!important;padding:5px 8px!important;width:auto!important;min-height:0!important}\
+      .whats-new-overlay-v474{position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.48);display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl}\
+      .whats-new-card-v474{width:min(720px,96vw);max-height:86vh;display:flex;flex-direction:column;background:rgba(255,255,255,.98);border-radius:26px;box-shadow:0 24px 70px rgba(15,23,42,.28);border:1px solid rgba(255,255,255,.9);overflow:hidden}\
+      .whats-new-head-v474{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid #e2e8f0;background:linear-gradient(135deg,#eff6ff,#fff)}\
+      .whats-new-title-v474{font-weight:900;font-size:20px;color:#0f172a}.whats-new-close-v474{width:42px!important;height:42px!important;min-height:42px!important;padding:0!important;border-radius:999px!important;background:#f1f5f9!important;color:#0f172a!important;box-shadow:none!important;border:1px solid #e2e8f0!important;font-size:24px!important}\
+      .whats-new-body-v474{padding:14px;overflow-y:auto;overscroll-behavior:contain}.whats-new-version-v474,.admin-changelog-row-v475{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:13px;margin-bottom:8px;box-shadow:0 8px 18px rgba(15,23,42,.055)}\
+      .whats-new-version-head-v474,.admin-changelog-row-head-v475{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}.whats-new-version-title-v474,.admin-changelog-title-v475{font-weight:900;color:#0f172a}\
+      .whats-new-ver-v474,.admin-changelog-version-v475{font-weight:900;color:#2563eb;white-space:nowrap}.whats-new-date-v474,.admin-changelog-meta-v475{color:#94a3b8;font-size:12px;font-weight:800;margin-top:3px}\
+      .whats-new-list-v474,.admin-changelog-list-v475{margin:8px 0 0;padding:0 18px 0 0;color:#334155;line-height:1.5;font-size:13px}.whats-new-list-v474 li,.admin-changelog-list-v475 li{margin-bottom:3px}\
+      .whats-new-footer-v474{padding:10px 14px;text-align:center;color:#94a3b8;font-size:12px;font-weight:900;border-top:1px solid #e2e8f0}.admin-changelog-panel-v475 .admin-changelog-form-v475{background:rgba(248,250,252,.72);border:1px solid #e2e8f0;border-radius:20px;padding:14px;margin:10px 0}.admin-changelog-scroll-v475{max-height:420px;overflow-y:auto;overflow-x:hidden;border:1px solid #e2e8f0;border-radius:20px;padding:8px;background:rgba(255,255,255,.72);scrollbar-width:thin;overscroll-behavior:contain}\
+    ';
     document.head.appendChild(st);
   }
-
-  function ensureAdminPanel476(){
-    ensureCss476();
-    var admin=q('adminView');
-    if(!admin) return;
-    if(q('adminChangelogPanelV475')) return;
-    var panel=document.createElement('div');
-    panel.id='adminChangelogPanelV475';
-    panel.className='card admin-changelog-panel-v475';
-    panel.innerHTML=`
-      <div class="cal-head">
-        <h2>📝 ניהול גרסאות / Changelog</h2>
-        <div class="actions">
-          <button class="btn-light" type="button" onclick="loadAdminChangelogV475()">רענן</button>
-          <button class="btn-yellow" type="button" onclick="seedDefaultChangelogV476().then(loadAdminChangelogV475)">סנכרן היסטוריה ל-Firebase</button>
-        </div>
-      </div>
-      <p>רשימה כללית אחת לכל העובדים. האדמין עורך כאן בדיוק את אותו "מה חדש" שהעובדים רואים.</p>
-      <div class="admin-changelog-form-v475">
-        <input id="changelogEditIdV475" type="hidden">
-        <div class="grid3">
-          <input id="changelogVersionV475" placeholder="גרסה, למשל 4.76">
-          <input id="changelogTitleV475" placeholder="כותרת קצרה לגרסה">
-          <input id="changelogDateV475" placeholder="תאריך, למשל 06/05/2026">
-        </div>
-        <textarea id="changelogItemsV475" placeholder="שורת שינוי אחת בכל שורה"></textarea>
-        <div class="actions">
-          <button class="btn-green" type="button" onclick="saveChangelogVersionV475()">שמור גרסה</button>
-          <button class="btn-light" type="button" onclick="resetChangelogFormV475()">נקה טופס</button>
-        </div>
-        <div id="changelogAdminMsgV475"></div>
-      </div>
-      <div class="admin-changelog-scroll-v475" id="adminChangelogListV475"><p class="muted">טוען גרסאות...</p></div>`;
-    var after=q('adminDataToolsPrimary') || admin.firstElementChild;
-    if(after && after.parentNode===admin) after.insertAdjacentElement('afterend',panel);
-    else admin.insertBefore(panel,admin.firstChild);
-  }
-  window.ensureAdminChangelogPanelV475=ensureAdminPanel476;
-
-  window.resetChangelogFormV475=function(){
-    ['changelogEditIdV475','changelogVersionV475','changelogTitleV475','changelogItemsV475'].forEach(function(id){var el=q(id); if(el) el.value='';});
-    var date=q('changelogDateV475'); if(date) date.value=todayHe476();
-    var msg=q('changelogAdminMsgV475'); if(msg) msg.innerHTML='';
-  };
-
-  function buildRowsHtml476(rows,admin){
+  function rowsHtml(rows,admin){
     return (rows||[]).map(function(r){
-      var controls=admin?'<div class="actions" style="margin-top:10px"><button class="btn-yellow" type="button" onclick="editChangelogVersionV475(\''+esc476(r.id)+'\')">ערוך</button><button class="btn-red" type="button" onclick="deleteChangelogVersionV475(\''+esc476(r.id)+'\')">מחק</button></div>':'';
-      return '<div class="admin-changelog-row-v475">'+
-        '<div class="admin-changelog-row-head-v475"><div><div class="admin-changelog-title-v475">'+esc476(r.title||'ללא כותרת')+'</div><div class="admin-changelog-meta-v475">'+esc476(r.date||'')+' · מקור: '+esc476(r.source||'')+'</div></div><div class="admin-changelog-version-v475">v'+esc476(r.version||'')+'</div></div>'+
-        '<ul class="admin-changelog-list-v475">'+(r.items||[]).map(function(i){return '<li>'+esc476(i)+'</li>';}).join('')+'</ul>'+controls+'</div>';
+      var ctr=admin?'<div class="actions" style="margin-top:10px"><button class="btn-yellow" type="button" onclick="editChangelogVersionV475(\''+esc(r.id)+'\')">ערוך</button><button class="btn-red" type="button" onclick="deleteChangelogVersionV475(\''+esc(r.id)+'\')">מחק</button></div>':'';
+      return '<div class="admin-changelog-row-v475"><div class="admin-changelog-row-head-v475"><div><div class="admin-changelog-title-v475">'+esc(r.title||'ללא כותרת')+'</div><div class="admin-changelog-meta-v475">'+esc(r.date||'')+'</div></div><div class="admin-changelog-version-v475">v'+esc(r.version||'')+'</div></div><ul class="admin-changelog-list-v475">'+(r.items||[]).map(function(i){return '<li>'+esc(i)+'</li>';}).join('')+'</ul>'+ctr+'</div>';
     }).join('');
   }
-
-  window.loadAdminChangelogV475=async function(){
-    ensureAdminPanel476();
-    var box=q('adminChangelogListV475');
-    if(!box) return;
-    box.innerHTML='<p class="muted">טוען גרסאות...</p>';
-    var rows=await fetchGlobalChangelogV476(false);
-    box.innerHTML=rows.length?buildRowsHtml476(rows,true):'<p class="muted">אין גרסאות עדיין.</p>';
-  };
-
-  window.editChangelogVersionV475=async function(id){
-    ensureAdminPanel476();
-    var rows=await fetchGlobalChangelogV476(true);
-    var r=rows.find(function(x){return x.id===id;}) || rows.find(function(x){return docId476(x.version)===id;});
-    if(!r) return alert('הגרסה לא נמצאה. לחץ רענן ונסה שוב.');
-    q('changelogEditIdV475').value=r.id||docId476(r.version);
-    q('changelogVersionV475').value=r.version||'';
-    q('changelogTitleV475').value=r.title||'';
-    q('changelogDateV475').value=r.date||todayHe476();
-    q('changelogItemsV475').value=(r.items||[]).join('\n');
-    try{q('adminChangelogPanelV475').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}
-  };
-
+  function ensureAdminPanel(){
+    ensureCss();
+    var admin=q('adminView'); if(!admin) return;
+    var panel=q('adminChangelogPanelV475');
+    if(!panel){
+      panel=document.createElement('div');
+      panel.id='adminChangelogPanelV475';
+      panel.className='card admin-changelog-panel-v475';
+      var after=q('adminDataToolsPrimary')||admin.firstElementChild;
+      if(after&&after.parentNode===admin) after.insertAdjacentElement('afterend',panel); else admin.insertBefore(panel,admin.firstChild);
+    }
+    panel.innerHTML='<div class="cal-head"><h2>📝 ניהול גרסאות / Changelog</h2><div class="actions"><button class="btn-light" type="button" onclick="loadAdminChangelogV475()">רענן</button></div></div><p>רשימה כללית אחת לכל העובדים. Firestore הוא מקור האמת, וגרסאות ברירת מחדל חסרות נוצרות רק אם הן לא קיימות.</p><div class="admin-changelog-form-v475"><input id="changelogEditIdV475" type="hidden"><div class="grid3"><input id="changelogVersionV475" placeholder="גרסה, למשל 4.94"><input id="changelogTitleV475" placeholder="כותרת קצרה לגרסה"><input id="changelogDateV475" placeholder="תאריך, למשל 07/05/2026"></div><textarea id="changelogItemsV475" placeholder="שורת שינוי אחת בכל שורה"></textarea><div class="actions"><button class="btn-green" type="button" onclick="saveChangelogVersionV475()">שמור / הוסף גרסה</button><button class="btn-light" type="button" onclick="resetChangelogFormV475()">נקה טופס</button></div><div id="changelogAdminMsgV475"></div></div><div class="admin-changelog-scroll-v475" id="adminChangelogListV475"><p class="muted">טוען גרסאות...</p></div>';
+  }
+  window.ensureAdminChangelogPanelV475=ensureAdminPanel;
+  window.resetChangelogFormV475=function(){ ['changelogEditIdV475','changelogVersionV475','changelogTitleV475','changelogItemsV475'].forEach(function(id){var el=q(id); if(el) el.value='';}); var date=q('changelogDateV475'); if(date) date.value=todayHe(); var msg=q('changelogAdminMsgV475'); if(msg) msg.innerHTML=''; };
+  window.loadAdminChangelogV475=async function(){ ensureAdminPanel(); var box=q('adminChangelogListV475'); if(!box) return; box.innerHTML='<p class="muted">טוען גרסאות...</p>'; var rows=await fetchChangelog(false); box.innerHTML=rows.length?rowsHtml(rows,true):'<p class="muted">אין גרסאות עדיין.</p>'; };
+  window.editChangelogVersionV475=async function(id){ ensureAdminPanel(); var rows=await fetchChangelog(true); var r=rows.find(function(x){return x.id===id;})||rows.find(function(x){return docId(x.version)===id;}); if(!r) return alert('הגרסה לא נמצאה. לחץ רענן ונסה שוב.'); q('changelogEditIdV475').value=r.id||docId(r.version); q('changelogVersionV475').value=r.version||''; q('changelogTitleV475').value=r.title||''; q('changelogDateV475').value=r.date||todayHe(); q('changelogItemsV475').value=(r.items||[]).join('\n'); try{q('adminChangelogPanelV475').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){} };
   window.saveChangelogVersionV475=async function(){
     var msg=q('changelogAdminMsgV475');
-    var editId=clean476(q('changelogEditIdV475')&&q('changelogEditIdV475').value);
-    var version=clean476(q('changelogVersionV475')&&q('changelogVersionV475').value).replace(/^v/i,'');
-    var title=clean476(q('changelogTitleV475')&&q('changelogTitleV475').value);
-    var date=clean476(q('changelogDateV475')&&q('changelogDateV475').value)||todayHe476();
-    var items=splitItems476(q('changelogItemsV475')&&q('changelogItemsV475').value);
-    if(!version){if(msg)msg.innerHTML='<p class="danger">חובה למלא מספר גרסה.</p>';return;}
-    if(!title){if(msg)msg.innerHTML='<p class="danger">חובה למלא כותרת.</p>';return;}
-    if(!items.length){if(msg)msg.innerHTML='<p class="danger">חובה למלא לפחות שורת שינוי אחת.</p>';return;}
+    var editId=clean(q('changelogEditIdV475')&&q('changelogEditIdV475').value);
+    var version=clean(q('changelogVersionV475')&&q('changelogVersionV475').value).replace(/^v/i,'');
+    var title=clean(q('changelogTitleV475')&&q('changelogTitleV475').value);
+    var date=clean(q('changelogDateV475')&&q('changelogDateV475').value)||todayHe();
+    var items=splitItems(q('changelogItemsV475')&&q('changelogItemsV475').value);
+    if(!version){ if(msg) msg.innerHTML='<p class="danger">חובה למלא מספר גרסה.</p>'; return; }
+    if(!title){ if(msg) msg.innerHTML='<p class="danger">חובה למלא כותרת.</p>'; return; }
+    if(!items.length){ if(msg) msg.innerHTML='<p class="danger">חובה למלא לפחות שורת שינוי אחת.</p>'; return; }
     try{
-      var rows=await fetchGlobalChangelogV476(true);
-      var old=rows.find(function(r){return r.id===editId;}) || rows.find(function(r){return docId476(r.version)===docId476(version);});
-      var id=editId||docId476(version);
-      if(editId && editId.indexOf('v_')!==0) id=docId476(version);
-      await db.collection(COLLECTION).doc(id).set({
-        version:version,
-        title:title,
-        date:date,
-        items:items,
-        active:true,
-        order:old?Number(old.order||10):10,
-        source:'admin-edited-v4-76',
-        pageVersion:APP_VERSION,
-        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
-        createdAt:old&&old.createdAt?old.createdAt:firebase.firestore.FieldValue.serverTimestamp()
-      },{merge:true});
+      var id=(editId&&editId.indexOf('v_')===0)?editId:docId(version);
+      await db.collection(COLLECTION).doc(id).set({version:version,title:title,date:date,items:items,active:true,source:'admin-crud-v4-94',pageVersion:APP_VERSION,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
       if(msg) msg.innerHTML='<div class="notice">הגרסה נשמרה לכל העובדים ✅</div>';
-      window.resetChangelogFormV475();
-      await window.loadAdminChangelogV475();
-    }catch(e){if(msg)msg.innerHTML='<p class="danger">שגיאה בשמירה: '+esc476(e.message||e)+'</p>';}
+      window.resetChangelogFormV475(); await window.loadAdminChangelogV475();
+    }catch(e){ if(msg) msg.innerHTML='<p class="danger">שגיאה בשמירה: '+esc(e.message||e)+'</p>'; }
   };
-
-  window.deleteChangelogVersionV475=async function(id){
-    if(!confirm('למחוק את הגרסה מהחלון "מה חדש" לכל העובדים?')) return;
-    try{
-      var rows=await fetchGlobalChangelogV476(true);
-      var r=rows.find(function(x){return x.id===id;}) || rows.find(function(x){return docId476(x.version)===id;});
-      var docId=(r&&r.version)?docId476(r.version):id;
-      await db.collection(COLLECTION).doc(docId).set({
-        version:r&&r.version?r.version:'',
-        title:r&&r.title?r.title:'',
-        date:r&&r.date?r.date:'',
-        items:r&&r.items?r.items:[],
-        active:false,
-        source:'admin-deleted-v4-76',
-        deletedAt:new Date().toISOString(),
-        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-      },{merge:true});
-      await window.loadAdminChangelogV475();
-    }catch(e){alert('שגיאה במחיקת גרסה: '+(e.message||e));}
-  };
-
-  function buildWhatsNewHtml476(rows){
-    return (rows||[]).map(function(v){
-      return '<div class="whats-new-version-v474">'+
-        '<div class="whats-new-version-head-v474"><div><div class="whats-new-version-title-v474">'+esc476(v.title)+'</div><div class="whats-new-date-v474">'+esc476(v.date||'')+'</div></div><div class="whats-new-ver-v474">v'+esc476(v.version)+'</div></div>'+
-        '<ul class="whats-new-list-v474">'+(v.items||[]).map(function(i){return '<li>'+esc476(i)+'</li>';}).join('')+'</ul></div>';
-    }).join('');
-  }
-
-  window.openWhatsNewV474=async function(){
-    ensureCss476();
-    var old=q('whatsNewOverlayV474'); if(old) old.remove();
-    var overlay=document.createElement('div');
-    overlay.id='whatsNewOverlayV474';
-    overlay.className='whats-new-overlay-v474';
-    overlay.innerHTML='<div class="whats-new-card-v474" role="dialog" aria-modal="true">'+
-      '<div class="whats-new-head-v474"><div class="whats-new-title-v474">✨ מה חדש באפליקציה</div><button class="whats-new-close-v474" type="button" id="whatsNewCloseV474">×</button></div>'+
-      '<div class="whats-new-body-v474" id="whatsNewBodyV474"><p class="muted">טוען גרסאות...</p></div>'+
-      '<div class="whats-new-footer-v474">מעודכן לגרסה '+esc476(window.APP_VERSION||APP_VERSION||'')+'</div></div>';
-    try{document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden';}catch(e){}
-    document.body.appendChild(overlay);
-    var body=overlay.querySelector('#whatsNewBodyV474');
-    function close(){try{overlay.remove();}catch(e){} try{document.documentElement.style.overflow='';document.body.style.overflow='';}catch(e){}}
-    overlay.querySelector('#whatsNewCloseV474').onclick=close;
-    overlay.addEventListener('click',function(ev){if(ev.target===overlay)close();});
-    overlay.addEventListener('wheel',function(ev){if(body&&!body.contains(ev.target))ev.preventDefault();},{passive:false});
-    overlay.addEventListener('touchmove',function(ev){if(body&&!body.contains(ev.target))ev.preventDefault();},{passive:false});
-    try{body.innerHTML=buildWhatsNewHtml476(await fetchGlobalChangelogV476(false));}
-    catch(e){body.innerHTML=buildWhatsNewHtml476(localChangelogRows476());}
-  };
-
-  function ensureWorkerLink476(){
-    ensureCss476();
-    var worker=q('workerView'); if(!worker) return;
-    var shell=q('workerBottomLinksV474');
-    if(!shell){shell=document.createElement('div');shell.id='workerBottomLinksV474';shell.className='worker-bottom-links-v474';worker.appendChild(shell);}
-    var old=q('whatsNewLinkV474');
-    if(old && old.tagName && old.tagName.toLowerCase()!=='a'){try{old.remove();}catch(e){}}
-    if(!q('whatsNewLinkV474')){
-      var link=document.createElement('a');
-      link.id='whatsNewLinkV474';
-      link.href='#';
-      link.className='whats-new-link-v474 whats-new-link-v475';
-      link.textContent='מה חדש';
-      link.onclick=function(ev){ev.preventDefault();window.openWhatsNewV474();};
-      shell.appendChild(link);
-    }else{
-      q('whatsNewLinkV474').onclick=function(ev){if(ev&&ev.preventDefault)ev.preventDefault();window.openWhatsNewV474();};
-    }
-    var bug=q('bugContactLinkV220'); if(bug && bug.parentNode!==shell){try{shell.insertBefore(bug,q('whatsNewLinkV474'));}catch(e){}}
-    var panel=q('bugReportPanelV220'); if(panel && panel.parentNode!==worker){try{worker.appendChild(panel);}catch(e){}}
-  }
-  window.ensureWhatsNewLinkV474=ensureWorkerLink476;
-  window.ensureWorkerLinksV475=ensureWorkerLink476;
-
+  window.deleteChangelogVersionV475=async function(id){ if(!confirm('למחוק את הגרסה מהחלון "מה חדש" לכל העובדים?')) return; try{ var rows=await fetchChangelog(true); var r=rows.find(function(x){return x.id===id;})||rows.find(function(x){return docId(x.version)===id;}); var did=(r&&r.version)?docId(r.version):id; await db.collection(COLLECTION).doc(did).set({version:r&&r.version?r.version:'',title:r&&r.title?r.title:'',date:r&&r.date?r.date:'',items:r&&r.items?r.items:[],active:false,source:'admin-deleted-v4-94',deletedAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true}); await window.loadAdminChangelogV475(); }catch(e){ alert('שגיאה במחיקת גרסה: '+(e.message||e)); } };
+  function whatsHtml(rows){return (rows||[]).map(function(v){return '<div class="whats-new-version-v474"><div class="whats-new-version-head-v474"><div><div class="whats-new-version-title-v474">'+esc(v.title)+'</div><div class="whats-new-date-v474">'+esc(v.date||'')+'</div></div><div class="whats-new-ver-v474">v'+esc(v.version)+'</div></div><ul class="whats-new-list-v474">'+(v.items||[]).map(function(i){return '<li>'+esc(i)+'</li>';}).join('')+'</ul></div>';}).join('');}
+  window.openWhatsNewV474=async function(){ ensureCss(); var old=q('whatsNewOverlayV474'); if(old) old.remove(); var overlay=document.createElement('div'); overlay.id='whatsNewOverlayV474'; overlay.className='whats-new-overlay-v474'; overlay.innerHTML='<div class="whats-new-card-v474" role="dialog" aria-modal="true"><div class="whats-new-head-v474"><div class="whats-new-title-v474">✨ מה חדש באפליקציה</div><button class="whats-new-close-v474" type="button" id="whatsNewCloseV474">×</button></div><div class="whats-new-body-v474" id="whatsNewBodyV474"><p class="muted">טוען גרסאות...</p></div><div class="whats-new-footer-v474">מעודכן לגרסה '+esc(window.APP_VERSION||APP_VERSION||'')+'</div></div>'; try{document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden';}catch(e){} document.body.appendChild(overlay); var body=overlay.querySelector('#whatsNewBodyV474'); function close(){try{overlay.remove();}catch(e){} try{document.documentElement.style.overflow='';document.body.style.overflow='';}catch(e){}} overlay.querySelector('#whatsNewCloseV474').onclick=close; overlay.addEventListener('click',function(ev){if(ev.target===overlay)close();}); try{body.innerHTML=whatsHtml(await fetchChangelog(false));}catch(e){body.innerHTML=whatsHtml(requiredChangelogRows());} };
+  function ensureWorkerLink(){ ensureCss(); var worker=q('workerView'); if(!worker) return; var shell=q('workerBottomLinksV474'); if(!shell){ shell=document.createElement('div'); shell.id='workerBottomLinksV474'; shell.className='worker-bottom-links-v474'; worker.appendChild(shell); } var old=q('whatsNewLinkV474'); if(old&&old.tagName&&old.tagName.toLowerCase()!=='a'){try{old.remove();}catch(e){}} if(!q('whatsNewLinkV474')){ var link=document.createElement('a'); link.id='whatsNewLinkV474'; link.href='#'; link.className='whats-new-link-v474 whats-new-link-v475'; link.textContent='מה חדש'; link.onclick=function(ev){ev.preventDefault(); window.openWhatsNewV474();}; shell.appendChild(link); }else{ q('whatsNewLinkV474').onclick=function(ev){if(ev&&ev.preventDefault)ev.preventDefault(); window.openWhatsNewV474();}; } var bug=q('bugContactLinkV220'); if(bug&&bug.parentNode!==shell){try{shell.insertBefore(bug,q('whatsNewLinkV474'));}catch(e){}} }
+  window.ensureWhatsNewLinkV474=ensureWorkerLink;
+  window.ensureWorkerLinksV475=ensureWorkerLink;
   var oldAdmin=window.showAdmin;
-  if(typeof oldAdmin==='function' && !oldAdmin.__changelogWrappedV476){
-    var adminWrap=async function(){
-      var res=await oldAdmin.apply(this,arguments);
-      try{ensureAdminPanel476(); window.resetChangelogFormV475(); await window.loadAdminChangelogV475();}catch(e){console.warn(PATCH,e&&e.message?e.message:e);}
-      return res;
-    };
-    adminWrap.__changelogWrappedV476=true;
+  if(typeof oldAdmin==='function'&&!oldAdmin.__changelogWrappedV494){
+    var adminWrap=async function(){ var res=await oldAdmin.apply(this,arguments); try{ ensureAdminPanel(); window.resetChangelogFormV475(); await window.loadAdminChangelogV475(); }catch(e){console.warn('v4.94 changelog admin',e&&e.message?e.message:e);} return res; };
+    adminWrap.__changelogWrappedV494=true;
     window.showAdmin=adminWrap;
   }
   var oldWorker=window.showWorker;
-  if(typeof oldWorker==='function' && !oldWorker.__workerLinksWrappedV476){
-    var workerWrap=async function(){
-      var res=await oldWorker.apply(this,arguments);
-      try{setTimeout(ensureWorkerLink476,80);setTimeout(ensureWorkerLink476,350);}catch(e){}
-      return res;
-    };
-    workerWrap.__workerLinksWrappedV476=true;
+  if(typeof oldWorker==='function'&&!oldWorker.__workerLinksWrappedV494){
+    var workerWrap=async function(){ var res=await oldWorker.apply(this,arguments); try{ setTimeout(ensureWorkerLink,80); setTimeout(ensureWorkerLink,350); }catch(e){} return res; };
+    workerWrap.__workerLinksWrappedV494=true;
     window.showWorker=workerWrap;
   }
-
-  document.addEventListener('DOMContentLoaded',function(){
-    setTimeout(ensureWorkerLink476,300);
-    setTimeout(function(){if(q('adminView')&&!q('adminView').classList.contains('hidden')){ensureAdminPanel476();window.loadAdminChangelogV475();}},650);
-  });
-  window.addEventListener('load',function(){
-    setTimeout(ensureWorkerLink476,300);
-    setTimeout(ensureWorkerLink476,1200);
-    setTimeout(function(){if(q('adminView')&&!q('adminView').classList.contains('hidden')){ensureAdminPanel476();window.loadAdminChangelogV475();}},900);
-  });
-  setTimeout(ensureWorkerLink476,700);
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(ensureWorkerLink,300); setTimeout(function(){ if(q('adminView')&&!q('adminView').classList.contains('hidden')){ ensureAdminPanel(); window.loadAdminChangelogV475(); } },700); });
+  window.addEventListener('load',function(){ setTimeout(ensureWorkerLink,300); setTimeout(ensureWorkerLink,1200); setTimeout(function(){ if(q('adminView')&&!q('adminView').classList.contains('hidden')){ ensureAdminPanel(); window.loadAdminChangelogV475(); } },900); });
 })();
 </script>
 
