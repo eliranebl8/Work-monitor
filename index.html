@@ -1167,7 +1167,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "4.94";
+const APP_VERSION = "4.98";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1180,6 +1180,51 @@ setAppVersionUI();
 window.addEventListener("DOMContentLoaded", setAppVersionUI);
 window.addEventListener("load", setAppVersionUI);
 
+/*
+===============================================================================
+CHANGELOG 4.98 - תיקון ימי עבודה שנותרו וניקוי כפילויות בדשבורד
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"4.98" ונשאר מקור הגרסה המרכזי בכל תצוגות הגרסה ושמות הקבצים.
+2. פונקציית renderSmartDashboard הקיימת עודכנה כך ש"נשאר לך לעבוד" מחושב ממחר עד סוף החודש, ללא שבתות וללא ימי חופש עתידיים מתוך Firestore.
+3. נוקו כפילויות של "עבדת עד היום" ו"נשאר לך לעבוד" כך שהמידע מופיע פעם אחת באזור ימי עבודה, חופש והשפעה על היעד.
+4. התובנות האוטומטיות ממשיכות להשתמש באותו מקור חישוב של הכרטיסים העליונים: חסר ליעד חלקי ימי עבודה שנותרו אחרי חופש.
+5. לא שונו לוגין, עובדים, עבודות, מחירון, מנויים, גיבוי או שמירת ימי חופש.
+===============================================================================
+*/
+
+/*
+===============================================================================
+CHANGELOG 4.97 - יישור תובנות אוטומטיות וימי עבודה בדשבורד
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"4.97" ונשאר מקור הגרסה המרכזי בכל תצוגות הגרסה ושמות הקבצים.
+2. פונקציית renderSmartDashboard הקיימת עודכנה כך שהתובנה הראשונה משתמשת באותו חישוב בדיוק של הכרטיס העליון: חסר ליעד חלקי ימי עבודה שנשארו אחרי חופש עתידי.
+3. נוסף בדשבורד חכם חישוב "עבדת X ימים עד היום" לפי ימי עבודה קלנדריים שעברו בחודש, ללא שבתות וללא ימי חופש שסומנו.
+4. נוסף חישוב "נשארו X ימים לעבוד" לפי מחר עד סוף החודש, ללא שבתות וללא ימי חופש עתידיים, עם הערה ברורה: לא כולל היום.
+5. לא שונו לוגין, עובדים, עבודות, מחירון, מנויים, גיבוי או שמירת ימי חופש.
+===============================================================================
+*/
+/*
+===============================================================================
+CHANGELOG 4.96 - איחוד חישובי יעד, תחזית וימי עבודה בדשבורד
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"4.96" ונשאר מקור הגרסה המרכזי בכל תצוגות הגרסה ושמות הקבצים.
+2. פונקציית renderSmartDashboard הקיימת עודכנה כך שכל חישובי היעד משתמשים באותו מקור אמת: ימי עבודה שנותרו אחרי שבתות וימי חופש עתידיים.
+3. הוסר הכרטיס הכפול "ימים עבודה שנשארו" מהחלק העליון/אחרי הוצאות, כדי שלא יהיו שני מספרים שונים לאותו מושג.
+4. תחזית סוף חודש קיבלה הסבר גלוי עם הנוסחה: בוצע בפועל + ממוצע ליום עבודה × ימי עבודה שנשארו.
+5. כרטיס "צריך לכל יום עבודה" והתובנות האוטומטיות משתמשים עכשיו באותו חישוב בדיוק כמו אזור ימי העבודה והחופש.
+===============================================================================
+*/
+/*
+===============================================================================
+CHANGELOG 4.95 - תיקון חישוב ימי עבודה וחופש בדשבורד החכם
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"4.95" ונשאר מקור הגרסה המרכזי בכל תצוגות הגרסה.
+2. ימי עבודה בחודש מחושבים ככל ימי החודש פחות שבתות בלבד, בלי להוריד ימי חופש.
+3. ימי חופש שסומנו מציג את מספר ימי החופש שסומנו בחודש מתוך Firestore.
+4. ימי עבודה שנשארו מחושבים מהיום עד סוף החודש, ללא שבתות, ובניכוי ימי חופש מהיום והלאה בלבד.
+5. התיקון נעשה בתוך פונקציות ימי החופש/הדשבורד הקיימות, בלי להוסיף Patch חדש בסוף הקובץ ובלי לשנות לוגין, עבודות, מחירון, גיבוי או מנויים.
+===============================================================================
+*/
 /*
 ===============================================================================
 CHANGELOG 4.94 - ניקוי מנגנוני Changelog כפולים
@@ -12012,10 +12057,44 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
     var paidServices=services.filter(function(e){return !e.isReturnCall});
     var goal=Number((viewedWorker||{}).monthlyGoal||0), left=Math.max(goal-total,0), progress=goal?Math.min(100,pct436(total,goal)):0;
     var dates=[...new Set(done.map(function(e){return e.date}).filter(Boolean))], workDays=dates.length, avg=workDays?total/workDays:0;
-    var remainingAll=remainingDays436(false), remainingWork=remainingDays436(true);
+    // v4.98 CORE UPDATE:
+    // מקור אמת יחיד לחישובי יעד: ימי עבודה שנשארו אחרי שבתות וימי חופש עתידיים, עם חישוב "נשאר לך לעבוד" ללא היום וללא חופש עתידי.
+    // אם פונקציות ימי החופש עדיין לא נטענו, נשאר fallback לחישוב הישן כדי לא לשבור טעינה.
+    var remainingWork=(typeof window.remainingWorkDaysWithVacationsV437==='function') ? window.remainingWorkDaysWithVacationsV437() : remainingDays436(true);
+    var workDaysInMonth=(typeof window.regularWorkDaysInMonthV496==='function') ? window.regularWorkDaysInMonthV496() : (workDays + remainingWork);
+    var vacationCount=Array.isArray(window.vacationDaysV437) ? window.vacationDaysV437.length : 0;
+    function isVacationDashboardV498(dateStr){
+      try{
+        if(typeof window.isVacationDayV437==='function') return !!window.isVacationDayV437(dateStr);
+        if(typeof window.isVacationDayV489==='function') return !!window.isVacationDayV489(dateStr);
+        return Array.isArray(window.vacationDaysV437) && window.vacationDaysV437.indexOf(dateStr)>=0;
+      }catch(e){
+        return Array.isArray(window.vacationDaysV437) && window.vacationDaysV437.indexOf(dateStr)>=0;
+      }
+    }
+    function workdayCountInRangeV498(fromDay,toDay){
+      try{
+        var base=calendarDate instanceof Date ? calendarDate : new Date();
+        var y=base.getFullYear(), m=base.getMonth(), last=new Date(y,m+1,0).getDate();
+        var a=Math.max(1,Number(fromDay||1)), b=Math.min(last,Number(toDay||last)), c=0;
+        for(var d=a; d<=b; d++){
+          var ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+          var dt=new Date(y,m,d);
+          if(dt.getDay()!==6 && !isVacationDashboardV498(ds)) c++;
+        }
+        return Math.max(c,0);
+      }catch(e){return 0;}
+    }
+    var now497=new Date();
+    var shownYear497=(calendarDate instanceof Date ? calendarDate : now497).getFullYear();
+    var shownMonth497=(calendarDate instanceof Date ? calendarDate : now497).getMonth();
+    var lastDay497=new Date(shownYear497,shownMonth497+1,0).getDate();
+    var isCurrentMonth497=(now497.getFullYear()===shownYear497 && now497.getMonth()===shownMonth497);
+    var elapsedWorkDays497=isCurrentMonth497 ? workdayCountInRangeV498(1,now497.getDate()) : (new Date(shownYear497,shownMonth497,lastDay497)<new Date(now497.getFullYear(),now497.getMonth(),1) ? workdayCountInRangeV498(1,lastDay497) : 0);
+    var remainingWorkNoToday497=isCurrentMonth497 ? workdayCountInRangeV498(now497.getDate()+1,lastDay497) : (new Date(shownYear497,shownMonth497,1)>new Date(now497.getFullYear(),now497.getMonth(),now497.getDate()) ? workdayCountInRangeV498(1,lastDay497) : 0);
     var needPerWorkDay=left>0 && remainingWork ? left/remainingWork : 0;
-    var needPerCalendarDay=left>0 && remainingAll ? left/remainingAll : 0;
-    var monthProjection=total + (avg * Math.max(remainingWork-1,0));
+    var monthProjection=done.length ? total + (avg * remainingWork) : 0;
+    var forecastFormulaText=done.length ? ('בוצע בפועל '+money436(total)+' + ממוצע ליום עבודה '+money436(avg)+' × '+remainingWork+' ימי עבודה שנשארו') : 'אין עדיין עבודות שבוצעו בפועל לחישוב תחזית';
     var projectedGap=goal ? monthProjection-goal : 0;
     var avgJob=done.length ? total/done.length : 0;
     var jobsNeeded=left>0 && avgJob ? Math.ceil(left/avgJob) : 0;
@@ -12032,8 +12111,9 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
 
     var insights=[];
     if(goal){
-      insights.push(progress>=100?'<li class="good">🎯 היעד הושג. אתה על '+Math.round(progress)+'% — עכשיו אפשר להגדיל יעד או לשמור קצב.</li>':'<li class="warn">🎯 חסר ליעד '+money436(left)+'. כדי להגיע ליעד צריך בערך '+money436(needPerWorkDay)+' לכל יום עבודה שנשאר.</li>');
+      insights.push(progress>=100?'<li class="good">🎯 היעד הושג. אתה על '+Math.round(progress)+'% — עכשיו אפשר להגדיל יעד או לשמור קצב.</li>':'<li class="warn">🎯 חסר ליעד '+money436(left)+'. צריך עוד '+money436(needPerWorkDay)+' לכל יום עבודה כדי להגיע ליעד — זה אותו חישוב שמופיע בכרטיס העליון.</li>');
       insights.push(projectedGap>=0?'<li class="good">📈 לפי הקצב הנוכחי, תחזית סוף חודש: '+money436(monthProjection)+' — מעל היעד בכ־'+money436(projectedGap)+'.</li>':'<li class="warn">📉 לפי הקצב הנוכחי, תחזית סוף חודש: '+money436(monthProjection)+' — חסר כ־'+money436(Math.abs(projectedGap))+'.</li>');
+      insights.push('<li class="info">🗓️ עד היום נספרו '+elapsedWorkDays497+' ימי עבודה בחודש ללא שבתות וללא ימי חופש. ממחר נשארו '+remainingWorkNoToday497+' ימי עבודה — לא כולל היום.</li>');
       if(jobsNeeded) insights.push('<li class="info">🧮 לפי ממוצע עבודה נוכחי, צריך עוד בערך '+jobsNeeded+' עבודות ממוצעות כדי לסגור את היעד.</li>');
     }else{
       insights.push('<li class="info">🎯 לא הוגדר יעד חודשי. ברגע שתגדיר יעד, אחשב כמה צריך לעשות כל יום.</li>');
@@ -12061,10 +12141,9 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
         <div class="smart-card-v423"><div class="smart-title">פוטנציאל כולל</div><div class="smart-value">${money436(potential)}</div><div class="smart-note">בוצע + מתוזמן</div></div>
       </div>
       <div class="smart-subgrid-v436">
-        <div class="smart-tip-v436 ${left<=0&&goal?'smart-success-v436':''}">חסר ליעד<b>${goal?money436(left):'—'}</b></div>
-        <div class="smart-tip-v436">ימים עבודה שנשארו<b>${remainingWork}</b></div>
-        <div class="smart-tip-v436">צריך לכל יום רגיל<b>${goal?money436(needPerCalendarDay):'—'}</b></div>
-        <div class="smart-tip-v436 ${projectedGap<0&&goal?'smart-warning-v436':'smart-success-v436'}">תחזית סוף חודש<b>${done.length?money436(monthProjection):'—'}</b></div>
+        <div class="smart-tip-v436 ${left<=0&&goal?'smart-success-v436':''}">חסר ליעד<b>${goal?money436(left):'—'}</b><div class="smart-small-note-v436">יעד חודשי פחות ביצוע בפועל</div></div>
+        <div class="smart-tip-v436 ${projectedGap<0&&goal?'smart-warning-v436':'smart-success-v436'}">תחזית סוף חודש<b>${done.length?money436(monthProjection):'—'}</b><div class="smart-small-note-v436">${forecastFormulaText}</div></div>
+        <div class="smart-tip-v436">ממוצע ליום עבודה<b>${done.length?money436(avg):'—'}</b><div class="smart-small-note-v436">לפי ${workDays} ימים שבהם נשמר ביצוע</div></div>
       </div>
       <div class="smart-quick-v423">
         <div class="smart-mini-v423">התקנות שבוצעו<b>${installs.length}</b></div>
@@ -12089,6 +12168,12 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
         </div>
       </div>
       <div class="smart-section-v423"><h3>🏆 פריטי התקנה מובילים</h3>${topItems.length?'<div class="smart-bars-v423">'+topItems.map(function(i){return '<div class="smart-bar-row-v423"><div>'+esc436(i.name)+'</div><div class="smart-bar-track-v423"><div class="smart-bar-fill-v423" style="width:'+Math.max(4,Math.min(100,pct436(i.total,topItems[0].total)))+'%"></div></div><div>'+money436(i.total)+'</div></div>'}).join('')+'</div>':'<p class="muted">אין עדיין פריטי התקנה החודש.</p>'}</div>`;
+    // v4.96: אזור ימי עבודה/חופש מוזן מאותו חישוב של הכרטיסים והתובנות.
+    try{
+      if(typeof window.renderVacationGoalStripV496==='function'){
+        window.renderVacationGoalStripV496(box,{regular:workDaysInMonth,vacCount:vacationCount,rem:remainingWork,remNoToday:remainingWorkNoToday497,elapsedWork:elapsedWorkDays497,need:needPerWorkDay,left:left,forecast:monthProjection,total:total,avg:avg,goal:goal,doneCount:done.length});
+      }
+    }catch(e){}
   };
 
   document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){try{setAppVersionUI&&setAppVersionUI()}catch(e){} try{renderSmartDashboard()}catch(e){}},220)});
@@ -12872,7 +12957,7 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
 */
 (function(){
   var PATCH='v4.89-firestore-vacation-cancel-core';
-  var CURRENT_VERSION='4.92';
+  var CURRENT_VERSION=APP_VERSION;
   var ALERT_ONCE_KEY='__vacationAuthAlertV487';
 
   try{ window.APP_VERSION=CURRENT_VERSION; if(typeof setAppVersionUI==='function')setAppVersionUI(); if(typeof enforceAppVersionUI==='function')enforceAppVersionUI(); }catch(e){}
@@ -13154,21 +13239,45 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
   function sumAmount(arr){return safeArr(arr).reduce(function(s,e){return s+Number(e.amount||0);},0);}
   function todayStrSafe(){try{return formatDate(new Date());}catch(e){return fmt(new Date());}}
   function remainingWorkDaysWithVacations(){
+    /*
+      v4.95 CORE FIX:
+      "ימי עבודה שנשארו" = מהיום עד סוף החודש, בלי שבתות, פחות ימי חופש שעדיין לא עברו.
+      ימי חופש שעברו בחודש לא מורידים מהיתרה, כי הם כבר לא חלק מהימים שנשארו.
+    */
     try{
-      var now=new Date(), range=currentMonthRange(), y=range.year, m=range.month, last=range.last;
-      var start=(now.getFullYear()===y && now.getMonth()===m)?now.getDate():1;
-      if(new Date(y,m,last)<new Date(now.getFullYear(),now.getMonth(),now.getDate()) && !(now.getFullYear()===y&&now.getMonth()===m)) return 0;
+      var now=new Date(), todayOnly=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+      var range=currentMonthRange(), y=range.year, m=range.month, last=range.last;
+      var monthStart=new Date(y,m,1), monthEnd=new Date(y,m,last);
+      if(monthEnd<todayOnly) return 0;
+      var start=(todayOnly>monthStart && now.getFullYear()===y && now.getMonth()===m)?now.getDate():1;
+      if(monthStart>todayOnly) start=1;
       var c=0;
-      for(var d=start;d<=last;d++){var ds=y+'-'+pad2(m+1)+'-'+pad2(d), dt=new Date(y,m,d); if(dt.getDay()!==6 && !isVacation(ds)) c++;}
+      for(var d=start;d<=last;d++){
+        var ds=y+'-'+pad2(m+1)+'-'+pad2(d), dt=new Date(y,m,d);
+        if(dt.getDay()!==6 && !isVacation(ds)) c++;
+      }
       return c;
     }catch(e){return 0;}
   }
   function regularWorkDaysInMonth(){
-    try{var range=currentMonthRange(), c=0; for(var d=1;d<=range.last;d++){var ds=range.year+'-'+pad2(range.month+1)+'-'+pad2(d), dt=new Date(range.year,range.month,d); if(dt.getDay()!==6&&!isVacation(ds))c++;} return c;}catch(e){return 0;}
+    /*
+      v4.95 CORE FIX:
+      "ימי עבודה בחודש" הוא מספר ימי החודש פחות שבתות בלבד.
+      לא מורידים כאן ימי חופש, כי ימי החופש מוצגים ברובריקה נפרדת.
+    */
+    try{
+      var range=currentMonthRange(), c=0;
+      for(var d=1;d<=range.last;d++){
+        var dt=new Date(range.year,range.month,d);
+        if(dt.getDay()!==6) c++;
+      }
+      return c;
+    }catch(e){return 0;}
   }
   window.remainingWorkDaysWithVacationsV437=remainingWorkDaysWithVacations;
   window.remainingWorkDaysWithVacationsV487=remainingWorkDaysWithVacations;
   window.remainingWorkDaysWithVacationsV489=remainingWorkDaysWithVacations;
+  window.regularWorkDaysInMonthV496=regularWorkDaysInMonth;
 
   var baseLoadMonth=window.loadMonth;
   if(typeof baseLoadMonth==='function' && !baseLoadMonth.__vacationCleanV487){
@@ -13241,28 +13350,34 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
     if(holder2) holder2.innerHTML='<button class="btn-light" type="button" onclick="setVacationDayV437(\''+selectedDate+'\')">🏖️ סמן כיום חופש</button>';
   };
 
-  var baseRenderSmart=window.renderSmartDashboard;
-  window.renderSmartDashboard=function(){
-    if(typeof baseRenderSmart==='function') baseRenderSmart.apply(this,arguments);
-    var box=q('smartDashboard'); if(!box)return;
-    var all=safeArr(typeof monthEntries!=='undefined'?monthEntries:[]), dn=doneEntries(all), total=sumAmount(dn), goal=Number((typeof viewedWorker!=='undefined'&&viewedWorker?viewedWorker.monthlyGoal:0)||0), left=Math.max(goal-total,0);
-    var rem=remainingWorkDaysWithVacations(), regular=regularWorkDaysInMonth(), vacCount=safeArr(window.vacationDaysV437).length;
-    var need=goal&&rem?left/rem:0;
+  // v4.96: במקום לעטוף את renderSmartDashboard כפאץ׳, הפונקציה הראשית קוראת ישירות לעוזר הזה.
+  // כך אזור ימי העבודה/חופש מוצג מאותו מקור חישוב של הכרטיסים והתובנות.
+  window.renderVacationGoalStripV496=function(box, stats){
+    box=box||q('smartDashboard'); if(!box)return;
+    stats=stats||{};
+    var all=safeArr(typeof monthEntries!=='undefined'?monthEntries:[]), dn=doneEntries(all), total=Number(stats.total!==undefined?stats.total:sumAmount(dn));
+    var goal=Number(stats.goal!==undefined?stats.goal:((typeof viewedWorker!=='undefined'&&viewedWorker?viewedWorker.monthlyGoal:0)||0));
+    var left=Number(stats.left!==undefined?stats.left:Math.max(goal-total,0));
+    var regular=Number(stats.regular!==undefined?stats.regular:regularWorkDaysInMonth());
+    var vacCount=Number(stats.vacCount!==undefined?stats.vacCount:safeArr(window.vacationDaysV437).length);
+    var rem=Number(stats.rem!==undefined?stats.rem:remainingWorkDaysWithVacations());
+    var need=Number(stats.need!==undefined?stats.need:(goal&&rem?left/rem:0));
     var uniqueDays=new Set(dn.map(function(e){return e.date;}).filter(Boolean));
-    var avgDay=uniqueDays.size? total/uniqueDays.size : 0;
-    var forecast=dn.length? total + avgDay*Math.max(rem-1,0) : 0;
-    try{
-      Array.from(box.querySelectorAll('.smart-card-v423')).forEach(function(card){var t=card.querySelector('.smart-title'); if(t&&t.textContent.indexOf('צריך לכל יום עבודה')!==-1){var v=card.querySelector('.smart-value'); if(v)v.textContent=goal?moneySafe(need):'—'; var n=card.querySelector('.smart-note'); if(n)n.textContent='כדי להגיע ליעד אחרי הורדת ימי חופש';}});
-      Array.from(box.querySelectorAll('.smart-tip-v436')).forEach(function(tip){var txt=tip.textContent||'', b=tip.querySelector('b'); if(!b)return; if(txt.indexOf('ימים עבודה שנשארו')!==-1)b.textContent=rem; if(txt.indexOf('תחזית סוף חודש')!==-1)b.textContent=dn.length?moneySafe(forecast):'—';});
-    }catch(e){}
+    var avg=Number(stats.avg!==undefined?stats.avg:(uniqueDays.size?total/uniqueDays.size:0));
+    var forecast=Number(stats.forecast!==undefined?stats.forecast:(dn.length?total+avg*rem:0));
+    var doneCount=Number(stats.doneCount!==undefined?stats.doneCount:dn.length);
     var old=q('vacationGoalStripV437'); if(old) old.remove();
     var wrap=document.createElement('div'); wrap.id='vacationGoalStripV437';
-    wrap.innerHTML='<div class="vacation-goal-strip-v437"><h3>🏖️ ימי חופש והשפעה על היעד</h3><div class="smart-subgrid-v436">'+
-      '<div class="smart-tip-v436">ימי עבודה רגילים בחודש<b>'+regular+'</b><div class="vacation-note-v437">לא כולל שבתות וימי חופש</div></div>'+
-      '<div class="smart-tip-v436">ימי חופש שסומנו<b>'+vacCount+'</b><div class="vacation-note-v437">מ-Firestore בלבד</div></div>'+
-      '<div class="smart-tip-v436">ימי עבודה שנשארו<b>'+rem+'</b><div class="vacation-note-v437">מהיום עד סוף החודש</div></div>'+
-      '<div class="smart-tip-v436 smart-goal-focus-v436">צריך לכל יום עבודה<b>'+(goal?moneySafe(need):'—')+'</b><div class="vacation-note-v437">אחרי הורדת ימי החופש</div></div>'+
-      '</div>'+(goal?'<p class="muted">חסר ליעד: '+moneySafe(left)+' · תחזית לפי קצב נוכחי אחרי חישוב ימי חופש: '+(dn.length?moneySafe(forecast):'—')+'</p>':'<p class="muted">לא הוגדר יעד חודשי, לכן אין חישוב יומי.</p>')+'</div>';
+    var elapsed=Number(stats.elapsedWork!==undefined?stats.elapsedWork:0);
+    var remNoToday=Number(stats.remNoToday!==undefined?stats.remNoToday:Math.max(rem-1,0));
+    wrap.innerHTML='<div class="vacation-goal-strip-v437"><h3>🏖️ ימי עבודה, חופש והשפעה על היעד</h3><div class="smart-subgrid-v436">'+
+      '<div class="smart-tip-v436">ימי עבודה בחודש<b>'+regular+'</b><div class="vacation-note-v437">כל ימי החודש פחות שבתות בלבד</div></div>'+
+      '<div class="smart-tip-v436">ימי חופש שסומנו<b>'+vacCount+'</b><div class="vacation-note-v437">כל ימי החופש שסומנו בחודש</div></div>'+
+      '<div class="smart-tip-v436">עבדת עד היום<b>'+elapsed+'</b><div class="vacation-note-v437">ימי עבודה שעברו בחודש, ללא שבתות וללא ימי חופש</div></div>'+
+      '<div class="smart-tip-v436">נשאר לך לעבוד<b>'+remNoToday+'</b><div class="vacation-note-v437">ממחר עד סוף החודש, ללא שבתות וללא ימי חופש עתידיים · לא כולל היום</div></div>'+
+      '<div class="smart-tip-v436">ימי עבודה שנשארו לחישוב יעד<b>'+rem+'</b><div class="vacation-note-v437">מהיום עד סוף החודש, פחות שבתות וחופש עתידי</div></div>'+ 
+      '<div class="smart-tip-v436 smart-goal-focus-v436">צריך לכל יום עבודה<b>'+(goal?moneySafe(need):'—')+'</b><div class="vacation-note-v437">חסר ליעד חלקי ימי עבודה שנשארו</div></div>'+
+      '</div>'+(goal?'<p class="muted">תחזית סוף חודש: '+(doneCount?moneySafe(forecast):'—')+' · נוסחה: בוצע בפועל '+moneySafe(total)+' + ממוצע ליום עבודה '+moneySafe(avg)+' × '+rem+' ימי עבודה שנשארו לחישוב יעד.</p>':'<p class="muted">לא הוגדר יעד חודשי, לכן אין חישוב יומי.</p>')+'</div>';
     box.insertBefore(wrap,box.firstChild);
   };
 
@@ -14590,6 +14705,28 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:'4.98',title:'תיקון ימי עבודה שנותרו וניקוי כפילויות בדשבורד',date:d,items:[
+        'נשאר לך לעבוד מחושב עכשיו ממחר עד סוף החודש, ללא שבתות וללא ימי חופש עתידיים מתוך Firestore.',
+        'נוקו כפילויות של עבדת עד היום ונשאר לך לעבוד, כך שהנתונים מופיעים פעם אחת בלבד באזור ימי עבודה וחופש.',
+        'התובנות האוטומטיות והכרטיס העליון משתמשים באותו חישוב יעד אחיד.'
+      ]},
+      {version:'4.97',title:'יישור תובנות אוטומטיות וימי עבודה בדשבורד',date:d,items:[
+        'התובנה הראשונה משתמשת בדיוק באותו חישוב כמו הכרטיס העליון: חסר ליעד חלקי ימי עבודה שנשארו אחרי חופש עתידי.',
+        'נוסף חיווי: כמה ימי עבודה עברו עד היום ללא שבתות וללא ימי חופש.',
+        'נוסף חיווי: כמה ימי עבודה נשארו ממחר עד סוף החודש, ללא שבתות וללא חופש עתידי, עם הערה לא כולל היום.'
+      ]},
+      {version:'4.96',title:'איחוד חישובי יעד, תחזית וימי עבודה בדשבורד',date:d,items:[
+        'כרטיס צריך לכל יום עבודה והתובנות משתמשים באותו חישוב של ימי העבודה שנשארו אחרי חופש עתידי.',
+        'הוסר הכרטיס הכפול של ימים עבודה שנשארו מהחלק העליון כדי שלא יהיו שני מספרים שונים.',
+        'תחזית סוף חודש מציגה הסבר מלא: בוצע בפועל + ממוצע ליום עבודה × ימי עבודה שנשארו.',
+        'אזור ימי עבודה/חופש ממשיך להציג ימי עבודה בחודש, ימי חופש שסומנו, ימי עבודה שנשארו וצריך לכל יום עבודה.'
+      ]},
+      {version:'4.95',title:'תיקון ימי עבודה וחופש בדשבורד',date:d,items:[
+        'ימי עבודה בחודש מחושבים ככל ימי החודש פחות שבתות בלבד.',
+        'ימי חופש שסומנו מציג את כל ימי החופש שסומנו בחודש מתוך Firestore.',
+        'ימי עבודה שנשארו מחושבים מהיום עד סוף החודש, ללא שבתות, ובניכוי ימי חופש מהיום והלאה בלבד.',
+        'התיקון נעשה בתוך פונקציות הדשבורד/ימי החופש הקיימות, בלי להוסיף Patch חדש בסוף הקובץ.'
+      ]},
       {version:'4.94',title:'ניקוי מנגנוני Changelog כפולים',date:d,items:[
         'הוסר מצב שבו סקריפטים ישנים של Changelog דרסו את התיקונים החדשים.',
         'האדמין והעובד נטענים עכשיו ממנגנון Changelog אחד ונקי.',
