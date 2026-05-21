@@ -1167,7 +1167,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "4.98";
+const APP_VERSION = "4.99";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1179,6 +1179,18 @@ function setAppVersionUI(){
 setAppVersionUI();
 window.addEventListener("DOMContentLoaded", setAppVersionUI);
 window.addEventListener("load", setAppVersionUI);
+
+/*
+===============================================================================
+CHANGELOG 4.99 - תיקון הרשאות בחיפוש היסטוריית לקוח
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"4.99" ונשאר מקור הגרסה המרכזי בכל תצוגות הגרסה ושמות הקבצים.
+2. פונקציית loadClientHistory תוקנה נקודתית כך שהשאילתה ל-Firestore מסוננת גם לפי workerId של העובד הנוכחי.
+3. התיקון מונע שגיאת Missing or insufficient permissions כאשר Security Rules מאפשרים לעובד לקרוא רק עבודות שלו.
+4. נוסף סינון הגנה מקומי כפול אחרי הקריאה, כדי לוודא שמוצגות רק עבודות של העובד הנוכחי ושל מספר הלקוח שחופש.
+5. לא שונו עיצוב אדמין, כרטיסיות, לוגין, שמירת עבודות, מחירון, מנויים, דשבורד או ימי חופש.
+===============================================================================
+*/
 
 /*
 ===============================================================================
@@ -1743,10 +1755,20 @@ async function loadClientHistory(){
   const num=val("clientHistoryNumber");
   const box=$("clientHistoryResults");
   if(!num||!/^\d+$/.test(num)){box.innerHTML="<p class='danger'>חובה להכניס מספר לקוח בספרות בלבד.</p>";return}
+  if(!viewedWorker || !viewedWorker.id){box.innerHTML="<p class='danger'>לא זוהה עובד פעיל לחיפוש.</p>";return}
   box.innerHTML="<p>טוען היסטוריית לקוח...</p>";
   try{
-    const snap=await db.collection("workEntries").where("customerNumber","==",num).get();
-    const entries=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+    // v4.99 FIX:
+    // Security Rules מאפשרים לעובד לקרוא רק מסמכים שלו.
+    // לכן החיפוש חייב לכלול workerId בשאילתה עצמה, ולא רק customerNumber.
+    const snap=await db.collection("workEntries")
+      .where("workerId","==",viewedWorker.id)
+      .where("customerNumber","==",num)
+      .get();
+    const entries=snap.docs
+      .map(d=>({id:d.id,...d.data()}))
+      .filter(e=>e.workerId===viewedWorker.id && String(e.customerNumber||"")===num)
+      .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
     if(!entries.length){box.innerHTML="<p class='muted'>לא נמצאה היסטוריה ללקוח הזה.</p>";return}
     const total=entries.reduce((s,e)=>s+Number(e.amount||0),0);
     const services=entries.filter(e=>e.workType==="service").length;
