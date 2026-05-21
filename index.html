@@ -1167,7 +1167,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "4.99";
+const APP_VERSION = "5.00";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1179,6 +1179,19 @@ function setAppVersionUI(){
 setAppVersionUI();
 window.addEventListener("DOMContentLoaded", setAppVersionUI);
 window.addEventListener("load", setAppVersionUI);
+
+/*
+===============================================================================
+CHANGELOG 5.00 - דשבורד חכם: ספירת התקנות סיב / RF / פקודות Change
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"5.00" ונשאר מקור הגרסה המרכזי בכל תצוגות הגרסה.
+2. פונקציית renderSmartDashboard הקיימת עודכנה נקודתית בלבד.
+3. נוספה בדשבורד החכם שורה גלויה עם שלוש ספירות: התקנות סיב, התקנות RF ופקודות Change.
+4. התקנת סיב נספרת רק אם בעבודה נבחר הפריט "התקנת שקע סיב חדש - כולל מודם".
+5. התקנת RF נספרת לפי סוג התקנה/מחירון RF. כל התקנת סיב ללא פריט המודם נספרת כפקודת Change.
+6. לא שונו לוגין, עובדים, חיפוש לקוח, הרשאות, שמירה, גיבוי, שחזור או עיצוב האדמין.
+===============================================================================
+*/
 
 /*
 ===============================================================================
@@ -12068,6 +12081,30 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
     }catch(err){ alert('שגיאה בסימון בוצע: '+(err.code||err.message||err)); }
   };
 
+  function normInstallName500(s){
+    return String(s||'')
+      .replace(/[‎‏]/g,'')
+      .replace(/[-–—]/g,'-')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+  function isNewFiberModemInstall500(e){
+    var target='התקנת שקע סיב חדש - כולל מודם';
+    var targetNorm=normInstallName500(target);
+    return !!(e && (e.items||[]).some(function(i){
+      return Number(i.quantity||0)>0 && normInstallName500(i.name)===targetNorm;
+    }));
+  }
+  function isRfInstall500(e){
+    if(!e || e.workType!=='install') return false;
+    function isRfValue(v){ return String(v||'').toLowerCase()==='rf' || String(v||'').toUpperCase()==='RF'; }
+    if(isRfValue(e.installKind) || isRfValue(e.priceType) || isRfValue(e.category)) return true;
+    if(String(e.description||'').toLowerCase().indexOf('rf')!==-1) return true;
+    var items=e.items||[];
+    if(items.length && items.some(function(i){ return isRfValue(i.installKind) || isRfValue(i.priceType) || isRfValue(i.category); })) return true;
+    return false;
+  }
+
   window.renderSmartDashboard=function(){
     var box=$('smartDashboard'); if(!box)return;
     var all=Array.isArray(monthEntries)?monthEntries:[];
@@ -12131,6 +12168,13 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
     var todayDone=done.filter(function(e){return e.date===today}), todayPlanned=planned.filter(function(e){return e.date===today});
     var convertedCount=done.filter(function(e){return e.convertedFromPlanned===true}).length;
 
+    // v5.00 Dashboard classification:
+    // התקנת סיב נספרת רק אם נבחר הפריט המדויק "התקנת שקע סיב חדש - כולל מודם".
+    // RF נספר לפי סוג התקנה/מחירון RF. כל התקנת סיב אחרת נספרת כפקודת Change.
+    var rfInstalls500=installs.filter(isRfInstall500);
+    var fiberInstalls500=installs.filter(function(e){ return !isRfInstall500(e) && isNewFiberModemInstall500(e); });
+    var changeOrders500=installs.filter(function(e){ return !isRfInstall500(e) && !isNewFiberModemInstall500(e); });
+
     var insights=[];
     if(goal){
       insights.push(progress>=100?'<li class="good">🎯 היעד הושג. אתה על '+Math.round(progress)+'% — עכשיו אפשר להגדיל יעד או לשמור קצב.</li>':'<li class="warn">🎯 חסר ליעד '+money436(left)+'. צריך עוד '+money436(needPerWorkDay)+' לכל יום עבודה כדי להגיע ליעד — זה אותו חישוב שמופיע בכרטיס העליון.</li>');
@@ -12147,6 +12191,7 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
     if(bestWeekday) insights.push('<li class="info">📈 יום '+esc436(bestWeekday)+' הוא היום החזק ביותר לפי דפוס החודש.</li>');
     if(topClient && byClient[topClient].count>1) insights.push('<li class="warn">👤 לקוח חוזר אמיתי: '+esc436(topClient)+' עם '+byClient[topClient].count+' ביקורים שונים החודש. המרות ממתוזמן לבוצע לא נספרות כאן כפעמיים.</li>');
     if(returnCalls.length) insights.push('<li class="danger">🔁 '+returnCalls.length+' קריאות חוזרות ללא תשלום. זה מדד שצריך לעקוב אחריו כי הוא אוכל זמן ולא מוסיף הכנסה.</li>');
+    if(installs.length) insights.push('<li class="info">🧾 פירוט התקנות: '+fiberInstalls500.length+' התקנות סיב, '+rfInstalls500.length+' התקנות RF, '+changeOrders500.length+' פקודות Change.</li>');
     if(installs.length && paidServices.length && installAvg>serviceAvg*1.6) insights.push('<li class="good">🛠️ התקנה ממוצעת שווה הרבה יותר מקריאת שירות. שווה לתת עדיפות להתקנות כשאפשר.</li>');
     if(!done.length) insights.push('<li class="info">עדיין אין עבודות שבוצעו בחודש הזה. הדשבורד יתמלא אחרי שמירת עבודות.</li>');
 
@@ -12171,6 +12216,11 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
         <div class="smart-mini-v423">התקנות שבוצעו<b>${installs.length}</b></div>
         <div class="smart-mini-v423">קריאות בתשלום<b>${paidServices.length}</b></div>
         <div class="smart-mini-v423">קריאות חוזרות<b>${returnCalls.length}</b></div>
+      </div>
+      <div class="smart-quick-v423">
+        <div class="smart-mini-v423">התקנות סיב<b>${fiberInstalls500.length}</b><span class="smart-small-note-v436">רק עם התקנת שקע סיב חדש כולל מודם</span></div>
+        <div class="smart-mini-v423">התקנות RF<b>${rfInstalls500.length}</b><span class="smart-small-note-v436">לפי מחירון / סוג RF</span></div>
+        <div class="smart-mini-v423">פקודות Change<b>${changeOrders500.length}</b><span class="smart-small-note-v436">סיב ללא פריט התקנת מודם</span></div>
       </div>
       <div class="smart-quick-v423">
         <div class="smart-mini-v423">עבודות ממוצעות ליעד<b>${jobsNeeded||0}</b><span class="smart-small-note-v436">לפי ממוצע ${money436(avgJob)}</span></div>
@@ -12278,6 +12328,9 @@ CHANGELOG 4.38 - דשבורד חכם: צבעים עדינים, הסרת יום �
     addClassByTitle438(box,'ימי חופש שסומנו','smart-soft-orange-v438');
     addClassByTitle438(box,'ימי עבודה רגילים בחודש','smart-soft-blue-v438');
     addClassByTitle438(box,'התקנות שבוצעו','smart-soft-blue-v438');
+    addClassByTitle438(box,'התקנות סיב','smart-soft-blue-v438');
+    addClassByTitle438(box,'התקנות RF','smart-soft-purple-v438');
+    addClassByTitle438(box,'פקודות Change','smart-soft-orange-v438');
     addClassByTitle438(box,'קריאות בתשלום','smart-soft-green-v438');
     addClassByTitle438(box,'קריאות חוזרות','smart-soft-red-v438');
   }
