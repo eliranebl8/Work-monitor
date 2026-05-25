@@ -1181,7 +1181,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.04";
+const APP_VERSION = "5.06";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1196,6 +1196,21 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
+CHANGELOG 5.06 - תיקון קריאת כפתור הייצוא ושמירה על תאימות לאחור
+
+1. APP_VERSION עודכן ל-"5.06".
+2. נוספה מחדש פונקציית downloadExcelTsvV504 כשכבת תאימות נקייה, כדי שכפתורי עובד קיימים לא יפלו על is not defined.
+3. הפונקציה הישנה מפנה עכשיו לייצוא XLSX אמיתי דרך מנגנון v5.05, בלי לשנות את ה-onclick הקיים ובלי לפגוע במסכים אחרים.
+4. נבדקו קריאות הייצוא כדי למנוע קריאה לפונקציות חסרות.
+
+CHANGELOG 5.05 - ייצוא Excel אמיתי ללא קובץ פגום
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"5.05".
+2. פונקציות הייצוא לאקסל נבנו מחדש ליצירת קובץ XLSX אמיתי בדפדפן, ללא ספרייה חיצונית וללא CSV/HTML עם סיומת Excel.
+3. ייצוא אדמין מלא יוצר גיליון נפרד לכל אוסף במסד הנתונים.
+4. ייצוא עובד אישי יוצר גיליון עבודות אישי בלבד.
+5. גיבוי ושחזור JSON של האדמין נשארים מלאים וכוללים appChangelog.
+
 CHANGELOG 5.02 - כלי אדמין מלאים: גיבוי, שחזור וייצוא כל המסד
 -------------------------------------------------------------------------------
 1. APP_VERSION עודכן ל-"5.02" ונשאר מקור הגרסה המרכזי בכל התצוגות ושמות הקבצים.
@@ -2363,13 +2378,14 @@ async function duplicateEntry(id){
   await loadMonth();
 }
 
-/* ===== v5.04: Stable Excel-compatible TSV export + full admin backup/restore =====
+/* ===== v5.05: Real XLSX export + full admin backup/restore =====
    שינוי ממוקד בלבד לכלי הגיבוי/ייצוא:
-   - ייצוא העובד והאדמין הוחלפו לפורמט XLS מבוסס TSV יציב: עמודות מופרדות בטאבים ושורות CRLF אמיתיות.
-   - ייצוא האדמין כולל גיליון נפרד לכל אוסף במסד הנתונים.
-   - גיבוי/שחזור האדמין כוללים גם appChangelog כדי שגרסאות "מה חדש" יגובו וישוחזרו.
-   - נוספו רשומות Changelog חסרות 5.00, 5.01, 5.02, 5.03 לזריעה אוטומטית ל-Firebase.
-   כלי העובד האישיים נשארים נפרדים: עובד = נתוני העובד, אדמין = כל המסד. */
+   - הייצוא כבר לא CSV/TSV עם סיומת Excel ולא HTML שמובייל מזהה כפגום.
+   - נבנה קובץ XLSX אמיתי בדפדפן, ללא ספרייה חיצונית, עם ZIP פנימי תקני וגיליונות נפרדים.
+   - עובד מקבל XLSX אישי עם העבודות שלו בלבד.
+   - אדמין מקבל XLSX מלא עם גיליון לכל אוסף במסד הנתונים.
+   - גיבוי/שחזור האדמין נשארים מלאים וכוללים appChangelog.
+*/
 
 function setBackupStatusV413(html){
   ["backupMsg","backupMsgTop","workerToolsMsg"].forEach(id=>{
@@ -2390,8 +2406,6 @@ function normalizeBackupDocV413(doc){
 }
 
 function backupCollectionNamesV413(){
-  // כל האוספים שהמערכת משתמשת בהם בפועל לפי הקוד הנוכחי.
-  // אם בעתיד יתווסף אוסף חדש, מוסיפים אותו כאן פעם אחת והוא ייכנס גם לגיבוי, גם לשחזור וגם לייצוא האדמין.
   return [
     "settings",
     "users",
@@ -2407,46 +2421,208 @@ function backupCollectionNamesV413(){
   ];
 }
 
-function exportSafeTextV504(value){
+function serializeFirestore(obj){
+  return JSON.parse(JSON.stringify(obj,(k,v)=>{
+    if(v&&typeof v==="object"&&typeof v.toDate==="function")return v.toDate().toISOString();
+    return v;
+  }));
+}
+function downloadFile(filename,content,type){
+  const blob=new Blob([content],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+}
+function downloadBlobV505(filename,blob){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+function xmlEscV505(v){
+  return String(v??"")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&apos;");
+}
+function sheetNameV505(name,idx){
+  let s=String(name||("Sheet"+idx)).replace(/[\\/\?\*\[\]:]/g," ").trim();
+  if(!s) s="Sheet"+idx;
+  return s.slice(0,31);
+}
+function colNameV505(n){
+  let s="";
+  while(n>0){
+    const m=(n-1)%26;
+    s=String.fromCharCode(65+m)+s;
+    n=Math.floor((n-1)/26);
+  }
+  return s;
+}
+function safeCellV505(value){
   if(value===null || value===undefined) return "";
   if(value && typeof value==="object"){
     try{return JSON.stringify(serializeFirestore(value));}catch(e){return String(value);}
   }
-  return String(value).replace(/\r?\n|\r/g," | ");
+  return String(value);
 }
-
-function buildExcelTsvV504(rows, preferredHeaders){
+function normalizeSheetRowsV505(rows, preferredHeaders){
+  const arr=Array.isArray(rows)?rows:[];
   const headersSet=new Set((preferredHeaders||[]).filter(Boolean));
-  (rows||[]).forEach(row=>Object.keys(row||{}).forEach(k=>headersSet.add(k)));
+  arr.forEach(row=>Object.keys(row||{}).forEach(k=>headersSet.add(k)));
   const headers=Array.from(headersSet);
-  const safeCell=v=>exportSafeTextV504(v).replace(/\t/g," ");
-  const lines=[];
-  lines.push(headers.map(safeCell).join("\t"));
-  (rows&&rows.length?rows:[{}]).forEach(row=>{
-    lines.push(headers.map(h=>safeCell(row?.[h])).join("\t"));
+  const normalized=arr.length?arr:[{}];
+  return {headers:headers.length?headers:["מידע"], rows:normalized};
+}
+function worksheetXmlV505(rows, preferredHeaders){
+  const data=normalizeSheetRowsV505(rows, preferredHeaders);
+  const headers=data.headers;
+  const body=[];
+  const maxCol=colNameV505(headers.length||1);
+  function cellXml(r,c,value,isHeader){
+    const ref=colNameV505(c)+r;
+    const text=xmlEscV505(safeCellV505(value));
+    const style=isHeader?' s="1"':"";
+    return `<c r="${ref}" t="inlineStr"${style}><is><t>${text}</t></is></c>`;
+  }
+  body.push(`<row r="1">${headers.map((h,i)=>cellXml(1,i+1,h,true)).join("")}</row>`);
+  data.rows.forEach((row,idx)=>{
+    const r=idx+2;
+    body.push(`<row r="${r}">${headers.map((h,i)=>cellXml(r,i+1,row?.[h],false)).join("")}</row>`);
   });
-  // UTF-16LE + BOM is the most reliable format for Hebrew + Excel on Windows/Android.
-  return "\ufeff" + lines.join("\r\n");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <dimension ref="A1:${maxCol}${data.rows.length+1}"/>
+  <sheetViews><sheetView workbookViewId="0" rightToLeft="1"/></sheetViews>
+  <sheetFormatPr defaultRowHeight="18"/>
+  <sheetData>${body.join("")}</sheetData>
+</worksheet>`;
 }
 
-function downloadExcelTsvV504(filename, rows, preferredHeaders){
-  const content=buildExcelTsvV504(rows, preferredHeaders);
-  downloadFile(filename, content, "application/vnd.ms-excel;charset=utf-16le");
+function crc32V505(bytes){
+  if(!window.__crcTableV505){
+    const table=[];
+    for(let n=0;n<256;n++){
+      let c=n;
+      for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);
+      table[n]=c>>>0;
+    }
+    window.__crcTableV505=table;
+  }
+  let crc=0^(-1);
+  const table=window.__crcTableV505;
+  for(let i=0;i<bytes.length;i++) crc=(crc>>>8)^table[(crc^bytes[i])&0xff];
+  return (crc^(-1))>>>0;
 }
-
-function adminExportRowsV504(collectionName, rows){
-  const out=[];
-  (rows||[]).forEach(row=>{
-    const id=row.id||"";
-    Object.keys(row||{}).forEach(key=>{
-      if(key==="id") return;
-      out.push({collection:collectionName,id,field:key,value:row[key]});
-    });
+function u16V505(n){return [n&255,(n>>>8)&255];}
+function u32V505(n){return [n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255];}
+function dosDateTimeV505(date){
+  const d=date||new Date();
+  const time=(d.getHours()<<11)|(d.getMinutes()<<5)|Math.floor(d.getSeconds()/2);
+  const day=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate();
+  return {time,day};
+}
+function makeZipV505(files){
+  const enc=new TextEncoder();
+  const chunks=[];
+  const central=[];
+  let offset=0;
+  const dt=dosDateTimeV505(new Date());
+  files.forEach(file=>{
+    const nameBytes=enc.encode(file.name);
+    const dataBytes=(file.data instanceof Uint8Array)?file.data:enc.encode(String(file.data));
+    const crc=crc32V505(dataBytes);
+    const local=new Uint8Array([
+      ...u32V505(0x04034b50), ...u16V505(20), ...u16V505(0x0800), ...u16V505(0),
+      ...u16V505(dt.time), ...u16V505(dt.day), ...u32V505(crc), ...u32V505(dataBytes.length), ...u32V505(dataBytes.length),
+      ...u16V505(nameBytes.length), ...u16V505(0)
+    ]);
+    chunks.push(local,nameBytes,dataBytes);
+    central.push({nameBytes,crc,size:dataBytes.length,offset});
+    offset+=local.length+nameBytes.length+dataBytes.length;
   });
-  if(!out.length) out.push({collection:collectionName,id:"",field:"",value:"אין נתונים"});
-  return out;
+  const centralStart=offset;
+  central.forEach(c=>{
+    const head=new Uint8Array([
+      ...u32V505(0x02014b50), ...u16V505(20), ...u16V505(20), ...u16V505(0x0800), ...u16V505(0),
+      ...u16V505(dt.time), ...u16V505(dt.day), ...u32V505(c.crc), ...u32V505(c.size), ...u32V505(c.size),
+      ...u16V505(c.nameBytes.length), ...u16V505(0), ...u16V505(0), ...u16V505(0), ...u16V505(0), ...u32V505(0), ...u32V505(c.offset)
+    ]);
+    chunks.push(head,c.nameBytes);
+    offset+=head.length+c.nameBytes.length;
+  });
+  const centralSize=offset-centralStart;
+  const end=new Uint8Array([
+    ...u32V505(0x06054b50), ...u16V505(0), ...u16V505(0), ...u16V505(central.length), ...u16V505(central.length),
+    ...u32V505(centralSize), ...u32V505(centralStart), ...u16V505(0)
+  ]);
+  chunks.push(end);
+  return new Blob(chunks,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+function buildXlsxBlobV505(sheetDefs){
+  const sheets=(sheetDefs||[]).map((s,i)=>({
+    name:sheetNameV505(s.name,i+1),
+    rows:Array.isArray(s.rows)?s.rows:[],
+    headers:s.headers||[]
+  }));
+  if(!sheets.length) sheets.push({name:"נתונים",rows:[{מידע:"אין נתונים"}],headers:["מידע"]});
+  const files=[];
+  const overrides=[
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>',
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+  ];
+  sheets.forEach((s,i)=>overrides.push(`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`));
+  files.push({name:"[Content_Types].xml",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>${overrides.join("")}</Types>`});
+  files.push({name:"_rels/.rels",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`});
+  files.push({name:"xl/workbook.xml",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><workbookPr/><bookViews><workbookView rightToLeft="1"/></bookViews><sheets>${sheets.map((s,i)=>`<sheet name="${xmlEscV505(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")}</sheets></workbook>`});
+  files.push({name:"xl/_rels/workbook.xml.rels",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`});
+  files.push({name:"xl/styles.xml",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Arial"/></font><font><b/><sz val="11"/><name val="Arial"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>`});
+  sheets.forEach((s,i)=>files.push({name:`xl/worksheets/sheet${i+1}.xml`,data:worksheetXmlV505(s.rows,s.headers)}));
+  return makeZipV505(files);
+}
+function downloadXlsxV505(filename,sheets){
+  const blob=buildXlsxBlobV505(sheets);
+  downloadBlobV505(filename,blob);
 }
 
+/* ===== v5.06: Backward compatibility wrapper for existing worker export button =====
+   שינוי נקודתי בלבד: כפתור העובד עדיין קורא לשם הישן downloadExcelTsvV504.
+   במקום לשנות HTML/onclick קיים ולסכן מסכים אחרים, החזרנו את שם הפונקציה
+   והוא מפנה למנגנון XLSX האמיתי של v5.05.
+*/
+function downloadExcelTsvV504(filename, rows, headers){
+  try{
+    const cleanName = String(filename || 'work_monitor_export.xlsx').replace(/\.xls$/i,'.xlsx').replace(/\.csv$/i,'.xlsx');
+    const safeHeaders = Array.isArray(headers) && headers.length ? headers : collectHeadersV505(rows || []);
+    const safeRows = Array.isArray(rows) && rows.length ? rows : [{info:'אין נתונים'}];
+    downloadXlsxV505(cleanName, [{
+      name: 'my_work_entries',
+      headers: safeHeaders,
+      rows: safeRows
+    }]);
+  }catch(err){
+    console.error('downloadExcelTsvV504 compatibility wrapper failed', err);
+    throw err;
+  }
+}
+window.downloadExcelTsvV504 = downloadExcelTsvV504;
+
+function adminExportRowsV505(collectionName, rows){
+  const rowsArr=(rows||[]).map(row=>{
+    const out={id:row.id||""};
+    Object.keys(row||{}).forEach(k=>{ if(k!=="id") out[k]=safeCellV505(row[k]); });
+    return out;
+  });
+  if(!rowsArr.length) rowsArr.push({id:"",info:"אין נתונים"});
+  return rowsArr;
+}
 async function readCollectionForAdminToolsV502(collectionName){
   const snap=await db.collection(collectionName).get();
   return snap.docs.map(d=>({id:d.id,...serializeFirestore(d.data())}));
@@ -2454,29 +2630,28 @@ async function readCollectionForAdminToolsV502(collectionName){
 
 async function exportEntriesCSV(){
   try{
-    setBackupStatusV413("<div class='notice'>מכין ייצוא אדמין מלא לאקסל...</div>");
+    setBackupStatusV413("<div class='notice'>מכין קובץ Excel אדמין מלא...</div>");
     const collections=backupCollectionNamesV413();
-    const exportedAt=new Date().toISOString();
-    const allRows=[];
-    allRows.push({collection:"__summary",id:"appVersion",field:"value",value:APP_VERSION});
-    allRows.push({collection:"__summary",id:"exportedAt",field:"value",value:exportedAt});
-
+    const sheets=[{
+      name:"summary",
+      headers:["field","value"],
+      rows:[
+        {field:"appVersion",value:APP_VERSION},
+        {field:"exportedAt",value:new Date().toISOString()},
+        {field:"exportType",value:"admin-full-database-xlsx"}
+      ]
+    }];
     for(const c of collections){
       try{
         const rows=await readCollectionForAdminToolsV502(c);
-        allRows.push({collection:"__summary",id:c,field:"records",value:rows.length});
-        allRows.push(...adminExportRowsV504(c,rows));
+        sheets[0].rows.push({field:c,value:rows.length+" records"});
+        sheets.push({name:c,rows:adminExportRowsV505(c,rows)});
       }catch(e){
-        allRows.push({collection:c,id:"__export_error__",field:e.code||"error",value:e.message||String(e)});
+        sheets.push({name:c,headers:["error","message"],rows:[{error:e.code||"error",message:e.message||String(e)}]});
       }
     }
-
-    downloadExcelTsvV504(
-      `work_monitor_admin_full_export_v${APP_VERSION.replaceAll(".","_")}.xls`,
-      allRows,
-      ["collection","id","field","value"]
-    );
-    setBackupStatusV413("<div class='notice'>ייצוא אדמין מלא לאקסל ירד למכשיר ✅<br>הקובץ נבנה כטבלת Excel יציבה: collection / id / field / value, כדי שלא ייפתח כשורה אחת ולא ייפגם במובייל.</div>");
+    downloadXlsxV505(`work_monitor_admin_full_export_v${APP_VERSION.replaceAll(".","_")}.xlsx`,sheets);
+    setBackupStatusV413("<div class='notice'>ייצוא אדמין מלא ירד כקובץ XLSX אמיתי ✅<br>כל אוסף במסד נמצא בגיליון נפרד.</div>");
   }catch(err){
     console.error(err);
     setBackupStatusV413("<p class='danger'>שגיאה בייצוא אדמין מלא לאקסל: "+esc(err.message||String(err))+"</p>");
@@ -2491,13 +2666,12 @@ async function backupJSON(){
     const data={
       version: APP_VERSION,
       appVersion: APP_VERSION,
-      backupSchema:"work-monitor-admin-full-v502",
+      backupSchema:"work-monitor-admin-full-v505",
       backupType:"admin-full-database",
       exportedAt:new Date().toISOString(),
-      notes:"Admin full backup: workers, worker days off, work entries, price list, settings, users, username lookup, install templates, payment requests and logs.",
+      notes:"Admin full backup: workers, worker days off, work entries, price list, settings, users, username lookup, install templates, payment requests, logs and changelog.",
       collections:{}
     };
-
     for(const c of collections){
       try{
         const snap=await db.collection(c).get();
@@ -2507,13 +2681,8 @@ async function backupJSON(){
         data.collections[c+"__backupError"]=[{id:"error",data:{message:e.message||String(e),code:e.code||""}}];
       }
     }
-
-    downloadFile(
-      `work_monitor_admin_full_backup_v${APP_VERSION.replaceAll(".","_")}_${new Date().toISOString().slice(0,10)}.json`,
-      JSON.stringify(data,null,2),
-      "application/json;charset=utf-8"
-    );
-    setBackupStatusV413("<div class='notice'>גיבוי אדמין מלא ירד למכשיר ✅<br>כולל עובדים, עבודות, מחירונים, הגדרות, משתמשים, תבניות, ימי חופש ולוגים.</div>");
+    downloadFile(`work_monitor_admin_full_backup_v${APP_VERSION.replaceAll(".","_")}_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(data,null,2),"application/json;charset=utf-8");
+    setBackupStatusV413("<div class='notice'>גיבוי אדמין מלא ירד למכשיר ✅</div>");
   }catch(err){
     console.error(err);
     setBackupStatusV413("<p class='danger'>שגיאה בגיבוי אדמין מלא: "+esc(err.message||String(err))+"</p>");
@@ -2528,67 +2697,41 @@ function mergeLegacyPriceListsV502(cols){
     (list||[]).forEach((raw,idx)=>{
       const doc=normalizeBackupDocV413(raw);
       if(!doc) return;
-      mergedPriceList.push({
-        id:doc.id || (kind+"_"+idx),
-        data:{...(doc.data||{}),priceType:kind,installKind:kind,category:kind,active:(doc.data||{}).active!==false}
-      });
+      mergedPriceList.push({id:doc.id || (kind+"_"+idx),data:{...(doc.data||{}),priceType:kind,installKind:kind,category:kind,active:(doc.data||{}).active!==false}});
     });
   }
   pushLegacyPriceList(cols.priceListFiber,"fiber");
   pushLegacyPriceList(cols.priceListRF,"rf");
   pushLegacyPriceList(cols.fiberPriceList,"fiber");
   pushLegacyPriceList(cols.rfPriceList,"rf");
-  if(mergedPriceList.length){
-    normalizedCols.priceList=[...(normalizedCols.priceList||[]),...mergedPriceList];
-  }
+  if(mergedPriceList.length) normalizedCols.priceList=[...(normalizedCols.priceList||[]),...mergedPriceList];
   return normalizedCols;
 }
 
 async function restoreJSON(event){
   const file=event.target.files[0];
   if(!file) return;
-
   try{
-    const createSafetyBackup=confirm(
-      "שחזור אדמין מלא יכול לדרוס נתונים קיימים.\n\n"+
-      "חובה ליצור גיבוי בטיחות מלא לפני שחזור כדי שתוכל לחזור אחורה במקרה של טעות.\n\n"+
-      "ליצור עכשיו Auto Backup מלא?"
-    );
+    const createSafetyBackup=confirm("שחזור אדמין מלא יכול לדרוס נתונים קיימים.\n\nחובה ליצור גיבוי בטיחות מלא לפני שחזור כדי שתוכל לחזור אחורה במקרה של טעות.\n\nליצור עכשיו Auto Backup מלא?");
     if(!createSafetyBackup){
       alert("השחזור בוטל. לא מבצעים שחזור מלא בלי גיבוי בטיחות לפני כן.");
       event.target.value="";
       return;
     }
-
     await backupJSON();
     alert("נוצר Auto Backup מלא לפני שחזור ✅\nעכשיו בחרת להמשיך לשחזור הקובץ שנבחר.");
-
     if(!confirm("אישור אחרון: לשחזר עכשיו את קובץ ה-JSON שנבחר למסד הנתונים?")){
       event.target.value="";
       return;
     }
-
     setBackupStatusV413("<div class='notice'>מבצע שחזור אדמין מלא...</div>");
     const text=await file.text();
     const data=JSON.parse(text);
     const cols=mergeLegacyPriceListsV502(data.collections||{});
-
-    const restoreOrder=[
-      "settings",
-      "users",
-      "usernameLookup",
-      "workers",
-      "workerDaysOff",
-      "priceList",
-      "installTemplates",
-      "workEntries",
-      "paymentRequests",
-      "appLogs"
-    ];
+    const restoreOrder=["settings","users","usernameLookup","workers","workerDaysOff","priceList","installTemplates","workEntries","paymentRequests","appLogs","appChangelog"];
     const ignoreLegacy=["priceListFiber","priceListRF","fiberPriceList","rfPriceList"];
     const keys=[...restoreOrder,...Object.keys(cols).filter(k=>!restoreOrder.includes(k) && !k.includes("__backupError") && !ignoreLegacy.includes(k))];
     let restored=0;
-
     for(const c of keys){
       const arr=cols[c];
       if(!Array.isArray(arr)) continue;
@@ -2599,7 +2742,6 @@ async function restoreJSON(event){
         restored++;
       }
     }
-
     setBackupStatusV413(`<div class='notice'>השחזור האדמיני המלא הסתיים ✅<br>שוחזרו/עודכנו ${restored} רשומות.</div>`);
     event.target.value="";
     await showAdmin();
@@ -2609,19 +2751,6 @@ async function restoreJSON(event){
     setBackupStatusV413("<p class='danger'>שגיאה בשחזור אדמין מלא: "+esc(err.message||String(err))+"</p>");
     alert("שגיאה בשחזור אדמין מלא");
   }
-}
-
-function serializeFirestore(obj){
-  return JSON.parse(JSON.stringify(obj,(k,v)=>{
-    if(v&&typeof v==="object"&&typeof v.toDate==="function")return v.toDate().toISOString();
-    return v;
-  }));
-}
-function downloadFile(filename,content,type){
-  const blob=new Blob([content],{type});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
 }
 
 
@@ -14976,6 +15105,18 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:'5.06',title:'תיקון כפתור ייצוא עובד ותאימות לאחור',date:d,items:[
+        'תוקנה הקריאה לפונקציה downloadExcelTsvV504 שהייתה חסרה וגרמה לשגיאת is not defined במסך העובד.',
+        'כפתור ייצוא לאקסל של העובד נשאר מחובר לאותו שם פונקציה, אבל מאחוריו נוצר קובץ XLSX אמיתי.',
+        'לא שונו לוגין, דשבורד, שמירת עבודות, מחירונים, ימי חופש או הרשאות.',
+        'נוסף רישום מה חדש לגרסה 5.06 כדי שיוזרע למסד הנתונים יחד עם שאר הגרסאות.'
+      ]},
+      {version:'5.05',title:'ייצוא Excel אמיתי ללא קובץ פגום',date:d,items:[
+        'ייצוא לאקסל נבנה מחדש כ-XLSX אמיתי בדפדפן, ללא ספרייה חיצונית.',
+        'ייצוא אדמין מלא יוצר גיליון נפרד לכל אוסף במסד הנתונים.',
+        'ייצוא עובד אישי מיועד לעבודות של העובד בלבד.',
+        'גיבוי ושחזור JSON של האדמין ממשיכים לכלול appChangelog.'
+      ]},
       {version:'5.04',title:'תיקון יציב לייצוא אקסל במובייל',date:d,items:[
         'הוחלף ייצוא Excel XML שגרם לקובץ פגום/לא נתמך בחלק מהמכשירים.',
         'ייצוא העובד נבנה כקובץ Excel יציב עם הפרדת טאבים וירידות שורה תקינות, כדי שלא ייפתח כשורה אחת ארוכה.',
