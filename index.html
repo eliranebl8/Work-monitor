@@ -1181,7 +1181,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.02";
+const APP_VERSION = "5.03";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -2363,12 +2363,13 @@ async function duplicateEntry(id){
   await loadMonth();
 }
 
-/* ===== v5.02: Admin full database export / backup / restore tools =====
-   שינוי ממוקד בלבד לכלי האדמין:
-   - exportEntriesCSV: ייצוא מלא של כל מסד הנתונים לקובץ Excel HTML עם טבלה לכל אוסף.
-   - backupJSON: גיבוי JSON מלא לכל האוספים הידועים של המערכת.
-   - restoreJSON: שחזור מלא עם דרישה ליצור Auto Backup לפני השחזור.
-   כלי העובד האישיים נשארים בנפרד בפונקציות exportMyEntriesCSV / backupMyJSON / restoreMyJSON. */
+/* ===== v5.03: Real Excel-compatible XML export + full admin backup/restore =====
+   שינוי ממוקד בלבד לכלי הגיבוי/ייצוא:
+   - ייצוא העובד והאדמין הוחלפו לפורמט Excel XML Spreadsheet תקין עם עמודות ושורות אמיתיות.
+   - ייצוא האדמין כולל גיליון נפרד לכל אוסף במסד הנתונים.
+   - גיבוי/שחזור האדמין כוללים גם appChangelog כדי שגרסאות "מה חדש" יגובו וישוחזרו.
+   - נוספו רשומות Changelog חסרות 5.00, 5.01, 5.02, 5.03 לזריעה אוטומטית ל-Firebase.
+   כלי העובד האישיים נשארים נפרדים: עובד = נתוני העובד, אדמין = כל המסד. */
 
 function setBackupStatusV413(html){
   ["backupMsg","backupMsgTop","workerToolsMsg"].forEach(id=>{
@@ -2401,26 +2402,54 @@ function backupCollectionNamesV413(){
     "installTemplates",
     "workEntries",
     "paymentRequests",
-    "appLogs"
+    "appLogs",
+    "appChangelog"
   ];
 }
 
-function csvSafeCellV502(value){
+function excelXmlTextV503(value){
   if(Array.isArray(value)){
     value=value.map(v=>typeof v==="object"&&v!==null?JSON.stringify(v):String(v??"")).join(" | ");
   }else if(value && typeof value==="object"){
     value=JSON.stringify(value);
   }
-  return '"'+String(value??"").replace(/\r?\n/g," ").replaceAll('"','""')+'"';
+  return String(value??"")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;");
 }
 
-function excelSafeTextV502(value){
-  if(Array.isArray(value)){
-    value=value.map(v=>typeof v==="object"&&v!==null?JSON.stringify(v):String(v??"")).join(" | ");
-  }else if(value && typeof value==="object"){
-    value=JSON.stringify(value);
-  }
-  return esc(String(value??""));
+function normalizeRowsForExcelV503(rows){
+  const headersSet=new Set(["id"]);
+  (rows||[]).forEach(row=>Object.keys(row||{}).forEach(k=>headersSet.add(k)));
+  const headers=Array.from(headersSet);
+  return {headers,rows:rows||[]};
+}
+
+function buildExcelXmlWorksheetV503(sheetName, rows){
+  const safeSheet=excelXmlTextV503(String(sheetName||"Sheet").slice(0,31));
+  const normalized=normalizeRowsForExcelV503(rows||[]);
+  const headers=normalized.headers.length?normalized.headers:["message"];
+  const bodyRows=(normalized.rows&&normalized.rows.length)?normalized.rows:[{message:"אין נתונים"}];
+  const headerXml='<Row>'+headers.map(h=>`<Cell><Data ss:Type="String">${excelXmlTextV503(h)}</Data></Cell>`).join('')+'</Row>';
+  const rowsXml=bodyRows.map(row=>'<Row>'+headers.map(h=>`<Cell><Data ss:Type="String">${excelXmlTextV503(row?.[h])}</Data></Cell>`).join('')+'</Row>').join('\n');
+  return `<Worksheet ss:Name="${safeSheet}"><Table>${headerXml}\n${rowsXml}</Table></Worksheet>`;
+}
+
+function buildExcelXmlWorkbookV503(sheets){
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+<Styles>
+ <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Top" ss:WrapText="1"/><Font ss:FontName="Arial" ss:Size="10"/></Style>
+</Styles>
+${(sheets||[]).map(s=>buildExcelXmlWorksheetV503(s.name,s.rows)).join('\n')}
+</Workbook>`;
 }
 
 async function readCollectionForAdminToolsV502(collectionName){
@@ -2428,26 +2457,9 @@ async function readCollectionForAdminToolsV502(collectionName){
   return snap.docs.map(d=>({id:d.id,...serializeFirestore(d.data())}));
 }
 
-function buildExcelHtmlTableV502(title, rows){
-  const headersSet=new Set(["id"]);
-  (rows||[]).forEach(row=>Object.keys(row||{}).forEach(k=>headersSet.add(k)));
-  const headers=Array.from(headersSet);
-  const headerHtml=headers.map(h=>`<th>${excelSafeTextV502(h)}</th>`).join("");
-  const bodyHtml=(rows||[]).map(row=>{
-    return "<tr>"+headers.map(h=>`<td>${excelSafeTextV502(row?.[h])}</td>`).join("")+"</tr>";
-  }).join("\n");
-  return `
-    <h2>${excelSafeTextV502(title)} (${(rows||[]).length})</h2>
-    <table border="1">
-      <thead><tr>${headerHtml}</tr></thead>
-      <tbody>${bodyHtml || `<tr><td colspan="${headers.length}">אין נתונים</td></tr>`}</tbody>
-    </table>
-    <br><br>`;
-}
-
 async function exportEntriesCSV(){
   try{
-    setBackupStatusV413("<div class='notice'>מכין ייצוא אדמין מלא לאקסל...</div>");
+    setBackupStatusV413("<div class='notice'>מכין ייצוא אדמין מלא לאקסל תקין...</div>");
     const collections=backupCollectionNamesV413();
     const exportedAt=new Date().toISOString();
     const allData={};
@@ -2460,30 +2472,21 @@ async function exportEntriesCSV(){
       }
     }
 
-    const summaryRows=collections.map(c=>({collection:c,records:(allData[c]||[]).length}));
-    let html=`<!doctype html>
-<html><head><meta charset="UTF-8">
-<style>
-body{font-family:Arial, sans-serif;direction:rtl;}
-table{border-collapse:collapse;margin-bottom:24px;}
-th{background:#e8f0fe;font-weight:bold;}
-th,td{border:1px solid #999;padding:6px;vertical-align:top;mso-number-format:'\\@';}
-h1,h2{color:#1f2937;}
-</style>
-</head><body>
-<h1>גיבוי/ייצוא אדמין מלא - Work Monitor v${APP_VERSION}</h1>
-<p>נוצר בתאריך: ${excelSafeTextV502(exportedAt)}</p>
-${buildExcelHtmlTableV502("summary", summaryRows)}
-${collections.map(c=>buildExcelHtmlTableV502(c, allData[c]||[])).join("\n")}
-</body></html>`;
+    const summaryRows=[
+      {field:"appVersion",value:APP_VERSION},
+      {field:"exportedAt",value:exportedAt},
+      ...collections.map(c=>({field:c,value:(allData[c]||[]).length+" records"}))
+    ];
+    const sheets=[{name:"summary",rows:summaryRows},...collections.map(c=>({name:c,rows:allData[c]||[]}))];
+    const xml=buildExcelXmlWorkbookV503(sheets);
 
     downloadFile(
       `work_monitor_admin_full_export_v${APP_VERSION.replaceAll(".","_")}.xls`,
-      "\uFEFF"+html,
+      xml,
       "application/vnd.ms-excel;charset=utf-8"
     );
 
-    setBackupStatusV413("<div class='notice'>ייצוא אדמין מלא לאקסל הסתיים ✅<br>הקובץ כולל את כל האוספים הידועים במסד.</div>");
+    setBackupStatusV413("<div class='notice'>ייצוא אדמין מלא לאקסל הסתיים ✅<br>הקובץ נבנה כ-Excel XML תקין עם גיליונות נפרדים לכל אוסף.</div>");
   }catch(err){
     console.error(err);
     setBackupStatusV413("<p class='danger'>שגיאה בייצוא אדמין מלא לאקסל: "+esc(err.message||String(err))+"</p>");
@@ -2782,16 +2785,42 @@ function toggleWorkerTools(){
 }
 async function exportMyEntriesCSV(){
   if(!viewedWorker)return;
-  const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
-  const rows=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
-  const header=["id","date","workerName","customerNumber","address","workType","description","amount","notes","items"];
-  const csv=[header.join(",")].concat(rows.map(e=>header.map(h=>{
-    let v=h==="items"?(e.items||[]).map(i=>`${i.name} x ${i.quantity} = ${i.total}`).join(" | "):(e[h]??"");
-    return `"${String(v).replaceAll('"','""')}"`;
-  }).join(","))).join("<br>");
-  downloadFile(`my_work_entries_${viewedWorker.username||viewedWorker.name||"worker"}.csv`,"\ufeff"+csv,"text/csv;charset=utf-8");
-  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>הייצוא ירד למכשיר ✅</div>";
+  try{
+    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>מכין ייצוא אישי לאקסל...</div>";
+    const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
+    const rows=snap.docs.map(d=>({id:d.id,...serializeFirestore(d.data())})).sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
+    const exportRows=rows.map(e=>({
+      id:e.id,
+      date:e.date||"",
+      workerName:e.workerName||viewedWorker.name||"",
+      customerNumber:e.customerNumber||"",
+      address:e.address||"",
+      workType:e.workType||"",
+      description:e.description||"",
+      amount:e.amount??"",
+      notes:e.notes||"",
+      items:(e.items||[]).map(i=>`${i.name||""} x ${i.quantity||""} = ${i.total??""}`).join(" | "),
+      createdAt:e.createdAt||"",
+      updatedAt:e.updatedAt||""
+    }));
+    const xml=buildExcelXmlWorkbookV503([
+      {name:"summary",rows:[
+        {field:"appVersion",value:APP_VERSION},
+        {field:"workerId",value:viewedWorker.id},
+        {field:"workerName",value:viewedWorker.name||""},
+        {field:"records",value:exportRows.length},
+        {field:"exportedAt",value:new Date().toISOString()}
+      ]},
+      {name:"workEntries",rows:exportRows}
+    ]);
+    downloadFile(`my_work_entries_${viewedWorker.username||viewedWorker.name||"worker"}_v${APP_VERSION.replaceAll(".","_")}.xls`,xml,"application/vnd.ms-excel;charset=utf-8");
+    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>הייצוא האישי לאקסל ירד למכשיר ✅<br>הנתונים מחולקים לעמודות תקינות.</div>";
+  }catch(err){
+    console.error(err);
+    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<p class='danger'>שגיאה בייצוא אישי לאקסל: "+esc(err.message||String(err))+"</p>";
+  }
 }
+
 async function backupMyJSON(){
   if(!viewedWorker)return;
   const data={
@@ -14963,6 +14992,30 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:'5.03',title:'תיקון ייצוא Excel אמיתי וגיבוי Changelog',date:d,items:[
+        'ייצוא האדמין לאקסל נבנה מחדש כקובץ Excel XML תקין עם גיליונות נפרדים: summary, workers, workEntries, priceList, settings, appChangelog ועוד.',
+        'ייצוא העובד לאקסל נבנה מחדש עם עמודות אמיתיות ושורות אמיתיות, בלי שורה אחת ארוכה ובלי תגיות HTML.',
+        'גיבוי ושחזור האדמין כוללים עכשיו גם את appChangelog כדי שגרסאות מה חדש יישמרו במסד הנתונים.',
+        'נוספו רשומות מה חדש חסרות לגרסאות 5.00, 5.01 ו-5.02 כך שהאדמין יזרע אותן ל-Firebase בלי לדרוס רשומות קיימות.'
+      ]},
+      {version:'5.02',title:'גיבוי ושחזור אדמין מלא',date:d,items:[
+        'נוסף גיבוי אדמין מלא לכל האוספים המרכזיים במסד הנתונים.',
+        'נוסף שחזור אדמין מלא עם דרישת Auto Backup לפני פעולת שחזור.',
+        'נוסף ייצוא אדמין מלא לכל הנתונים, בנפרד מכלי העובד האישיים.',
+        'כלי העובד נשארו מוגבלים לנתוני העובד בלבד.'
+      ]},
+      {version:'5.01',title:'תיקון ייצוא עובד וגיבוי JSON אישי',date:d,items:[
+        'תוקן ייצוא העובד כך שלא ישתמש ב-br בין שורות ולא ישבור את Excel.',
+        'שופרה פונקציית הגיבוי האישית של העובד כדי לכלול עבודות, תבניות אישיות ומחירון.',
+        'שופר שחזור JSON אישי כך שהנתונים משויכים לעובד המחובר בלבד.',
+        'עודכנו שמות קבצים לפי APP_VERSION.'
+      ]},
+      {version:'5.00',title:'דשבורד חכם וספירת התקנות סיב/RF/Change',date:d,items:[
+        'נוספה בדשבורד שורת ספירה ברורה להתקנות סיב, התקנות RF ופקודות Change.',
+        'עודכן חישוב RF לפי סוג התקנה/מחירון RF.',
+        'התקנת סיב ללא פריט מודם נספרת כפקודת Change.',
+        'הגרסה נשענת על APP_VERSION כמקור גרסה מרכזי.'
+      ]},
       {version:'4.98',title:'תיקון ימי עבודה שנותרו וניקוי כפילויות בדשבורד',date:d,items:[
         'נשאר לך לעבוד מחושב עכשיו ממחר עד סוף החודש, ללא שבתות וללא ימי חופש עתידיים מתוך Firestore.',
         'נוקו כפילויות של עבדת עד היום ונשאר לך לעבוד, כך שהנתונים מופיעים פעם אחת בלבד באזור ימי עבודה וחופש.',
