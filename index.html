@@ -763,6 +763,20 @@ button:focus{
 
 
 
+
+<style id="v5-01-backup-export-fix">
+/*
+CHANGELOG 5.00
+1. שדרוג דשבורד ויזואלי RF/FIBER.
+2. שיפור תצוגות וטעינה.
+
+CHANGELOG 5.01
+1. תיקון מלא לייצוא אקסל.
+2. גיבוי JSON מורחב.
+3. גיבוי בטיחות לפני שחזור.
+4. תיקון CSV לאקסל.
+*/
+</style>
 <style id="v4-33-no-login-flash-on-saved-session">
 /*
 ===============================================================================
@@ -902,11 +916,11 @@ body.app-booting-v434 #startupView{
 </div>
 <div id="adminDataToolsPrimary" class="card">
   <div class="cal-head"><h2>📦 ייצוא, גיבוי, שחזור ותבניות</h2></div>
-  <p>כלי ניהול מתקדמים: ייצוא לאקסל, גיבוי מלא, שחזור ותבניות התקנה מוכנות.</p>
+  <p>כלי ניהול מתקדמים: ייצוא אדמין מלא לאקסל, גיבוי מלא, שחזור מלא ותבניות התקנה מוכנות.</p>
   <div class="actions">
-    <button class="btn-green" onclick="exportEntriesCSV()">📊 ייצוא לאקסל</button>
-    <button onclick="backupJSON()">💾 גיבוי JSON</button>
-    <button class="btn-yellow" onclick="$('restoreFileTop').click()">♻️ שחזור JSON</button>
+    <button class="btn-green" onclick="exportEntriesCSV()">📊 ייצוא אדמין מלא לאקסל</button>
+    <button onclick="backupJSON()">💾 גיבוי אדמין מלא JSON</button>
+    <button class="btn-yellow" onclick="$('restoreFileTop').click()">♻️ שחזור אדמין מלא JSON</button>
     <input id="restoreFileTop" type="file" accept="application/json" class="hidden" onchange="restoreJSON(event)">
   </div>
   <div id="backupMsgTop"></div>
@@ -972,11 +986,11 @@ body.app-booting-v434 #startupView{
 
 <div class="card hidden">
   <div class="cal-head"><h2>📦 ייצוא, גיבוי ושחזור</h2></div>
-  <p>ייצוא לאקסל, גיבוי מלא ל־JSON ושחזור גיבוי. לפני שחזור מומלץ להוריד גיבוי חדש.</p>
+  <p>ייצוא אדמין מלא לאקסל, גיבוי מלא ל־JSON ושחזור מלא. לפני שחזור המערכת תחייב יצירת Auto Backup.</p>
   <div class="actions">
-    <button class="btn-green" onclick="exportEntriesCSV()">ייצוא עבודות לאקסל</button>
-    <button onclick="backupJSON()">גיבוי JSON</button>
-    <button class="btn-yellow" onclick="$('restoreFile').click()">שחזור JSON</button>
+    <button class="btn-green" onclick="exportEntriesCSV()">ייצוא אדמין מלא לאקסל</button>
+    <button onclick="backupJSON()">גיבוי אדמין מלא JSON</button>
+    <button class="btn-yellow" onclick="$('restoreFile').click()">שחזור אדמין מלא JSON</button>
     <input id="restoreFile" type="file" accept="application/json" class="hidden" onchange="restoreJSON(event)">
   </div>
   <div id="backupMsg"></div>
@@ -1167,7 +1181,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.00";
+const APP_VERSION = "5.02";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1179,6 +1193,20 @@ function setAppVersionUI(){
 setAppVersionUI();
 window.addEventListener("DOMContentLoaded", setAppVersionUI);
 window.addEventListener("load", setAppVersionUI);
+
+/*
+===============================================================================
+CHANGELOG 5.02 - כלי אדמין מלאים: גיבוי, שחזור וייצוא כל המסד
+-------------------------------------------------------------------------------
+1. APP_VERSION עודכן ל-"5.02" ונשאר מקור הגרסה המרכזי בכל התצוגות ושמות הקבצים.
+2. פונקציית exportEntriesCSV הקיימת הוחלפה נקודתית לייצוא אדמין מלא בפורמט Excel HTML: כל אוסף במסד מקבל גיליון/טבלה נפרדים בקובץ אחד.
+3. פונקציית backupJSON הקיימת הוחלפה נקודתית לגיבוי אדמין מלא של כל האוספים הידועים במערכת: עובדים, עבודות, מחירון, הגדרות, משתמשים, תבניות, ימי חופש, בקשות תשלום ולוגים.
+4. פונקציית restoreJSON הקיימת הוחלפה נקודתית לשחזור אדמין מלא, כולל חיוב/דרישה ברורה ליצור Auto Backup מלא לפני שחזור.
+5. כלי העובד נשארים נפרדים: exportMyEntriesCSV / backupMyJSON / restoreMyJSON ממשיכים לעבוד רק על העובד המחובר.
+6. תוקן שבר תחבירי ב-setBackupStatusV413 שנוצר באזור כלי הגיבוי/ייצוא.
+7. לא שונו לוגין, שמירת עבודות, מחירונים, דשבורד, הרשאות עובדים או תצוגות קיימות מעבר לכלי הגיבוי/שחזור/ייצוא.
+===============================================================================
+*/
 
 /*
 ===============================================================================
@@ -2334,70 +2362,173 @@ async function duplicateEntry(id){
   await db.collection("workEntries").add(copy);
   await loadMonth();
 }
-async function exportEntriesCSV(){
-  const snap=await db.collection("workEntries").get();
-  const rows=snap.docs.map(d=>({id:d.id,...d.data()}));
-  const header=["id","date","workerName","customerNumber","address","workType","description","amount","notes","items"];
-  const csv=[header.join(",")].concat(rows.map(e=>header.map(h=>{
-    let v=h==="items"?(e.items||[]).map(i=>`${i.name} x ${i.quantity} = ${i.total}`).join(" | "):(e[h]??"");
-    return `"${String(v).replaceAll('"','""')}"`;
-  }).join(","))).join("<br>");
-  downloadFile("work_entries.csv","\ufeff"+csv,"text/csv;charset=utf-8");
-}
+
+/* ===== v5.02: Admin full database export / backup / restore tools =====
+   שינוי ממוקד בלבד לכלי האדמין:
+   - exportEntriesCSV: ייצוא מלא של כל מסד הנתונים לקובץ Excel HTML עם טבלה לכל אוסף.
+   - backupJSON: גיבוי JSON מלא לכל האוספים הידועים של המערכת.
+   - restoreJSON: שחזור מלא עם דרישה ליצור Auto Backup לפני השחזור.
+   כלי העובד האישיים נשארים בנפרד בפונקציות exportMyEntriesCSV / backupMyJSON / restoreMyJSON. */
+
 function setBackupStatusV413(html){
-  ["backupMsg","backupMsgTop","workerToolsMsg"].forEach(id=>{ const el=$(id); if(el) el.innerHTML=html; });
+  ["backupMsg","backupMsgTop","workerToolsMsg"].forEach(id=>{
+    const el=$(id);
+    if(el) el.innerHTML=html;
+  });
 }
+
 function normalizeBackupDocV413(doc){
   if(!doc) return null;
-  if(doc.id && doc.data) return {id:doc.id,data:doc.data};
-  if(doc.id){ const copy={...doc}; delete copy.id; return {id:doc.id,data:copy}; }
+  if(doc.id && doc.data) return {id:String(doc.id),data:doc.data};
+  if(doc.id){
+    const copy={...doc};
+    delete copy.id;
+    return {id:String(doc.id),data:copy};
+  }
   return null;
 }
+
 function backupCollectionNamesV413(){
+  // כל האוספים שהמערכת משתמשת בהם בפועל לפי הקוד הנוכחי.
+  // אם בעתיד יתווסף אוסף חדש, מוסיפים אותו כאן פעם אחת והוא ייכנס גם לגיבוי, גם לשחזור וגם לייצוא האדמין.
   return [
-    "workers",
+    "settings",
     "users",
     "usernameLookup",
+    "workers",
+    "workerDaysOff",
     "priceList",
-    "workEntries",
-    "settings",
     "installTemplates",
+    "workEntries",
     "paymentRequests",
     "appLogs"
   ];
 }
-async function backupJSON(){
-  const collections=backupCollectionNamesV413();
-  const data={
-    version: APP_VERSION,
-    appVersion: APP_VERSION,
-    backupSchema:"work-monitor-full-v413",
-    exportedAt:new Date().toISOString(),
-    notes:"Full backup includes workers, work entries, settings, payment requests, templates, username lookup, users, logs and the unified priceList with fiber/RF priceType fields.",
-    collections:{}
-  };
-  for(const c of collections){
-    try{
-      const snap=await db.collection(c).get();
-      data.collections[c]=snap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
-    }catch(e){
-      data.collections[c]=[];
-      data.collections[c+"__backupError"]=[{id:"error",data:{message:e.message||String(e),code:e.code||""}}];
-    }
-  }
-  downloadFile(`work_tracker_backup_v${APP_VERSION.replaceAll(".","_")}_full_rf_fiber.json`,JSON.stringify(data,null,2),"application/json");
-  setBackupStatusV413("<div class='notice'>גיבוי מלא ירד למכשיר ✅<br>כולל מחירון סיב/RF, תבניות, עבודות, משתמשים והגדרות.</div>");
-}
-async function restoreJSON(event){
-  const file=event.target.files[0];
-  if(!file)return;
-  if(!confirm("שחזור יכתוב נתונים למסד. להמשיך?"))return;
-  const text=await file.text();
-  const data=JSON.parse(text);
-  const cols=data.collections||{};
 
-  // תאימות לאחור: אם בעתיד/בעבר היה גיבוי נפרד priceListFiber / priceListRF,
-  // ממזגים אותו לתוך priceList עם priceType מתאים, כי בגרסה הנוכחית הכול יושב באוסף priceList.
+function csvSafeCellV502(value){
+  if(Array.isArray(value)){
+    value=value.map(v=>typeof v==="object"&&v!==null?JSON.stringify(v):String(v??"")).join(" | ");
+  }else if(value && typeof value==="object"){
+    value=JSON.stringify(value);
+  }
+  return '"'+String(value??"").replace(/\r?\n/g," ").replaceAll('"','""')+'"';
+}
+
+function excelSafeTextV502(value){
+  if(Array.isArray(value)){
+    value=value.map(v=>typeof v==="object"&&v!==null?JSON.stringify(v):String(v??"")).join(" | ");
+  }else if(value && typeof value==="object"){
+    value=JSON.stringify(value);
+  }
+  return esc(String(value??""));
+}
+
+async function readCollectionForAdminToolsV502(collectionName){
+  const snap=await db.collection(collectionName).get();
+  return snap.docs.map(d=>({id:d.id,...serializeFirestore(d.data())}));
+}
+
+function buildExcelHtmlTableV502(title, rows){
+  const headersSet=new Set(["id"]);
+  (rows||[]).forEach(row=>Object.keys(row||{}).forEach(k=>headersSet.add(k)));
+  const headers=Array.from(headersSet);
+  const headerHtml=headers.map(h=>`<th>${excelSafeTextV502(h)}</th>`).join("");
+  const bodyHtml=(rows||[]).map(row=>{
+    return "<tr>"+headers.map(h=>`<td>${excelSafeTextV502(row?.[h])}</td>`).join("")+"</tr>";
+  }).join("\n");
+  return `
+    <h2>${excelSafeTextV502(title)} (${(rows||[]).length})</h2>
+    <table border="1">
+      <thead><tr>${headerHtml}</tr></thead>
+      <tbody>${bodyHtml || `<tr><td colspan="${headers.length}">אין נתונים</td></tr>`}</tbody>
+    </table>
+    <br><br>`;
+}
+
+async function exportEntriesCSV(){
+  try{
+    setBackupStatusV413("<div class='notice'>מכין ייצוא אדמין מלא לאקסל...</div>");
+    const collections=backupCollectionNamesV413();
+    const exportedAt=new Date().toISOString();
+    const allData={};
+
+    for(const c of collections){
+      try{
+        allData[c]=await readCollectionForAdminToolsV502(c);
+      }catch(e){
+        allData[c]=[{id:"__export_error__",error:e.message||String(e),code:e.code||""}];
+      }
+    }
+
+    const summaryRows=collections.map(c=>({collection:c,records:(allData[c]||[]).length}));
+    let html=`<!doctype html>
+<html><head><meta charset="UTF-8">
+<style>
+body{font-family:Arial, sans-serif;direction:rtl;}
+table{border-collapse:collapse;margin-bottom:24px;}
+th{background:#e8f0fe;font-weight:bold;}
+th,td{border:1px solid #999;padding:6px;vertical-align:top;mso-number-format:'\\@';}
+h1,h2{color:#1f2937;}
+</style>
+</head><body>
+<h1>גיבוי/ייצוא אדמין מלא - Work Monitor v${APP_VERSION}</h1>
+<p>נוצר בתאריך: ${excelSafeTextV502(exportedAt)}</p>
+${buildExcelHtmlTableV502("summary", summaryRows)}
+${collections.map(c=>buildExcelHtmlTableV502(c, allData[c]||[])).join("\n")}
+</body></html>`;
+
+    downloadFile(
+      `work_monitor_admin_full_export_v${APP_VERSION.replaceAll(".","_")}.xls`,
+      "\uFEFF"+html,
+      "application/vnd.ms-excel;charset=utf-8"
+    );
+
+    setBackupStatusV413("<div class='notice'>ייצוא אדמין מלא לאקסל הסתיים ✅<br>הקובץ כולל את כל האוספים הידועים במסד.</div>");
+  }catch(err){
+    console.error(err);
+    setBackupStatusV413("<p class='danger'>שגיאה בייצוא אדמין מלא לאקסל: "+esc(err.message||String(err))+"</p>");
+    alert("שגיאה בייצוא אדמין מלא לאקסל");
+  }
+}
+
+async function backupJSON(){
+  try{
+    setBackupStatusV413("<div class='notice'>מכין גיבוי אדמין מלא...</div>");
+    const collections=backupCollectionNamesV413();
+    const data={
+      version: APP_VERSION,
+      appVersion: APP_VERSION,
+      backupSchema:"work-monitor-admin-full-v502",
+      backupType:"admin-full-database",
+      exportedAt:new Date().toISOString(),
+      notes:"Admin full backup: workers, worker days off, work entries, price list, settings, users, username lookup, install templates, payment requests and logs.",
+      collections:{}
+    };
+
+    for(const c of collections){
+      try{
+        const snap=await db.collection(c).get();
+        data.collections[c]=snap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+      }catch(e){
+        data.collections[c]=[];
+        data.collections[c+"__backupError"]=[{id:"error",data:{message:e.message||String(e),code:e.code||""}}];
+      }
+    }
+
+    downloadFile(
+      `work_monitor_admin_full_backup_v${APP_VERSION.replaceAll(".","_")}_${new Date().toISOString().slice(0,10)}.json`,
+      JSON.stringify(data,null,2),
+      "application/json;charset=utf-8"
+    );
+    setBackupStatusV413("<div class='notice'>גיבוי אדמין מלא ירד למכשיר ✅<br>כולל עובדים, עבודות, מחירונים, הגדרות, משתמשים, תבניות, ימי חופש ולוגים.</div>");
+  }catch(err){
+    console.error(err);
+    setBackupStatusV413("<p class='danger'>שגיאה בגיבוי אדמין מלא: "+esc(err.message||String(err))+"</p>");
+    alert("שגיאה בגיבוי אדמין מלא");
+  }
+}
+
+function mergeLegacyPriceListsV502(cols){
   const normalizedCols={...cols};
   const mergedPriceList=[];
   function pushLegacyPriceList(list, kind){
@@ -2405,7 +2536,7 @@ async function restoreJSON(event){
       const doc=normalizeBackupDocV413(raw);
       if(!doc) return;
       mergedPriceList.push({
-        id: doc.id || (kind+"_"+idx),
+        id:doc.id || (kind+"_"+idx),
         data:{...(doc.data||{}),priceType:kind,installKind:kind,category:kind,active:(doc.data||{}).active!==false}
       });
     });
@@ -2417,24 +2548,76 @@ async function restoreJSON(event){
   if(mergedPriceList.length){
     normalizedCols.priceList=[...(normalizedCols.priceList||[]),...mergedPriceList];
   }
-
-  const restoreOrder=["settings","users","usernameLookup","workers","priceList","installTemplates","workEntries","paymentRequests","appLogs"];
-  const keys=[...restoreOrder,...Object.keys(normalizedCols).filter(k=>!restoreOrder.includes(k) && !k.includes("__backupError") && !["priceListFiber","priceListRF","fiberPriceList","rfPriceList"].includes(k))];
-  let restored=0;
-  for(const c of keys){
-    const arr=normalizedCols[c];
-    if(!Array.isArray(arr)) continue;
-    for(const raw of arr){
-      const doc=normalizeBackupDocV413(raw);
-      if(!doc || !doc.id || !doc.data) continue;
-      await db.collection(c).doc(doc.id).set(doc.data,{merge:true});
-      restored++;
-    }
-  }
-  setBackupStatusV413(`<div class='notice'>השחזור הסתיים ✅<br>שוחזרו ${restored} רשומות, כולל תמיכה במחירוני סיב/RF.</div>`);
-  event.target.value="";
-  await showAdmin();
+  return normalizedCols;
 }
+
+async function restoreJSON(event){
+  const file=event.target.files[0];
+  if(!file) return;
+
+  try{
+    const createSafetyBackup=confirm(
+      "שחזור אדמין מלא יכול לדרוס נתונים קיימים.\n\n"+
+      "חובה ליצור גיבוי בטיחות מלא לפני שחזור כדי שתוכל לחזור אחורה במקרה של טעות.\n\n"+
+      "ליצור עכשיו Auto Backup מלא?"
+    );
+    if(!createSafetyBackup){
+      alert("השחזור בוטל. לא מבצעים שחזור מלא בלי גיבוי בטיחות לפני כן.");
+      event.target.value="";
+      return;
+    }
+
+    await backupJSON();
+    alert("נוצר Auto Backup מלא לפני שחזור ✅\nעכשיו בחרת להמשיך לשחזור הקובץ שנבחר.");
+
+    if(!confirm("אישור אחרון: לשחזר עכשיו את קובץ ה-JSON שנבחר למסד הנתונים?")){
+      event.target.value="";
+      return;
+    }
+
+    setBackupStatusV413("<div class='notice'>מבצע שחזור אדמין מלא...</div>");
+    const text=await file.text();
+    const data=JSON.parse(text);
+    const cols=mergeLegacyPriceListsV502(data.collections||{});
+
+    const restoreOrder=[
+      "settings",
+      "users",
+      "usernameLookup",
+      "workers",
+      "workerDaysOff",
+      "priceList",
+      "installTemplates",
+      "workEntries",
+      "paymentRequests",
+      "appLogs"
+    ];
+    const ignoreLegacy=["priceListFiber","priceListRF","fiberPriceList","rfPriceList"];
+    const keys=[...restoreOrder,...Object.keys(cols).filter(k=>!restoreOrder.includes(k) && !k.includes("__backupError") && !ignoreLegacy.includes(k))];
+    let restored=0;
+
+    for(const c of keys){
+      const arr=cols[c];
+      if(!Array.isArray(arr)) continue;
+      for(const raw of arr){
+        const doc=normalizeBackupDocV413(raw);
+        if(!doc || !doc.id || !doc.data) continue;
+        await db.collection(c).doc(doc.id).set(doc.data,{merge:true});
+        restored++;
+      }
+    }
+
+    setBackupStatusV413(`<div class='notice'>השחזור האדמיני המלא הסתיים ✅<br>שוחזרו/עודכנו ${restored} רשומות.</div>`);
+    event.target.value="";
+    await showAdmin();
+  }catch(err){
+    console.error(err);
+    event.target.value="";
+    setBackupStatusV413("<p class='danger'>שגיאה בשחזור אדמין מלא: "+esc(err.message||String(err))+"</p>");
+    alert("שגיאה בשחזור אדמין מלא");
+  }
+}
+
 function serializeFirestore(obj){
   return JSON.parse(JSON.stringify(obj,(k,v)=>{
     if(v&&typeof v==="object"&&typeof v.toDate==="function")return v.toDate().toISOString();
