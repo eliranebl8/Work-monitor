@@ -128,6 +128,11 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 .btn-yellow{background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#111827}
 .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+/* v5.09: הסתרת שדה יום ספציפי וסנכרון ניקוי בין חודש לבין טווח תאריכים, בלי שינוי לוגיקת החיפוש עצמה. */
+.search-date-field-v508{display:flex;flex-direction:column;gap:6px}
+.search-date-field-v508 label{font-size:12px;font-weight:900;color:var(--muted);padding-inline:2px}
+.search-date-field-v508 .field-help-v508{font-size:11px;color:var(--muted);line-height:1.35}
+.search-date-note-v508{margin:8px 0 0;font-size:12px;color:var(--muted);font-weight:800;line-height:1.5}
 .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .stat{
   position:relative;
@@ -1129,9 +1134,25 @@ body.app-booting-v434 #startupView{
         <select id="searchType" onchange="window.onWorkerSearchTypeChangeV22 && window.onWorkerSearchTypeChangeV22()"><option value="">כל סוגי העבודה</option><option value="service">קריאות שירות</option><option value="install">התקנות</option></select>
       </div>
       <div class="grid2">
-        <input id="searchDate" type="date" placeholder="יום מסוים">
-        <input id="searchMonth" type="month" placeholder="חודש מסוים">
+        <!-- v5.09: שדה יום ספציפי הוסתר מה-UI בלבד. הפונקציונליות נשמרת דרך שדות מתאריך/עד תאריך: אם ממלאים רק אחד מהם, החיפוש הוא לאותו יום. -->
+        <input id="searchDate" type="date" class="hidden" aria-hidden="true" tabindex="-1">
+        <div class="search-date-field-v508">
+          <label for="searchDateFromV507">מתאריך / יום בודד</label>
+          <input id="searchDateFromV507" type="date" placeholder="בחר תאריך התחלה או יום יחיד">
+          <div class="field-help-v508">אם זה השדה היחיד שמלא — החיפוש יהיה רק ביום הזה.</div>
+        </div>
+        <div class="search-date-field-v508">
+          <label for="searchDateToV507">עד תאריך / יום בודד</label>
+          <input id="searchDateToV507" type="date" placeholder="בחר תאריך סיום או יום יחיד">
+          <div class="field-help-v508">אם שני התאריכים מלאים — החיפוש יהיה לפי כל הטווח.</div>
+        </div>
+        <div class="search-date-field-v508">
+          <label for="searchMonth">חודש נבחר</label>
+          <input id="searchMonth" type="month" placeholder="בחר חודש שלם">
+          <div class="field-help-v508">בחירת חודש מנקה אוטומטית את טווח התאריכים.</div>
+        </div>
       </div>
+      <div class="search-date-note-v508">כלל עבודה: תאריך אחד = יום בודד, שני תאריכים = טווח, חודש נבחר = חודש שלם. חודש וטווח לא נשארים פעילים ביחד.</div>
       <div id="workerPriceSearchBoxV22" class="worker-price-search-v22 hidden">
         <div class="price-search-head-v22">
           <div>
@@ -1181,7 +1202,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.06";
+const APP_VERSION = "5.09";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1196,6 +1217,28 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
+CHANGELOG 5.09 - סידור שדות תאריך בחיפוש וסיכומים
+1. APP_VERSION עודכן ל-"5.09".
+2. שדה "יום ספציפי" הוסתר מה-UI כי אותה פעולה מתבצעת כבר דרך מתאריך/עד תאריך כאשר ממלאים רק אחד מהם.
+3. נוספה סנכרון בין חודש נבחר לבין טווח תאריכים: בחירת חודש מנקה את הטווח, והזנת טווח מנקה את החודש.
+4. הלוגיקה הקיימת של החיפוש לא שונתה: תאריך אחד מחפש יום בודד, שני תאריכים מחפשים טווח, ושדות ריקים נשארים לפי חודש התצוגה.
+5. לא שונו אקסל, גיבוי, שחזור, לוגין, שמירת עבודות, מחירונים או הרשאות.
+
+CHANGELOG 5.08 - הבהרת שדות התאריך בחיפוש
+1. APP_VERSION עודכן ל-"5.08".
+2. נוספו תוויות והסברים קצרים לכל שדות התאריך בכרטיסיית חיפוש וסיכומים.
+3. הובהר ההבדל בין יום ספציפי, מתאריך, עד תאריך וחודש נבחר.
+4. נוספה הערת סדר עדיפות: טווח תאריכים, יום ספציפי, חודש נבחר, ואז החודש שמוצג בלוח.
+5. לא שונתה לוגיקת הסינון, החישובים, האקסל, הגיבוי, השחזור, הלוגין או שמירת העבודות.
+
+CHANGELOG 5.07 - טווח תאריכים בחיפוש וסיכומים
+1. APP_VERSION עודכן ל-"5.07".
+2. נוספו שדות "מתאריך" ו"עד תאריך" בכרטיסיית חיפוש וסיכומים.
+3. אם מוזן רק תאריך אחד, החיפוש מתבצע רק על אותו יום.
+4. אם מוזנים שני תאריכים, החיפוש והסיכומים עובדים לפי טווח מלא, גם מעבר לחודשים.
+5. נוספה בדיקת תקינות שמונעת חיפוש כאשר תאריך הסיום קטן מתאריך ההתחלה.
+6. התיקון נקודתי לחיפוש/סיכומים בלבד ולא משנה לוגין, עובדים, שמירה, מחירונים, גיבוי, שחזור או ייצוא אקסל.
+
 CHANGELOG 5.06 - תיקון קריאת כפתור הייצוא ושמירה על תאימות לאחור
 
 1. APP_VERSION עודכן ל-"5.06".
@@ -1856,29 +1899,133 @@ async function loadClientHistory(){
 }
 
 function toggleSearchPanel(){const p=$("searchPanel");p.classList.toggle("hidden");if(!p.classList.contains("hidden"))renderFullSummary();cleanVisibleSlashN()}
+/* ===== v5.07: חיפוש וסיכומים לפי טווח תאריכים בלי לפגוע בברירת המחדל החודשית ===== */
+/* ===== v5.09: סנכרון UI בלבד בין חודש נבחר לבין טווח תאריכים =====
+   המטרה: לא לשנות את מנוע החיפוש שעובד, אלא למנוע מצב מבלבל שבו גם חודש וגם טווח מלאים יחד.
+   - בחירת חודש מנקה את מתאריך/עד תאריך ואת שדה היום הישן שהוסתר.
+   - הזנת מתאריך או עד תאריך מנקה את החודש ואת שדה היום הישן שהוסתר.
+*/
+function setupSearchDateMutualClearV509(){
+  const monthEl=$("searchMonth");
+  const fromEl=$("searchDateFromV507");
+  const toEl=$("searchDateToV507");
+  const hiddenDayEl=$("searchDate");
+  if(monthEl && !monthEl.dataset.v509Bound){
+    monthEl.dataset.v509Bound="1";
+    monthEl.addEventListener("input",()=>{
+      if(monthEl.value){
+        if(fromEl) fromEl.value="";
+        if(toEl) toEl.value="";
+        if(hiddenDayEl) hiddenDayEl.value="";
+        window.searchBaseEntriesV507=null;
+      }
+    });
+  }
+  [fromEl,toEl].forEach(el=>{
+    if(el && !el.dataset.v509Bound){
+      el.dataset.v509Bound="1";
+      el.addEventListener("input",()=>{
+        if(el.value){
+          if(monthEl) monthEl.value="";
+          if(hiddenDayEl) hiddenDayEl.value="";
+          window.searchBaseEntriesV507=null;
+        }
+      });
+    }
+  });
+}
+window.addEventListener("DOMContentLoaded", setupSearchDateMutualClearV509);
+window.addEventListener("load", setupSearchDateMutualClearV509);
+
+function getSearchDateScopeV507(){
+  const rangeFrom=val("searchDateFromV507");
+  const rangeTo=val("searchDateToV507");
+  const singleDate=val("searchDate");
+  const month=val("searchMonth");
+
+  // טווח חדש מקבל עדיפות על "יום מסוים"/"חודש מסוים" רק אם הוזן בו לפחות תאריך אחד.
+  if(rangeFrom || rangeTo){
+    const from=rangeFrom || rangeTo;
+    const to=rangeTo || rangeFrom;
+    if(from && to && to < from){
+      return {error:"תאריך הסיום לא יכול להיות לפני תאריך ההתחלה."};
+    }
+    return {mode:(rangeFrom && rangeTo && rangeFrom!==rangeTo)?"range":"day", from, to, label:(from===to?`יום ${heDate(from)}`:`${heDate(from)} עד ${heDate(to)}`)};
+  }
+
+  if(singleDate){
+    return {mode:"day", from:singleDate, to:singleDate, label:`יום ${heDate(singleDate)}`};
+  }
+
+  if(month){
+    const parts=month.split("-");
+    const y=Number(parts[0]), m=Number(parts[1]);
+    if(y && m){
+      const last=new Date(y,m,0).getDate();
+      return {mode:"month", from:`${y}-${pad(m)}-01`, to:`${y}-${pad(m)}-${pad(last)}`, label:`חודש ${month}`};
+    }
+  }
+
+  return {mode:"currentMonth", label:"החודש בתצוגה"};
+}
+
+async function getSearchBaseEntriesV507(scope){
+  // ברירת מחדל נשארת בדיוק כמו קודם: החודש שכבר נטען למסך.
+  if(!scope || scope.mode==="currentMonth") return Array.isArray(monthEntries) ? monthEntries.slice() : [];
+
+  // כאשר מחפשים יום/טווח/חודש אחר, טוענים את כל רשומות העובד ומסננים לפי תאריכים בצד הלקוח.
+  // כך הטווח יכול לעבור בין חודשים בלי לשנות את loadMonth או את הדשבורד.
+  const workerId=(viewedWorker&&viewedWorker.id)||"";
+  if(!workerId) return [];
+  const snap=await db.collection("workEntries").where("workerId","==",workerId).get();
+  return snap.docs
+    .map(d=>({id:d.id,...d.data()}))
+    .filter(e=>String(e.date||"") >= scope.from && String(e.date||"") <= scope.to);
+}
+
 function getFilteredEntries(){
   const customer=val("searchCustomer");
   const address=val("searchAddress").toLowerCase();
   const type=val("searchType");
   const date=val("searchDate");
   const month=val("searchMonth");
-  let arr=[...monthEntries];
+  const scope=getSearchDateScopeV507();
+  let arr=Array.isArray(window.searchBaseEntriesV507) ? window.searchBaseEntriesV507.slice() : [...monthEntries];
 
   if(customer) arr=arr.filter(e=>String(e.customerNumber||"").includes(customer));
   if(address) arr=arr.filter(e=>String(e.address||"").toLowerCase().includes(address));
   if(type) arr=arr.filter(e=>e.workType===type);
-  if(date) arr=arr.filter(e=>e.date===date);
-  if(month) arr=arr.filter(e=>String(e.date||"").startsWith(month));
+
+  // אם הופעל טווח v5.07, אין צורך במסנני יום/חודש הישנים כי הבסיס כבר מסונן לפי הטווח.
+  if(!scope || scope.mode==="currentMonth"){
+    if(date) arr=arr.filter(e=>e.date===date);
+    if(month) arr=arr.filter(e=>String(e.date||"").startsWith(month));
+  }
 
   return arr;
 }
-function runSearch(){renderSummary(getFilteredEntries(), "תוצאות חיפוש")}
+async function runSearch(){
+  const scope=getSearchDateScopeV507();
+  if(scope && scope.error){ alert(scope.error); return; }
+  const summaryBox=$("summaryResults");
+  const resultsBox=$("searchResults");
+  if(summaryBox) summaryBox.innerHTML="<div class='notice'>טוען חיפוש...</div>";
+  if(resultsBox) resultsBox.innerHTML="";
+  try{
+    window.searchBaseEntriesV507=await getSearchBaseEntriesV507(scope);
+    const title=scope && scope.mode!=="currentMonth" ? `תוצאות חיפוש - ${scope.label}` : "תוצאות חיפוש";
+    renderSummary(getFilteredEntries(), title);
+  }catch(e){
+    if(summaryBox) summaryBox.innerHTML=`<p class='danger'>שגיאה בחיפוש: ${esc(e.message)}</p>`;
+  }
+}
 function clearSearch(){
-  ["searchCustomer","searchAddress","searchDate","searchMonth"].forEach(id=>$(id).value="");
+  ["searchCustomer","searchAddress","searchDate","searchDateFromV507","searchDateToV507","searchMonth"].forEach(id=>{ if($(id)) $(id).value=""; });
   $("searchType").value="";
+  window.searchBaseEntriesV507=null;
   renderFullSummary();
 }
-function renderFullSummary(){renderSummary(monthEntries, "סיכום חודש בתצוגה")}
+function renderFullSummary(){window.searchBaseEntriesV507=null;renderSummary(monthEntries, "סיכום חודש בתצוגה")}
 function getWeekKey(dateStr){
   const d=parseDate(dateStr);
   const first=new Date(d.getFullYear(),0,1);
@@ -9743,15 +9890,19 @@ service cloud.firestore {
     const type=val('searchType');
     const date=val('searchDate');
     const month=val('searchMonth');
-    let arr=doneEntriesV49(monthEntries);
+    const scope=(typeof getSearchDateScopeV507==='function') ? getSearchDateScopeV507() : {mode:'currentMonth'};
+    const base=Array.isArray(window.searchBaseEntriesV507) ? window.searchBaseEntriesV507 : monthEntries;
+    let arr=doneEntriesV49(base);
     if(customer) arr=arr.filter(e=>String(e.customerNumber||'').includes(customer));
     if(address) arr=arr.filter(e=>String(e.address||'').toLowerCase().includes(address));
     if(type) arr=arr.filter(e=>e.workType===type);
-    if(date) arr=arr.filter(e=>e.date===date);
-    if(month) arr=arr.filter(e=>String(e.date||'').startsWith(month));
+    if(!scope || scope.mode==='currentMonth'){
+      if(date) arr=arr.filter(e=>e.date===date);
+      if(month) arr=arr.filter(e=>String(e.date||'').startsWith(month));
+    }
     return arr;
   };
-  window.renderFullSummary=function(){ renderSummary(doneEntriesV49(monthEntries),'סיכום חודש בתצוגה - בוצע בלבד'); };
+  window.renderFullSummary=function(){ window.searchBaseEntriesV507=null; renderSummary(doneEntriesV49(monthEntries),'סיכום חודש בתצוגה - בוצע בלבד'); };
 
   window.renderSmartDashboard=function(){
     const box=$('smartDashboard'); if(!box)return;
@@ -15105,6 +15256,18 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:'5.08',title:'הבהרת שדות התאריך בחיפוש',date:d,items:[
+        'נוספו תוויות ברורות לכל שדות התאריך בכרטיסיית חיפוש וסיכומים.',
+        'הובהר ההבדל בין יום ספציפי, מתאריך, עד תאריך וחודש נבחר.',
+        'נוספה הערת סדר עדיפות כדי להבין מה משפיע על החיפוש בפועל.',
+        'לא שונתה לוגיקת הסינון, האקסל, הגיבוי, השחזור, הלוגין או שמירת עבודות.'
+      ]},
+      {version:'5.07',title:'טווח תאריכים בחיפוש וסיכומים',date:d,items:[
+        'נוספו שדות מתאריך ועד תאריך בכרטיסיית חיפוש וסיכומים.',
+        'תאריך אחד בלבד מפעיל חיפוש על אותו יום ספציפי.',
+        'שני תאריכים מפעילים טווח מלא, גם מעבר לחודשים.',
+        'נוספה בדיקת תקינות שמונעת חיפוש כאשר תאריך הסיום קטן מתאריך ההתחלה.'
+      ]},
       {version:'5.06',title:'תיקון כפתור ייצוא עובד ותאימות לאחור',date:d,items:[
         'תוקנה הקריאה לפונקציה downloadExcelTsvV504 שהייתה חסרה וגרמה לשגיאת is not defined במסך העובד.',
         'כפתור ייצוא לאקסל של העובד נשאר מחובר לאותו שם פונקציה, אבל מאחוריו נוצר קובץ XLSX אמיתי.',
