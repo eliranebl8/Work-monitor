@@ -782,6 +782,11 @@ CHANGELOG 5.00
 1. שדרוג דשבורד ויזואלי RF/FIBER.
 2. שיפור תצוגות וטעינה.
 
+CHANGELOG 5.15
+1. תיקון הודעת שמירה שלא נעלמת אחרי טעינת החודש מחדש.
+2. הודעת אופליין ברורה: נשמר מקומית ויסתנכרן כשיחזור אינטרנט.
+3. איפוס טופס נקי אחרי שמירה בלי לפגוע ביום הנבחר.
+
 CHANGELOG 5.01
 1. תיקון מלא לייצוא אקסל.
 2. גיבוי JSON מורחב.
@@ -1209,7 +1214,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.14";
+const APP_VERSION = "5.16";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1221,6 +1226,25 @@ function setAppVersionUI(){
 setAppVersionUI();
 window.addEventListener("DOMContentLoaded", setAppVersionUI);
 window.addEventListener("load", setAppVersionUI);
+
+/*
+===============================================================================
+CHANGELOG 5.16 - חיווי שמירה מיידי במצב Offline ומניעת כפילויות
+1. APP_VERSION עודכן ל-"5.16".
+2. פונקציות השמירה הקיימות עודכנו כך שבמצב אופליין לא מחכים לאישור שרת לפני חיווי וניקוי שדות.
+3. לאחר לחיצה על שמור מוצגת מיד הודעה ברורה שהעבודה נשמרה מקומית ותסתנכרן כשהחיבור יחזור.
+4. כפתורי השמירה ננעלים לזמן קצר אחרי הלחיצה כדי למנוע לחיצות כפולות ושמירה כפולה.
+5. השדות מתנקים מיד אחרי קליטת השמירה המקומית, כמו במצב אונליין.
+6. לא שונו Offline persistence, אינדיקטור סנכרון, מחירונים, חיפוש, אקסל, גיבוי, הרשאות או לוגין.
+
+CHANGELOG 5.15 - תיקון הודעת שמירה אחרי Offline/Online Save
+1. APP_VERSION עודכן ל-"5.15".
+2. תוקנה חוויית השמירה אחרי קריאת שירות/התקנה: ההודעה נשארת מוצגת גם אחרי טעינת החודש מחדש.
+3. במצב אופליין מוצגת הודעה ברורה שהנתונים נשמרו מקומית ויסתנכרנו כשיחזור אינטרנט.
+4. הטופס מתאפס בצורה נקייה אחרי שמירה, אבל היום הנבחר נשאר פתוח להמשך עבודה.
+5. לא שונו לוגיקת Firebase, אינדיקטור חיבור, גיבוי, אקסל, מחירונים, חיפוש, דשבורד או הרשאות.
+===============================================================================
+*/
 
 /*
 ===============================================================================
@@ -1476,6 +1500,78 @@ function enforceAppVersionUI(){
       });
     });
   }catch(e){}
+}
+
+
+/*
+===============================================================================
+CHANGE 5.16 - IMMEDIATE OFFLINE SAVE FEEDBACK CORE
+-------------------------------------------------------------------------------
+Firestore במצב Offline יכול להשאיר Promise של add/set פתוח עד חזרת הרשת.
+לכן פונקציות השמירה לא יכולות להמתין עם await לפני ניקוי שדות וחיווי למשתמש.
+העזר הזה מציג הודעה מיידית, מנקה שדות, ונועל כפתורי שמירה לזמן קצר כדי למנוע כפילויות.
+===============================================================================
+*/
+window.WM_ENTRY_SAVE_BUSY_V516 = false;
+function wmIsOfflineV516(){
+  try{return typeof navigator!=="undefined" && navigator.onLine===false;}catch(e){return false;}
+}
+function wmSetEntrySaveBusyV516(isBusy){
+  window.WM_ENTRY_SAVE_BUSY_V516 = !!isBusy;
+  try{
+    document.querySelectorAll('#serviceForm button, #installForm button').forEach(function(btn){
+      if(!btn) return;
+      if(isBusy){
+        if(!btn.dataset.v516OldDisabled) btn.dataset.v516OldDisabled = btn.disabled ? '1' : '0';
+        btn.disabled = true;
+      }else{
+        btn.disabled = btn.dataset.v516OldDisabled === '1';
+        delete btn.dataset.v516OldDisabled;
+      }
+    });
+  }catch(e){}
+}
+function wmBeginEntrySaveV516(){
+  if(window.WM_ENTRY_SAVE_BUSY_V516){
+    if($('entryMsg')) $('entryMsg').innerHTML='<div class="notice">השמירה כבר נקלטה ✅<br>המערכת מנקה את השדות ומכינה את הטופס לעבודה הבאה.</div>';
+    return false;
+  }
+  wmSetEntrySaveBusyV516(true);
+  return true;
+}
+function wmEndEntrySaveV516(){
+  setTimeout(function(){wmSetEntrySaveBusyV516(false);},900);
+}
+function wmOfflineSaveNoticeV516(label, amount, status, extraLine){
+  var offline=wmIsOfflineV516();
+  var planned=status==='planned';
+  var amountLine=(typeof amount==='number') ? '<br>סכום: '+money(amount) : '';
+  if(offline){
+    return '<div class="notice">'+label+' נשמרה מקומית במצב אופליין ✅'+amountLine+'<br>היא ממתינה לסנכרון ותעלה אוטומטית כשהחיבור יחזור.<br>השדות נוקו ואפשר להמשיך לעבודה הבאה.</div>';
+  }
+  if(planned){
+    return '<div class="notice">'+label+' נשמרה כסידור עתידי ✅<br>'+(extraLine||'היא לא נכנסה להתחשבנות עד שתלחץ בוצע.')+'</div>';
+  }
+  return '<div class="notice">'+label+' נשמרה ✅'+amountLine+'<br>השדות נוקו ואפשר להמשיך לעבודה הבאה.</div>';
+}
+function wmAfterLocalEntrySaveV516(messageHtml){
+  try{ if(typeof resetEntryFormsAfterSaveV42==='function') resetEntryFormsAfterSaveV42(); }catch(e){}
+  if($('entryMsg')) $('entryMsg').innerHTML=messageHtml;
+  try{
+    setTimeout(async function(){
+      try{ await loadMonth(); }catch(e){}
+      try{ if(typeof resetEntryFormsAfterSaveV42==='function') resetEntryFormsAfterSaveV42(); }catch(e){}
+      if($('entryMsg')) $('entryMsg').innerHTML=messageHtml;
+      try{ if(typeof ensurePlannedButtonsV49==='function') ensurePlannedButtonsV49(); }catch(e){}
+      try{ if(typeof wrapSaveButtonsV411==='function') wrapSaveButtonsV411(); }catch(e){}
+    },120);
+  }catch(e){}
+  wmEndEntrySaveV516();
+}
+function wmHandleEntrySaveErrorV516(err){
+  wmSetEntrySaveBusyV516(false);
+  var msg=(err && (err.code||err.message)) ? (err.code||err.message) : String(err||'שגיאה לא ידועה');
+  if($('entryMsg')) $('entryMsg').innerHTML='<p class="danger">השמירה נכשלה: '+esc(msg)+'</p>';
 }
 
 /*
@@ -8356,10 +8452,18 @@ button.btn-light,.btn-light{
 function showEntryFeedbackV41(type, amount){
   try{
     var isService = type === 'service';
-    var label = isService ? 'קריאת השירות נשמרה בהצלחה ✅' : 'ההתקנה נשמרה בהצלחה ✅';
+    var baseLabel = isService ? 'קריאת השירות נשמרה' : 'ההתקנה נשמרה';
+    var online = true;
+    try{ online = navigator.onLine !== false; }catch(_e){}
+    var label = online
+      ? (baseLabel + ' בהצלחה ✅')
+      : (baseLabel + ' מקומית ✅');
+    var syncLine = online
+      ? 'המסך עודכן ואפשר להמשיך להזין עבודה חדשה.'
+      : 'אין חיבור כרגע — הנתונים יסתנכרנו אוטומטית כשהאפליקציה תחזור לאונליין.';
     var amountText = '';
     try{ amountText = typeof money === 'function' ? money(amount || 0) : ('₪' + Number(amount || 0)); }catch(e){ amountText = ''; }
-    var html = '<div class="save-feedback-v41">' + label + (amountText ? '<br><span>סכום שנשמר: ' + amountText + '</span>' : '') + '</div>';
+    var html = '<div class="save-feedback-v41">' + label + (amountText ? '<br><span>סכום שנשמר: ' + amountText + '</span>' : '') + '<br><span>' + syncLine + '</span></div>';
     var entry = document.getElementById('entryMsg');
     if(entry) entry.innerHTML = html;
 
@@ -9830,21 +9934,22 @@ service cloud.firestore {
     const amount=isReturnCall?0:SERVICE_PRICE;
     if(!customerNumber||!/^\d+$/.test(customerNumber))return $('entryMsg').innerHTML='<p class="danger">חובה למלא מספר לקוח בספרות בלבד.</p>';
     if(!address)return $('entryMsg').innerHTML='<p class="danger">חובה למלא כתובת.</p>';
-    await db.collection('workEntries').add({
-      workerId:viewedWorker.id, workerName:viewedWorker.name, authUid:viewedWorker.authUid||currentAuthUid(),
-      date:selectedDate, workType:'service', entryStatus:status,
-      description:isReturnCall?'קריאת שירות חוזרת':'קריאת שירות', customerNumber,address,notes,isReturnCall,amount,
-      createdAt:firebase.firestore.FieldValue.serverTimestamp()
-    });
-    resetEntryFormsAfterSaveV42 && resetEntryFormsAfterSaveV42();
-    if(status==='planned'){
-      $('entryMsg').innerHTML='<div class="notice">קריאת השירות נשמרה כסידור עתידי ✅<br>היא לא נכנסה להתחשבנות עד שתלחץ בוצע.</div>';
-    }else{
-      showEntryFeedbackV41('service', amount);
+    if(!wmBeginEntrySaveV516()) return;
+    const label=status==='planned'?'קריאת השירות':'קריאת השירות';
+    const successMsg=wmOfflineSaveNoticeV516(label, status==='planned'?null:amount, status, 'היא לא נכנסה להתחשבנות עד שתלחץ בוצע.');
+    try{
+      const writePromise=db.collection('workEntries').add({
+        workerId:viewedWorker.id, workerName:viewedWorker.name, authUid:viewedWorker.authUid||currentAuthUid(),
+        date:selectedDate, workType:'service', entryStatus:status,
+        description:isReturnCall?'קריאת שירות חוזרת':'קריאת שירות', customerNumber,address,notes,isReturnCall,amount,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      // v5.16: לא עושים await כאן. באופליין ההבטחה עלולה להיסגר רק כשהשרת חוזר, אבל המשתמש צריך חיווי וניקוי מידיים.
+      writePromise.catch(wmHandleEntrySaveErrorV516);
+      wmAfterLocalEntrySaveV516(successMsg);
+    }catch(err){
+      wmHandleEntrySaveErrorV516(err);
     }
-    await loadMonth();
-    resetEntryFormsAfterSaveV42 && resetEntryFormsAfterSaveV42();
-    ensurePlannedButtonsV49();
   }
 
   async function addInstallWithStatusV49(status){
@@ -9861,20 +9966,20 @@ service cloud.firestore {
       }
     });
     if(!items.length)return $('entryMsg').innerHTML='<p class="danger">חובה לבחור לפחות פריט אחד.</p>';
-    await db.collection('workEntries').add({
-      workerId:viewedWorker.id, workerName:viewedWorker.name, authUid:viewedWorker.authUid||currentAuthUid(),
-      date:selectedDate, workType:'install', entryStatus:status, description:'התקנה', customerNumber,address,notes,items,amount:total,
-      createdAt:firebase.firestore.FieldValue.serverTimestamp()
-    });
-    resetEntryFormsAfterSaveV42 && resetEntryFormsAfterSaveV42();
-    if(status==='planned'){
-      $('entryMsg').innerHTML='<div class="notice">ההתקנה נשמרה כסידור עתידי ✅<br>היא לא נכנסה להתחשבנות עד שתלחץ בוצע.</div>';
-    }else{
-      showEntryFeedbackV41('install', total);
+    if(!wmBeginEntrySaveV516()) return;
+    const successMsg=wmOfflineSaveNoticeV516('ההתקנה', status==='planned'?null:total, status, 'היא לא נכנסה להתחשבנות עד שתלחץ בוצע.');
+    try{
+      const writePromise=db.collection('workEntries').add({
+        workerId:viewedWorker.id, workerName:viewedWorker.name, authUid:viewedWorker.authUid||currentAuthUid(),
+        date:selectedDate, workType:'install', entryStatus:status, description:'התקנה', customerNumber,address,notes,items,amount:total,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      // v5.16: לא עושים await כאן כדי שחיווי וניקוי שדות יעבדו גם כשהמכשיר אופליין.
+      writePromise.catch(wmHandleEntrySaveErrorV516);
+      wmAfterLocalEntrySaveV516(successMsg);
+    }catch(err){
+      wmHandleEntrySaveErrorV516(err);
     }
-    await loadMonth();
-    resetEntryFormsAfterSaveV42 && resetEntryFormsAfterSaveV42();
-    ensurePlannedButtonsV49();
   }
 
   window.addService=function(){ return addServiceWithStatusV49('done'); };
@@ -10277,12 +10382,18 @@ service cloud.firestore {
       if(q>0){items.push({id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||'qty',priceType:selectedKindV411(),installKind:selectedKindV411(),total:q*Number(p.price||0)}); total+=q*Number(p.price||0);}
     });
     if(!items.length)return $('entryMsg').innerHTML='<p class="danger">חובה לבחור לפחות פריט אחד.</p>';
-    await db.collection('workEntries').add({workerId:viewedWorker.id,workerName:viewedWorker.name,authUid:viewedWorker.authUid||currentAuthUid(),date:selectedDate,workType:'install',installKind:selectedKindV411(),priceType:selectedKindV411(),entryStatus:status,description:'התקנת '+kindLabelV411(selectedKindV411()),customerNumber,address,notes,items,amount:total,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-    if(typeof resetEntryFormsAfterSaveV42==='function') resetEntryFormsAfterSaveV42();
-    if(status==='planned') $('entryMsg').innerHTML='<div class="notice">התקנת '+kindLabelV411(selectedKindV411())+' נשמרה כסידור עתידי ✅<br>היא לא נכנסה להתחשבנות עד שתלחץ בוצע.</div>'; else showEntryFeedbackV41('install', total);
-    await loadMonth();
-    if(typeof resetEntryFormsAfterSaveV42==='function') resetEntryFormsAfterSaveV42();
-    wrapSaveButtonsV411();
+    if(!wmBeginEntrySaveV516()) return;
+    const kindAtSave=selectedKindV411();
+    const label='התקנת '+kindLabelV411(kindAtSave);
+    const successMsg=wmOfflineSaveNoticeV516(label, status==='planned'?null:total, status, 'היא לא נכנסה להתחשבנות עד שתלחץ בוצע.');
+    try{
+      const writePromise=db.collection('workEntries').add({workerId:viewedWorker.id,workerName:viewedWorker.name,authUid:viewedWorker.authUid||currentAuthUid(),date:selectedDate,workType:'install',installKind:kindAtSave,priceType:kindAtSave,entryStatus:status,description:'התקנת '+kindLabelV411(kindAtSave),customerNumber,address,notes,items,amount:total,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      // v5.16: לא ממתינים לשרת. באופליין הכתיבה נשמרת מקומית ומסתנכרנת ברקע, והמשתמש מקבל חיווי מיידי.
+      writePromise.catch(wmHandleEntrySaveErrorV516);
+      wmAfterLocalEntrySaveV516(successMsg);
+    }catch(err){
+      wmHandleEntrySaveErrorV516(err);
+    }
   }
   window.addInstall=function(){return addInstallWithStatusV411('done')};
   window.addInstallPlannedV49=function(){return addInstallWithStatusV411('planned')};
