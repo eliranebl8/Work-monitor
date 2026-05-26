@@ -1209,7 +1209,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.12";
+const APP_VERSION = "5.14";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1224,6 +1224,19 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
+CHANGELOG 5.14 - מיקום אינדיקטור חיבור עליון
+1. APP_VERSION עודכן ל-"5.14".
+2. אינדיקטור אונליין/אופליין/מסנכרן הועבר מהפינה התחתונה לאזור העליון ליד סטטוס המשתמש.
+3. האינדיקטור הוקטן כדי שלא יסתיר את הנגישות, מה חדש או כפתורים צפים.
+4. השינוי הוא UI בלבד: לא שונתה לוגיקת Offline, סנכרון, שמירה, אקסל, גיבוי או חיפוש.
+
+CHANGELOG 5.13 - מצב Offline וסנכרון עבודות
+1. APP_VERSION עודכן ל-"5.13".
+2. הופעל Firestore offline persistence כדי ששמירות יעבדו גם בלי אינטרנט ויסונכרנו אוטומטית כשחוזרים אונליין.
+3. נוסף אינדיקטור קבוע אונליין / אופליין / מסנכרן עם מספר עבודות שממתינות לעלות ל-Firebase.
+4. נוספו הערות קוד ליד כל שינוי Offline כדי שיהיה ברור מה נוסף ולמה.
+5. לא שונו אקסל, גיבוי, שחזור, חיפוש, דשבורד, מחירונים, הרשאות או לוגין.
+
 CHANGELOG 5.12 - תיקון Changelog מול Firestore
 1. APP_VERSION עודכן ל-"5.12".
 2. נוספו לגרעין ה-Changelog הרשומות החסרות 5.09, 5.10 ו-5.11.
@@ -1476,7 +1489,32 @@ CHANGELOG 4.41 - טלפון חובה במסך בחירת מנוי בלבד
 ===============================================================================
 */
 const firebaseConfig={apiKey:"AIzaSyCR41hsAakxY7FgaPhJAhV63lnrgLIT9eM",authDomain:"work-monitor-a3bb9.firebaseapp.com",projectId:"work-monitor-a3bb9",storageBucket:"work-monitor-a3bb9.firebasestorage.app",messagingSenderId:"571499964314",appId:"1:571499964314:web:ec0f18ba9f1e6502fabc23",measurementId:"G-4SLEBPPYE8"};
-firebase.initializeApp(firebaseConfig);const db=firebase.firestore();const auth=firebase.auth ? firebase.auth() : null;
+firebase.initializeApp(firebaseConfig);
+const db=firebase.firestore();
+/*
+===============================================================================
+CHANGE 5.13 - FIRESTORE OFFLINE CORE
+-------------------------------------------------------------------------------
+מפעיל שמירת נתונים מקומית של Firestore. זה מאפשר לשמור עבודות גם כשאין אינטרנט,
+וה-Firebase מסנכרן אותן אוטומטית כשהחיבור חוזר. השינוי נעשה מיד אחרי יצירת db
+ולפני קריאות הנתונים, כדי לא לפגוע בפונקציות השמירה הקיימות.
+===============================================================================
+*/
+window.WM_OFFLINE_PERSISTENCE_STATUS = "starting";
+try{
+  db.enablePersistence({synchronizeTabs:true}).then(function(){
+    window.WM_OFFLINE_PERSISTENCE_STATUS = "enabled";
+    try{ if(typeof window.updateOfflineSyncIndicatorV513 === "function") window.updateOfflineSyncIndicatorV513(); }catch(e){}
+  }).catch(function(err){
+    window.WM_OFFLINE_PERSISTENCE_STATUS = (err && err.code) ? err.code : "failed";
+    console.warn("Firestore offline persistence was not enabled:", err && (err.code || err.message) ? (err.code || err.message) : err);
+    try{ if(typeof window.updateOfflineSyncIndicatorV513 === "function") window.updateOfflineSyncIndicatorV513(); }catch(e){}
+  });
+}catch(e){
+  window.WM_OFFLINE_PERSISTENCE_STATUS = "unsupported";
+  console.warn("Firestore offline persistence init failed:", e && e.message ? e.message : e);
+}
+const auth=firebase.auth ? firebase.auth() : null;
 let ADMIN_USERNAME="Eliran",ADMIN_PASSWORD_SHA256="a3548d64df7d2c4eeeb1c0480aa87b0b306b3e0b0f8faa8c8aef71140761a759",SERVICE_PRICE=65,DEFAULT_TRIAL_DAYS=90;
 let tapCount=0,session=null,viewedWorker=null,calendarDate=new Date(),selectedDate=null,selectedType=null,monthEntries=[],workers=[],priceList=[],templates=[];
 const months=["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"],weekdays=["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","שבת"];
@@ -14020,6 +14058,201 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
 })();
 </script>
 
+
+
+<style id="offline-sync-css-v513">
+/*
+===============================================================================
+CHANGE 5.14 - OFFLINE SYNC INDICATOR TOPBAR UI
+-------------------------------------------------------------------------------
+אינדיקטור קטן וקבוע שלא משנה את מבנה המסכים הקיימים. הוא רק מציג מצב רשת
+וכמה עבודות מקומיות עדיין ממתינות לסנכרון ל-Firebase.
+===============================================================================
+*/
+.offline-sync-badge-v513{
+  /* v5.14: האינדיקטור כבר לא fixed בתחתית, כדי לא להסתיר נגישות/מה חדש.
+     הוא מוזרק לתוך אזור הסטטוס העליון ליד userLine. */
+  position:static!important;
+  z-index:auto!important;
+  direction:rtl!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:5px!important;
+  border-radius:999px!important;
+  padding:3px 7px!important;
+  margin-top:3px!important;
+  font-size:10.5px!important;
+  line-height:1.2!important;
+  font-weight:900!important;
+  box-shadow:none!important;
+  border:1px solid rgba(255,255,255,.72)!important;
+  max-width:100%!important;
+  white-space:nowrap!important;
+}
+.offline-sync-badge-v513 .dot-v513{width:7px!important;height:7px!important;border-radius:999px!important;display:inline-block!important;flex:0 0 auto!important;}
+.offline-sync-badge-v513.online-v513{background:rgba(236,253,245,.94)!important;color:#065f46!important;}
+.offline-sync-badge-v513.online-v513 .dot-v513{background:#10b981!important;}
+.offline-sync-badge-v513.offline-v513{background:rgba(254,242,242,.94)!important;color:#991b1b!important;}
+.offline-sync-badge-v513.offline-v513 .dot-v513{background:#ef4444!important;}
+.offline-sync-badge-v513.syncing-v513{background:rgba(255,251,235,.96)!important;color:#92400e!important;}
+.offline-sync-badge-v513.syncing-v513 .dot-v513{background:#f59e0b!important;animation:pulseV513 1s infinite ease-in-out;}
+.offline-sync-badge-v513.cache-v513{background:rgba(239,246,255,.94)!important;color:#1d4ed8!important;}
+.offline-sync-badge-v513.cache-v513 .dot-v513{background:#3b82f6!important;}
+@keyframes pulseV513{0%,100%{transform:scale(1);opacity:.72}50%{transform:scale(1.45);opacity:1}}
+@media(max-width:520px){.offline-sync-badge-v513{font-size:10px!important;padding:3px 6px!important;margin-top:2px!important;}}
+</style>
+
+<script id="offline-sync-core-v513">
+/*
+===============================================================================
+CHANGE 5.13 - OFFLINE SYNC SAFE LAYER
+-------------------------------------------------------------------------------
+שכבה בטוחה בלבד: לא מחליפה פונקציות שמירה, לא משנה collections ולא נוגעת ב-UI
+הקיים. היא מאזינה למצב הרשת ול-metadata של Firestore כדי להציג כמה עבודות
+נשמרו מקומית ועדיין ממתינות לסנכרון.
+===============================================================================
+*/
+(function(){
+  var state = {
+    online: (typeof navigator === 'undefined') ? true : navigator.onLine !== false,
+    pendingWorkEntries: 0,
+    unsubscribe: null,
+    lastScopeKey: '',
+    lastSnapshotFromCache: false
+  };
+
+  function q(id){ return document.getElementById(id); }
+
+  function ensureBadge(){
+    var badge=q('offlineSyncBadgeV513');
+    if(!badge){
+      badge=document.createElement('div');
+      badge.id='offlineSyncBadgeV513';
+      badge.className='offline-sync-badge-v513 cache-v513';
+      badge.innerHTML='<span class="dot-v513"></span><span id="offlineSyncTextV513">בודק חיבור...</span>';
+    }
+    /* v5.14: ממקמים את אינדיקטור החיבור בתוך פאנל הסטטוס העליון,
+       מתחת/ליד הטקסט "מחובר/עובד/מנהל", במקום fixed בתחתית המסך. */
+    try{
+      var userLine=q('userLine');
+      var topTarget=userLine && userLine.parentElement ? userLine.parentElement : null;
+      if(topTarget && badge.parentElement !== topTarget){
+        var versionMini = topTarget.querySelector ? topTarget.querySelector('.app-version-mini') : null;
+        if(versionMini) topTarget.insertBefore(badge, versionMini);
+        else topTarget.appendChild(badge);
+      }else if(!badge.parentElement){
+        document.body.appendChild(badge);
+      }
+    }catch(e){ try{ if(!badge.parentElement) document.body.appendChild(badge); }catch(_e){} }
+    return badge;
+  }
+
+  function statusText(){
+    var persistence = window.WM_OFFLINE_PERSISTENCE_STATUS || 'starting';
+    var pending = Number(state.pendingWorkEntries || 0);
+    if(!state.online){
+      return pending > 0 ? '🔴 אופליין • ' + pending + ' עבודות ממתינות' : '🔴 אופליין';
+    }
+    if(pending > 0){
+      return '🟡 מסנכרן • ' + pending + ' עבודות ממתינות';
+    }
+    if(persistence === 'enabled') return '🟢 אונליין • מסונכרן';
+    if(persistence === 'starting') return '🔵 אונליין • מכין Offline';
+    if(persistence === 'failed-precondition') return '🟢 אונליין • Offline פעיל בטאב אחר';
+    return '🟢 אונליין';
+  }
+
+  window.updateOfflineSyncIndicatorV513 = function(){
+    var badge=ensureBadge();
+    if(!badge) return;
+    var pending = Number(state.pendingWorkEntries || 0);
+    var cls = !state.online ? 'offline-v513' : (pending > 0 ? 'syncing-v513' : ((window.WM_OFFLINE_PERSISTENCE_STATUS||'') === 'starting' ? 'cache-v513' : 'online-v513'));
+    badge.className='offline-sync-badge-v513 ' + cls;
+    var txt=q('offlineSyncTextV513');
+    if(txt) txt.textContent=statusText();
+  };
+
+  function currentScopeKey(){
+    try{
+      if(window.session && window.session.role === 'admin') return 'admin:all';
+      if(window.viewedWorker && window.viewedWorker.id) return 'worker:' + window.viewedWorker.id;
+      if(typeof viewedWorker !== 'undefined' && viewedWorker && viewedWorker.id) return 'worker:' + viewedWorker.id;
+      if(typeof session !== 'undefined' && session && session.role === 'admin') return 'admin:all';
+    }catch(e){}
+    return 'none';
+  }
+
+  function buildWorkEntriesQuery(scopeKey){
+    try{
+      if(!window.db && typeof db === 'undefined') return null;
+      var database = window.db || db;
+      if(scopeKey === 'admin:all') return database.collection('workEntries');
+      if(scopeKey.indexOf('worker:') === 0){
+        var workerId = scopeKey.slice('worker:'.length);
+        if(workerId) return database.collection('workEntries').where('workerId','==',workerId);
+      }
+    }catch(e){ console.warn('v5.13 offline query build failed', e && e.message ? e.message : e); }
+    return null;
+  }
+
+  function startPendingMonitorV513(){
+    var scopeKey=currentScopeKey();
+    if(scopeKey === state.lastScopeKey && state.unsubscribe) return;
+    state.lastScopeKey=scopeKey;
+    if(state.unsubscribe){ try{ state.unsubscribe(); }catch(e){} state.unsubscribe=null; }
+    state.pendingWorkEntries=0;
+    window.updateOfflineSyncIndicatorV513();
+    var query=buildWorkEntriesQuery(scopeKey);
+    if(!query) return;
+    try{
+      state.unsubscribe = query.onSnapshot({includeMetadataChanges:true}, function(snap){
+        var count=0;
+        try{
+          state.lastSnapshotFromCache = !!(snap && snap.metadata && snap.metadata.fromCache);
+          snap.forEach(function(doc){ if(doc && doc.metadata && doc.metadata.hasPendingWrites) count++; });
+        }catch(e){}
+        state.pendingWorkEntries=count;
+        window.updateOfflineSyncIndicatorV513();
+      }, function(err){
+        console.warn('v5.13 pending sync monitor failed:', err && err.message ? err.message : err);
+        state.pendingWorkEntries=0;
+        window.updateOfflineSyncIndicatorV513();
+      });
+    }catch(e){ console.warn('v5.13 pending sync listener failed:', e && e.message ? e.message : e); }
+  }
+  window.startPendingWorkEntriesMonitorV513=startPendingMonitorV513;
+
+  function refreshNetworkState(){
+    state.online = (typeof navigator === 'undefined') ? true : navigator.onLine !== false;
+    window.updateOfflineSyncIndicatorV513();
+    setTimeout(startPendingMonitorV513,80);
+  }
+
+  window.addEventListener('online', refreshNetworkState);
+  window.addEventListener('offline', refreshNetworkState);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) refreshNetworkState(); });
+
+  // עטיפות בטוחות: אחרי טעינת עובד/אדמין/חודש מפעילים מחדש את המאזין לפי ההרשאה הנוכחית.
+  ['showWorker','showAdmin','loadMonth','loadWorkers'].forEach(function(fnName){
+    try{
+      var original=window[fnName];
+      if(typeof original === 'function' && !original.__offlineWrappedV513){
+        var wrapped=function(){
+          var result=original.apply(this,arguments);
+          Promise.resolve(result).finally(function(){ setTimeout(startPendingMonitorV513,120); });
+          return result;
+        };
+        wrapped.__offlineWrappedV513=true;
+        window[fnName]=wrapped;
+      }
+    }catch(e){}
+  });
+
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(refreshNetworkState,250); setTimeout(startPendingMonitorV513,900); });
+  window.addEventListener('load', function(){ setTimeout(refreshNetworkState,250); setTimeout(startPendingMonitorV513,1100); });
+})();
+</script>
+
 </body>
 
 
@@ -15338,6 +15571,18 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:'5.14',title:'מיקום אינדיקטור חיבור עליון',date:d,items:[
+        'אינדיקטור אונליין/אופליין/מסנכרן הועבר מהפינה התחתונה לאזור העליון ליד סטטוס המשתמש.',
+        'האינדיקטור הוקטן כדי שלא יסתיר כפתורי נגישות, מה חדש או אלמנטים צפים אחרים.',
+        'נשמרת אותה לוגיקת Offline וספירת עבודות ממתינות מסנכרון מגרסה 5.13.',
+        'השינוי הוא שינוי UI בלבד ולא נוגע בשמירה, אקסל, גיבוי, שחזור, חיפוש, דשבורד או לוגין.'
+      ]},
+      {version:'5.13',title:'מצב Offline וסנכרון עבודות',date:d,items:[
+        'הופעל Firestore offline persistence כדי לאפשר שמירת עבודות גם כשאין אינטרנט.',
+        'נוסף אינדיקטור מצב קבוע שמציג אונליין, אופליין או מסנכרן.',
+        'האינדיקטור מציג כמה עבודות ממתינות לסנכרון ל-Firebase.',
+        'השינוי נעשה כשכבת תצוגה וסנכרון בטוחה, בלי לשנות את לוגיקת השמירה, האקסל, הגיבוי, החיפוש או הדשבורד.'
+      ]},
       {version:'5.12',title:'תיקון הצגת מה חדש לגרסאות אחרונות',date:d,items:[
         'תוקן מנגנון ברירות המחדל של Changelog כך שיזרע למסד גם את גרסאות 5.09, 5.10 ו-5.11 שהיו חסרות.',
         'נוספה רשומת מה חדש לגרסה 5.12 כדי שהעדכון עצמו יופיע באדמין ובעובד.',
