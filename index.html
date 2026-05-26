@@ -128,6 +128,12 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 .btn-yellow{background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#111827}
 .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+/* v5.11: טוגל מגמת הכנסות בדשבורד — מתחילת החודש / 7 / 14 / 30 ימים אחרונים. */
+.smart-trend-head-v511{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.smart-trend-filter-v511{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:900;color:var(--muted)}
+.smart-trend-filter-v511 select{min-width:150px;padding:8px 10px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--text);font-weight:900}
+.smart-trend-note-v511{margin:6px 0 0;font-size:11px;color:var(--muted);font-weight:800}
+/* v5.10: תיקון מגמת הכנסות לפי ימים בדשבורד החכם — מציגה את כל ימי החודש במקום הגבלה ל-10/12 ימים אחרונים. */
 /* v5.09: הסתרת שדה יום ספציפי וסנכרון ניקוי בין חודש לבין טווח תאריכים, בלי שינוי לוגיקת החיפוש עצמה. */
 .search-date-field-v508{display:flex;flex-direction:column;gap:6px}
 .search-date-field-v508 label{font-size:12px;font-weight:900;color:var(--muted);padding-inline:2px}
@@ -1202,7 +1208,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.09";
+const APP_VERSION = "5.11";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1217,6 +1223,19 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
+CHANGELOG 5.11 - דשבורד חכם: טוגל מגמת הכנסות לפי תקופה
+1. APP_VERSION עודכן ל-"5.11".
+2. נוספה בחירה במגמת הכנסות: מתחילת החודש, 7 ימים אחרונים, 14 ימים אחרונים, 30 ימים אחרונים.
+3. מצב 30 ימים אחרונים יודע למשוך נתונים גם מחודש קודם מתוך כל עבודות העובד שנטענו, בלי לשנות את סיכומי החודש.
+4. השינוי בוצע ישירות בפונקציות הדשבורד והטעינה הקיימות, עם הערות קוד, בלי לגעת באקסל/גיבוי/לוגין/חיפוש.
+
+CHANGELOG 5.10 - דשבורד חכם: מגמת הכנסות לפי כל ימי החודש
+1. APP_VERSION עודכן ל-"5.10".
+2. פונקציית renderBars436 עודכנה ישירות כך שמגמת ההכנסות לפי ימים לא מוגבלת יותר ל-10/12 ימים אחרונים.
+3. במצב חודשי הגרף מציג את כל הימים שיש בהם ביצוע מתחילת החודש הנבחר, לפי סדר תאריכים.
+4. לא שונו לוגין, גיבוי, שחזור, אקסל, מחירונים, שמירות או חיפוש.
+5. נוספו הערות קוד ליד השינוי כדי שיהיה ברור למה הוסר ה-limit.
+
 CHANGELOG 5.09 - סידור שדות תאריך בחיפוש וסיכומים
 1. APP_VERSION עודכן ל-"5.09".
 2. שדה "יום ספציפי" הוסתר מה-UI כי אותה פעולה מתבצעת כבר דרך מתאריך/עד תאריך כאשר ממלאים רק אחד מהם.
@@ -6113,7 +6132,9 @@ async function loadMonth(token){
   const snap = await db.collection("workEntries").where("workerId","==",workerId).get();
   if(isStaleNavV180(token) || !viewedWorker || viewedWorker.id !== workerId) return;
 
-  monthEntries = snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);
+  // v5.11: כל עבודות העובד נשמרות לטוגל מגמת 7/14/30 ימים; monthEntries נשאר חודשי בלבד.
+  window.workerAllEntriesV511 = snap.docs.map(d=>({id:d.id,...d.data()}));
+  monthEntries = window.workerAllEntriesV511.filter(e=>e.date>=start&&e.date<=end);
   renderCalendar(); renderDay(); renderStats();
   try{ renderSmartDashboard(); }catch(e){ console.warn("dashboard render skipped", e); }
   if($('searchPanel') && !$('searchPanel').classList.contains('hidden')) renderFullSummary();
@@ -12500,10 +12521,58 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
   function best436(o,field){var ks=Object.keys(o||{});return ks.length?ks.sort(function(a,b){return Number(o[b][field]||0)-Number(o[a][field]||0)})[0]:''}
   function weekday436(dateStr){try{return ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][parse436(dateStr).getDay()]||''}catch(e){return ''}}
   function monthDay436(dateStr){try{return date436(dateStr).slice(0,5)}catch(e){return dateStr||''}}
+  function trendMode436(){
+    // v5.11: מקור אמת קטן לבחירת טווח מגמת ההכנסות. נשמר מקומית בלבד ולא משפיע על נתוני החודש/סיכומים.
+    try{ return localStorage.getItem('dashboardTrendRangeV511') || 'month'; }catch(e){ return 'month'; }
+  }
+  function trendLabel436(mode){
+    if(mode==='7') return '7 ימים אחרונים';
+    if(mode==='14') return '14 ימים אחרונים';
+    if(mode==='30') return '30 ימים אחרונים';
+    return 'מתחילת החודש';
+  }
+  function dateKey436(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function trendEntries436(monthDone){
+    // v5.11: מתחילת החודש נשאר בדיוק כמו v5.10. רק מצבי 7/14/30 משתמשים בכל עבודות העובד שנטענו.
+    var mode=trendMode436();
+    if(mode==='month') return monthDone || [];
+    var days=Number(mode||0);
+    if(!days) return monthDone || [];
+    var all=Array.isArray(window.workerAllEntriesV511) ? window.workerAllEntriesV511 : (monthDone || []);
+    var base=calendarDate instanceof Date ? calendarDate : new Date();
+    var now=new Date();
+    var end;
+    if(now.getFullYear()===base.getFullYear() && now.getMonth()===base.getMonth()){
+      end=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    }else{
+      end=new Date(base.getFullYear(),base.getMonth()+1,0);
+    }
+    var start=new Date(end.getFullYear(),end.getMonth(),end.getDate()-(days-1));
+    var startKey=dateKey436(start), endKey=dateKey436(end);
+    return done436(all).filter(function(e){return e && e.date && e.date>=startKey && e.date<=endKey;});
+  }
+  window.selectDashboardTrendRangeV511=function(value){
+    // v5.11: שינוי בחירת התצוגה בלבד; לא משנה monthEntries, לא משנה חיפוש, ולא משנה חישובי יעד.
+    try{ localStorage.setItem('dashboardTrendRangeV511', value || 'month'); }catch(e){}
+    try{ renderSmartDashboard(); }catch(e){ console.warn('trend range refresh failed', e); }
+  };
+  function renderTrendControls436(){
+    var mode=trendMode436();
+    return '<div class="smart-trend-head-v511"><h3>📈 מגמת הכנסות לפי ימים</h3><label class="smart-trend-filter-v511">טווח מגמה <select onchange="selectDashboardTrendRangeV511(this.value)">'+
+      '<option value="month" '+(mode==='month'?'selected':'')+'>מתחילת החודש</option>'+
+      '<option value="7" '+(mode==='7'?'selected':'')+'>7 ימים אחרונים</option>'+
+      '<option value="14" '+(mode==='14'?'selected':'')+'>14 ימים אחרונים</option>'+
+      '<option value="30" '+(mode==='30'?'selected':'')+'>30 ימים אחרונים</option>'+
+      '</select></label></div><div class="smart-trend-note-v511">מצב 30 ימים אחרונים יכול לכלול גם נתונים מהחודש הקודם. הסיכומים החודשיים לא משתנים.</div>';
+  }
   function renderBars436(obj,limit){
-    var rows=Object.keys(obj||{}).sort().slice(-(limit||10));
+    // v5.11: הפונקציה עדיין מקבלת אובייקט מקובץ הדשבורד הקיים, אבל התוכן כבר מגיע לפי הטוגל שנבחר.
+    // הפרמטר limit נשאר בחתימה כדי לא לשבור קריאות ישנות, ואינו משמש לחיתוך נתונים.
+    var rows=Object.keys(obj||{}).sort();
     var max=Math.max(1,...rows.map(function(k){return Number(obj[k].total||0)}));
-    if(!rows.length)return '<p class="muted">אין מספיק נתונים להצגת מגמה.</p>';
+    if(!rows.length)return '<p class="muted">אין מספיק נתונים להצגת מגמה עבור '+esc436(trendLabel436(trendMode436()))+'.</p>';
     return '<div class="smart-bars-v423">'+rows.map(function(k){return '<div class="smart-bar-row-v423"><div>'+esc436(monthDay436(k))+'</div><div class="smart-bar-track-v423"><div class="smart-bar-fill-v423" style="width:'+Math.max(4,Math.round((obj[k].total/max)*100))+'%"></div></div><div>'+money436(obj[k].total||0)+'</div></div>'}).join('')+'</div>';
   }
   function topItems436(entries){
@@ -12634,6 +12703,9 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
     var avgJob=done.length ? total/done.length : 0;
     var jobsNeeded=left>0 && avgJob ? Math.ceil(left/avgJob) : 0;
     var byDate=group436(done,function(e){return e.date||'ללא תאריך'});
+    // v5.11: מגמת ההכנסות יכולה לעבוד על טווח שונה מהחודש, אך כל שאר הסיכומים נשארים לפי החודש הנבחר.
+    var trendDone=trendEntries436(done);
+    var trendByDate=group436(trendDone,function(e){return e.date||'ללא תאריך'});
     var byWeekday=group436(done,function(e){return weekday436(e.date)||'ללא יום'});
     var byClient=repeatedClients436(done);
     var bestDate=best436(byDate,'total'), bestWeekday=best436(byWeekday,'total'), topClient=best436(byClient,'count');
@@ -12705,7 +12777,7 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
       </div>
       <div class="smart-pill-row-v423">${pills.map(function(p){return '<span class="smart-pill-v423">'+esc436(p)+'</span>'}).join('')}</div>
       <div class="smart-two-v423">
-        <div class="smart-section-v423"><h3>📈 מגמת הכנסות לפי ימים</h3>${renderBars436(byDate,12)}</div>
+        <div class="smart-section-v423">${renderTrendControls436()}${renderBars436(trendByDate)}</div>
         <div class="smart-section-v423"><h3>🧠 תובנות אוטומטיות</h3><ul class="smart-insights-v423">${insights.slice(0,9).join('')}</ul></div>
       </div>
       <div class="smart-section-v423"><h3>⚖️ ניתוח מקצועי מהיר</h3>
@@ -14639,7 +14711,10 @@ html,body{max-width:100%!important;overflow-x:hidden!important;}
       text('calTitle', months[m]+' '+y);
       text('monthSub', 'חודש בתצוגה: '+months[m]+' '+y);
       var snap=await db.collection('workEntries').where('workerId','==',viewedWorker.id).get();
-      monthEntries=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());}).filter(function(e){return e.date>=start && e.date<=end;});
+      // v5.11: שומרים את כל עבודות העובד בזיכרון כדי שמגמת 30 ימים תוכל למשוך גם מהחודש הקודם.
+      // monthEntries נשאר רק החודש הנבחר כדי לא לפגוע בכל הסיכומים והמסכים הקיימים.
+      window.workerAllEntriesV511=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      monthEntries=window.workerAllEntriesV511.filter(function(e){return e.date>=start && e.date<=end;});
       renderCalendar();
       renderDay();
       renderStats();
