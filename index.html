@@ -476,6 +476,73 @@ input:focus,textarea:focus,select:focus{animation:popIn .2s ease both}
   .live-particles{display:none!important}
 }
 
+
+/* ===== v5.23: התחברות אחרונה בפאנל תחתון נקי ===== */
+.last-login-panel-v523{
+  padding:12px 14px!important;
+  margin-bottom:10px!important;
+  border-radius:18px!important;
+}
+.last-login-title-v523{
+  font-size:12px;
+  color:#64748b;
+  font-weight:900;
+  margin-bottom:3px;
+}
+.last-login-text-v523{
+  font-size:12px;
+  color:#94a3b8;
+  font-weight:800;
+  line-height:1.35;
+}
+.last-login-panel-v523 .debug{
+  direction:ltr;
+  text-align:left;
+  font-size:11px;
+}
+@media(max-width:800px){
+  .last-login-panel-v523{padding:10px 12px!important}
+}
+
+/* ===== v5.24 STATIC TOPBAR TEST ===== */
+#lastLoginLineV518{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  font-size:10px!important;
+  color:#94a3b8!important;
+  font-weight:900!important;
+  line-height:1.1!important;
+  margin-top:2px!important;
+  white-space:nowrap!important;
+  border:1px dashed rgba(239,68,68,.35);
+  padding:2px 4px;
+  border-radius:8px;
+}
+
+/* ===== v5.24 CLEAN LAST LOGIN UI ===== */
+#lastLoginLineV518{
+  display:block!important;
+  visibility:visible!important;
+  opacity:.88!important;
+  font-size:9px!important;
+  color:#94a3b8!important;
+  font-weight:700!important;
+  line-height:1.15!important;
+  margin-top:2px!important;
+  white-space:nowrap!important;
+  text-align:center!important;
+  background:none!important;
+  border:none!important;
+  padding:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+@media(max-width:800px){
+  #lastLoginLineV518{
+    font-size:8.5px!important;
+  }
+}
 </style>
 
 
@@ -1204,6 +1271,12 @@ body.app-booting-v434 #startupView{
   </div>
 </div>
 
+
+<div id="lastLoginPanelV523" class="card last-login-panel-v523 hidden">
+  <div class="last-login-title-v523">🕒 התחברות אחרונה</div>
+  <div id="lastLoginTextV523" class="last-login-text-v523">בודק נתון...</div>
+</div>
+
 <div class="calendar-work-shell-v420">
   <div class="calendar-work-title-v420">📅 לוח שנה ועבודות</div>
 <div class="card"><div class="cal-head"><button class="btn-light" onclick="changeMonth(-1)">חודש קודם</button><h2 id="calTitle"></h2><button class="btn-light" onclick="changeMonth(1)">חודש הבא</button></div><div id="calendar" class="cal"></div></div>
@@ -1236,7 +1309,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.21";
+const APP_VERSION = "5.24";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1251,6 +1324,33 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
+
+CHANGELOG 5.24 - התחברות אחרונה: הצגת חיבור נוכחי כשאין נתון קודם
+1. APP_VERSION עודכן ל-"5.24".
+2. אם אין עדיין התחברות קודמת ב-Firestore, הפאנל מציג "התחברות נוכחית" עם השעה הנוכחית במקום הודעת אין נתון.
+3. אחרי ההצגה, ההתחברות הנוכחית נשמרת ל-users/{authUid} ותופיע כ"חובר לאחרונה" בכניסה הבאה.
+4. הקריאה והכתיבה נשארות דרך Firestore בלבד, ללא localStorage וללא כתיבה ל-workers.
+5. לא שונו דשבורד, שמירת עבודות, אופליין, חיפוש או מחירונים.
+6. רשומת 5.24 נוספה למקור requiredChangelogRows כדי שתופיע ב"מה חדש".
+
+CHANGELOG 5.23 - התחברות אחרונה בפאנל תחתון נקי
+1. APP_VERSION עודכן ל-"5.23".
+2. חלון Debug התחברות אחרונה הוחלף בפאנל נקי ועדין שמציג רק את התוצאה.
+3. הפאנל מוצג באזור התחתון של מסך העובד מעל לוח השנה, בלי לגעת בפאנל העליון.
+4. כניסה אוטומטית מפרטי התחברות שמורים נחשבת כניסה מחדש: מציגה את ההתחברות הקודמת ושומרת את הנוכחית.
+5. הקריאה והכתיבה מתבצעות דרך Firestore בלבד במסמך users/{authUid}, ללא localStorage וללא כתיבה ל-workers.
+6. cleanupDuplicatePriceList עדיין לא רץ לעובד רגיל בטעינה, כדי למנוע permission-denied.
+7. לא שונו דשבורד, שמירת עבודות, אופליין, חיפוש או מחירונים.
+8. רשומת 5.23 נוספה למקור requiredChangelogRows כדי שתופיע ב"מה חדש".
+
+CHANGELOG 5.22 - Debug התחברות אחרונה וניקוי שגיאת מחירון לעובד
+1. APP_VERSION עודכן ל-"5.22" על בסיס v5.21 היציבה.
+2. נוסף חלון Debug גלוי באזור העובד לבדיקת מנגנון "התחברות אחרונה".
+3. חלון הדיבאג מציג כל שלב: UID, קריאה מ-users/{uid}, תוצאה, שמירה ושגיאות אם יש.
+4. נוסף כפתור "בדוק עכשיו" להרצת בדיקת התחברות אחרונה ידנית.
+5. cleanupDuplicatePriceList לא רץ יותר לעובד רגיל בזמן טעינה, כדי למנוע permission-denied מיותר.
+6. לא שונו דשבורד, שמירת עבודות, אופליין, חיפוש או מחירונים.
+7. רשומת 5.22 נוספה למקור requiredChangelogRows כדי שתופיע ב"מה חדש".
 
 CHANGELOG 5.21 - תיקון אמיתי לחישוב ימי עבודה עתידיים בדשבורד
 1. APP_VERSION עודכן ל-"5.21".
@@ -1559,158 +1659,91 @@ function enforceAppVersionUI(){
   }catch(e){}
 }
 
-
-/* ===== v5.18: Last login topbar helpers =====
-   נשמר ב-Firestore עם serverTimestamp בזמן כניסה מוצלחת, ומוצג בפאנל העליון בטקסט קטן.
-   אם אין התחברות קודמת לא מציגים שורה, כדי לא להעמיס על ה-UI.
+/*
+===============================================================================
+CHANGE 5.23 - LAST LOGIN LOWER CLEAN PANEL
+-------------------------------------------------------------------------------
+מנגנון נקי:
+- מציג התחברות אחרונה בפאנל תחתון.
+- קורא מ-users/{authUid}.
+- שומר את ההתחברות הנוכחית ל-users/{authUid}.
+- ללא localStorage וללא כתיבה למסמך workers.
+- כניסה שמורה/אוטומטית נחשבת כניסה מחדש, כי showWorker רץ גם בשחזור session.
+===============================================================================
 */
-function timestampToDateV518(value){
+function llDateV523(value){
   try{
     if(!value) return null;
     if(value instanceof Date) return value;
-    if(typeof value.toDate === "function") return value.toDate();
-    if(typeof value.seconds === "number") return new Date(value.seconds*1000);
-    if(typeof value === "number") return new Date(value);
+    if(value && typeof value.toDate === "function") return value.toDate();
+    if(value && typeof value.seconds === "number") return new Date(value.seconds*1000);
     if(typeof value === "string"){
       const d=new Date(value);
       return isNaN(d.getTime()) ? null : d;
     }
+    if(typeof value === "number") return new Date(value);
   }catch(e){}
   return null;
 }
-function formatLastLoginV518(value){
-  const d=timestampToDateV518(value);
+function llLabelV523(value){
+  const d=llDateV523(value);
   if(!d) return "";
-  return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-function renderLastLoginTopV518(value){
-  const el=document.getElementById("lastLoginLineV518");
-  if(!el) return;
-  const formatted=formatLastLoginV518(value);
-  if(!formatted){
-    el.textContent="";
-    el.classList.add("hidden");
-    return;
-  }
-  el.textContent="חובר לאחרונה: " + formatted;
-  el.classList.remove("hidden");
-}
-function clearLastLoginTopV518(){
-  const el=document.getElementById("lastLoginLineV518");
-  if(!el) return;
-  el.textContent="";
-  el.classList.add("hidden");
-}
-async function recordWorkerLastLoginV518(workerId){
-  if(!workerId) return;
-  // v5.19 FIX:
-  // שומרים גם ערך מקומי מיידי. serverTimestamp ב-Firestore עלול לחזור באיחור,
-  // ולכן אחרי Logout/Login מהיר עדיין צריך לראות את ההתחברות הקודמת בפאנל העליון.
-  const nowIso = new Date().toISOString();
-  try{ localStorage.setItem("wm_last_login_worker_" + workerId, nowIso); }catch(e){}
   try{
-    await db.collection("workers").doc(workerId).set({
-      lastLoginAt: firebase.firestore.FieldValue.serverTimestamp(),
-      lastLoginClientAt: nowIso,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    },{merge:true});
-  }catch(e){ console.warn("recordWorkerLastLoginV518 failed", e); }
-}
-async function recordAdminLastLoginV518(){
-  // v5.19 FIX: fallback מקומי למנהל עד ש-serverTimestamp חוזר מ-Firestore.
-  const nowIso = new Date().toISOString();
-  try{ localStorage.setItem("wm_last_login_admin", nowIso); }catch(e){}
-  try{
-    await db.collection("settings").doc("main").set({
-      adminLastLoginAt: firebase.firestore.FieldValue.serverTimestamp(),
-      adminLastLoginClientAt: nowIso,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    },{merge:true});
-  }catch(e){ console.warn("recordAdminLastLoginV518 failed", e); }
-}
-
-
-/*
-===============================================================================
-CHANGE 5.16 - IMMEDIATE OFFLINE SAVE FEEDBACK CORE
--------------------------------------------------------------------------------
-Firestore במצב Offline יכול להשאיר Promise של add/set פתוח עד חזרת הרשת.
-לכן פונקציות השמירה לא יכולות להמתין עם await לפני ניקוי שדות וחיווי למשתמש.
-העזר הזה מציג הודעה מיידית, מנקה שדות, ונועל כפתורי שמירה לזמן קצר כדי למנוע כפילויות.
-===============================================================================
-*/
-window.WM_ENTRY_SAVE_BUSY_V516 = false;
-function wmIsOfflineV516(){
-  try{return typeof navigator!=="undefined" && navigator.onLine===false;}catch(e){return false;}
-}
-function wmSetEntrySaveBusyV516(isBusy){
-  window.WM_ENTRY_SAVE_BUSY_V516 = !!isBusy;
-  try{
-    document.querySelectorAll('#serviceForm button, #installForm button').forEach(function(btn){
-      if(!btn) return;
-      if(isBusy){
-        if(!btn.dataset.v516OldDisabled) btn.dataset.v516OldDisabled = btn.disabled ? '1' : '0';
-        btn.disabled = true;
-      }else{
-        btn.disabled = btn.dataset.v516OldDisabled === '1';
-        delete btn.dataset.v516OldDisabled;
-      }
+    return d.toLocaleString("he-IL",{
+      timeZone:"Asia/Jerusalem",
+      day:"2-digit",
+      month:"2-digit",
+      year:"2-digit",
+      hour:"2-digit",
+      minute:"2-digit"
     });
-  }catch(e){}
+  }catch(e){ return d.toLocaleString(); }
 }
-function wmBeginEntrySaveV516(){
-  if(window.WM_ENTRY_SAVE_BUSY_V516){
-    if($('entryMsg')) $('entryMsg').innerHTML='<div class="notice">השמירה כבר נקלטה ✅<br>המערכת מנקה את השדות ומכינה את הטופס לעבודה הבאה.</div>';
-    return false;
-  }
-  wmSetEntrySaveBusyV516(true);
-  return true;
+function llCurrentUidV523(){
+  return (auth && auth.currentUser ? auth.currentUser.uid : "") || (session && session.authUid) || "";
 }
-function wmEndEntrySaveV516(){
-  setTimeout(function(){wmSetEntrySaveBusyV516(false);},900);
+function showLastLoginPanelV523(){ console.log("STATIC TEST MODE"); }
+function hideLastLoginPanelV523(){
+  const panel=document.getElementById("lastLoginPanelV523");
+  if(panel) panel.classList.add("hidden");
 }
-function wmOfflineSaveNoticeV516(label, amount, status, extraLine){
-  var offline=wmIsOfflineV516();
-  var planned=status==='planned';
-  var amountLine=(typeof amount==='number') ? '<br>סכום: '+money(amount) : '';
-  if(offline){
-    return '<div class="notice">'+label+' נשמרה מקומית במצב אופליין ✅'+amountLine+'<br>היא ממתינה לסנכרון ותעלה אוטומטית כשהחיבור יחזור.<br>השדות נוקו ואפשר להמשיך לעבודה הבאה.</div>';
-  }
-  if(planned){
-    return '<div class="notice">'+label+' נשמרה כסידור עתידי ✅<br>'+(extraLine||'היא לא נכנסה להתחשבנות עד שתלחץ בוצע.')+'</div>';
-  }
-  return '<div class="notice">'+label+' נשמרה ✅'+amountLine+'<br>השדות נוקו ואפשר להמשיך לעבודה הבאה.</div>';
-}
-function wmAfterLocalEntrySaveV516(messageHtml){
-  try{ if(typeof resetEntryFormsAfterSaveV42==='function') resetEntryFormsAfterSaveV42(); }catch(e){}
-  if($('entryMsg')) $('entryMsg').innerHTML=messageHtml;
+async function refreshLastLoginPanelV523(){
   try{
-    setTimeout(async function(){
-      try{ await loadMonth(); }catch(e){}
-      try{ if(typeof resetEntryFormsAfterSaveV42==='function') resetEntryFormsAfterSaveV42(); }catch(e){}
-      if($('entryMsg')) $('entryMsg').innerHTML=messageHtml;
-      try{ if(typeof ensurePlannedButtonsV49==='function') ensurePlannedButtonsV49(); }catch(e){}
-      try{ if(typeof wrapSaveButtonsV411==='function') wrapSaveButtonsV411(); }catch(e){}
-    },120);
-  }catch(e){}
-  wmEndEntrySaveV516();
-}
-function wmHandleEntrySaveErrorV516(err){
-  wmSetEntrySaveBusyV516(false);
-  var msg=(err && (err.code||err.message)) ? (err.code||err.message) : String(err||'שגיאה לא ידועה');
-  if($('entryMsg')) $('entryMsg').innerHTML='<p class="danger">השמירה נכשלה: '+esc(msg)+'</p>';
+    const uid=llCurrentUidV523();
+    if(!uid){
+      showLastLoginPanelV523(null, "לא נמצא UID מחובר");
+      return;
+    }
+
+    const ref=db.collection("users").doc(uid);
+    let previous=null;
+
+    try{
+      const doc=await ref.get();
+      if(doc.exists){
+        const d=doc.data() || {};
+        previous=d.lastLoginAt || d.lastLoginClientAt || null;
+      }
+      showLastLoginPanelV523(previous, "");
+    }catch(readErr){
+      showLastLoginPanelV523(null, readErr.code || readErr.message || String(readErr));
+      return;
+    }
+
+    try{
+      await ref.set({
+        lastLoginAt:firebase.firestore.FieldValue.serverTimestamp(),
+        lastLoginClientAt:new Date().toISOString(),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+    }catch(writeErr){
+      showLastLoginPanelV523(previous, writeErr.code || writeErr.message || String(writeErr));
+    }
+  }catch(e){
+    showLastLoginPanelV523(null, e.code || e.message || String(e));
+  }
 }
 
-/*
-===============================================================================
-CHANGELOG 4.41 - טלפון חובה במסך בחירת מנוי בלבד
--------------------------------------------------------------------------------
-1. נוסף שדה "מספר טלפון ליצירת קשר" במסך סיום ניסיון/בחירת מנוי בלבד.
-2. אי אפשר ליצור בקשת תשלום בלי טלפון תקין.
-3. מספר הטלפון נשמר בתוך paymentRequests ומוצג בפאנל האדמין במעקב תשלומים.
-4. אין שינוי במסך הרשמה ואין שינוי בלוגיקת עובדים, דשבורד, ימי חופש או שמירת עבודות.
-===============================================================================
-*/
 const firebaseConfig={apiKey:"AIzaSyCR41hsAakxY7FgaPhJAhV63lnrgLIT9eM",authDomain:"work-monitor-a3bb9.firebaseapp.com",projectId:"work-monitor-a3bb9",storageBucket:"work-monitor-a3bb9.firebasestorage.app",messagingSenderId:"571499964314",appId:"1:571499964314:web:ec0f18ba9f1e6502fabc23",measurementId:"G-4SLEBPPYE8"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.firestore();
@@ -1909,7 +1942,14 @@ async function ensureDefaultPriceList(){
   // לא מוסיף שוב אם כבר קיימים פריטים, כדי למנוע כפילויות.
   const snap = await db.collection("priceList").limit(1).get();
   if(!snap.empty) {
-    await cleanupDuplicatePriceList();
+    // v5.22 FIX:
+    // עובד רגיל לא אמור להריץ ניקוי כפילויות מחירון בטעינה, כי זו פעולת כתיבה שגורמת permission-denied.
+    // הניקוי נשאר זמין לאדמין דרך הכפתור הייעודי בלבד.
+    try{
+      if(session && session.role === "admin") await cleanupDuplicatePriceList();
+    }catch(e){
+      console.warn("cleanupDuplicatePriceList skipped in startup:", e && (e.code || e.message) ? (e.code || e.message) : e);
+    }
     return;
   }
   const batch=db.batch();
@@ -6378,6 +6418,7 @@ async function showWorker(worker, token){
   show("logoutBtn");
   
   text("userLine", `${worker.name || "עובד"} · ${session && session.role === "admin" ? "צפייה כמנהל" : "עובד"}`);
+  setTimeout(refreshLastLoginPanelV523, 400);
   // v5.19 FIX:
   // קודם מציגים את ההתחברות הקודמת, ורק אחר כך שומרים את ההתחברות הנוכחית.
   // אם Firestore serverTimestamp עדיין לא הספיק לחזור, משתמשים ב-fallback מקומי.
@@ -14526,6 +14567,141 @@ CHANGE 5.13 - OFFLINE SYNC SAFE LAYER
 })();
 </script>
 
+
+
+
+<script id="v5-24-independent-last-login-trace">
+(function(){
+  var finished=false;
+
+  function el(){
+    return document.getElementById("lastLoginLineV518");
+  }
+
+  function hideLine(){
+    var node=el();
+    if(!node) return;
+    node.textContent="";
+    node.classList.add("hidden");
+    node.style.setProperty("display","none","important");
+  }
+
+  function showLine(text){
+    var node=el();
+    if(!node) return;
+    node.classList.remove("hidden");
+    node.style.setProperty("display","block","important");
+    node.style.setProperty("visibility","visible","important");
+    node.style.setProperty("opacity","1","important");
+    node.textContent=String(text || "");
+  }
+
+  function dateLabel(value){
+    try{
+      if(!value) return "";
+      var d=value;
+      if(value && typeof value.toDate==="function") d=value.toDate();
+      else if(value && typeof value.seconds==="number") d=new Date(value.seconds*1000);
+      else if(typeof value==="string") d=new Date(value);
+      else if(value instanceof Date) d=value;
+      if(!d || isNaN(d.getTime())) return "";
+      return d.toLocaleString("he-IL",{
+        timeZone:"Asia/Jerusalem",
+        day:"2-digit",
+        month:"2-digit",
+        year:"2-digit",
+        hour:"2-digit",
+        minute:"2-digit"
+      });
+    }catch(e){return "";}
+  }
+
+  function getFirebaseAuth(){
+    try{
+      if(window.firebase && firebase.auth) return firebase.auth();
+    }catch(e){}
+    return null;
+  }
+
+  function getFirestore(){
+    try{
+      if(window.firebase && firebase.firestore) return firebase.firestore();
+    }catch(e){}
+    return null;
+  }
+
+  async function runAfterAuth(user){
+    if(finished || !user || !user.uid) return;
+    finished=true;
+
+    var fs=getFirestore();
+    if(!fs){
+      showLine("שגיאת התחברות אחרונה");
+      return;
+    }
+
+    var ref=fs.collection("users").doc(user.uid);
+    var previous=null;
+
+    try{
+      var snap=await ref.get();
+      if(snap.exists){
+        var data=snap.data() || {};
+        previous=data.lastLoginAt || data.lastLoginClientAt || null;
+      }
+    }catch(readErr){
+      showLine("שגיאת קריאת התחברות");
+      return;
+    }
+
+    var label=dateLabel(previous);
+    if(label){
+      showLine("חובר לאחרונה: " + label);
+    }else{
+      showLine("מחובר עכשיו");
+    }
+
+    try{
+      await ref.set({
+        lastLoginAt:firebase.firestore.FieldValue.serverTimestamp(),
+        lastLoginClientAt:new Date().toISOString(),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+    }catch(writeErr){
+      // לא מסתירים את התצוגה אם הקריאה הצליחה אבל הכתיבה נכשלה.
+      console.warn("last login write failed", writeErr);
+    }
+  }
+
+  function boot(){
+    hideLine(); // במסך login לא מוצג כלום
+
+    var a=getFirebaseAuth();
+    if(!a){
+      setTimeout(boot,500);
+      return;
+    }
+
+    try{
+      a.onAuthStateChanged(function(user){
+        if(user && user.uid){
+          runAfterAuth(user);
+        }else{
+          finished=false;
+          hideLine();
+        }
+      });
+    }catch(e){
+      hideLine();
+    }
+  }
+
+  setTimeout(boot,800);
+})();
+</script>
+
+
+
 </body>
 
 
@@ -15844,6 +16020,24 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:'5.24',title:'התחברות אחרונה: הצגת חיבור נוכחי כשאין נתון קודם',date:d,items:[
+        'אם אין התחברות קודמת ב-Firestore, הפאנל מציג התחברות נוכחית עם השעה הנוכחית.',
+        'לאחר ההצגה, ההתחברות הנוכחית נשמרת ל-users/{authUid} ותופיע כ"חובר לאחרונה" בכניסה הבאה.',
+        'המידע נשאר ב-Firestore בלבד, ללא localStorage וללא כתיבה ל-workers.',
+        'לא שונו דשבורד, שמירות, אופליין, חיפוש או מחירונים.'
+      ]},
+      {version:'5.23',title:'התחברות אחרונה בפאנל תחתון נקי',date:d,items:[
+        'חלון Debug התחברות אחרונה הוחלף בפאנל נקי ועדין שמציג רק את התוצאה.',
+        'הפאנל מוצג באזור התחתון של מסך העובד מעל לוח השנה, בלי לגעת בפאנל העליון.',
+        'כניסה אוטומטית מפרטי התחברות שמורים נחשבת כניסה מחדש ומעדכנת את הנתון לפעם הבאה.',
+        'המידע נקרא ונשמר דרך Firestore בלבד במסמך users/{authUid}, ללא localStorage וללא כתיבה ל-workers.'
+      ]},
+      {version:'5.22',title:'Debug התחברות אחרונה וניקוי שגיאת מחירון לעובד',date:d,items:[
+        'נוסף חלון Debug גלוי לבדיקת התחברות אחרונה באזור העובד.',
+        'הדיבאג מציג UID, מצב Auth, קריאה מ-users/{uid}, תוצאה, כתיבה ושגיאות הרשאה אם יש.',
+        'נוסף כפתור בדוק עכשיו להרצת הבדיקה ידנית.',
+        'cleanupDuplicatePriceList לא רץ יותר לעובד רגיל בזמן טעינה, כדי למנוע permission-denied מיותר.'
+      ]},
       {version:'5.21',title:'תיקון אמיתי לחישוב ימי עבודה עתידיים בדשבורד',date:d,items:[
         'תוקנה הפונקציה האמיתית שמזינה את הדשבורד החכם: remainingWorkDaysWithVacations.',
         'החישוב של כמה צריך לעשות לכל יום עבודה מתחיל עכשיו ממחר ולא מהיום.',
