@@ -612,6 +612,28 @@ button:focus{
 @media(max-width:800px){.app-version-mini{font-size:10.5px}.app-version-footer{font-size:10.5px;margin-top:14px}}
 </style>
 
+<style id="v5-18-last-login-topbar-css">
+/* ===== v5.18: התחברות אחרונה בפאנל העליון + הקטנה עדינה של סטטוס אונליין/אופליין ===== */
+.last-login-line-v518{
+  margin-top:2px;
+  font-size:10.5px;
+  line-height:1.2;
+  color:#94a3b8;
+  font-weight:700;
+  white-space:nowrap;
+}
+.connection-indicator-v513,
+#offlineSyncIndicatorV513,
+.offline-sync-indicator-v513{
+  transform:scale(.94);
+  transform-origin:right center;
+  font-size:10.5px!important;
+}
+@media(max-width:800px){
+  .last-login-line-v518{font-size:10px;white-space:normal}
+  .connection-indicator-v513,#offlineSyncIndicatorV513,.offline-sync-indicator-v513{transform:scale(.92)}
+}
+</style>
 
 <style id="v4-20-worker-tabs-css">
 /* ===== v4.21: כרטיסיות באזור העובד + חלון לוח שנה נפרד ===== */
@@ -837,7 +859,7 @@ body.app-booting-v434 #startupView{
 </head>
 <body class="app-booting-v433 app-booting-v434">
 <div class="app">
-<div class="top"><div class="brand"><div class="logo">₪</div><div>מעקב עבודה<br><span id="userLine" class="muted" style="font-size:13px">טוען נתונים</span><div class="app-version-mini" title="גרסת האפליקציה">v<span data-app-version></span></div></div></div><button id="logoutBtn" class="btn-light hidden" onclick="logout()">יציאה</button></div>
+<div class="top"><div class="brand"><div class="logo">₪</div><div>מעקב עבודה<br><span id="userLine" class="muted" style="font-size:13px">טוען נתונים</span><div class="app-version-mini" title="גרסת האפליקציה">v<span data-app-version></span></div><div id="lastLoginLineV518" class="last-login-line-v518 hidden"></div></div></div><button id="logoutBtn" class="btn-light hidden" onclick="logout()">יציאה</button></div>
 
 <section id="startupView" class="card login-box startup-screen">
   <div class="startup-loader-wrap">
@@ -1214,7 +1236,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.16";
+const APP_VERSION = "5.21";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1229,6 +1251,41 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
+
+CHANGELOG 5.21 - תיקון אמיתי לחישוב ימי עבודה עתידיים בדשבורד
+1. APP_VERSION עודכן ל-"5.21".
+2. תוקנה הפונקציה האמיתית שמזינה את הדשבורד: remainingWorkDaysWithVacations.
+3. החישוב מתחיל ממחר בחודש הנוכחי, ללא שבתות וללא ימי חופש עתידיים.
+4. הכרטיס "צריך לכל יום עבודה" והנוסחה של תחזית סוף חודש משתמשים עכשיו באותו מספר ימים עתידיים בדיוק.
+5. לא נוספו רובריקות חדשות ולא שונה UI; התיקון נעשה בתוך פונקציית החישוב הקיימת שמחוברת לדשבורד בפועל.
+6. רשומת 5.21 נוספה למקור requiredChangelogRows כדי שתופיע ב"מה חדש" באדמין ובעובד.
+
+CHANGELOG 5.20 - דשבורד חכם: ימי עבודה שנשארו לא כוללים את היום
+1. APP_VERSION עודכן ל-"5.20".
+2. פונקציית remainingWorkDaysInMonth עודכנה נקודתית כך שבחודש הנוכחי הספירה מתחילה ממחר ולא מהיום.
+3. החישוב "צריך ליום עבודה שנשאר" בדשבורד מתחלק רק בימי עבודה עתידיים, בלי לכלול את היום שכבר עובדים בו.
+4. לא נוספו רובריקות חדשות ולא שונה UI; התיקון נעשה במקום החישוב הקיים בלבד.
+5. רשומת 5.20 נוספה למקור requiredChangelogRows כדי שתופיע ב"מה חדש" באדמין ובעובד.
+
+CHANGELOG 5.19 - תיקון הצגת חובר לאחרונה מיד אחרי Login
+1. APP_VERSION עודכן ל-"5.19".
+2. הצגת "חובר לאחרונה" משתמשת קודם בערך האחרון שנשמר לעובד/מנהל, לפני עדכון ההתחברות הנוכחית.
+3. נוסף fallback מקומי קטן ב-localStorage כדי שגם אם serverTimestamp עדיין לא חזר מ-Firestore, ההתחברות הקודמת תופיע מיד אחרי Logout/Login.
+4. לא שונו לוגין, הרשאות, Offline sync, שמירת עבודות, גיבוי, אקסל או דשבורד.
+
+CHANGELOG 5.18 - התחברות אחרונה בפאנל העליון
+1. APP_VERSION עודכן ל-"5.18".
+2. נוסף טקסט קטן ועדין בפאנל העליון: "חובר לאחרונה" לפי זמן ההתחברות האחרון שנשמר ב-Firestore.
+3. בעת כניסה מוצלחת של עובד/אדמין נשמר lastLoginAt עם serverTimestamp, בלי להסתמך על שעון הטלפון.
+4. אינדיקטור אונליין/אופליין הוקטן מעט כדי לא לתפוס פוקוס.
+5. רשומת 5.18 נוספה למקור requiredChangelogRows כדי שתופיע ב"מה חדש" באדמין ובעובד.
+
+CHANGELOG 5.17 - תיקון מקור מה חדש לגרסאות 5.15-5.17
+1. APP_VERSION עודכן ל-"5.17".
+2. רשומות 5.15, 5.16 ו-5.17 נוספו ישירות למקור requiredChangelogRows שמזריע את appChangelog ל-Firebase.
+3. מעכשיו חלון "מה חדש" ופאנל האדמין יראו את הגרסאות החדשות גם אם Firestore כבר מכיל גרסאות ישנות בלבד.
+4. לא נוסף Patch חיצוני: התיקון בוצע בתוך מנגנון ה-Changelog הקיים, בלי לשנות שמירה, Offline, סנכרון, לוגין, אקסל או גיבוי.
+
 CHANGELOG 5.16 - חיווי שמירה מיידי במצב Offline ומניעת כפילויות
 1. APP_VERSION עודכן ל-"5.16".
 2. פונקציות השמירה הקיימות עודכנו כך שבמצב אופליין לא מחכים לאישור שרת לפני חיווי וניקוי שדות.
@@ -1503,6 +1560,76 @@ function enforceAppVersionUI(){
 }
 
 
+/* ===== v5.18: Last login topbar helpers =====
+   נשמר ב-Firestore עם serverTimestamp בזמן כניסה מוצלחת, ומוצג בפאנל העליון בטקסט קטן.
+   אם אין התחברות קודמת לא מציגים שורה, כדי לא להעמיס על ה-UI.
+*/
+function timestampToDateV518(value){
+  try{
+    if(!value) return null;
+    if(value instanceof Date) return value;
+    if(typeof value.toDate === "function") return value.toDate();
+    if(typeof value.seconds === "number") return new Date(value.seconds*1000);
+    if(typeof value === "number") return new Date(value);
+    if(typeof value === "string"){
+      const d=new Date(value);
+      return isNaN(d.getTime()) ? null : d;
+    }
+  }catch(e){}
+  return null;
+}
+function formatLastLoginV518(value){
+  const d=timestampToDateV518(value);
+  if(!d) return "";
+  return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function renderLastLoginTopV518(value){
+  const el=document.getElementById("lastLoginLineV518");
+  if(!el) return;
+  const formatted=formatLastLoginV518(value);
+  if(!formatted){
+    el.textContent="";
+    el.classList.add("hidden");
+    return;
+  }
+  el.textContent="חובר לאחרונה: " + formatted;
+  el.classList.remove("hidden");
+}
+function clearLastLoginTopV518(){
+  const el=document.getElementById("lastLoginLineV518");
+  if(!el) return;
+  el.textContent="";
+  el.classList.add("hidden");
+}
+async function recordWorkerLastLoginV518(workerId){
+  if(!workerId) return;
+  // v5.19 FIX:
+  // שומרים גם ערך מקומי מיידי. serverTimestamp ב-Firestore עלול לחזור באיחור,
+  // ולכן אחרי Logout/Login מהיר עדיין צריך לראות את ההתחברות הקודמת בפאנל העליון.
+  const nowIso = new Date().toISOString();
+  try{ localStorage.setItem("wm_last_login_worker_" + workerId, nowIso); }catch(e){}
+  try{
+    await db.collection("workers").doc(workerId).set({
+      lastLoginAt: firebase.firestore.FieldValue.serverTimestamp(),
+      lastLoginClientAt: nowIso,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+  }catch(e){ console.warn("recordWorkerLastLoginV518 failed", e); }
+}
+async function recordAdminLastLoginV518(){
+  // v5.19 FIX: fallback מקומי למנהל עד ש-serverTimestamp חוזר מ-Firestore.
+  const nowIso = new Date().toISOString();
+  try{ localStorage.setItem("wm_last_login_admin", nowIso); }catch(e){}
+  try{
+    await db.collection("settings").doc("main").set({
+      adminLastLoginAt: firebase.firestore.FieldValue.serverTimestamp(),
+      adminLastLoginClientAt: nowIso,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+  }catch(e){ console.warn("recordAdminLastLoginV518 failed", e); }
+}
+
+
 /*
 ===============================================================================
 CHANGE 5.16 - IMMEDIATE OFFLINE SAVE FEEDBACK CORE
@@ -1701,7 +1828,7 @@ function attachLoginFieldCleaner(){
   });
 }
 window.onload=async()=>{try{await ensureDefaultPriceList();await loadSettings();attachLoginFieldCleaner()}catch(e){console.error(e)}const saved=localStorage.getItem("workSession");if(saved){try{session=JSON.parse(saved);if(session.role==="admin"){localStorage.removeItem("workSession");session=null;clearLoginFields();return showWorkerLogin()}if(session.role==="worker"){if(isSessionExpired()){localStorage.removeItem("workSession");session=null;clearLoginFields();return showWorkerLogin()}clearLoginFields();return showWorkerById(session.workerId)}}catch(e){localStorage.removeItem("workSession")}}showWorkerLogin()};
-function secretTap(){tapCount++;if(tapCount>=10){tapCount=0;clearLoginFields();hideAll();show("adminLoginView");$("adminUsername").focus()}}function showWorkerLogin(){clearLoginFields();hideAll();show("workerLoginView");hide("logoutBtn");text("userLine","לא מחובר");text("workerLoginMsg","")}
+function secretTap(){tapCount++;if(tapCount>=10){tapCount=0;clearLoginFields();hideAll();show("adminLoginView");$("adminUsername").focus()}}function showWorkerLogin(){clearLoginFields();hideAll();show("workerLoginView");hide("logoutBtn");text("userLine","לא מחובר");clearLastLoginTopV518();text("workerLoginMsg","")}
 async function adminLogin(){await loadSettings();const u=val("adminUsername"),p=val("adminPassword");if(u===ADMIN_USERNAME&&await sha256(p)===ADMIN_PASSWORD_SHA256){session={role:"admin",name:"מנהל"};localStorage.setItem("workSession",JSON.stringify(session));clearLoginFields();await showAdmin()}else text("adminLoginMsg","שם משתמש או סיסמה לא נכונים.")}
 async function workerLogin(){
   const username = val("workerUsername"), pass = val("workerPassword");
@@ -2000,8 +2127,18 @@ function renderSmartDashboard(){
 function remainingWorkDaysInMonth(){
   const now=new Date();
   const y=calendarDate.getFullYear(),m=calendarDate.getMonth();
-  const start=(now.getFullYear()===y&&now.getMonth()===m)?now.getDate():1;
+
+  // v5.20 FIX:
+  // בדשבורד החכם "כמה צריך לכל יום עבודה שנשאר" לא אמור לכלול את היום הנוכחי.
+  // היום כבר משמש לעדכון הסכום שבוצע בפועל, ולכן ימי העבודה העתידיים מתחילים ממחר.
+  const viewedMonthStart=new Date(y,m,1);
+  const currentMonthStart=new Date(now.getFullYear(),now.getMonth(),1);
+  if(viewedMonthStart < currentMonthStart) return 0;
+
+  const isCurrentMonth=(now.getFullYear()===y && now.getMonth()===m);
+  const start=isCurrentMonth ? now.getDate()+1 : 1;
   const last=new Date(y,m+1,0).getDate();
+
   let count=0;
   for(let d=start;d<=last;d++){
     const dt=new Date(y,m,d);
@@ -4620,6 +4757,15 @@ async function showAdmin(){
   hideAll(); show("adminView"); show("logoutBtn"); text("userLine","מנהל · Auth מאובטח");
   await waitForAuthReadyV169();
   await ensureDefaultPriceList(); await loadSettings();
+  try{
+    const settingsDocV518 = await db.collection("settings").doc("main").get();
+    const settingsV518 = settingsDocV518.exists ? settingsDocV518.data() : {};
+    // v5.19 FIX: מציגים את ההתחברות הקודמת לפני שמעדכנים את ההתחברות הנוכחית.
+    let localAdminLastLoginV519 = "";
+    try{ localAdminLastLoginV519 = localStorage.getItem("wm_last_login_admin") || ""; }catch(e){}
+    renderLastLoginTopV518(settingsV518.adminLastLoginAt || settingsV518.adminLastLoginClientAt || localAdminLastLoginV519);
+    recordAdminLastLoginV518();
+  }catch(e){ console.warn("admin last login display skipped", e); }
   if($("servicePriceInput"))$("servicePriceInput").value=SERVICE_PRICE;
   if($("adminSetUsername"))$("adminSetUsername").value=ADMIN_USERNAME;
   if($("trialDaysInput"))$("trialDaysInput").value=DEFAULT_TRIAL_DAYS;
@@ -6171,7 +6317,7 @@ async function logout(){
   selectedType = null;
   monthEntries = [];
   try{ clearLoginFields(); }catch(e){}
-  try{ hideAll(); show("workerLoginView"); hide("logoutBtn"); text("userLine","לא מחובר"); }catch(e){}
+  try{ hideAll(); show("workerLoginView"); hide("logoutBtn"); text("userLine","לא מחובר"); clearLastLoginTopV518(); }catch(e){}
 
   // signOut יכול לקחת רגע או להיכשל בגלל מצב ביניים — לא נותנים לזה לשבור את המסך.
   try{ if(firebaseAuthReady()) await auth.signOut(); }catch(e){ console.warn("signOut skipped/failed", e); }
@@ -6179,7 +6325,7 @@ async function logout(){
   // רק אם אין ניווט חדש בינתיים, מסיימים מצב logout.
   if(token === currentNavTokenV180()){
     window.__isLoggingOutV180 = false;
-    try{ hideAll(); show("workerLoginView"); hide("logoutBtn"); text("userLine","לא מחובר"); }catch(e){}
+    try{ hideAll(); show("workerLoginView"); hide("logoutBtn"); text("userLine","לא מחובר"); clearLastLoginTopV518(); }catch(e){}
   }
 }
 
@@ -6232,6 +6378,13 @@ async function showWorker(worker, token){
   show("logoutBtn");
   
   text("userLine", `${worker.name || "עובד"} · ${session && session.role === "admin" ? "צפייה כמנהל" : "עובד"}`);
+  // v5.19 FIX:
+  // קודם מציגים את ההתחברות הקודמת, ורק אחר כך שומרים את ההתחברות הנוכחית.
+  // אם Firestore serverTimestamp עדיין לא הספיק לחזור, משתמשים ב-fallback מקומי.
+  let localWorkerLastLoginV519 = "";
+  try{ localWorkerLastLoginV519 = localStorage.getItem("wm_last_login_worker_" + worker.id) || ""; }catch(e){}
+  renderLastLoginTopV518(worker.lastLoginAt || worker.lastLoginClientAt || worker.lastAuthLoginAt || localWorkerLastLoginV519);
+  if(session && session.role === "worker") recordWorkerLastLoginV518(worker.id);
   text("helloTitle", `שלום ${worker.name || ""}`);
   calendarDate = new Date();
   selectedDate = null;
@@ -14019,23 +14172,32 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
   function todayStrSafe(){try{return formatDate(new Date());}catch(e){return fmt(new Date());}}
   function remainingWorkDaysWithVacations(){
     /*
-      v4.95 CORE FIX:
-      "ימי עבודה שנשארו" = מהיום עד סוף החודש, בלי שבתות, פחות ימי חופש שעדיין לא עברו.
-      ימי חופש שעברו בחודש לא מורידים מהיתרה, כי הם כבר לא חלק מהימים שנשארו.
+      v5.21 CORE FIX:
+      זו הפונקציה האמיתית שמזינה את הדשבורד החכם.
+      "ימי עבודה שנשארו לחישוב יעד" חייבים להתחיל ממחר, לא מהיום.
+      היום כבר משפיע על הסכום שבוצע בפועל, ולכן לא מחלקים את החסר ליעד גם על היום.
+      החישוב: ממחר עד סוף החודש, ללא שבתות וללא ימי חופש עתידיים.
     */
     try{
       var now=new Date(), todayOnly=new Date(now.getFullYear(),now.getMonth(),now.getDate());
       var range=currentMonthRange(), y=range.year, m=range.month, last=range.last;
       var monthStart=new Date(y,m,1), monthEnd=new Date(y,m,last);
+
+      // חודש שעבר: אין ימי עבודה עתידיים.
       if(monthEnd<todayOnly) return 0;
-      var start=(todayOnly>monthStart && now.getFullYear()===y && now.getMonth()===m)?now.getDate():1;
+
+      var isCurrentMonth=(now.getFullYear()===y && now.getMonth()===m);
+
+      // חודש נוכחי: מתחילים ממחר. חודש עתידי: מתחילים מהיום הראשון בחודש.
+      var start=isCurrentMonth ? now.getDate()+1 : 1;
       if(monthStart>todayOnly) start=1;
+
       var c=0;
       for(var d=start;d<=last;d++){
         var ds=y+'-'+pad2(m+1)+'-'+pad2(d), dt=new Date(y,m,d);
         if(dt.getDay()!==6 && !isVacation(ds)) c++;
       }
-      return c;
+      return Math.max(c,0);
     }catch(e){return 0;}
   }
   function regularWorkDaysInMonth(){
@@ -14148,13 +14310,13 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
     var old=q('vacationGoalStripV437'); if(old) old.remove();
     var wrap=document.createElement('div'); wrap.id='vacationGoalStripV437';
     var elapsed=Number(stats.elapsedWork!==undefined?stats.elapsedWork:0);
-    var remNoToday=Number(stats.remNoToday!==undefined?stats.remNoToday:Math.max(rem-1,0));
+    var remNoToday=Number(stats.remNoToday!==undefined?stats.remNoToday:rem);
     wrap.innerHTML='<div class="vacation-goal-strip-v437"><h3>🏖️ ימי עבודה, חופש והשפעה על היעד</h3><div class="smart-subgrid-v436">'+
       '<div class="smart-tip-v436">ימי עבודה בחודש<b>'+regular+'</b><div class="vacation-note-v437">כל ימי החודש פחות שבתות בלבד</div></div>'+
       '<div class="smart-tip-v436">ימי חופש שסומנו<b>'+vacCount+'</b><div class="vacation-note-v437">כל ימי החופש שסומנו בחודש</div></div>'+
       '<div class="smart-tip-v436">עבדת עד היום<b>'+elapsed+'</b><div class="vacation-note-v437">ימי עבודה שעברו בחודש, ללא שבתות וללא ימי חופש</div></div>'+
       '<div class="smart-tip-v436">נשאר לך לעבוד<b>'+remNoToday+'</b><div class="vacation-note-v437">ממחר עד סוף החודש, ללא שבתות וללא ימי חופש עתידיים · לא כולל היום</div></div>'+
-      '<div class="smart-tip-v436">ימי עבודה שנשארו לחישוב יעד<b>'+rem+'</b><div class="vacation-note-v437">מהיום עד סוף החודש, פחות שבתות וחופש עתידי</div></div>'+ 
+      '<div class="smart-tip-v436">ימי עבודה שנשארו לחישוב יעד<b>'+rem+'</b><div class="vacation-note-v437">ממחר עד סוף החודש, פחות שבתות וחופש עתידי</div></div>'+ 
       '<div class="smart-tip-v436 smart-goal-focus-v436">צריך לכל יום עבודה<b>'+(goal?moneySafe(need):'—')+'</b><div class="vacation-note-v437">חסר ליעד חלקי ימי עבודה שנשארו</div></div>'+
       '</div>'+(goal?'<p class="muted">תחזית סוף חודש: '+(doneCount?moneySafe(forecast):'—')+' · נוסחה: בוצע בפועל '+moneySafe(total)+' + ממוצע ליום עבודה '+moneySafe(avg)+' × '+rem+' ימי עבודה שנשארו לחישוב יעד.</p>':'<p class="muted">לא הוגדר יעד חודשי, לכן אין חישוב יומי.</p>')+'</div>';
     box.insertBefore(wrap,box.firstChild);
@@ -15682,6 +15844,48 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:'5.21',title:'תיקון אמיתי לחישוב ימי עבודה עתידיים בדשבורד',date:d,items:[
+        'תוקנה הפונקציה האמיתית שמזינה את הדשבורד החכם: remainingWorkDaysWithVacations.',
+        'החישוב של כמה צריך לעשות לכל יום עבודה מתחיל עכשיו ממחר ולא מהיום.',
+        'החישוב מתחשב בשבתות ובימי חופש עתידיים, ומחלק את החסר ליעד רק בימים שבאמת נשארו לעבוד.',
+        'לא נוספו רובריקות חדשות ולא שונה UI; התיקון בוצע בתוך פונקציית החישוב הקיימת שמחוברת לדשבורד בפועל.'
+      ]},
+      {version:'5.20',title:'דשבורד חכם: ימי עבודה שנשארו לא כוללים את היום',date:d,items:[
+        'חישוב כמה צריך לעשות לכל יום עבודה שנשאר בדשבורד החכם עודכן כך שהוא לא כולל את היום הנוכחי.',
+        'בחודש הנוכחי הספירה מתחילה ממחר ועד סוף החודש, ללא שבתות, כדי שכל עבודה שנוספת היום תקזז את החסר ותתחלק רק בימים העתידיים.',
+        'אם מסתכלים על חודש שעבר, ימי העבודה שנשארו מוחזרים כ-0 כדי למנוע חישוב מטעה.',
+        'לא נוספו רובריקות חדשות ולא שונה UI; התיקון נעשה ישירות בפונקציית remainingWorkDaysInMonth הקיימת.'
+      ]},
+      {version:'5.19',title:'תיקון הצגת חובר לאחרונה מיד אחרי Login',date:d,items:[
+        'תוקן מצב שבו חובר לאחרונה לא הופיע אחרי Logout/Login בגלל ש-serverTimestamp עדיין לא חזר מ-Firestore.',
+        'המערכת מציגה קודם את ההתחברות הקודמת ורק אחר כך מעדכנת את ההתחברות הנוכחית.',
+        'נוסף fallback מקומי קטן כדי שהמידע יוצג גם אם Firestore מתעכב או המכשיר היה במצב אופליין.',
+        'לא שונו זרימת login, הרשאות, שמירת עבודות, Offline sync, גיבוי, אקסל או דשבורד.'
+      ]},
+      {version:'5.18',title:'התחברות אחרונה בפאנל העליון',date:d,items:[
+        'נוסף טקסט קטן ועדין בפאנל העליון שמציג מתי המשתמש חובר לאחרונה.',
+        'בעת כניסה מוצלחת של עובד או אדמין נשמר lastLoginAt ב-Firestore עם serverTimestamp.',
+        'אם אין התחברות קודמת, השורה מוסתרת כדי לא להעמיס על המסך.',
+        'אינדיקטור אונליין/אופליין הוקטן מעט בלי לשנות את לוגיקת הסנכרון או ספירת העבודות הממתינות.'
+      ]},
+      {version:'5.17',title:'תיקון מקור מה חדש לגרסאות האחרונות',date:d,items:[
+        'נוספו רשומות 5.15, 5.16 ו-5.17 ישירות למקור requiredChangelogRows שממנו נבנה חלון מה חדש.',
+        'האדמין יוסיף ל-Firestore רק גרסאות חסרות, בלי לדרוס גרסאות קיימות שנערכו ידנית.',
+        'העובד והאדמין יראו את העדכון גם אם appChangelog כבר הכיל רשומות ישנות בלבד.',
+        'התיקון בוצע בתוך מנגנון ה-Changelog הקיים ולא כשכבת Patch חדשה בסוף הקובץ.'
+      ]},
+      {version:'5.16',title:'חיווי שמירה מיידי במצב Offline ומניעת כפילויות',date:d,items:[
+        'שמירת קריאת שירות והתקנה מציגה חיווי מיידי גם כשהמכשיר אופליין.',
+        'הכתיבה ל-Firestore לא חוסמת יותר את ניקוי השדות בזמן Offline; הנתונים נשמרים מקומית ומסתנכרנים ברקע.',
+        'נוספה נעילת כפתור קצרה בזמן שמירה כדי למנוע לחיצות חוזרות ושמירת אותה עבודה כמה פעמים.',
+        'ניקוי השדות והחזרת הטופס למצב מוכן לעבודה חדשה מתבצעים מיד אחרי קליטת השמירה המקומית.'
+      ]},
+      {version:'5.15',title:'תיקון הודעת שמירה אחרי רענון חודש',date:d,items:[
+        'הודעת ההצלחה אחרי שמירה נשמרת גם אחרי loadMonth ולא נמחקת על ידי רינדור מחדש של היום.',
+        'הטופס חוזר למצב נקי ומוכן להזנה חדשה אחרי שמירת קריאת שירות או התקנה.',
+        'היום הנבחר נשאר פתוח כדי שהעובד ימשיך לעבוד בלי קפיצה מבלבלת במסך.',
+        'השינוי התמקד בחוויית המשתמש אחרי שמירה ולא שינה את מבנה הנתונים או מחירוני העבודה.'
+      ]},
       {version:'5.14',title:'מיקום אינדיקטור חיבור עליון',date:d,items:[
         'אינדיקטור אונליין/אופליין/מסנכרן הועבר מהפינה התחתונה לאזור העליון ליד סטטוס המשתמש.',
         'האינדיקטור הוקטן כדי שלא יסתיר כפתורי נגישות, מה חדש או אלמנטים צפים אחרים.',
