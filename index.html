@@ -520,44 +520,27 @@ input:focus,textarea:focus,select:focus{animation:popIn .2s ease both}
   border-radius:8px;
 }
 
-/* ===== v5.24 INLINE LAST LOGIN NEAR VERSION ===== */
+/* ===== v5.24 CLEAN LAST LOGIN UI ===== */
 #lastLoginLineV518{
-  display:inline-block!important;
+  display:block!important;
   visibility:visible!important;
-  opacity:.82!important;
-  font-size:8.5px!important;
+  opacity:.88!important;
+  font-size:9px!important;
   color:#94a3b8!important;
   font-weight:700!important;
-  line-height:1!important;
-  margin-top:0!important;
-  margin-inline-start:4px!important;
+  line-height:1.15!important;
+  margin-top:2px!important;
   white-space:nowrap!important;
-  text-align:right!important;
+  text-align:center!important;
   background:none!important;
   border:none!important;
   padding:0!important;
   border-radius:0!important;
   box-shadow:none!important;
-  vertical-align:middle!important;
-}
-#lastLoginLineV518.hidden{
-  display:none!important;
-}
-.app-version-mini,
-.app-version-footer,
-[data-app-version]{
-  display:flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  gap:4px!important;
-  flex-wrap:nowrap!important;
 }
 @media(max-width:800px){
   #lastLoginLineV518{
-    font-size:8px!important;
-    max-width:140px!important;
-    overflow:hidden!important;
-    text-overflow:ellipsis!important;
+    font-size:8.5px!important;
   }
 }
 </style>
@@ -14673,9 +14656,9 @@ CHANGE 5.13 - OFFLINE SYNC SAFE LAYER
 
     var label=dateLabel(previous);
     if(label){
-      showLine("• " + label);
+      showLine("חובר לאחרונה: " + label);
     }else{
-      showLine("• עכשיו");
+      showLine("מחובר עכשיו");
     }
 
     try{
@@ -16396,6 +16379,6 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   }
   document.addEventListener('DOMContentLoaded',function(){ setTimeout(ensureWorkerLink,300); setTimeout(function(){ if(q('adminView')&&!q('adminView').classList.contains('hidden')){ ensureAdminPanel(); window.loadAdminChangelogV475(); } },700); });
   window.addEventListener('load',function(){ setTimeout(ensureWorkerLink,300); setTimeout(ensureWorkerLink,1200); setTimeout(function(){ if(q('adminView')&&!q('adminView').classList.contains('hidden')){ ensureAdminPanel(); window.loadAdminChangelogV475(); } },900); });
-})();
+})(); 
 </script>
 
