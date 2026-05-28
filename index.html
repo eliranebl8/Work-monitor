@@ -1309,7 +1309,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.24";
+const APP_VERSION = "5.25";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1324,6 +1324,15 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
+
+CHANGELOG 5.25 - תיקון שמירה לקריאת שירות / התקנה / מתוזמן
+1. APP_VERSION עודכן ל-"5.25".
+2. תוקנו כפתורי השמירה הפעילים בפועל: קריאת שירות, התקנה, קריאת שירות מתוזמנת והתקנה מתוזמנת.
+3. נוספו פונקציות wmBeginEntrySaveV516 / wmAfterLocalEntrySaveV516 / wmHandleEntrySaveErrorV516 / wmOfflineSaveNoticeV516 שחסרו וגרמו ללחיצה לא להגיב.
+4. השמירה לא חוסמת את המסך באופליין או ברשת איטית: מוצג חיווי מיידי, השדות מתנקים, והסנכרון ממשיך ברקע.
+5. נוספה נעילת לחיצה קצרה כדי למנוע שמירה כפולה מלחיצות חוזרות.
+6. לא שונו דשבורד, התחברות אחרונה, מחירונים, חיפוש, אקסל או גיבויים.
+7. רשומת 5.25 נוספה למקור requiredChangelogRows כדי שתופיע ב"מה חדש".
 
 CHANGELOG 5.24 - התחברות אחרונה: הצגת חיבור נוכחי כשאין נתון קודם
 1. APP_VERSION עודכן ל-"5.24".
@@ -10123,6 +10132,109 @@ service cloud.firestore {
   }
   window.ensurePlannedButtonsV49=ensurePlannedButtonsV49;
 
+
+  /*
+  ===============================================================================
+  CHANGE 5.25 - ACTIVE SAVE HELPERS RESTORED
+  -------------------------------------------------------------------------------
+  פונקציות השמירה הפעילות V49 קראו לעזרי V516 שלא היו קיימים בקובץ,
+  ולכן לחיצה על שמור קריאת שירות / התקנה / מתוזמן נראתה כאילו לא עושה כלום.
+  כאן מחזירים את העזרים בתוך אותו scope, בלי לשנות דשבורד או לוגיקה אחרת.
+  ===============================================================================
+  */
+  let wmEntrySaveBusyV525=false;
+
+  function wmBeginEntrySaveV516(){
+    if(wmEntrySaveBusyV525) return false;
+    wmEntrySaveBusyV525=true;
+    try{
+      document.querySelectorAll('#serviceForm button,#installForm button').forEach(function(btn){
+        if(btn && (btn.textContent||'').includes('שמור')){
+          btn.disabled=true;
+        }
+      });
+    }catch(e){}
+    return true;
+  }
+
+  function wmReleaseEntrySaveV525(){
+    setTimeout(function(){
+      wmEntrySaveBusyV525=false;
+      try{
+        document.querySelectorAll('#serviceForm button,#installForm button').forEach(function(btn){
+          if(btn) btn.disabled=false;
+        });
+      }catch(e){}
+    },700);
+  }
+
+  function wmOfflineSaveNoticeV516(label, amount, status, plannedNote){
+    var online=true;
+    try{ online=navigator.onLine!==false; }catch(e){}
+    var isPlanned=status==='planned';
+    var title=(label||'העבודה') + (isPlanned ? ' נשמרה כסידור עתידי ✅' : (online ? ' נשמרה ✅' : ' נשמרה מקומית ✅'));
+    var amountText='';
+    if(amount!==null && amount!==undefined){
+      try{ amountText='סכום: '+(typeof money==='function'?money(amount):('₪'+Number(amount||0))); }catch(e){}
+    }
+    var syncLine=online
+      ? 'אפשר להמשיך להזין עבודה חדשה.'
+      : 'אין חיבור כרגע — הנתונים יסתנכרנו אוטומטית כשהאפליקציה תחזור לאונליין.';
+    var note=isPlanned && plannedNote ? plannedNote : '';
+    return '<div class="save-feedback-v41">'+title+
+      (amountText?'<br><span>'+amountText+'</span>':'')+
+      '<br><span>'+syncLine+'</span>'+
+      (note?'<br><span>'+note+'</span>':'')+
+      '</div>';
+  }
+
+  function wmResetEntryFormsV525(){
+    try{
+      if($('sCustomer')) $('sCustomer').value='';
+      if($('sAddress')) $('sAddress').value='';
+      if($('sNotes')) $('sNotes').value='';
+      if($('sCustomerHistory')) $('sCustomerHistory').innerHTML='';
+      if($('sReturnCall')) $('sReturnCall').checked=false;
+      if(typeof updateServicePreview==='function') updateServicePreview();
+
+      if($('iCustomer')) $('iCustomer').value='';
+      if($('iAddress')) $('iAddress').value='';
+      if($('iNotes')) $('iNotes').value='';
+      if($('iCustomerHistory')) $('iCustomerHistory').innerHTML='';
+      if($('installTemplateSelect')) $('installTemplateSelect').value='';
+      if(Array.isArray(priceList)){
+        priceList.forEach(function(p){
+          var el=$('qty_'+p.id);
+          if(!el) return;
+          if((p.inputMode||'qty')==='check') el.checked=false;
+          else el.value='';
+        });
+      }
+      if(typeof updateInstallPreview==='function') updateInstallPreview();
+    }catch(e){ console.warn('wmResetEntryFormsV525 failed', e); }
+  }
+
+  function wmAfterLocalEntrySaveV516(successMsg){
+    try{
+      var msg=$('entryMsg');
+      if(msg) msg.innerHTML=successMsg || '<div class="notice">העבודה נקלטה ✅</div>';
+      wmResetEntryFormsV525();
+      if(typeof renderDay==='function') renderDay();
+      if(typeof renderStats==='function') renderStats();
+      if(typeof renderSmartDashboard==='function') renderSmartDashboard();
+    }catch(e){ console.warn('wmAfterLocalEntrySaveV516 failed', e); }
+    wmReleaseEntrySaveV525();
+  }
+
+  function wmHandleEntrySaveErrorV516(err){
+    try{
+      var msg=$('entryMsg');
+      if(msg) msg.innerHTML='<p class="danger">שגיאה בשמירה: '+esc((err && (err.message||err.code)) || String(err))+'</p>';
+      console.error('wmHandleEntrySaveErrorV516', err);
+    }catch(e){}
+    wmReleaseEntrySaveV525();
+  }
+
   async function addServiceWithStatusV49(status){
     const customerNumber=val('sCustomer'), address=val('sAddress'), notes=val('sNotes'), isReturnCall=$('sReturnCall')&&$('sReturnCall').checked;
     const amount=isReturnCall?0:SERVICE_PRICE;
@@ -10139,7 +10251,7 @@ service cloud.firestore {
         createdAt:firebase.firestore.FieldValue.serverTimestamp()
       });
       // v5.16: לא עושים await כאן. באופליין ההבטחה עלולה להיסגר רק כשהשרת חוזר, אבל המשתמש צריך חיווי וניקוי מידיים.
-      writePromise.catch(wmHandleEntrySaveErrorV516);
+      writePromise.then(function(){ try{ if(typeof loadMonth==='function') loadMonth(); }catch(e){} }).catch(wmHandleEntrySaveErrorV516);
       wmAfterLocalEntrySaveV516(successMsg);
     }catch(err){
       wmHandleEntrySaveErrorV516(err);
@@ -10169,7 +10281,7 @@ service cloud.firestore {
         createdAt:firebase.firestore.FieldValue.serverTimestamp()
       });
       // v5.16: לא עושים await כאן כדי שחיווי וניקוי שדות יעבדו גם כשהמכשיר אופליין.
-      writePromise.catch(wmHandleEntrySaveErrorV516);
+      writePromise.then(function(){ try{ if(typeof loadMonth==='function') loadMonth(); }catch(e){} }).catch(wmHandleEntrySaveErrorV516);
       wmAfterLocalEntrySaveV516(successMsg);
     }catch(err){
       wmHandleEntrySaveErrorV516(err);
@@ -16020,6 +16132,12 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:'5.25',title:'תיקון שמירה לקריאת שירות / התקנה / מתוזמן',date:d,items:[
+        'תוקנו כפתורי השמירה הפעילים בפועל: קריאת שירות, התקנה, קריאת שירות מתוזמנת והתקנה מתוזמנת.',
+        'הוחזרו פונקציות עזר חסרות שגרמו ללחיצה על שמור להיראות כאילו לא עושה כלום.',
+        'השמירה מציגה חיווי מיידי ומנקה שדות גם באופליין או ברשת איטית.',
+        'נוספה נעילת לחיצה קצרה כדי למנוע שמירה כפולה.'
+      ]},
       {version:'5.24',title:'התחברות אחרונה: הצגת חיבור נוכחי כשאין נתון קודם',date:d,items:[
         'אם אין התחברות קודמת ב-Firestore, הפאנל מציג התחברות נוכחית עם השעה הנוכחית.',
         'לאחר ההצגה, ההתחברות הנוכחית נשמרת ל-users/{authUid} ותופיע כ"חובר לאחרונה" בכניסה הבאה.',
@@ -16379,6 +16497,6 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   }
   document.addEventListener('DOMContentLoaded',function(){ setTimeout(ensureWorkerLink,300); setTimeout(function(){ if(q('adminView')&&!q('adminView').classList.contains('hidden')){ ensureAdminPanel(); window.loadAdminChangelogV475(); } },700); });
   window.addEventListener('load',function(){ setTimeout(ensureWorkerLink,300); setTimeout(ensureWorkerLink,1200); setTimeout(function(){ if(q('adminView')&&!q('adminView').classList.contains('hidden')){ ensureAdminPanel(); window.loadAdminChangelogV475(); } },900); });
-})(); 
+})();
 </script>
 
