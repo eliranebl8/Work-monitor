@@ -1309,7 +1309,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.25";
+const APP_VERSION = "5.26";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1324,6 +1324,16 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
+
+CHANGELOG 5.26 - תיקון שמירת התקנת סיב/RF רגילה ומתוזמנת
+1. APP_VERSION עודכן ל-"5.26".
+2. נמצא שהתקנות סיב/RF לא השתמשו ב-addInstallWithStatusV49 אלא בדריסה מאוחרת יותר: addInstallWithStatusV411.
+3. פונקציות העזר של השמירה נחשפו ל-window כדי שגם addInstallWithStatusV411 תוכל להשתמש בהן.
+4. addInstallWithStatusV411 עודכנה נקודתית כך שכפתורי התקנה רגילה ומתוזמנת עובדים כמו קריאת שירות.
+5. התיקון מכסה התקנת סיב, התקנת RF, התקנה מתוזמנת וסיב/RF מתוזמן.
+6. השמירה עדיין לא חוסמת את המסך באופליין/רשת איטית, מציגה חיווי מיידי ומונעת לחיצות כפולות.
+7. לא שונו דשבורד, התחברות אחרונה, מחירונים, חיפוש, אקסל או גיבויים.
+8. רשומת 5.26 נוספה למקור requiredChangelogRows כדי שתופיע ב"מה חדש".
 
 CHANGELOG 5.25 - תיקון שמירה לקריאת שירות / התקנה / מתוזמן
 1. APP_VERSION עודכן ל-"5.25".
@@ -10235,6 +10245,13 @@ service cloud.firestore {
     wmReleaseEntrySaveV525();
   }
 
+  // v5.26:
+  // פונקציות V516 נחשפות ל-window כי התקנות סיב/RF נשמרות מסקריפט V411 נפרד.
+  window.wmBeginEntrySaveV516 = wmBeginEntrySaveV516;
+  window.wmOfflineSaveNoticeV516 = wmOfflineSaveNoticeV516;
+  window.wmAfterLocalEntrySaveV516 = wmAfterLocalEntrySaveV516;
+  window.wmHandleEntrySaveErrorV516 = wmHandleEntrySaveErrorV516;
+
   async function addServiceWithStatusV49(status){
     const customerNumber=val('sCustomer'), address=val('sAddress'), notes=val('sNotes'), isReturnCall=$('sReturnCall')&&$('sReturnCall').checked;
     const amount=isReturnCall?0:SERVICE_PRICE;
@@ -10678,27 +10695,93 @@ service cloud.firestore {
   const oldAddInstallPlannedV411=window.addInstallPlannedV49;
   // דריסת שמירת התקנה כדי לשמור גם אם זו התקנת RF/סיב
   async function addInstallWithStatusV411(status){
+    // v5.26 FIX:
+    // זו פונקציית ההתקנה הפעילה בפועל עבור סיב/RF.
+    // היא נמצאת בסקופ אחר מ-V49, לכן משתמשים בפונקציות העזר דרך window.
+    const beginSave = window.wmBeginEntrySaveV516 || function(){return true;};
+    const saveNotice = window.wmOfflineSaveNoticeV516 || function(label,amount){
+      return '<div class="notice">'+esc(label||'ההתקנה')+' נקלטה ✅</div>';
+    };
+    const afterLocalSave = window.wmAfterLocalEntrySaveV516 || function(msg){
+      if($('entryMsg')) $('entryMsg').innerHTML = msg || '<div class="notice">ההתקנה נקלטה ✅</div>';
+    };
+    const handleSaveError = window.wmHandleEntrySaveErrorV516 || function(err){
+      if($('entryMsg')) $('entryMsg').innerHTML='<p class="danger">שגיאה בשמירה: '+esc((err && (err.message||err.code)) || String(err))+'</p>';
+      console.error(err);
+    };
+
     const customerNumber=val('iCustomer'), address=val('iAddress'), notes=val('iNotes');
-    if(!customerNumber||!/^\d+$/.test(customerNumber))return $('entryMsg').innerHTML='<p class="danger">חובה למלא מספר לקוח בספרות בלבד.</p>';
-    if(!address)return $('entryMsg').innerHTML='<p class="danger">חובה למלא כתובת.</p>';
+    if(!customerNumber||!/^\d+$/.test(customerNumber)){
+      if($('entryMsg')) $('entryMsg').innerHTML='<p class="danger">חובה למלא מספר לקוח בספרות בלבד.</p>';
+      return;
+    }
+    if(!address){
+      if($('entryMsg')) $('entryMsg').innerHTML='<p class="danger">חובה למלא כתובת.</p>';
+      return;
+    }
+    if(!viewedWorker || !viewedWorker.id || !selectedDate){
+      if($('entryMsg')) $('entryMsg').innerHTML='<p class="danger">חסר עובד או יום נבחר. רענן את המסך ונסה שוב.</p>';
+      return;
+    }
+
     let items=[], total=0;
-    priceList.forEach(p=>{
-      const el=$('qty_'+p.id); let q=0;
-      if(el) q=(p.inputMode||'qty')==='check'?(el.checked?1:0):Number(el.value||0);
-      if(q>0){items.push({id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||'qty',priceType:selectedKindV411(),installKind:selectedKindV411(),total:q*Number(p.price||0)}); total+=q*Number(p.price||0);}
-    });
-    if(!items.length)return $('entryMsg').innerHTML='<p class="danger">חובה לבחור לפחות פריט אחד.</p>';
-    if(!wmBeginEntrySaveV516()) return;
     const kindAtSave=selectedKindV411();
+
+    priceList.forEach(p=>{
+      const el=$('qty_'+p.id);
+      let q=0;
+      if(el){
+        q=(p.inputMode||'qty')==='check' ? (el.checked?1:0) : Number(el.value||0);
+      }
+      if(q>0){
+        const price=Number(p.price||0);
+        items.push({
+          id:p.id,
+          name:p.name,
+          price:price,
+          quantity:q,
+          inputMode:p.inputMode||'qty',
+          priceType:kindAtSave,
+          installKind:kindAtSave,
+          total:q*price
+        });
+        total+=q*price;
+      }
+    });
+
+    if(!items.length){
+      if($('entryMsg')) $('entryMsg').innerHTML='<p class="danger">חובה לבחור לפחות פריט אחד.</p>';
+      return;
+    }
+
+    if(!beginSave()) return;
+
     const label='התקנת '+kindLabelV411(kindAtSave);
-    const successMsg=wmOfflineSaveNoticeV516(label, status==='planned'?null:total, status, 'היא לא נכנסה להתחשבנות עד שתלחץ בוצע.');
+    const successMsg=saveNotice(label, status==='planned'?null:total, status, 'היא לא נכנסה להתחשבנות עד שתלחץ בוצע.');
+
     try{
-      const writePromise=db.collection('workEntries').add({workerId:viewedWorker.id,workerName:viewedWorker.name,authUid:viewedWorker.authUid||currentAuthUid(),date:selectedDate,workType:'install',installKind:kindAtSave,priceType:kindAtSave,entryStatus:status,description:'התקנת '+kindLabelV411(kindAtSave),customerNumber,address,notes,items,amount:total,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-      // v5.16: לא ממתינים לשרת. באופליין הכתיבה נשמרת מקומית ומסתנכרנת ברקע, והמשתמש מקבל חיווי מיידי.
-      writePromise.catch(wmHandleEntrySaveErrorV516);
-      wmAfterLocalEntrySaveV516(successMsg);
+      const writePromise=db.collection('workEntries').add({
+        workerId:viewedWorker.id,
+        workerName:viewedWorker.name,
+        authUid:viewedWorker.authUid||currentAuthUid(),
+        date:selectedDate,
+        workType:'install',
+        installKind:kindAtSave,
+        priceType:kindAtSave,
+        entryStatus:status,
+        description:'התקנת '+kindLabelV411(kindAtSave),
+        customerNumber,address,notes,items,amount:total,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      // לא מחכים לשרת: חיווי מיידי, סנכרון ברקע.
+      writePromise.then(function(){
+        try{ if(typeof loadMonth==='function') loadMonth(); }catch(e){}
+      }).catch(handleSaveError);
+
+      afterLocalSave(successMsg);
     }catch(err){
-      wmHandleEntrySaveErrorV516(err);
+      handleSaveError(err);
     }
   }
   window.addInstall=function(){return addInstallWithStatusV411('done')};
@@ -16132,6 +16215,12 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:'5.26',title:'תיקון שמירת התקנת סיב/RF רגילה ומתוזמנת',date:d,items:[
+        'תוקנה פונקציית addInstallWithStatusV411 שהיא הפונקציה הפעילה בפועל עבור התקנות סיב/RF.',
+        'פונקציות העזר של השמירה נחשפו ל-window כדי שגם סקריפט V411 יוכל להשתמש בהן.',
+        'התיקון מכסה התקנת סיב, התקנת RF, התקנה מתוזמנת וסיב/RF מתוזמן.',
+        'השמירה מציגה חיווי מיידי, מנקה שדות ומונעת לחיצות כפולות גם באופליין או ברשת איטית.'
+      ]},
       {version:'5.25',title:'תיקון שמירה לקריאת שירות / התקנה / מתוזמן',date:d,items:[
         'תוקנו כפתורי השמירה הפעילים בפועל: קריאת שירות, התקנה, קריאת שירות מתוזמנת והתקנה מתוזמנת.',
         'הוחזרו פונקציות עזר חסרות שגרמו ללחיצה על שמור להיראות כאילו לא עושה כלום.',
