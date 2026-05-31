@@ -543,6 +543,70 @@ input:focus,textarea:focus,select:focus{animation:popIn .2s ease both}
     font-size:8.5px!important;
   }
 }
+
+/* ===== v5.27: בחירת סוג פק״ע CN/CH בהתקנות ===== */
+.peka-row-v527{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  margin:10px auto 8px;
+  padding:8px 10px;
+  border-radius:18px;
+  background:#f8fafc;
+  border:1px solid #e2e8f0;
+  width:fit-content;
+  max-width:100%;
+}
+.peka-label-v527{
+  font-size:12px;
+  color:#64748b;
+  font-weight:900;
+}
+.peka-select-v527{
+  width:86px!important;
+  height:42px!important;
+  min-height:42px!important;
+  padding:0 10px!important;
+  border-radius:16px!important;
+  border:2px solid #cbd5e1!important;
+  background:#fff!important;
+  color:#0f172a!important;
+  font-size:20px!important;
+  font-weight:1000!important;
+  text-align:center!important;
+  text-align-last:center!important;
+  outline:none!important;
+  box-shadow:0 4px 10px rgba(15,23,42,.06)!important;
+}
+.peka-select-v527:focus{
+  border-color:#2563eb!important;
+  box-shadow:0 0 0 3px rgba(37,99,235,.12)!important;
+}
+.peka-badge-v527{
+  display:inline-block;
+  padding:2px 8px;
+  margin-top:4px;
+  border-radius:999px;
+  background:#eef2ff;
+  color:#3730a3;
+  font-size:12px;
+  font-weight:900;
+}
+@media(max-width:800px){
+  .peka-row-v527{width:100%;justify-content:space-between}
+  .peka-select-v527{width:82px!important;font-size:19px!important}
+}
+
+
+/* ===== v5.28: דשבורד וחיפוש לפי פק״ע CN/CH ===== */
+.peka-smart-grid-v528{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0 12px}
+.peka-smart-card-v528{border-radius:18px;padding:12px;background:linear-gradient(180deg,#fff,#f8fafc);border:1px solid #e2e8f0;box-shadow:0 8px 18px rgba(15,23,42,.055);text-align:center}
+.peka-smart-title-v528{font-size:12px;color:#64748b;font-weight:900}
+.peka-smart-value-v528{font-size:24px;color:#0f172a;font-weight:1000;margin-top:2px}
+.peka-search-row-v528{margin:8px 0 10px}
+.peka-search-row-v528 select{min-height:44px!important;border-radius:16px!important;font-weight:900!important}
+@media(max-width:800px){.peka-smart-grid-v528{grid-template-columns:1fr 1fr;gap:8px}.peka-smart-value-v528{font-size:22px}}
 </style>
 
 
@@ -1309,7 +1373,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.26";
+const APP_VERSION = "5.32";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1324,6 +1388,55 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
+
+CHANGELOG 5.32 - תיקון תצוגת פק״ע וטעינת תבניות
+1. APP_VERSION עודכן ל-"5.32".
+2. כל תצוגות המשתמש של "פקה" הוחלפו ל-"פק״ע" בלי לשנות את שדה הנתונים pekaType או לוגיקת CN/CH.
+3. תוקנה בחירת תבניות התקנה: אם ID ישן של פריט מחירון לא נמצא, המערכת מחפשת התאמה לפי שם הפריט ומסמנת את הפריט הפעיל הנוכחי.
+4. פריט תבנית שלא קיים יותר במחירון מדולג בלי לעצור את טעינת התבנית.
+5. לא שונו שמירת עבודות, מתוזמנות, לא בוצע, אופליין, גיבוי, אקסל או לוגין.
+
+CHANGELOG 5.33 - הפרדת עבודות שבוצעו ומתוזמנות ביום נבחר
+1. APP_VERSION עודכן ל-"5.33".
+2. תצוגת היום הנבחר הוחזרה להפרדה ברורה בין "עבודות שבוצעו" לבין "מתוזמנות".
+3. עבודות בסטטוס not_done מוצגות באזור נפרד "לא בוצעו" אם קיימות באותו יום.
+4. לא שונו שמירת עבודות, סימון בוצע, לא בוצע, מחירון, תבניות, אופליין, גיבוי או לוגין.
+
+CHANGELOG 5.31 - תיקון תצוגת פק״ע במתוזמנות וסינון פק״ע רק להתקנות
+1. APP_VERSION עודכן ל-"5.31".
+2. תוקנה תצוגת סוג פק״ע בכרטיסי עבודות/מתוזמנות כך ש-CN/CH יוצגו כתג תקין ולא כטקסט HTML שבור.
+3. סינון לפי סוג פק״ע בחיפוש מוצג ופועל רק כאשר סוג העבודה הוא התקנות.
+4. כאשר בוחרים קריאות שירות או כל סוגי העבודה, סינון הפק״ע מתנקה ולא משפיע על התוצאות.
+5. לא שונו שמירת עבודות, לא בוצע, סיבות, אופליין, גיבוי, אקסל או לוגין.
+
+CHANGELOG 5.29 - לא בוצע למתוזמנות + מיקום סוג פק״ע מתחת לתבניות
+1. APP_VERSION עודכן ל-"5.29".
+2. סוג פק״ע CN/CH הועבר בטופס ההתקנה למיקום מתחת לבחירת תבניות ההתקנה.
+3. בעבודות מתוזמנות נוסף כפתור "לא בוצע" שלא מוחק את העבודה אלא משנה סטטוס ל-not_done.
+4. נוסף חלון בחירת סיבה עם רשימה קצרה: לקוח לא בבית, לקוח לא עונה, לקוח ביטל, ביקש מועד אחר, אין תשתית, השחלה תקועה, אין גישה, אחר.
+5. בבחירת "אחר" נדרש למלא פירוט חופשי כדי לא לשמור ביטול לא ברור.
+6. עבודות שלא בוצעו יוצאות מהמתוזמנות, לא נספרות כהכנסה, ונשמרות עם סיבה, הערה, תאריך סימון ומי סימן.
+7. הדשבורד החכם מציג סיכום "לא בוצעו החודש" לפי סיבות + רשימת עבודות אחרונות שלא בוצעו.
+8. נוספה אפשרות להחזיר עבודה שלא בוצעה בחזרה לסטטוס מתוזמן במקרה של טעות.
+9. רשומת 5.29 נוספה למקור requiredChangelogRows כדי שתופיע ב"מה חדש".
+
+CHANGELOG 5.28 - סיכום וחיפוש לפי סוג פק״ע CN/CH
+1. APP_VERSION עודכן ל-"5.28".
+2. הדשבורד החכם מציג עכשיו כמה פקעות CN וכמה פקעות CH בוצעו החודש.
+3. החישוב מתבסס רק על עבודות שבוצעו בפועל ולא על סידורים עתידיים.
+4. נוסף פילטר בחיפוש החכם לפי סוג פק״ע: הכל / CN / CH.
+5. החיפוש לפי פק״ע משפיע רק על עבודות התקנה שיש להן pekaType, ולא פוגע בעבודות ישנות ללא פק״ע.
+6. לא שונו שמירת התקנות, קריאות שירות, מחירונים, אופליין, גיבויים או אקסל.
+7. רשומת 5.28 נוספה למקור requiredChangelogRows כדי שתופיע ב"מה חדש".
+
+CHANGELOG 5.27 - סוג פק״ע בהתקנות CN/CH
+1. APP_VERSION עודכן ל-"5.27".
+2. נוסף שדה בחירה קטן ויפה בטופס התקנה עבור סוג פק״ע: CN או CH.
+3. השדה אינו חובה; אם לא נבחר סוג פק״ע, לא נשמר ולא מוצג כלום כדי לא לפגוע בעבודות ישנות.
+4. addInstallWithStatusV411 עודכנה נקודתית כך שעבודות התקנה חדשות ישמרו pekaType רק אם נבחר CN/CH.
+5. תצוגת עבודות ביום הנבחר מציגה "פק״ע: CN" או "פק״ע: CH" רק כאשר הערך קיים.
+6. לא שונו מחירונים, דשבורד, אופליין, קריאות שירות, גיבויים או אקסל.
+7. רשומת 5.27 נוספה למקור requiredChangelogRows כדי שתופיע ב"מה חדש".
 
 CHANGELOG 5.26 - תיקון שמירת התקנת סיב/RF רגילה ומתוזמנת
 1. APP_VERSION עודכן ל-"5.26".
@@ -10212,6 +10325,7 @@ service cloud.firestore {
       if($('iNotes')) $('iNotes').value='';
       if($('iCustomerHistory')) $('iCustomerHistory').innerHTML='';
       if($('installTemplateSelect')) $('installTemplateSelect').value='';
+      try{ if(typeof resetPekaTypeV527==='function') resetPekaTypeV527(); }catch(_e){}
       if(Array.isArray(priceList)){
         priceList.forEach(function(p){
           var el=$('qty_'+p.id);
@@ -10369,7 +10483,7 @@ service cloud.firestore {
     box.innerHTML=entries.length?'':'<p class="muted">אין עבודות ביום הזה עדיין.</p>';
     entries.forEach(e=>{
       const planned=isPlannedV49(e);
-      const details=e.workType==='service'?`מספר לקוח: ${e.customerNumber||''}\nכתובת: ${e.address||''}\n${e.notes||''}`:`מספר לקוח: ${e.customerNumber||''}\nכתובת: ${e.address||''}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join('<br>')+`\n${e.notes||''}`;
+      const details=e.workType==='service'?`מספר לקוח: ${e.customerNumber||''}\nכתובת: ${e.address||''}\n${e.notes||''}`:`מספר לקוח: ${e.customerNumber||''}\nכתובת: ${e.address||''}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join('<br>')+pekaLineV527(e)+`\n${e.notes||''}`;
       const row=document.createElement('div'); row.className='item'+(planned?' planned-card-v49':'');
       const iconClass=e.workType==='install'?'install':(e.isReturnCall?'return':'service');
       const icon=e.workType==='install'?'🛠️':(e.isReturnCall?'🔁':'☎️');
@@ -10694,6 +10808,160 @@ service cloud.firestore {
 
   const oldAddInstallPlannedV411=window.addInstallPlannedV49;
   // דריסת שמירת התקנה כדי לשמור גם אם זו התקנת RF/סיב
+
+  /*
+  ===============================================================================
+  CHANGE 5.27 - PEKA TYPE CN / CH
+  -------------------------------------------------------------------------------
+  בחירה לא חובה בטופס התקנה.
+  נשמרת רק לעבודות חדשות, ורק אם נבחר CN או CH.
+  עבודות ישנות ללא pekaType לא מציגות כלום.
+  ===============================================================================
+  */
+  function ensurePekaTypeUIV527(){
+    try{
+      var form=document.getElementById('installForm');
+      if(!form || document.getElementById('pekaTypeV527')) return;
+
+      var notes=document.getElementById('iNotes');
+      var preview=document.getElementById('installPreview');
+
+      var wrap=document.createElement('div');
+      wrap.id='pekaTypeWrapV527';
+      wrap.className='peka-row-v527';
+      wrap.innerHTML =
+        '<span class="peka-label-v527">סוג פק״ע</span>' +
+        '<select id="pekaTypeV527" class="peka-select-v527" title="סוג פק״ע">' +
+          '<option value="">—</option>' +
+          '<option value="CN">CN</option>' +
+          '<option value="CH">CH</option>' +
+        '</select>';
+
+      if(notes && notes.parentNode){
+        notes.parentNode.insertBefore(wrap, notes);
+      }else if(preview && preview.parentNode){
+        preview.parentNode.insertBefore(wrap, preview.nextSibling);
+      }else{
+        form.appendChild(wrap);
+      }
+    }catch(e){
+      console.warn('ensurePekaTypeUIV527 failed', e);
+    }
+  }
+
+  function selectedPekaTypeV527(){
+    try{
+      var el=document.getElementById('pekaTypeV527');
+      var v=el ? String(el.value||'').trim().toUpperCase() : '';
+      return (v==='CN' || v==='CH') ? v : '';
+    }catch(e){ return ''; }
+  }
+
+  function resetPekaTypeV527(){
+    try{
+      var el=document.getElementById('pekaTypeV527');
+      if(el) el.value='';
+    }catch(e){}
+  }
+
+  function pekaLineV527(entry){
+    try{
+      var v=entry && entry.pekaType ? String(entry.pekaType).trim().toUpperCase() : '';
+      if(v!=='CN' && v!=='CH') return '';
+      return '<br><span class="peka-badge-v527">פק״ע: '+esc(v)+'</span>';
+    }catch(e){ return ''; }
+  }
+
+
+  /*
+  ===============================================================================
+  CHANGE 5.28 - PEKA DASHBOARD + SEARCH
+  ===============================================================================
+  */
+  function normalizePekaTypeV528(value){
+    try{
+      var v=String(value||'').trim().toUpperCase();
+      return (v==='CN' || v==='CH') ? v : '';
+    }catch(e){ return ''; }
+  }
+
+  function isDoneEntryForPekaStatsV528(entry){
+    try{
+      if(!entry) return false;
+      if(typeof isDoneV49 === 'function') return isDoneV49(entry);
+      return entry.entryStatus !== 'planned';
+    }catch(e){
+      return entry && entry.entryStatus !== 'planned';
+    }
+  }
+
+  function getPekaStatsV528(entries){
+    var stats={CN:0,CH:0};
+    try{
+      (entries||[]).forEach(function(e){
+        if(!e || e.workType!=='install' || !isDoneEntryForPekaStatsV528(e)) return;
+        var v=normalizePekaTypeV528(e.pekaType);
+        if(v==='CN') stats.CN++;
+        if(v==='CH') stats.CH++;
+      });
+    }catch(e){}
+    return stats;
+  }
+
+  function renderPekaSmartDashboardV528(){
+    try{
+      var host=document.getElementById('smartDashboard') || document.getElementById('smartDash') || document.querySelector('.smart-dashboard-v436') || document.querySelector('.smart-box-v436') || document.getElementById('statsBox');
+      if(!host) return;
+      var entries=(typeof monthEntries!=='undefined' && Array.isArray(monthEntries)) ? monthEntries : [];
+      var stats=getPekaStatsV528(entries);
+      var box=document.getElementById('pekaSmartStatsV528');
+      if(!box){
+        box=document.createElement('div');
+        box.id='pekaSmartStatsV528';
+        box.className='peka-smart-grid-v528';
+        host.appendChild(box);
+      }
+      box.innerHTML =
+        '<div class="peka-smart-card-v528"><div class="peka-smart-title-v528">פק״עות CN</div><div class="peka-smart-value-v528">'+stats.CN+'</div></div>'+
+        '<div class="peka-smart-card-v528"><div class="peka-smart-title-v528">פק״עות CH</div><div class="peka-smart-value-v528">'+stats.CH+'</div></div>';
+    }catch(e){ console.warn('renderPekaSmartDashboardV528 failed', e); }
+  }
+
+  function selectedSearchPekaV528(){
+    try{
+      var el=document.getElementById('searchPekaTypeV528');
+      return normalizePekaTypeV528(el ? el.value : '');
+    }catch(e){ return ''; }
+  }
+
+  function ensurePekaSearchFilterV528(){
+    try{
+      if(document.getElementById('searchPekaTypeV528')) return;
+      var searchPanel=document.getElementById('searchPanel');
+      if(!searchPanel) return;
+      var wrap=document.createElement('div');
+      wrap.className='peka-search-row-v528';
+      wrap.innerHTML =
+        '<label style="font-weight:900;color:#64748b;font-size:13px">סינון לפי פק״ע</label>'+
+        '<select id="searchPekaTypeV528" onchange="try{renderFullSummary()}catch(e){}">'+
+          '<option value="">הכל</option>'+
+          '<option value="CN">CN</option>'+
+          '<option value="CH">CH</option>'+
+        '</select>';
+      var target=searchPanel.querySelector('.grid2,.grid3,.grid4,.search-grid,.filters-grid');
+      if(target && target.parentNode) target.parentNode.insertBefore(wrap,target.nextSibling);
+      else searchPanel.insertBefore(wrap, searchPanel.firstChild);
+    }catch(e){ console.warn('ensurePekaSearchFilterV528 failed', e); }
+  }
+
+  function filterEntriesByPekaSearchV528(entries){
+    try{
+      var p=selectedSearchPekaV528();
+      if(!p) return entries;
+      return (entries||[]).filter(function(e){ return normalizePekaTypeV528(e && e.pekaType)===p; });
+    }catch(e){ return entries; }
+  }
+
   async function addInstallWithStatusV411(status){
     // v5.26 FIX:
     // זו פונקציית ההתקנה הפעילה בפועל עבור סיב/RF.
@@ -10726,6 +10994,7 @@ service cloud.firestore {
 
     let items=[], total=0;
     const kindAtSave=selectedKindV411();
+    const pekaTypeAtSave=selectedPekaTypeV527();
 
     priceList.forEach(p=>{
       const el=$('qty_'+p.id);
@@ -10743,6 +11012,7 @@ service cloud.firestore {
           inputMode:p.inputMode||'qty',
           priceType:kindAtSave,
           installKind:kindAtSave,
+          pekaType:pekaTypeAtSave || '',
           total:q*price
         });
         total+=q*price;
@@ -10771,6 +11041,7 @@ service cloud.firestore {
         entryStatus:status,
         description:'התקנת '+kindLabelV411(kindAtSave),
         customerNumber,address,notes,items,amount:total,
+        ...(pekaTypeAtSave ? {pekaType:pekaTypeAtSave} : {}),
         createdAt:firebase.firestore.FieldValue.serverTimestamp()
       });
 
@@ -10790,7 +11061,7 @@ service cloud.firestore {
   const oldSetTypeV411=window.setType;
   window.setType=function(type,clear){
     const r=oldSetTypeV411?oldSetTypeV411(type,clear):undefined;
-    if(type==='install') setTimeout(async function(){ ensureInstallKindUIV411(); await loadPriceList(); renderInstallItems(); wrapSaveButtonsV411(); },0);
+    if(type==='install') setTimeout(async function(){ ensureInstallKindUIV411(); await loadPriceList(); renderInstallItems(); ensurePekaTypeUIV527(); wrapSaveButtonsV411(); },0);
     else setTimeout(wrapSaveButtonsV411,0);
     return r;
   };
@@ -10805,8 +11076,8 @@ service cloud.firestore {
     };
   }
 
-  document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){ensureInstallKindUIV411();ensureAdminPriceKindUIV411();wrapSaveButtonsV411();},600)});
-  window.addEventListener('load',function(){setTimeout(function(){ensureInstallKindUIV411();ensureAdminPriceKindUIV411();wrapSaveButtonsV411();},900)});
+  document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){ensureInstallKindUIV411();ensureAdminPriceKindUIV411();ensurePekaTypeUIV527();wrapSaveButtonsV411();},600)});
+  window.addEventListener('load',function(){setTimeout(function(){ensureInstallKindUIV411();ensureAdminPriceKindUIV411();ensurePekaTypeUIV527();wrapSaveButtonsV411();},900)});
   setInterval(wrapSaveButtonsV411,1200);
 })();
 </script>
@@ -14897,6 +15168,387 @@ CHANGE 5.13 - OFFLINE SYNC SAFE LAYER
 
 
 
+
+
+<script id="v5-30-peka-global-compat-fix">
+/*
+===============================================================================
+CHANGE 5.30 - GLOBAL PEKA COMPATIBILITY FIX
+-------------------------------------------------------------------------------
+תיקון נקודתי לשגיאת טעינה:
+selectedSearchPekaV528 is not defined
+בגרסה 5.28 חלק מפונקציות הפק״ע הוגדרו בתוך scope פנימי, אבל wrapper מאוחר יותר קרא להן
+כפונקציות גלובליות. כאן אנחנו חושפים גרסאות בטוחות ל-window בלי לשנות את לוגיקת השמירה.
+===============================================================================
+*/
+(function(){
+  function normalizePekaTypeV528Safe(value){
+    var v=String(value||'').trim().toUpperCase();
+    return (v==='CN'||v==='CH') ? v : '';
+  }
+  function selectedSearchPekaV528Safe(){
+    try{
+      var el=document.getElementById('searchPekaTypeV528');
+      return normalizePekaTypeV528Safe(el ? el.value : '');
+    }catch(e){ return ''; }
+  }
+  function isPlannedEntryV530(e){
+    try{
+      return !!(e && (e.entryStatus==='planned' || e.status==='planned' || e.planned===true || e.isPlanned===true));
+    }catch(err){ return false; }
+  }
+  function isDoneEntryForPekaStatsV528Safe(e){
+    try{
+      if(!e) return false;
+      if(isPlannedEntryV530(e)) return false;
+      var st=String(e.entryStatus||e.status||'done').toLowerCase();
+      return st!=='planned' && st!=='not_done' && st!=='cancelled' && st!=='deleted';
+    }catch(err){ return true; }
+  }
+  function getPekaStatsV528Safe(entries){
+    var stats={CN:0,CH:0};
+    try{
+      (entries||[]).forEach(function(e){
+        if(!e || e.workType!=='install' || !isDoneEntryForPekaStatsV528Safe(e)) return;
+        var v=normalizePekaTypeV528Safe(e.pekaType);
+        if(v==='CN') stats.CN++;
+        if(v==='CH') stats.CH++;
+      });
+    }catch(err){}
+    return stats;
+  }
+  function filterEntriesByPekaSearchV528Safe(entries){
+    try{
+      var p=selectedSearchPekaV528Safe();
+      if(!p) return entries;
+      return (entries||[]).filter(function(e){ return normalizePekaTypeV528Safe(e && e.pekaType)===p; });
+    }catch(e){ return entries; }
+  }
+  function renderPekaSmartDashboardV528Safe(){
+    try{
+      var host=document.getElementById('smartDashboard') || document.getElementById('smartDash') || document.querySelector('.smart-dashboard-v436') || document.querySelector('.smart-box-v436') || document.getElementById('statsBox');
+      if(!host) return;
+      var entries=(typeof monthEntries!=='undefined' && Array.isArray(monthEntries)) ? monthEntries : [];
+      var stats=getPekaStatsV528Safe(entries);
+      var box=document.getElementById('pekaSmartStatsV528');
+      if(!box){
+        box=document.createElement('div');
+        box.id='pekaSmartStatsV528';
+        box.className='peka-smart-grid-v528';
+        host.appendChild(box);
+      }
+      box.innerHTML =
+        '<div class="peka-smart-card-v528"><div class="peka-smart-title-v528">פק״עות CN</div><div class="peka-smart-value-v528">'+stats.CN+'</div></div>'+ 
+        '<div class="peka-smart-card-v528"><div class="peka-smart-title-v528">פק״עות CH</div><div class="peka-smart-value-v528">'+stats.CH+'</div></div>';
+    }catch(e){ console.warn('renderPekaSmartDashboardV528Safe failed', e); }
+  }
+  function ensurePekaSearchFilterV528Safe(){
+    try{
+      if(document.getElementById('searchPekaTypeV528')) return;
+      var searchPanel=document.getElementById('searchPanel');
+      if(!searchPanel) return;
+      var wrap=document.createElement('div');
+      wrap.className='peka-search-row-v528';
+      wrap.innerHTML =
+        '<label style="font-weight:900;color:#64748b;font-size:13px">סינון לפי פק״ע</label>'+ 
+        '<select id="searchPekaTypeV528" onchange="try{renderFullSummary()}catch(e){}">'+
+          '<option value="">הכל</option>'+ 
+          '<option value="CN">CN</option>'+ 
+          '<option value="CH">CH</option>'+ 
+        '</select>';
+      var target=searchPanel.querySelector('.grid2,.grid3,.grid4,.search-grid,.filters-grid');
+      if(target && target.parentNode) target.parentNode.insertBefore(wrap,target.nextSibling);
+      else searchPanel.insertBefore(wrap, searchPanel.firstChild);
+    }catch(e){ console.warn('ensurePekaSearchFilterV528Safe failed', e); }
+  }
+
+  window.normalizePekaTypeV528=window.normalizePekaTypeV528 || normalizePekaTypeV528Safe;
+  window.selectedSearchPekaV528=window.selectedSearchPekaV528 || selectedSearchPekaV528Safe;
+  window.isDoneEntryForPekaStatsV528=window.isDoneEntryForPekaStatsV528 || isDoneEntryForPekaStatsV528Safe;
+  window.getPekaStatsV528=window.getPekaStatsV528 || getPekaStatsV528Safe;
+  window.filterEntriesByPekaSearchV528=window.filterEntriesByPekaSearchV528 || filterEntriesByPekaSearchV528Safe;
+  window.renderPekaSmartDashboardV528=window.renderPekaSmartDashboardV528 || renderPekaSmartDashboardV528Safe;
+  window.ensurePekaSearchFilterV528=window.ensurePekaSearchFilterV528 || ensurePekaSearchFilterV528Safe;
+})();
+</script>
+
+<script id="v5-28-peka-dashboard-search-wrapper">
+(function(){
+  function bootPekaV528(){
+    try{ ensurePekaSearchFilterV528(); }catch(e){}
+    try{ renderPekaSmartDashboardV528(); }catch(e){}
+    try{
+      if(!window.__pekaSmartWrappedV528 && typeof window.renderSmartDashboard==='function'){
+        var oldSmart=window.renderSmartDashboard;
+        window.renderSmartDashboard=function(){
+          var r=oldSmart.apply(this,arguments);
+          try{ renderPekaSmartDashboardV528(); }catch(e){}
+          return r;
+        };
+        window.__pekaSmartWrappedV528=true;
+      }
+    }catch(e){}
+    try{
+      if(!window.__pekaFullSummaryWrappedV528 && typeof window.renderFullSummary==='function'){
+        var oldFull=window.renderFullSummary;
+        window.renderFullSummary=function(){
+          var selected=selectedSearchPekaV528();
+          if(!selected) return oldFull.apply(this,arguments);
+          var oldMonth=window.monthEntries;
+          try{
+            if(typeof monthEntries!=='undefined' && Array.isArray(monthEntries)){
+              var original=monthEntries;
+              monthEntries=filterEntriesByPekaSearchV528(monthEntries);
+              var r=oldFull.apply(this,arguments);
+              monthEntries=original;
+              return r;
+            }
+          }catch(e){}
+          return oldFull.apply(this,arguments);
+        };
+        window.__pekaFullSummaryWrappedV528=true;
+      }
+    }catch(e){}
+  }
+  document.addEventListener('DOMContentLoaded',function(){setTimeout(bootPekaV528,900);});
+  window.addEventListener('load',function(){setTimeout(bootPekaV528,1300);});
+  setInterval(function(){try{bootPekaV528();}catch(e){}},2000);
+})();
+</script>
+
+
+
+<style id="v5-29-not-done-css">
+/*
+===============================================================================
+CHANGE 5.29 - Planned job "Not Done" + peka position under templates
+-------------------------------------------------------------------------------
+1. Adds a professional not_done flow for planned jobs without deleting the entry.
+2. Moves peka CN/CH selector under the installation template selector.
+3. Adds smart dashboard not-done summary by reason.
+===============================================================================
+*/
+.not-done-badge-v529{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:7px 11px;border-radius:999px;background:#fef2f2;color:#991b1b;
+  border:1px solid #fecaca;font-size:13px;font-weight:900;margin:4px 0;
+}
+.not-done-card-v529{border-color:#fecaca!important;background:linear-gradient(180deg,#fff,#fef2f2)!important;}
+.not-done-money-v529{color:#991b1b!important;background:none!important;-webkit-background-clip:initial!important;background-clip:initial!important;animation:none!important;}
+.not-done-panel-v529{margin-top:14px;border:1px solid #fecaca;background:linear-gradient(180deg,#fff,#fff5f5);border-radius:22px;padding:14px;box-shadow:0 10px 24px rgba(153,27,27,.06)}
+.not-done-reason-grid-v529{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:10px 0}
+.not-done-reason-card-v529{background:#fff;border:1px solid #fecaca;border-radius:16px;padding:10px;text-align:center;font-weight:900;color:#991b1b;box-shadow:0 8px 18px rgba(15,23,42,.04)}
+.not-done-reason-card-v529 b{display:block;font-size:22px;color:#0f172a;margin-top:3px}
+.not-done-list-v529{max-height:260px;overflow:auto;border-radius:16px;padding:2px;scrollbar-width:thin}
+.not-done-overlay-v529{position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.46);display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px)}
+.not-done-modal-v529{width:min(560px,100%);background:#fff;border-radius:26px;padding:18px;box-shadow:0 30px 80px rgba(15,23,42,.26);border:1px solid rgba(255,255,255,.8)}
+.not-done-modal-v529 h3{margin:0 0 6px}.not-done-modal-v529 p{margin:0 0 10px}.not-done-modal-v529 select,.not-done-modal-v529 textarea{margin-top:8px}.not-done-other-v529.hidden{display:none!important}
+.peka-row-v527.peka-under-template-v529{width:100%!important;justify-content:space-between!important;margin:8px 0 10px!important;background:#eef2ff!important;border-color:#c7d2fe!important}
+@media(max-width:800px){.not-done-reason-grid-v529{grid-template-columns:repeat(2,minmax(0,1fr))}.not-done-modal-v529{border-radius:22px;padding:15px}}
+</style>
+
+<script id="v5-29-not-done-js">
+(function(){
+  window.APP_VERSION = APP_VERSION;
+  try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
+
+  var NOT_DONE_REASONS_V529 = [
+    'לקוח לא בבית',
+    'לקוח לא עונה',
+    'לקוח ביטל',
+    'ביקש מועד אחר',
+    'אין תשתית',
+    'השחלה תקועה',
+    'אין גישה',
+    'אחר'
+  ];
+  window.NOT_DONE_REASONS_V529 = NOT_DONE_REASONS_V529;
+
+  function byId(id){ return document.getElementById(id); }
+  function safeEsc(v){ try{return esc(v)}catch(e){return String(v||'')} }
+  function safeMoney(v){ try{return money(v)}catch(e){return '₪'+Number(v||0)} }
+  function safeHeDate(v){ try{return heDate(v)}catch(e){return String(v||'')} }
+  function statusOfV529(e){ return e && e.entryStatus ? String(e.entryStatus) : 'done'; }
+  function isPlannedV529(e){ return statusOfV529(e)==='planned'; }
+  function isNotDoneV529(e){ return statusOfV529(e)==='not_done'; }
+  function isDoneV529(e){ return !isPlannedV529(e) && !isNotDoneV529(e); }
+  function pekaLineV529(e){
+    var v=String((e&&e.pekaType)||'').trim().toUpperCase();
+    return (v==='CN'||v==='CH') ? '<br><span class="peka-badge-v527">פק״ע: '+safeEsc(v)+'</span>' : '';
+  }
+  function entryTypeLabelV529(e){ return e && e.workType==='install' ? 'התקנה' : 'קריאת שירות'; }
+  function detailsHtmlV529(e){
+    if(!e) return '';
+    var details='מספר לקוח: '+(e.customerNumber||'')+'\nכתובת: '+(e.address||'')+'\n';
+    if(e.workType==='install'){
+      details += (e.items||[]).map(function(i){return (i.name||'')+' × '+(i.quantity||0)+' = '+safeMoney(i.total||0)}).join('<br>');
+      details += pekaLineV529(e)+'\n';
+    }else{
+      details += (e.isReturnCall?'קריאה חוזרת ללא תשלום':'קריאת שירות')+'\n';
+    }
+    if(isNotDoneV529(e)){
+      details += 'לא בוצע — סיבה: '+(e.notDoneReason||'')+'\n';
+      if(e.notDoneNote) details += 'פירוט: '+e.notDoneNote+'\n';
+    }
+    details += (e.notes||'');
+    try{return nl2br(details)}catch(err){return String(details).replace(/\n/g,'<br>')}
+  }
+
+  function movePekaUnderTemplatesV529(){
+    try{
+      var wrap=byId('pekaTypeWrapV527');
+      var sel=byId('installTemplateSelect');
+      if(!wrap || !sel) return;
+      var templateRow=sel.closest ? sel.closest('.grid2') : null;
+      if(templateRow && templateRow.parentNode && templateRow.nextSibling!==wrap){
+        templateRow.parentNode.insertBefore(wrap, templateRow.nextSibling);
+        wrap.classList.add('peka-under-template-v529');
+      }
+    }catch(e){ console.warn('movePekaUnderTemplatesV529 failed',e); }
+  }
+  window.movePekaUnderTemplatesV529 = movePekaUnderTemplatesV529;
+
+  function openNotDoneModalV529(entryId){
+    try{ var old=byId('notDoneOverlayV529'); if(old) old.remove(); }catch(e){}
+    var overlay=document.createElement('div');
+    overlay.id='notDoneOverlayV529';
+    overlay.className='not-done-overlay-v529';
+    overlay.innerHTML='<div class="not-done-modal-v529" role="dialog" aria-modal="true">'+
+      '<h3>סימון עבודה כלא בוצעה</h3>'+
+      '<p class="muted">בחר סיבה. העבודה לא תימחק, היא תצא מהמתוזמנות ותישמר בדוחות.</p>'+
+      '<select id="notDoneReasonSelectV529">'+NOT_DONE_REASONS_V529.map(function(r){return '<option value="'+safeEsc(r)+'">'+safeEsc(r)+'</option>';}).join('')+'</select>'+
+      '<textarea id="notDoneNoteV529" class="not-done-other-v529 hidden" placeholder="כתוב סיבה חופשית"></textarea>'+
+      '<div class="actions" style="margin-top:12px"><button class="btn-red" type="button" id="confirmNotDoneV529">שמור כלא בוצע</button><button class="btn-light" type="button" id="cancelNotDoneV529">ביטול</button></div>'+
+      '<div id="notDoneMsgV529"></div>'+
+      '</div>';
+    document.body.appendChild(overlay);
+    var select=byId('notDoneReasonSelectV529');
+    var note=byId('notDoneNoteV529');
+    function refreshOther(){ if(note) note.classList.toggle('hidden', !(select && select.value==='אחר')); }
+    if(select) select.onchange=refreshOther;
+    refreshOther();
+    byId('cancelNotDoneV529').onclick=function(){ overlay.remove(); };
+    overlay.addEventListener('click',function(ev){ if(ev.target===overlay) overlay.remove(); });
+    byId('confirmNotDoneV529').onclick=function(){ saveNotDoneV529(entryId); };
+  }
+  window.openNotDoneModalV529=openNotDoneModalV529;
+
+  async function saveNotDoneV529(entryId){
+    var reason=(byId('notDoneReasonSelectV529')||{}).value||'';
+    var note=(byId('notDoneNoteV529')||{}).value||'';
+    var msg=byId('notDoneMsgV529');
+    if(!reason){ if(msg) msg.innerHTML='<p class="danger">חובה לבחור סיבה.</p>'; return; }
+    if(reason==='אחר' && !String(note).trim()){ if(msg) msg.innerHTML='<p class="danger">בחרת אחר — חובה לרשום סיבה.</p>'; return; }
+    try{
+      var entry=(Array.isArray(monthEntries)?monthEntries:[]).find(function(x){return x.id===entryId;}) || {};
+      await db.collection('workEntries').doc(entryId).set({
+        entryStatus:'not_done',
+        notDoneReason:reason,
+        notDoneNote:String(note||'').trim(),
+        notDoneAt:firebase.firestore.FieldValue.serverTimestamp(),
+        notDoneByWorkerId:(viewedWorker&&viewedWorker.id)||'',
+        notDoneByName:(viewedWorker&&viewedWorker.name)||(session&&session.name)||'',
+        originalEntryStatus:entry.entryStatus||'planned',
+        originalAmount:Number(entry.originalAmount||entry.amount||0),
+        amount:0,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      var overlay=byId('notDoneOverlayV529'); if(overlay) overlay.remove();
+      if(byId('entryMsg')) byId('entryMsg').innerHTML='<div class="notice">העבודה סומנה כלא בוצעה ונשמרה בדוחות ✅</div>';
+      if(typeof loadMonth==='function') await loadMonth();
+    }catch(e){
+      if(msg) msg.innerHTML='<p class="danger">שגיאה בשמירה: '+safeEsc(e.message||e)+'</p>';
+    }
+  }
+  window.saveNotDoneV529=saveNotDoneV529;
+
+  async function restorePlannedV529(entryId){
+    if(!confirm('להחזיר את העבודה לסטטוס מתוזמן?')) return;
+    try{
+      var entry=(Array.isArray(monthEntries)?monthEntries:[]).find(function(x){return x.id===entryId;}) || {};
+      var restoredAmount=Number(entry.originalAmount||0);
+      if(!restoredAmount && Array.isArray(entry.items)) restoredAmount=entry.items.reduce(function(s,i){return s+Number(i.total||0)},0);
+      if(!restoredAmount && entry.workType==='service' && !entry.isReturnCall) restoredAmount=Number(typeof SERVICE_PRICE!=='undefined'?SERVICE_PRICE:0);
+      await db.collection('workEntries').doc(entryId).set({
+        entryStatus:'planned',
+        amount:restoredAmount,
+        restoredToPlannedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      if(typeof loadMonth==='function') await loadMonth();
+    }catch(e){ alert('שגיאה בהחזרה למתוזמן: '+(e.message||e)); }
+  }
+  window.restorePlannedV529=restorePlannedV529;
+
+  function renderDayV529(){
+    if(!selectedDate){ hide('dayPanel'); show('selectDayHint'); return; }
+    show('dayPanel'); hide('selectDayHint');
+    text('dateTitle','יום '+safeHeDate(selectedDate));
+    try{ renderInstallItems(); }catch(e){}
+    try{ setType(selectedType,false); }catch(e){}
+    try{ updateServicePriceLabels(); }catch(e){}
+    try{ movePekaUnderTemplatesV529(); }catch(e){}
+    var entries=(Array.isArray(monthEntries)?monthEntries:[]).filter(function(e){return e.date===selectedDate;}).sort(function(a,b){return ((b.createdAt&&b.createdAt.seconds)||0)-((a.createdAt&&a.createdAt.seconds)||0)});
+    var box=byId('dayEntries'); if(!box) return;
+    box.innerHTML=entries.length?'':'<p class="muted">אין עבודות ביום הזה עדיין.</p>';
+    entries.forEach(function(e){
+      var planned=isPlannedV529(e), notDone=isNotDoneV529(e);
+      var row=document.createElement('div');
+      row.className='item'+(planned?' planned-card-v49':'')+(notDone?' not-done-card-v529':'');
+      var iconClass=e.workType==='install'?'install':(e.isReturnCall?'return':'service');
+      var icon=notDone?'🚫':(planned?'📋':(e.workType==='install'?'🛠️':(e.isReturnCall?'🔁':'☎️')));
+      var badge=notDone?'<span class="not-done-badge-v529">לא בוצע</span>':(planned?'<span class="planned-badge-v49">מתוכנן</span>':'<span class="done-badge-v49">בוצע</span>');
+      var actions='';
+      if(planned){ actions+='<button class="btn-green" onclick="markEntryDoneV49(\''+e.id+'\')">בוצע</button><button class="btn-red" onclick="openNotDoneModalV529(\''+e.id+'\')">לא בוצע</button>'; }
+      if(notDone){ actions+='<button class="btn-yellow" onclick="restorePlannedV529(\''+e.id+'\')">החזר למתוזמן</button>'; }
+      actions+='<button class="btn-yellow" onclick="openEntryEdit(\''+e.id+'\')">ערוך</button>';
+      if(!planned && !notDone && e.workType==='install') actions+='<button class="btn-light" onclick="saveEntryAsTemplate(\''+e.id+'\')">שמור כתבנית</button>';
+      actions+='<button class="btn-red" onclick="deleteEntry(\''+e.id+'\')">מחק</button>';
+      row.innerHTML='<div class="work-row-main"><div class="work-icon '+iconClass+'">'+icon+'</div><div><div class="item-title">'+safeEsc(e.description||entryTypeLabelV529(e))+' '+badge+'</div><div class="item-sub">'+detailsHtmlV529(e)+'</div></div></div><div><div class="money '+(planned?'planned-money-v49 ':'')+(notDone?'not-done-money-v529':'')+'">'+(notDone?'₪0':safeMoney(e.amount||0))+'</div><div class="actions" style="margin-top:8px">'+actions+'</div></div>';
+      box.appendChild(row);
+    });
+    try{ if(typeof cleanVisibleSlashN==='function') cleanVisibleSlashN(); }catch(e){}
+  }
+  window.renderDay=renderDayV529;
+
+  function appendNotDoneSmartDashboardV529(){
+    try{
+      var host=byId('smartDashboard'); if(!host) return;
+      var old=byId('notDoneSmartPanelV529'); if(old) old.remove();
+      var entries=(Array.isArray(monthEntries)?monthEntries:[]).filter(isNotDoneV529);
+      var byReason={};
+      entries.forEach(function(e){ var r=e.notDoneReason||'ללא סיבה'; byReason[r]=(byReason[r]||0)+1; });
+      var panel=document.createElement('div');
+      panel.id='notDoneSmartPanelV529';
+      panel.className='not-done-panel-v529';
+      var reasonHtml=Object.keys(byReason).length ? Object.keys(byReason).sort(function(a,b){return byReason[b]-byReason[a]}).map(function(r){return '<div class="not-done-reason-card-v529">'+safeEsc(r)+'<b>'+byReason[r]+'</b></div>';}).join('') : '<p class="muted">אין עבודות שלא בוצעו החודש.</p>';
+      var listHtml=entries.length ? entries.slice().sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''));}).slice(0,12).map(function(e){return '<div class="item not-done-card-v529"><div><div class="item-title">'+safeHeDate(e.date)+' · '+safeEsc(entryTypeLabelV529(e))+' · '+safeEsc(e.customerNumber||'')+'</div><div class="item-sub">כתובת: '+safeEsc(e.address||'')+'<br>סיבה: '+safeEsc(e.notDoneReason||'')+(e.notDoneNote?'<br>פירוט: '+safeEsc(e.notDoneNote):'')+'</div></div><div class="not-done-badge-v529">לא בוצע</div></div>';}).join('') : '';
+      panel.innerHTML='<h3>🚫 מתוזמנות שלא בוצעו</h3><p class="muted">סה״כ לא בוצעו החודש: <b>'+entries.length+'</b>. עבודות אלו לא נספרות כהכנסה ולא נשארות במתוזמנות.</p><div class="not-done-reason-grid-v529">'+reasonHtml+'</div>'+(listHtml?'<h3 style="margin-top:12px">פירוט אחרון</h3><div class="not-done-list-v529">'+listHtml+'</div>':'');
+      host.appendChild(panel);
+    }catch(e){ console.warn('appendNotDoneSmartDashboardV529 failed',e); }
+  }
+  window.appendNotDoneSmartDashboardV529=appendNotDoneSmartDashboardV529;
+
+  function bootV529(){
+    try{ movePekaUnderTemplatesV529(); }catch(e){}
+    try{
+      if(!window.__smartNotDoneWrappedV529 && typeof window.renderSmartDashboard==='function'){
+        var oldSmart=window.renderSmartDashboard;
+        window.renderSmartDashboard=function(){
+          var r=oldSmart.apply(this,arguments);
+          try{ appendNotDoneSmartDashboardV529(); }catch(e){}
+          return r;
+        };
+        window.__smartNotDoneWrappedV529=true;
+      }
+    }catch(e){}
+    try{ appendNotDoneSmartDashboardV529(); }catch(e){}
+  }
+  document.addEventListener('DOMContentLoaded',function(){setTimeout(bootV529,1100);});
+  window.addEventListener('load',function(){setTimeout(bootV529,1500);});
+  setInterval(function(){try{movePekaUnderTemplatesV529();}catch(e){}},1500);
+})();
+</script>
 </body>
 
 
@@ -16215,6 +16867,27 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+    {version:"5.32", title:"תיקון תצוגת פק״ע וטעינת תבניות", items:["הוחלף הכיתוב למשתמש מפקה לפק״ע בכל התצוגות הרלוונטיות, בלי לשנות את שדה הנתונים pekaType.","תוקנה בחירת תבניות התקנה כך שאם ID ישן של פריט מחירון לא נמצא, המערכת מחפשת התאמה לפי שם הפריט.","פריטים שלא קיימים יותר במחירון מדולגים בלי לעצור את טעינת התבנית ובלי לפגוע בחישוב הסכום."], createdAt:"2026-05-31"},
+    {version:"5.31", title:"תיקון תצוגת פק״ע וסינון רק להתקנות", items:["תוקנה תצוגת סוג פק״ע בכרטיסי עבודות ומתוזמנות כך ש-CN/CH יוצגו כתג תקין ולא כטקסט HTML שבור.","סינון לפי סוג פק״ע בחיפוש מופיע ופועל רק כאשר סוג העבודה הוא התקנות.","בחירת קריאות שירות או כל סוגי העבודה מנקה את סינון הפק״ע כדי שלא יסתיר תוצאות."], createdAt:"2026-05-31"},
+    {version:"5.30", title:"תיקון טעינת פק״ע בחיפוש ובדשבורד", items:["תוקנה שגיאת selectedSearchPekaV528 is not defined בזמן טעינת נתוני העובד.","פונקציות פק״ע שנדרשות ל-wrapper של החיפוש והדשבורד נחשפות ל-window בצורה בטוחה.","לא שונו שמירת עבודות, לא בוצע, סיבות, אופליין, גיבוי, אקסל או לוגין."], createdAt:"2026-05-31"},
+      {version:'5.29',title:'לא בוצע למתוזמנות + מיקום סוג פק״ע מתחת לתבניות',date:d,items:[
+        'סוג פק״ע CN/CH הועבר בטופס ההתקנה למיקום מתחת לבחירת תבניות ההתקנה.',
+        'בעבודות מתוזמנות נוסף כפתור לא בוצע שלא מוחק את העבודה אלא שומר סטטוס not_done.',
+        'נוסף חלון בחירת סיבה: לקוח לא בבית, לקוח לא עונה, לקוח ביטל, ביקש מועד אחר, אין תשתית, השחלה תקועה, אין גישה או אחר.',
+        'הדשבורד החכם מציג סיכום לא בוצעו החודש לפי סיבות ורשימת עבודות אחרונות שלא בוצעו.'
+      ]},
+      {version:'5.28',title:'סיכום וחיפוש לפי סוג פק״ע CN/CH',date:d,items:[
+        'הדשבורד החכם מציג ספירה חודשית של פק״עות CN ופק״עות CH.',
+        'הספירה מתייחסת לעבודות שבוצעו בפועל ולא לסידורים עתידיים.',
+        'נוסף פילטר בחיפוש החכם לפי סוג פק״ע: הכל, CN או CH.',
+        'עבודות ישנות ללא pekaType ממשיכות לעבוד רגיל ולא נפגעות.'
+      ]},
+      {version:'5.27',title:'סוג פק״ע בהתקנות CN/CH',date:d,items:[
+        'נוסף סלקט קטן ויפה בטופס התקנה לבחירת סוג פק״ע CN או CH.',
+        'השדה אינו חובה; אם לא נבחר סוג פק״ע, לא נשמר ולא מוצג כלום.',
+        'עבודות התקנה חדשות שכוללות סוג פק״ע יציגו פק״ע: CN או פק״ע: CH בתצוגת היום.',
+        'לא שונו מחירונים, דשבורד, אופליין, קריאות שירות, גיבויים או אקסל.'
+      ]},
       {version:'5.26',title:'תיקון שמירת התקנת סיב/RF רגילה ומתוזמנת',date:d,items:[
         'תוקנה פונקציית addInstallWithStatusV411 שהיא הפונקציה הפעילה בפועל עבור התקנות סיב/RF.',
         'פונקציות העזר של השמירה נחשפו ל-window כדי שגם סקריפט V411 יוכל להשתמש בהן.',
@@ -16589,3 +17262,431 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
 })();
 </script>
 
+
+
+<style id="v5-31-peka-render-search-fix-css">
+/*
+===============================================================================
+CHANGE 5.31 - PEKA DISPLAY + SEARCH FILTER SCOPE FIX
+-------------------------------------------------------------------------------
+1. Fixes broken CN/CH badge rendering in planned/not-done/day cards.
+2. Makes peka search filter visible and active only for installation search.
+3. Clears peka filter automatically when search type is service/all.
+===============================================================================
+*/
+.peka-search-row-v528.peka-hidden-v531{display:none!important}
+.peka-badge-v527.peka-badge-clean-v531{display:inline-flex!important;align-items:center!important;justify-content:center!important;vertical-align:middle!important}
+</style>
+<script id="v5-31-peka-render-search-fix-js">
+(function(){
+  try{ window.APP_VERSION = APP_VERSION; if(typeof setAppVersionUI==='function') setAppVersionUI(); if(typeof enforceAppVersionUI==='function') enforceAppVersionUI(); }catch(e){}
+
+  function q(id){ return document.getElementById(id); }
+  function htmlEsc(v){
+    try{ if(typeof esc==='function') return esc(v); }catch(e){}
+    return String(v||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});
+  }
+  function safeMoney(v){ try{ return money(v); }catch(e){ return '₪'+Number(v||0).toLocaleString('he-IL',{maximumFractionDigits:0}); } }
+  function safeHeDate(v){ try{ return heDate(v); }catch(e){ return String(v||''); } }
+  function normalizePekaV531(v){ v=String(v||'').trim().toUpperCase(); return (v==='CN'||v==='CH') ? v : ''; }
+  function statusOfV531(e){ return String((e&&e.entryStatus)||(e&&e.status)||'done').toLowerCase(); }
+  function isPlannedV531(e){ return !!(e && (statusOfV531(e)==='planned' || e.planned===true || e.isPlanned===true)); }
+  function isNotDoneV531(e){ return statusOfV531(e)==='not_done'; }
+  function isInstallSearchV531(){ var el=q('searchType'); return !!(el && el.value==='install'); }
+
+  function refreshPekaSearchVisibilityV531(){
+    try{
+      var sel=q('searchPekaTypeV528');
+      if(!sel) return;
+      var row=sel.closest ? sel.closest('.peka-search-row-v528') : null;
+      var shouldShow=isInstallSearchV531();
+      if(row) row.classList.toggle('peka-hidden-v531', !shouldShow);
+      if(!shouldShow && sel.value){ sel.value=''; }
+    }catch(e){}
+  }
+  window.refreshPekaSearchVisibilityV531=refreshPekaSearchVisibilityV531;
+
+  // v5.31: peka filter is meaningful only for installations. Service calls can never be CN/CH.
+  window.selectedSearchPekaV528=function(){
+    try{
+      if(!isInstallSearchV531()) return '';
+      var el=q('searchPekaTypeV528');
+      return normalizePekaV531(el ? el.value : '');
+    }catch(e){ return ''; }
+  };
+  window.filterEntriesByPekaSearchV528=function(entries){
+    try{
+      var p=window.selectedSearchPekaV528();
+      if(!p) return entries;
+      return (entries||[]).filter(function(e){ return e && e.workType==='install' && normalizePekaV531(e.pekaType)===p; });
+    }catch(e){ return entries; }
+  };
+
+  function attachPekaSearchTypeV531(){
+    try{
+      var type=q('searchType');
+      if(type && !type.dataset.v531PekaBound){
+        type.dataset.v531PekaBound='1';
+        type.addEventListener('change',function(){
+          refreshPekaSearchVisibilityV531();
+          try{ if(typeof renderFullSummary==='function') renderFullSummary(); }catch(e){}
+        });
+        type.addEventListener('input',refreshPekaSearchVisibilityV531);
+      }
+      if(typeof window.onWorkerSearchTypeChangeV22==='function' && !window.onWorkerSearchTypeChangeV22.__v531Wrapped){
+        var old=window.onWorkerSearchTypeChangeV22;
+        var wrapped=function(){
+          var r=old.apply(this,arguments);
+          try{ refreshPekaSearchVisibilityV531(); }catch(e){}
+          return r;
+        };
+        wrapped.__v531Wrapped=true;
+        window.onWorkerSearchTypeChangeV22=wrapped;
+      }
+      refreshPekaSearchVisibilityV531();
+    }catch(e){}
+  }
+
+  function textWithBrV531(v){ return htmlEsc(v).replace(/\\n/g,'<br>').replace(/\n/g,'<br>'); }
+  function pekaBadgeV531(e){
+    var p=normalizePekaV531(e && e.pekaType);
+    return p ? '<br><span class="peka-badge-v527 peka-badge-clean-v531">פק״ע: '+htmlEsc(p)+'</span>' : '';
+  }
+  function entryLabelV531(e){ return e && e.workType==='install' ? 'התקנה' : 'קריאת שירות'; }
+  function detailsHtmlV531(e){
+    if(!e) return '';
+    var html='מספר לקוח: '+htmlEsc(e.customerNumber||'')+'<br>כתובת: '+htmlEsc(e.address||'')+'<br>';
+    if(e.workType==='install'){
+      var itemHtml=(e.items||[]).map(function(i){
+        return htmlEsc(i.name||'')+' × '+htmlEsc(i.quantity||0)+' = '+safeMoney(i.total||0);
+      }).join('<br>');
+      if(itemHtml) html+=itemHtml;
+      html+=pekaBadgeV531(e)+'<br>';
+    }else{
+      html+=htmlEsc(e.isReturnCall?'קריאה חוזרת ללא תשלום':'קריאת שירות')+'<br>';
+    }
+    if(isNotDoneV531(e)){
+      html+='לא בוצע — סיבה: '+htmlEsc(e.notDoneReason||'')+'<br>';
+      if(e.notDoneNote) html+='פירוט: '+textWithBrV531(e.notDoneNote)+'<br>';
+    }
+    if(e.notes) html+=textWithBrV531(e.notes);
+    return html;
+  }
+
+  function renderDayV531(){
+    if(typeof selectedDate==='undefined' || !selectedDate){
+      try{ hide('dayPanel'); show('selectDayHint'); }catch(e){}
+      return;
+    }
+    try{ show('dayPanel'); hide('selectDayHint'); }catch(e){}
+    try{ text('dateTitle','יום '+safeHeDate(selectedDate)); }catch(e){ var dt=q('dateTitle'); if(dt) dt.textContent='יום '+safeHeDate(selectedDate); }
+    try{ if(typeof renderInstallItems==='function') renderInstallItems(); }catch(e){}
+    try{ if(typeof setType==='function') setType(selectedType,false); }catch(e){}
+    try{ if(typeof updateServicePriceLabels==='function') updateServicePriceLabels(); }catch(e){}
+
+    var box=q('dayEntries');
+    if(!box) return;
+    var entries=[];
+    try{
+      entries=((typeof monthEntries!=='undefined' && Array.isArray(monthEntries))?monthEntries:[])
+        .filter(function(e){return e && e.date===selectedDate;})
+        .sort(function(a,b){return ((b.createdAt&&b.createdAt.seconds)||0)-((a.createdAt&&a.createdAt.seconds)||0);});
+    }catch(e){ entries=[]; }
+    box.innerHTML=entries.length ? '' : '<p class="muted">אין עבודות ביום הזה עדיין.</p>';
+    entries.forEach(function(e){
+      var planned=isPlannedV531(e), notDone=isNotDoneV531(e);
+      var row=document.createElement('div');
+      row.className='item'+(planned?' planned-card-v49':'')+(notDone?' not-done-card-v529':'');
+      var iconClass=e.workType==='install'?'install':(e.isReturnCall?'return':'service');
+      var icon=notDone?'🚫':(planned?'📋':(e.workType==='install'?'🛠️':(e.isReturnCall?'🔁':'☎️')));
+      var badge=notDone?'<span class="not-done-badge-v529">לא בוצע</span>':(planned?'<span class="planned-badge-v49">מתוכנן</span>':'<span class="done-badge-v49">בוצע</span>');
+      var actions='';
+      if(planned){ actions+='<button class="btn-green" onclick="markEntryDoneV49(\''+htmlEsc(e.id)+'\')">בוצע</button><button class="btn-red" onclick="openNotDoneModalV529(\''+htmlEsc(e.id)+'\')">לא בוצע</button>'; }
+      if(notDone){ actions+='<button class="btn-yellow" onclick="restorePlannedV529(\''+htmlEsc(e.id)+'\')">החזר למתוזמן</button>'; }
+      actions+='<button class="btn-yellow" onclick="openEntryEdit(\''+htmlEsc(e.id)+'\')">ערוך</button>';
+      if(!planned && !notDone && e.workType==='install') actions+='<button class="btn-light" onclick="saveEntryAsTemplate(\''+htmlEsc(e.id)+'\')">שמור כתבנית</button>';
+      actions+='<button class="btn-red" onclick="deleteEntry(\''+htmlEsc(e.id)+'\')">מחק</button>';
+      var amountHtml=notDone ? '₪0' : safeMoney(e.amount||0);
+      row.innerHTML='<div class="work-row-main"><div class="work-icon '+htmlEsc(iconClass)+'">'+icon+'</div><div><div class="item-title">'+htmlEsc(e.description||entryLabelV531(e))+' '+badge+'</div><div class="item-sub">'+detailsHtmlV531(e)+'</div></div></div><div><div class="money '+(planned?'planned-money-v49 ':'')+(notDone?'not-done-money-v529':'')+'">'+amountHtml+'</div><div class="actions" style="margin-top:8px">'+actions+'</div></div>';
+      box.appendChild(row);
+    });
+    try{ if(typeof cleanVisibleSlashN==='function') cleanVisibleSlashN(); }catch(e){}
+  }
+  window.renderDay=renderDayV531;
+
+  function bootV531(){
+    try{ if(typeof ensurePekaSearchFilterV528==='function') ensurePekaSearchFilterV528(); }catch(e){}
+    attachPekaSearchTypeV531();
+    try{ if(typeof selectedDate!=='undefined' && selectedDate) renderDayV531(); }catch(e){}
+  }
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(bootV531,500); setTimeout(bootV531,1600); });
+  window.addEventListener('load',function(){ setTimeout(bootV531,500); setTimeout(bootV531,1800); });
+  setInterval(function(){ try{ attachPekaSearchTypeV531(); }catch(e){} },2000);
+})();
+</script>
+
+
+<style id="v5-32-peka-label-template-fix-css">
+/*
+===============================================================================
+CHANGE 5.32 - פק״ע + תיקון טעינת תבניות לפי שם פריט
+-------------------------------------------------------------------------------
+1. שינוי תצוגה בלבד: הכיתוב למשתמש הוא פק״ע במקום פקה.
+2. תבניות התקנה נטענות גם אם ה-ID הישן של פריט המחירון השתנה, באמצעות fallback לפי שם הפריט.
+3. לא משתנה שם השדה במסד הנתונים: pekaType נשאר אותו שדה כדי לא לשבור עבודות קיימות.
+===============================================================================
+*/
+</style>
+<script id="v5-32-peka-label-template-fix-js">
+(function(){
+  'use strict';
+  var APP_VERSION_V532='5.33';
+
+  function q(id){ return document.getElementById(id); }
+  function normNameV532(v){ return String(v||'').replace(/\s+/g,' ').trim(); }
+  function escHtmlV532(v){
+    try{ if(typeof esc==='function') return esc(v); }catch(e){}
+    return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
+  }
+
+  function updateVersionUiV532(){
+    try{ window.APP_VERSION=APP_VERSION_V532; }catch(e){}
+    try{ document.title='מעקב עבודה - גרסה '+APP_VERSION_V532; }catch(e){}
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent=APP_VERSION_V532; }); }catch(e){}
+    try{ document.querySelectorAll('.secret,#secretTap').forEach(function(el){ el.textContent='גרסה '+APP_VERSION_V532; }); }catch(e){}
+  }
+  window.updateVersionUiV532=updateVersionUiV532;
+
+  function fixPekaLabelsV532(root){
+    try{
+      var scope=root || document;
+      var walker=document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, null);
+      var nodes=[];
+      while(walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach(function(n){
+        if(!n || !n.nodeValue) return;
+        if(n.parentNode && ['SCRIPT','STYLE','TEXTAREA'].indexOf(String(n.parentNode.tagName||'').toUpperCase())!==-1) return;
+        n.nodeValue=n.nodeValue
+          .replace(/סוג פקה/g,'סוג פק״ע')
+          .replace(/סינון לפי פקה/g,'סינון לפי פק״ע')
+          .replace(/פקה:/g,'פק״ע:')
+          .replace(/פקות CN/g,'פק״עות CN')
+          .replace(/פקות CH/g,'פק״עות CH')
+          .replace(/\bפקה\b/g,'פק״ע');
+      });
+      try{
+        document.querySelectorAll('[title]').forEach(function(el){
+          el.title=String(el.title||'').replace(/סוג פקה/g,'סוג פק״ע').replace(/פקה/g,'פק״ע');
+        });
+      }catch(e){}
+    }catch(e){ console.warn('fixPekaLabelsV532 failed',e); }
+  }
+  window.fixPekaLabelsV532=fixPekaLabelsV532;
+
+  function findTemplateInputForItemV532(templateItem){
+    if(!templateItem) return null;
+    var directId=templateItem.id ? q('qty_'+templateItem.id) : null;
+    if(directId) return {el:directId, priceItem:(Array.isArray(priceList)?priceList:[]).find(function(p){return p.id===templateItem.id;}) || templateItem, matchedBy:'id'};
+
+    var wanted=normNameV532(templateItem.name);
+    if(!wanted) return null;
+    var list=Array.isArray(priceList)?priceList:[];
+    var found=list.find(function(p){ return normNameV532(p.name)===wanted; });
+    if(!found){
+      var wantedLoose=wanted.replace(/[״"'׳]/g,'').toLowerCase();
+      found=list.find(function(p){ return normNameV532(p.name).replace(/[״"'׳]/g,'').toLowerCase()===wantedLoose; });
+    }
+    if(!found) return null;
+    var fallbackEl=q('qty_'+found.id);
+    return fallbackEl ? {el:fallbackEl, priceItem:found, matchedBy:'name'} : null;
+  }
+
+  function clearInstallSelectionKeepTemplateV532(){
+    try{
+      (Array.isArray(priceList)?priceList:[]).forEach(function(p){
+        var el=q('qty_'+p.id);
+        if(!el) return;
+        if(String(p.inputMode||'qty')==='check') el.checked=false;
+        else el.value='';
+      });
+    }catch(e){}
+  }
+
+  window.applyTemplateFromSelect=function(){
+    var select=q('installTemplateSelect');
+    var id=select ? select.value : '';
+    if(!id) return;
+    var tpl=(Array.isArray(templates)?templates:[]).find(function(t){ return t.id===id; });
+    if(!tpl) return;
+
+    clearInstallSelectionKeepTemplateV532();
+
+    var applied=0, missing=[];
+    (tpl.items||[]).forEach(function(item){
+      var match=findTemplateInputForItemV532(item);
+      if(!match || !match.el){ missing.push(item && item.name ? item.name : 'פריט ללא שם'); return; }
+      var mode=String((match.priceItem && match.priceItem.inputMode) || item.inputMode || 'qty');
+      var qty=Number(item.quantity || 0);
+      if(mode==='check') match.el.checked=qty>0;
+      else match.el.value=qty>0 ? qty : '';
+      if(qty>0) applied++;
+    });
+
+    try{ if(typeof updateInstallPreview==='function') updateInstallPreview(); }catch(e){}
+    try{ fixPekaLabelsV532(document); }catch(e){}
+
+    var msg=q('entryMsg');
+    if(msg){
+      if(applied){
+        msg.innerHTML='<div class="notice">התבנית נטענה ✅'+(missing.length?'<br><span class="muted">דולגו פריטים שכבר לא קיימים במחירון: '+escHtmlV532(missing.join(', '))+'</span>':'')+'</div>';
+      }else{
+        msg.innerHTML='<p class="danger">התבנית לא סימנה פריטים. כנראה שכל הפריטים שבתבנית כבר לא קיימים במחירון הפעיל.</p>';
+      }
+    }
+  };
+
+  function bootV532(){
+    updateVersionUiV532();
+    fixPekaLabelsV532(document);
+  }
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(bootV532,300); setTimeout(bootV532,1400); });
+  window.addEventListener('load',function(){ setTimeout(bootV532,300); setTimeout(bootV532,1600); });
+  setInterval(function(){ try{ fixPekaLabelsV532(document); updateVersionUiV532(); }catch(e){} },2500);
+})();
+</script>
+
+
+<style id="v5-33-day-sections-fix-css">
+/*
+===============================================================================
+CHANGE 5.33 - הפרדת תצוגת יום: בוצעו / מתוזמנות / לא בוצעו
+-------------------------------------------------------------------------------
+תיקון תצוגה בלבד: עבודות באותו תאריך כבר לא מוצגות כרשימה אחת מעורבבת.
+אין שינוי במבנה הנתונים, בשמירה, בסימון בוצע, בסימון לא בוצע או במחירון.
+===============================================================================
+*/
+.day-section-v533{margin:14px 0 10px;padding-top:6px;border-top:1px solid rgba(226,232,240,.9)}
+.day-section-v533:first-child{border-top:0;padding-top:0}
+.day-section-title-v533{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:1000;margin:4px 0 10px;color:#0f172a}
+.day-section-count-v533{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:1000;padding:0 8px}
+.day-empty-v533{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:16px;padding:12px;color:#64748b;font-weight:900;margin:8px 0}
+</style>
+<script id="v5-33-day-sections-fix-js">
+(function(){
+  'use strict';
+  var APP_VERSION_V533='5.33';
+
+  function byId(id){ return document.getElementById(id); }
+  function html(v){
+    try{ if(typeof esc==='function') return esc(v); }catch(e){}
+    return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
+  }
+  function nl(v){ return String(v==null?'':v).replace(/\\n/g,'\n').split('\n').map(html).join('<br>'); }
+  function moneySafe(v){ try{ if(typeof money==='function') return money(Number(v||0)); }catch(e){} return '₪'+Number(v||0).toLocaleString('he-IL'); }
+  function heDateSafe(v){ try{ if(typeof heDate==='function') return heDate(v); }catch(e){} return String(v||''); }
+  function jsArg(v){ return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,' '); }
+  function status(e){ return String((e && (e.entryStatus || e.status)) || 'done'); }
+  function isPlanned(e){
+    try{ if(typeof window.isPlannedV49==='function') return !!window.isPlannedV49(e); }catch(err){}
+    return !!(e && (status(e)==='planned' || e.planned===true || e.isPlanned===true));
+  }
+  function isNotDone(e){ return !!(e && status(e)==='not_done'); }
+  function normalizePeka(v){ var s=String(v||'').trim().toUpperCase(); return (s==='CN'||s==='CH') ? s : ''; }
+  function pekaBadge(e){ var p=normalizePeka(e && e.pekaType); return p ? '<br><span class="peka-badge-v527 peka-badge-clean-v531">פק״ע: '+html(p)+'</span>' : ''; }
+  function label(e){ return e && e.workType==='install' ? 'התקנה' : 'קריאת שירות'; }
+  function details(e){
+    if(!e) return '';
+    var out='מספר לקוח: '+html(e.customerNumber||'')+'<br>כתובת: '+html(e.address||'')+'<br>';
+    if(e.workType==='install'){
+      var items=(Array.isArray(e.items)?e.items:[]).map(function(i){return html(i.name||'')+' × '+html(i.quantity||0)+' = '+moneySafe(i.total||0);}).join('<br>');
+      if(items) out+=items;
+      out+=pekaBadge(e)+'<br>';
+    }else{
+      out+=html(e.isReturnCall?'קריאה חוזרת ללא תשלום':'קריאת שירות')+'<br>';
+    }
+    if(isNotDone(e)){
+      out+='לא בוצע — סיבה: '+html(e.notDoneReason||'')+'<br>';
+      if(e.notDoneNote) out+='פירוט: '+nl(e.notDoneNote)+'<br>';
+    }
+    if(e.notes) out+=nl(e.notes);
+    return out;
+  }
+
+  function renderEntryCard(e){
+    var planned=isPlanned(e), notDone=isNotDone(e);
+    var row=document.createElement('div');
+    row.className='item'+(planned?' planned-card-v49':'')+(notDone?' not-done-card-v529':'');
+    var iconClass=e.workType==='install'?'install':(e.isReturnCall?'return':'service');
+    var icon=notDone?'🚫':(planned?'📋':(e.workType==='install'?'🛠️':(e.isReturnCall?'🔁':'☎️')));
+    var badge=notDone?'<span class="not-done-badge-v529">לא בוצע</span>':(planned?'<span class="planned-badge-v49">מתוכנן</span>':'<span class="done-badge-v49">בוצע</span>');
+    var actions='';
+    if(planned){
+      actions+='<button class="btn-green" onclick="markEntryDoneV49(\''+jsArg(e.id)+'\')">בוצע</button>';
+      actions+='<button class="btn-red" onclick="openNotDoneModalV529(\''+jsArg(e.id)+'\')">לא בוצע</button>';
+    }
+    if(notDone){ actions+='<button class="btn-yellow" onclick="restorePlannedV529(\''+jsArg(e.id)+'\')">החזר למתוזמן</button>'; }
+    actions+='<button class="btn-yellow" onclick="openEntryEdit(\''+jsArg(e.id)+'\')">ערוך</button>';
+    if(!planned && !notDone && e.workType==='install') actions+='<button class="btn-light" onclick="saveEntryAsTemplate(\''+jsArg(e.id)+'\')">שמור כתבנית</button>';
+    actions+='<button class="btn-red" onclick="deleteEntry(\''+jsArg(e.id)+'\')">מחק</button>';
+    var amountHtml=notDone ? '₪0' : moneySafe(e.amount||0);
+    row.innerHTML='<div class="work-row-main"><div class="work-icon '+html(iconClass)+'">'+icon+'</div><div><div class="item-title">'+html(e.description||label(e))+' '+badge+'</div><div class="item-sub">'+details(e)+'</div></div></div><div><div class="money '+(planned?'planned-money-v49 ':'')+(notDone?'not-done-money-v529':'')+'">'+amountHtml+'</div><div class="actions" style="margin-top:8px">'+actions+'</div></div>';
+    return row;
+  }
+
+  function addSection(box,title,icon,list,emptyText){
+    var section=document.createElement('div');
+    section.className='day-section-v533';
+    section.innerHTML='<div class="day-section-title-v533">'+icon+' '+html(title)+' <span class="day-section-count-v533">'+list.length+'</span></div>';
+    if(list.length){ list.forEach(function(e){ section.appendChild(renderEntryCard(e)); }); }
+    else if(emptyText){ section.innerHTML+='<div class="day-empty-v533">'+html(emptyText)+'</div>'; }
+    box.appendChild(section);
+  }
+
+  function renderDayV533(){
+    if(typeof selectedDate==='undefined' || !selectedDate){
+      try{ hide('dayPanel'); show('selectDayHint'); }catch(e){}
+      return;
+    }
+    try{ show('dayPanel'); hide('selectDayHint'); }catch(e){}
+    try{ text('dateTitle','יום '+heDateSafe(selectedDate)); }catch(e){ var dt=byId('dateTitle'); if(dt) dt.textContent='יום '+heDateSafe(selectedDate); }
+    try{ if(typeof renderInstallItems==='function') renderInstallItems(); }catch(e){}
+    try{ if(typeof setType==='function') setType(selectedType,false); }catch(e){}
+    try{ if(typeof updateServicePriceLabels==='function') updateServicePriceLabels(); }catch(e){}
+    try{ if(typeof movePekaUnderTemplatesV529==='function') movePekaUnderTemplatesV529(); }catch(e){}
+
+    var box=byId('dayEntries'); if(!box) return;
+    var all=[];
+    try{
+      all=((typeof monthEntries!=='undefined' && Array.isArray(monthEntries))?monthEntries:[])
+        .filter(function(e){return e && e.date===selectedDate;})
+        .sort(function(a,b){return ((b.createdAt&&b.createdAt.seconds)||0)-((a.createdAt&&a.createdAt.seconds)||0);});
+    }catch(e){ all=[]; }
+    var done=all.filter(function(e){return !isPlanned(e) && !isNotDone(e);});
+    var planned=all.filter(isPlanned);
+    var notDone=all.filter(isNotDone);
+
+    box.innerHTML='';
+    if(!all.length){ box.innerHTML='<p class="muted">אין עבודות ביום הזה עדיין.</p>'; return; }
+    if(done.length) addSection(box,'עבודות שבוצעו ביום הזה','✅',done,'');
+    if(planned.length) addSection(box,'מתוזמנות ליום הזה','📋',planned,'');
+    if(notDone.length) addSection(box,'לא בוצעו ביום הזה','🚫',notDone,'');
+    try{ if(typeof cleanVisibleSlashN==='function') cleanVisibleSlashN(); }catch(e){}
+  }
+  window.renderDay=renderDayV533;
+
+  function updateVersionUiV533(){
+    try{ window.APP_VERSION=APP_VERSION_V533; }catch(e){}
+    try{ document.title='מעקב עבודה - גרסה '+APP_VERSION_V533; }catch(e){}
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent=APP_VERSION_V533; }); }catch(e){}
+    try{ document.querySelectorAll('.secret,#secretTap').forEach(function(el){ el.textContent='גרסה '+APP_VERSION_V533; }); }catch(e){}
+  }
+
+  function bootV533(){
+    updateVersionUiV533();
+    try{ if(typeof selectedDate!=='undefined' && selectedDate) renderDayV533(); }catch(e){}
+  }
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(bootV533,400); setTimeout(bootV533,1700); });
+  window.addEventListener('load',function(){ setTimeout(bootV533,500); setTimeout(bootV533,1900); });
+  setInterval(function(){ try{ updateVersionUiV533(); }catch(e){} },2500);
+})();
+</script>
