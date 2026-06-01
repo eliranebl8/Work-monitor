@@ -1373,7 +1373,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.32";
+const APP_VERSION = "5.34";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1388,6 +1388,12 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
+
+CHANGELOG 5.34 - החזרת יום חופש למסך יום נבחר
+1. APP_VERSION עודכן ל-"5.34".
+2. כפתור "סמן כיום חופש" הוחזר למסך היום הנבחר אחרי תיקון ההפרדה בין בוצעו / מתוזמנות / לא בוצעו.
+3. יום שכבר מסומן כחופש מציג שוב הודעה ברורה וכפתור "בטל יום חופש".
+4. לא שונו שמירת עבודות, פק״ע, תבניות, מתוזמנות, לא בוצע, אופליין, גיבוי, אקסל או לוגין.
 
 CHANGELOG 5.32 - תיקון תצוגת פק״ע וטעינת תבניות
 1. APP_VERSION עודכן ל-"5.32".
@@ -16867,6 +16873,8 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+    {version:"5.34", title:"החזרת יום חופש למסך יום נבחר", items:["כפתור סמן כיום חופש הוחזר למסך היום הנבחר אחרי הפרדת בוצעו / מתוזמנות / לא בוצעו.","יום שמסומן כחופש מציג שוב הודעה ברורה וכפתור בטל יום חופש.","התיקון הוא תצוגה בלבד ולא משנה שמירת עבודות, פק״ע, תבניות, אופליין, גיבוי או לוגין."], createdAt:"2026-06-01"},
+    {version:"5.33", title:"הפרדת עבודות שבוצעו ומתוזמנות ביום נבחר", items:["תצוגת היום הנבחר הוחזרה להפרדה ברורה בין עבודות שבוצעו לבין מתוזמנות.","עבודות בסטטוס not_done מוצגות באזור נפרד לא בוצעו אם קיימות באותו יום.","לא שונו שמירת עבודות, סימון בוצע, לא בוצע, מחירון, תבניות, אופליין, גיבוי או לוגין."], createdAt:"2026-05-31"},
     {version:"5.32", title:"תיקון תצוגת פק״ע וטעינת תבניות", items:["הוחלף הכיתוב למשתמש מפקה לפק״ע בכל התצוגות הרלוונטיות, בלי לשנות את שדה הנתונים pekaType.","תוקנה בחירת תבניות התקנה כך שאם ID ישן של פריט מחירון לא נמצא, המערכת מחפשת התאמה לפי שם הפריט.","פריטים שלא קיימים יותר במחירון מדולגים בלי לעצור את טעינת התבנית ובלי לפגוע בחישוב הסכום."], createdAt:"2026-05-31"},
     {version:"5.31", title:"תיקון תצוגת פק״ע וסינון רק להתקנות", items:["תוקנה תצוגת סוג פק״ע בכרטיסי עבודות ומתוזמנות כך ש-CN/CH יוצגו כתג תקין ולא כטקסט HTML שבור.","סינון לפי סוג פק״ע בחיפוש מופיע ופועל רק כאשר סוג העבודה הוא התקנות.","בחירת קריאות שירות או כל סוגי העבודה מנקה את סינון הפק״ע כדי שלא יסתיר תוצאות."], createdAt:"2026-05-31"},
     {version:"5.30", title:"תיקון טעינת פק״ע בחיפוש ובדשבורד", items:["תוקנה שגיאת selectedSearchPekaV528 is not defined בזמן טעינת נתוני העובד.","פונקציות פק״ע שנדרשות ל-wrapper של החיפוש והדשבורד נחשפות ל-window בצורה בטוחה.","לא שונו שמירת עבודות, לא בוצע, סיבות, אופליין, גיבוי, אקסל או לוגין."], createdAt:"2026-05-31"},
@@ -17688,5 +17696,92 @@ CHANGE 5.33 - הפרדת תצוגת יום: בוצעו / מתוזמנות / לא
   document.addEventListener('DOMContentLoaded',function(){ setTimeout(bootV533,400); setTimeout(bootV533,1700); });
   window.addEventListener('load',function(){ setTimeout(bootV533,500); setTimeout(bootV533,1900); });
   setInterval(function(){ try{ updateVersionUiV533(); }catch(e){} },2500);
+})();
+</script>
+
+
+<style id="v5-34-vacation-day-restore-css">
+/*
+===============================================================================
+CHANGE 5.34 - החזרת יום חופש למסך יום נבחר
+-------------------------------------------------------------------------------
+תיקון תצוגה נקודתי בלבד:
+- v5.33 החליף את renderDay כדי להפריד בוצעו / מתוזמנות / לא בוצעו.
+- במהלך ההחלפה רכיב יום החופש לא הוזרק למסך היום.
+- כאן מחזירים את כפתור "סמן כיום חופש" ואת מצב "בטל יום חופש" בלי לשנות לוגיקת Firestore.
+===============================================================================
+*/
+</style>
+<script id="v5-34-vacation-day-restore-js">
+(function(){
+  'use strict';
+  var APP_VERSION_V534='5.34';
+
+  function q(id){ return document.getElementById(id); }
+  function heDateSafeV534(v){ try{ if(typeof heDate==='function') return heDate(v); }catch(e){} return String(v||''); }
+  function isVacationV534(date){
+    try{ if(typeof window.isVacationDayV437==='function') return !!window.isVacationDayV437(date); }catch(e){}
+    try{ if(Array.isArray(window.vacationDaysV437)) return window.vacationDaysV437.indexOf(date)>=0; }catch(e){}
+    return false;
+  }
+  function updateVersionUiV534(){
+    try{ window.APP_VERSION=APP_VERSION_V534; }catch(e){}
+    try{ document.title='מעקב עבודה - גרסה '+APP_VERSION_V534; }catch(e){}
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent=APP_VERSION_V534; }); }catch(e){}
+    try{ document.querySelectorAll('.secret,#secretTap').forEach(function(el){ el.textContent='גרסה '+APP_VERSION_V534; }); }catch(e){}
+  }
+  function showVacationStateV534(){
+    try{ show('dayPanel'); hide('selectDayHint'); }catch(e){}
+    try{ text('dateTitle','יום '+heDateSafeV534(selectedDate)+' — יום חופש'); }catch(e){ var title=q('dateTitle'); if(title) title.textContent='יום '+heDateSafeV534(selectedDate)+' — יום חופש'; }
+    var form=q('entryForm'); if(form) form.classList.add('hidden');
+    var edit=q('editEntryPanel'); if(edit) edit.classList.add('hidden');
+    var holder=q('dayOffToolsV437'); if(holder) holder.remove();
+    var box=q('dayEntries');
+    if(box){
+      box.innerHTML='<div class="day-off-panel-v437">🏖️ היום הזה מסומן כיום חופש ולכן הוא לא נספר כיום עבודה בדשבורד החכם.<br>אין אפשרות להוסיף עבודה ביום הזה עד שמבטלים את יום החופש.</div><div class="actions"><button class="btn-yellow" type="button" onclick="cancelVacationDayV437(\''+String(selectedDate).replace(/'/g,"\\'")+'\')">בטל יום חופש</button></div>';
+    }
+  }
+  function injectVacationButtonV534(){
+    if(typeof selectedDate==='undefined' || !selectedDate) return;
+    if(isVacationV534(selectedDate)) return;
+    var form=q('entryForm'); if(form) form.classList.remove('hidden');
+    var holder=q('dayOffToolsV437');
+    if(!holder){
+      holder=document.createElement('div');
+      holder.id='dayOffToolsV437';
+      holder.className='day-off-tools-v437';
+      var title=q('dateTitle');
+      if(title && title.parentNode) title.parentNode.insertBefore(holder,title.nextSibling);
+    }
+    if(holder){
+      holder.innerHTML='<button class="btn-light" type="button" onclick="setVacationDayV437(\''+String(selectedDate).replace(/'/g,"\\'")+'\')">🏖️ סמן כיום חופש</button>';
+    }
+  }
+
+  var baseRenderDayV534=window.renderDay;
+  window.renderDay=function(){
+    if(typeof selectedDate==='undefined' || !selectedDate){
+      try{ if(typeof baseRenderDayV534==='function') return baseRenderDayV534.apply(this,arguments); }catch(e){}
+      try{ hide('dayPanel'); show('selectDayHint'); }catch(e){}
+      return;
+    }
+    if(isVacationV534(selectedDate)){
+      showVacationStateV534();
+      return;
+    }
+    var res;
+    try{ if(typeof baseRenderDayV534==='function') res=baseRenderDayV534.apply(this,arguments); }catch(e){ console.warn('v5.34 base renderDay failed', e); }
+    injectVacationButtonV534();
+    try{ if(typeof cleanVisibleSlashN==='function') cleanVisibleSlashN(); }catch(e){}
+    return res;
+  };
+
+  function bootV534(){
+    updateVersionUiV534();
+    try{ if(typeof selectedDate!=='undefined' && selectedDate) window.renderDay(); }catch(e){}
+  }
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(bootV534,350); setTimeout(bootV534,1500); });
+  window.addEventListener('load',function(){ setTimeout(bootV534,450); setTimeout(bootV534,1800); });
+  setInterval(function(){ try{ updateVersionUiV534(); }catch(e){} },2500);
 })();
 </script>
