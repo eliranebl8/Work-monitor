@@ -1373,7 +1373,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.34";
+const APP_VERSION = "5.38";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1388,6 +1388,35 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
+
+CHANGELOG 5.38 - חסימת שינוי תאריך לשבת או יום חופש
+1. APP_VERSION עודכן ל-"5.38".
+2. שינוי תאריך בודק עכשיו לפני שמירה אם התאריך החדש הוא שבת.
+3. שינוי תאריך בודק גם אם התאריך החדש מסומן כיום חופש ב-Firestore / מערך ימי החופש המקומי.
+4. אם התאריך שבת או יום חופש, המערכת מציגה הודעה ולא משנה את התאריך.
+5. לא שונו שמירת עבודות, מתוזמנות, לא בוצע, מחירון, תבניות, דשבורד, אופליין, גיבוי, אקסל או לוגין.
+
+CHANGELOG 5.37 - גלילה למחירון התקנה + שינוי תאריך עבודה
+1. APP_VERSION עודכן ל-"5.37".
+2. אזור פריטי המחירון בטופס ההתקנה קיבל גלילה פנימית כדי שהטופס לא יימתח יותר מדי למטה.
+3. נוסף כפתור "שינוי תאריך" בכרטיסי עבודות שבוצעו, מתוזמנות ולא בוצעו.
+4. שינוי התאריך מעדכן את אותה רשומה קיימת ב-Firestore, ללא מחיקה, ללא שכפול וללא איבוד פרטי לקוח, פריטים, פק״ע, סטטוס או סיבה.
+5. לאחר שינוי תאריך המערכת עוברת לתאריך החדש וטוענת את החודש המתאים.
+6. לא שונו שמירת עבודות, יום חופש, תבניות, לא בוצע, אופליין, גיבוי, אקסל או לוגין.
+
+CHANGELOG 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
+1. APP_VERSION עודכן ל-"5.36".
+2. אחרי שמירת קריאת שירות, התקנה או סידור מתוזמן, הטופס חוזר למצב הראשוני של היום הנבחר.
+3. היום נשאר מסומן בלוח השנה, אבל טופס קריאת שירות/התקנה נסגר ומוצגים רק כפתורי הבחירה ויום החופש.
+4. האיפוסים של 5.35 נשמרו: פק״ע CN/CH מתאפס וקריאת שירות חוזרת יורדת מסימון.
+5. לא שונו שמירת עבודות, יום חופש, תבניות, מתוזמנות, לא בוצע, דשבורד, אופליין, גיבוי או לוגין.
+
+CHANGELOG 5.35 - איפוס פק״ע וקריאת שירות חוזרת אחרי שמירה/ניקוי
+1. APP_VERSION עודכן ל-"5.35".
+2. אחרי שמירת התקנה רגילה או מתוזמנת, שדה סוג פק״ע CN/CH מתאפס לברירת המחדל.
+3. אחרי ניקוי בחירת התקנה, שדה סוג פק״ע CN/CH מתאפס גם כן.
+4. אחרי שמירת קריאת שירות רגילה או מתוזמנת, סימון "קריאת שירות חוזרת" יורד וחישוב הסכום חוזר למחיר הרגיל.
+5. התיקון נוגע רק לאיפוס שדות טופס ולא משנה שמירת עבודות, יום חופש, תבניות, מתוזמנות, לא בוצע, דשבורד, אופליין, גיבוי או לוגין.
 
 CHANGELOG 5.34 - החזרת יום חופש למסך יום נבחר
 1. APP_VERSION עודכן ל-"5.34".
@@ -15555,6 +15584,598 @@ CHANGE 5.29 - Planned job "Not Done" + peka position under templates
   setInterval(function(){try{movePekaUnderTemplatesV529();}catch(e){}},1500);
 })();
 </script>
+
+
+<script id="v5-35-reset-new-fields-js">
+/*
+===============================================================================
+CHANGE 5.35 - איפוס שדות חדשים אחרי שמירה / מתוזמן / ניקוי
+-------------------------------------------------------------------------------
+תיקון נקודתי בלבד:
+- סוג פק״ע CN/CH מתאפס אחרי שמירת התקנה רגילה או מתוזמנת ואחרי ניקוי בחירה.
+- קריאת שירות חוזרת מתאפסת אחרי שמירת קריאת שירות רגילה או מתוזמנת.
+- אין שינוי בלוגיקת שמירה, יום חופש, תבניות, דשבורד, אופליין, גיבוי או לוגין.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  var APP_VERSION_V535='5.38';
+
+  function q(id){ return document.getElementById(id); }
+
+  function updateVersionUiV535(){
+    try{ window.APP_VERSION=APP_VERSION_V535; }catch(e){}
+    try{ document.title='מעקב עבודה - גרסה '+APP_VERSION_V535; }catch(e){}
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent=APP_VERSION_V535; }); }catch(e){}
+    try{ document.querySelectorAll('.secret,#secretTap').forEach(function(el){ el.textContent='גרסה '+APP_VERSION_V535; }); }catch(e){}
+  }
+
+  function resetPekaTypeV535(){
+    try{
+      var peka=q('pekaTypeV527');
+      if(peka) peka.value='';
+    }catch(e){}
+  }
+
+  function resetReturnCallV535(){
+    try{
+      var cb=q('sReturnCall');
+      if(cb) cb.checked=false;
+      if(typeof updateServicePreview==='function') updateServicePreview();
+    }catch(e){}
+  }
+
+  function resetNewEntryFieldsV535(){
+    resetPekaTypeV535();
+    resetReturnCallV535();
+    try{ if(typeof updateInstallPreview==='function') updateInstallPreview(); }catch(e){}
+  }
+
+  // חושפים פונקציה גלובלית בשם שהקוד הישן כבר מנסה לקרוא לו.
+  window.resetPekaTypeV527=resetPekaTypeV535;
+  window.resetNewEntryFieldsV535=resetNewEntryFieldsV535;
+
+  // כפתור "נקה בחירה" של ההתקנה: מאפס גם את סוג הפק״ע.
+  var oldClearInstallSelection=window.clearInstallSelection;
+  window.clearInstallSelection=function(){
+    var result;
+    try{ if(typeof oldClearInstallSelection==='function') result=oldClearInstallSelection.apply(this,arguments); }catch(e){ console.warn('clearInstallSelection base failed in v5.35',e); }
+    resetPekaTypeV535();
+    try{ if(typeof updateInstallPreview==='function') updateInstallPreview(); }catch(e){}
+    return result;
+  };
+
+  // resetEntryFormsAfterSaveV42 קיים בחלק מהשמירות הישנות; מוסיפים לו את השדות החדשים בלי לשכתב אותו.
+  if(typeof window.resetEntryFormsAfterSaveV42==='function'){
+    var oldResetEntryFormsAfterSaveV42=window.resetEntryFormsAfterSaveV42;
+    window.resetEntryFormsAfterSaveV42=function(){
+      var result=oldResetEntryFormsAfterSaveV42.apply(this,arguments);
+      resetNewEntryFieldsV535();
+      return result;
+    };
+  }
+
+  // wmAfterLocalEntrySaveV516 היא שכבת השמירה הפעילה באופליין/אונליין ומתוזמנים.
+  if(typeof window.wmAfterLocalEntrySaveV516==='function'){
+    var oldAfterLocalSaveV516=window.wmAfterLocalEntrySaveV516;
+    window.wmAfterLocalEntrySaveV516=function(){
+      var result=oldAfterLocalSaveV516.apply(this,arguments);
+      resetNewEntryFieldsV535();
+      setTimeout(resetNewEntryFieldsV535,60);
+      return result;
+    };
+  }
+
+  // שכבת ביטחון: אחרי שמירה מוצלחת שמופיעה כהודעה, נוודא שהשדות החדשים לא נשארים מסומנים.
+  ['addService','addInstall','addServicePlannedV49','addInstallPlannedV49'].forEach(function(fnName){
+    try{
+      var oldFn=window[fnName];
+      if(typeof oldFn!=='function' || oldFn.__v535Wrapped) return;
+      var wrapped=function(){
+        var result=oldFn.apply(this,arguments);
+        try{
+          if(result && typeof result.then==='function'){
+            result.then(function(){ setTimeout(resetNewEntryFieldsV535,80); }).catch(function(){});
+          }else{
+            setTimeout(function(){
+              var msg=q('entryMsg');
+              var html=msg ? String(msg.innerHTML||'') : '';
+              if(html.indexOf('נשמר')>=0 || html.indexOf('נקלט')>=0 || html.indexOf('סידור')>=0) resetNewEntryFieldsV535();
+            },120);
+          }
+        }catch(e){}
+        return result;
+      };
+      wrapped.__v535Wrapped=true;
+      window[fnName]=wrapped;
+    }catch(e){}
+  });
+
+  function bootV535(){
+    updateVersionUiV535();
+    try{ resetNewEntryFieldsV535(); }catch(e){}
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(bootV535,350); setTimeout(updateVersionUiV535,1500); });
+  window.addEventListener('load',function(){ setTimeout(bootV535,450); setTimeout(updateVersionUiV535,1800); });
+  setInterval(function(){ try{ updateVersionUiV535(); }catch(e){} },2500);
+})();
+</script>
+
+
+<script id="v5-36-return-to-day-choice-after-save-js">
+/*
+===============================================================================
+CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
+-------------------------------------------------------------------------------
+תיקון UX נקודתי בלבד:
+- אחרי שמירת קריאת שירות / התקנה / מתוזמן / שמירה אופליין, היום נשאר נבחר.
+- הטופס חוזר למצב כמו אחרי לחיצה חדשה על היום: רק כפתורי קריאת שירות, התקנה ויום חופש.
+- אין שינוי בלוגיקת השמירה, בתבניות, ביום חופש, בדשבורד, בגיבוי או בלוגין.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  var APP_VERSION_V536='5.38';
+
+  function q(id){ return document.getElementById(id); }
+
+  function updateVersionUiV536(){
+    try{ window.APP_VERSION=APP_VERSION_V536; }catch(e){}
+    try{ document.title='מעקב עבודה - גרסה '+APP_VERSION_V536; }catch(e){}
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent=APP_VERSION_V536; }); }catch(e){}
+    try{ document.querySelectorAll('.secret,#secretTap').forEach(function(el){ el.textContent='גרסה '+APP_VERSION_V536; }); }catch(e){}
+  }
+
+  function resetNewFieldsV536(){
+    try{ if(typeof window.resetNewEntryFieldsV535==='function') window.resetNewEntryFieldsV535(); }catch(e){}
+    try{ if(typeof window.resetPekaTypeV527==='function') window.resetPekaTypeV527(); }catch(e){}
+    try{
+      var cb=q('sReturnCall');
+      if(cb) cb.checked=false;
+      if(typeof window.updateServicePreview==='function') window.updateServicePreview();
+    }catch(e){}
+    try{
+      var peka=q('pekaTypeV527');
+      if(peka) peka.value='';
+    }catch(e){}
+  }
+
+  function returnToDayChoiceV536(keepMessage){
+    try{ resetNewFieldsV536(); }catch(e){}
+    try{ if(typeof selectedType!=='undefined') selectedType=null; }catch(e){}
+    try{
+      if(typeof window.setType==='function'){
+        window.setType(null,false);
+      }else{
+        var service=q('serviceForm'), install=q('installForm'), serviceBtn=q('serviceBtn'), installBtn=q('installBtn');
+        if(service) service.classList.add('hidden');
+        if(install) install.classList.add('hidden');
+        if(serviceBtn) serviceBtn.classList.remove('active');
+        if(installBtn) installBtn.classList.remove('active');
+      }
+    }catch(e){}
+    try{
+      if(!keepMessage){
+        var msg=q('entryMsg');
+        if(msg) msg.innerHTML='';
+      }
+    }catch(e){}
+    try{
+      if(typeof window.renderDay==='function') window.renderDay();
+    }catch(e){
+      try{ if(typeof window.renderCalendar==='function') window.renderCalendar(); }catch(err){}
+    }
+    try{ if(typeof window.renderCalendar==='function') window.renderCalendar(); }catch(e){}
+    try{ if(typeof window.cleanVisibleSlashN==='function') window.cleanVisibleSlashN(); }catch(e){}
+  }
+  window.returnToDayChoiceV536=returnToDayChoiceV536;
+
+  function scheduleReturnV536(){
+    // רץ בכמה פעימות כדי לנצח טעינות חודש / renderDay מאוחרות שמגיעות אחרי השמירה.
+    setTimeout(function(){ returnToDayChoiceV536(false); },80);
+    setTimeout(function(){ returnToDayChoiceV536(false); },350);
+    setTimeout(function(){ returnToDayChoiceV536(false); },900);
+  }
+
+  // שכבת השמירה המרכזית באופליין/אונליין ומתוזמנים.
+  if(typeof window.wmAfterLocalEntrySaveV516==='function' && !window.wmAfterLocalEntrySaveV516.__v536Wrapped){
+    var oldAfterLocalSaveV536=window.wmAfterLocalEntrySaveV516;
+    var wrappedAfterLocalV536=function(){
+      var result=oldAfterLocalSaveV536.apply(this,arguments);
+      scheduleReturnV536();
+      return result;
+    };
+    wrappedAfterLocalV536.__v536Wrapped=true;
+    window.wmAfterLocalEntrySaveV516=wrappedAfterLocalV536;
+  }
+
+  // שכבת ביטחון על פונקציות השמירה הישירות.
+  ['addService','addInstall','addServicePlannedV49','addInstallPlannedV49','addServiceWithStatusV49','addInstallWithStatusV49','addInstallWithStatusV411'].forEach(function(fnName){
+    try{
+      var oldFn=window[fnName];
+      if(typeof oldFn!=='function' || oldFn.__v536Wrapped) return;
+      var wrapped=function(){
+        var result=oldFn.apply(this,arguments);
+        try{
+          if(result && typeof result.then==='function'){
+            result.then(function(){ scheduleReturnV536(); }).catch(function(){});
+          }else{
+            scheduleReturnV536();
+          }
+        }catch(e){}
+        return result;
+      };
+      wrapped.__v536Wrapped=true;
+      window[fnName]=wrapped;
+    }catch(e){}
+  });
+
+  function bootV536(){
+    updateVersionUiV536();
+    // לא מאפסים טופס בזמן טעינה רגילה; רק מעדכנים גרסה.
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(bootV536,350); setTimeout(updateVersionUiV536,1500); });
+  window.addEventListener('load',function(){ setTimeout(bootV536,450); setTimeout(updateVersionUiV536,1800); });
+  setInterval(function(){ try{ updateVersionUiV536(); }catch(e){} },2500);
+})();
+</script>
+
+
+
+<style id="v5-37-install-scroll-change-date-css">
+/*
+===============================================================================
+CHANGE 5.37 - גלילה פנימית למחירון התקנה + שינוי תאריך עבודה
+-------------------------------------------------------------------------------
+1. אזור פריטי המחירון בטופס התקנה (#installItems) מקבל גלילה פנימית בלבד.
+2. נוסף כפתור שינוי תאריך לכל כרטיס עבודה קיים: בוצע / מתוזמן / לא בוצע.
+3. שינוי התאריך מעדכן את אותה רשומת Firestore ללא מחיקה וללא שכפול.
+4. התיקון הוא תוספת נקודתית ואינו משנה שמירה, יום חופש, תבניות, לא בוצע, אופליין, גיבוי או לוגין.
+===============================================================================
+*/
+#installItems{
+  max-height:440px!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  padding:6px 6px 6px 0!important;
+  margin:10px 0 12px!important;
+  border:1px solid #e2e8f0!important;
+  border-radius:20px!important;
+  background:rgba(248,250,252,.72)!important;
+  scrollbar-width:thin!important;
+  scrollbar-color:#94a3b8 transparent!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+#installItems::-webkit-scrollbar{width:8px!important}
+#installItems::-webkit-scrollbar-thumb{background:#94a3b8!important;border-radius:999px!important}
+#installItems::-webkit-scrollbar-track{background:transparent!important}
+#installItems .item{margin:6px 4px!important}
+.install-scroll-note-v537{
+  font-size:12px;
+  color:#64748b;
+  font-weight:900;
+  margin:8px 0 2px;
+  text-align:center;
+}
+.change-date-btn-v537{background:linear-gradient(135deg,#7c3aed,#2563eb)!important;color:#fff!important}
+.change-date-modal-v537{
+  position:fixed!important;
+  inset:0!important;
+  z-index:2147483647!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:14px!important;
+  background:rgba(15,23,42,.58)!important;
+  direction:rtl!important;
+}
+.change-date-card-v537{
+  width:min(430px,100%)!important;
+  background:#fff!important;
+  border-radius:24px!important;
+  padding:20px!important;
+  box-shadow:0 24px 80px rgba(15,23,42,.28)!important;
+  border:1px solid #e2e8f0!important;
+}
+.change-date-card-v537 h3{margin:0 0 8px!important;font-size:20px!important}
+.change-date-actions-v537{display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px!important;margin-top:12px!important}
+.change-date-actions-v537 button{width:100%!important}
+@media(max-width:800px){
+  #installItems{max-height:360px!important;border-radius:18px!important}
+  .change-date-actions-v537{grid-template-columns:1fr!important}
+}
+</style>
+<script id="v5-37-install-scroll-change-date-js">
+(function(){
+  'use strict';
+  var APP_VERSION_V537='5.38';
+
+  function q(id){ return document.getElementById(id); }
+  function safeEsc(v){ try{ if(typeof esc==='function') return esc(v); }catch(e){} return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function safeHeDate(v){ try{ if(typeof heDate==='function') return heDate(v); }catch(e){} return String(v||''); }
+  function jsArg(v){ return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,' '); }
+  function todayIso(){ try{ if(typeof todayStr==='function') return todayStr(); }catch(e){} var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function parseIsoDate(v){ var parts=String(v||'').split('-').map(Number); if(parts.length!==3||!parts[0]||!parts[1]||!parts[2]) return null; return new Date(parts[0],parts[1]-1,parts[2]); }
+  function findEntry(id){ try{ return (Array.isArray(monthEntries)?monthEntries:[]).find(function(e){return e && String(e.id)===String(id);}); }catch(e){ return null; } }
+  function updateVersionUiV537(){
+    try{ window.APP_VERSION=APP_VERSION_V537; }catch(e){}
+    try{ document.title='מעקב עבודה - גרסה '+APP_VERSION_V537; }catch(e){}
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent=APP_VERSION_V537; }); }catch(e){}
+    try{ document.querySelectorAll('.secret,#secretTap').forEach(function(el){ el.textContent='גרסה '+APP_VERSION_V537; }); }catch(e){}
+  }
+
+  function ensureInstallScrollNoteV537(){
+    var box=q('installItems');
+    if(!box || box.dataset.v537ScrollReady==='1') return;
+    box.dataset.v537ScrollReady='1';
+    var note=document.createElement('div');
+    note.className='install-scroll-note-v537';
+    note.textContent='רשימת פריטי המחירון נגללת כאן בלבד';
+    if(box.parentNode) box.parentNode.insertBefore(note, box);
+  }
+  var oldRenderInstallItems=window.renderInstallItems;
+  if(typeof oldRenderInstallItems==='function' && !oldRenderInstallItems.__v537Wrapped){
+    window.renderInstallItems=function(){
+      var res=oldRenderInstallItems.apply(this,arguments);
+      try{ ensureInstallScrollNoteV537(); }catch(e){}
+      return res;
+    };
+    window.renderInstallItems.__v537Wrapped=true;
+  }
+
+  function extractEntryIdFromActions(actions){
+    if(!actions) return '';
+    var html=actions.innerHTML||'';
+    var patterns=[
+      /openEntryEdit\('([^']+)'\)/,
+      /markEntryDoneV49\('([^']+)'\)/,
+      /openNotDoneModalV529\('([^']+)'\)/,
+      /restorePlannedV529\('([^']+)'\)/,
+      /deleteEntry\('([^']+)'\)/,
+      /saveEntryAsTemplate\('([^']+)'\)/
+    ];
+    for(var i=0;i<patterns.length;i++){ var m=html.match(patterns[i]); if(m && m[1]) return m[1]; }
+    return '';
+  }
+
+  function addChangeDateButtonsV537(){
+    try{
+      var root=q('dayEntries'); if(!root) return;
+      root.querySelectorAll('.actions').forEach(function(actions){
+        if(actions.querySelector('.change-date-btn-v537')) return;
+        var id=extractEntryIdFromActions(actions);
+        if(!id) return;
+        var btn=document.createElement('button');
+        btn.type='button';
+        btn.className='change-date-btn-v537';
+        btn.textContent='📅 שינוי תאריך';
+        btn.setAttribute('onclick',"changeEntryDateV537('"+jsArg(id)+"')");
+        var deleteBtn=Array.from(actions.querySelectorAll('button')).find(function(b){ return /מחק/.test(b.textContent||''); });
+        if(deleteBtn) actions.insertBefore(btn, deleteBtn);
+        else actions.appendChild(btn);
+      });
+    }catch(e){ console.warn('v5.37 add date buttons failed',e); }
+  }
+
+  var oldRenderDayV537=window.renderDay;
+  if(typeof oldRenderDayV537==='function' && !oldRenderDayV537.__v537Wrapped){
+    window.renderDay=function(){
+      var res=oldRenderDayV537.apply(this,arguments);
+      try{ addChangeDateButtonsV537(); }catch(e){}
+      try{ ensureInstallScrollNoteV537(); }catch(e){}
+      return res;
+    };
+    window.renderDay.__v537Wrapped=true;
+  }
+
+  function closeChangeDateModalV537(){
+    var old=q('changeDateModalV537');
+    if(old) old.remove();
+    try{ document.documentElement.style.overflow=''; document.body.style.overflow=''; }catch(e){}
+  }
+  window.closeChangeDateModalV537=closeChangeDateModalV537;
+
+  window.changeEntryDateV537=function(id){
+    var entry=findEntry(id) || {id:id,date:(typeof selectedDate!=='undefined'?selectedDate:todayIso())};
+    var oldDate=entry.date || (typeof selectedDate!=='undefined'?selectedDate:todayIso());
+    var old=q('changeDateModalV537'); if(old) old.remove();
+    var overlay=document.createElement('div');
+    overlay.id='changeDateModalV537';
+    overlay.className='change-date-modal-v537';
+    overlay.innerHTML='<div class="change-date-card-v537" role="dialog" aria-modal="true">'
+      +'<h3>📅 שינוי תאריך</h3>'
+      +'<p class="muted">הרשומה תעבור לתאריך החדש בלי מחיקה ובלי שכפול.</p>'
+      +'<label style="font-weight:900;color:#64748b;font-size:13px">תאריך נוכחי</label>'
+      +'<input type="text" value="'+safeEsc(safeHeDate(oldDate))+'" disabled>'
+      +'<label style="font-weight:900;color:#64748b;font-size:13px">תאריך חדש</label>'
+      +'<input id="changeDateInputV537" type="date" value="'+safeEsc(oldDate)+'">'
+      +'<div id="changeDateMsgV537"></div>'
+      +'<div class="change-date-actions-v537"><button class="btn-green" type="button" onclick="confirmChangeEntryDateV537(\''+jsArg(id)+'\')">שמור תאריך</button><button class="btn-light" type="button" onclick="closeChangeDateModalV537()">ביטול</button></div>'
+      +'</div>';
+    overlay.addEventListener('click',function(ev){ if(ev.target===overlay) closeChangeDateModalV537(); });
+    document.body.appendChild(overlay);
+    try{ document.documentElement.style.overflow='hidden'; document.body.style.overflow='hidden'; }catch(e){}
+    setTimeout(function(){ var input=q('changeDateInputV537'); if(input) input.focus(); },80);
+  };
+
+  window.confirmChangeEntryDateV537=async function(id){
+    var input=q('changeDateInputV537'), msg=q('changeDateMsgV537');
+    var newDate=input ? input.value : '';
+    if(!newDate || !parseIsoDate(newDate)){ if(msg) msg.innerHTML='<p class="danger">צריך לבחור תאריך תקין.</p>'; return; }
+    var entry=findEntry(id);
+    var oldDate=entry && entry.date ? entry.date : (typeof selectedDate!=='undefined'?selectedDate:'');
+    if(newDate===oldDate){ if(msg) msg.innerHTML='<div class="notice">זה כבר התאריך הנוכחי.</div>'; return; }
+    try{
+      if(msg) msg.innerHTML='<div class="notice">מעדכן תאריך...</div>';
+      await db.collection('workEntries').doc(id).set({
+        date:newDate,
+        dateChangedFrom:oldDate||'',
+        dateChangedTo:newDate,
+        dateChangedAt:new Date().toISOString(),
+        dateChangedBy:(viewedWorker&&viewedWorker.name)||((session&&session.name)||''),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      closeChangeDateModalV537();
+      var d=parseIsoDate(newDate);
+      if(d){ try{ calendarDate=new Date(d.getFullYear(),d.getMonth(),1); }catch(e){} }
+      try{ selectedDate=newDate; selectedType=null; }catch(e){}
+      if(typeof loadMonth==='function') await loadMonth();
+      try{ if(typeof renderCalendar==='function') renderCalendar(); }catch(e){}
+      try{ if(typeof renderDay==='function') renderDay(); }catch(e){}
+      try{ if(typeof renderStats==='function') renderStats(); }catch(e){}
+      try{ if(typeof renderSmartDashboard==='function') renderSmartDashboard(); }catch(e){}
+    }catch(err){
+      if(msg) msg.innerHTML='<p class="danger">שגיאה בשינוי תאריך: '+safeEsc(err && (err.message||err.code) ? (err.message||err.code) : err)+'</p>';
+    }
+  };
+
+  // v5.37: inject row into the existing Firestore changelog seed source without editing older logic.
+  try{
+    var oldRequired=window.requiredChangelogRows || (typeof requiredChangelogRows==='function' ? requiredChangelogRows : null);
+    if(typeof oldRequired==='function' && !oldRequired.__v537Wrapped){
+      var wrapped=function(){
+        var rows=[]; try{ rows=oldRequired.apply(this,arguments)||[]; }catch(e){ rows=[]; }
+        var exists=rows.some(function(r){ return String(r.version||r.id||'')==='5.37'; });
+        if(!exists){
+          rows.unshift({version:'5.37',title:'גלילה למחירון התקנה + שינוי תאריך עבודה',createdAt:'2026-06-01',items:[
+            'אזור פריטי המחירון בטופס התקנה קיבל גלילה פנימית כדי שהמסך לא יתארך יותר מדי.',
+            'נוסף כפתור שינוי תאריך לכל עבודה שבוצעה, מתוזמנת או לא בוצעה.',
+            'שינוי התאריך מעדכן את אותה רשומה קיימת ב-Firestore בלי מחיקה, בלי שכפול ובלי איבוד נתונים.',
+            'לא שונו שמירת עבודות, יום חופש, תבניות, לא בוצע, אופליין, גיבוי, אקסל או לוגין.'
+          ]});
+        }
+        return rows;
+      };
+      wrapped.__v537Wrapped=true;
+      window.requiredChangelogRows=wrapped;
+      try{ requiredChangelogRows=wrapped; }catch(e){}
+    }
+  }catch(e){}
+
+  function bootV537(){
+    updateVersionUiV537();
+    ensureInstallScrollNoteV537();
+    addChangeDateButtonsV537();
+  }
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(bootV537,250); setTimeout(bootV537,1300); setTimeout(bootV537,2600); });
+  window.addEventListener('load',function(){ setTimeout(bootV537,250); setTimeout(bootV537,1400); setTimeout(bootV537,2800); });
+  setInterval(function(){ try{ updateVersionUiV537(); addChangeDateButtonsV537(); }catch(e){} },2200);
+})();
+</script>
+
+
+
+<style id="v5-38-change-date-blocked-days-css">
+/*
+===============================================================================
+CHANGE 5.38 - חסימת שינוי תאריך לשבת או יום חופש
+-------------------------------------------------------------------------------
+1. שינוי תאריך לא יכול להעביר עבודה לתאריך שבת.
+2. שינוי תאריך לא יכול להעביר עבודה לתאריך שמסומן כיום חופש.
+3. במקרה חסום מוצגת הודעה בחלון שינוי התאריך והתאריך לא נשמר.
+===============================================================================
+*/
+</style>
+<script id="v5-38-change-date-blocked-days-js">
+(function(){
+  'use strict';
+  var APP_VERSION_V538='5.38';
+  function q(id){return document.getElementById(id);}
+  function safeEsc(v){try{if(typeof esc==='function')return esc(v);}catch(e){}return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function safeHeDate(v){try{if(typeof heDate==='function')return heDate(v);}catch(e){}return String(v||'');}
+  function parseIsoDateV538(v){var p=String(v||'').split('-').map(Number);if(p.length!==3||!p[0]||!p[1]||!p[2])return null;return new Date(p[0],p[1]-1,p[2]);}
+  function findEntryV538(id){try{return (Array.isArray(monthEntries)?monthEntries:[]).find(function(e){return e&&String(e.id)===String(id);});}catch(e){return null;}}
+  function selectedWorkerIdV538(){try{if(typeof viewedWorker!=='undefined'&&viewedWorker&&viewedWorker.id)return viewedWorker.id;}catch(e){}try{if(typeof session!=='undefined'&&session&&session.workerId)return session.workerId;}catch(e){}return '';}
+  function selectedWorkerNameV538(){try{if(typeof viewedWorker!=='undefined'&&viewedWorker&&viewedWorker.name)return viewedWorker.name;}catch(e){}try{if(typeof session!=='undefined'&&session&&session.name)return session.name;}catch(e){}return '';}
+  function updateVersionUiV538(){
+    try{window.APP_VERSION=APP_VERSION_V538;}catch(e){}
+    try{document.title='מעקב עבודה - גרסה '+APP_VERSION_V538;}catch(e){}
+    try{document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){el.textContent=APP_VERSION_V538;});}catch(e){}
+    try{document.querySelectorAll('.secret,#secretTap').forEach(function(el){el.textContent='גרסה '+APP_VERSION_V538;});}catch(e){}
+  }
+  function isSaturdayV538(dateStr){var d=parseIsoDateV538(dateStr);return !!(d&&d.getDay()===6);}
+  async function isVacationDateV538(dateStr){
+    try{if(typeof window.isVacationDayV437==='function'&&window.isVacationDayV437(dateStr))return true;}catch(e){}
+    try{if(Array.isArray(window.vacationDaysV437)&&window.vacationDaysV437.indexOf(dateStr)>=0)return true;}catch(e){}
+    var workerId=selectedWorkerIdV538();
+    if(!workerId||typeof db==='undefined'||!db||!db.collection)return false;
+    try{
+      var snap=await db.collection('workerDaysOff').where('workerId','==',workerId).get();
+      var found=false;
+      snap.docs.forEach(function(doc){var d=doc.data()||{};if(d.active!==false&&String(d.date||'')===String(dateStr))found=true;});
+      return found;
+    }catch(e){
+      console.warn('v5.38 vacation date validation failed',e&& (e.code||e.message)?(e.code||e.message):e);
+      // אם הבדיקה מול Firestore נכשלה, לא חוסמים סתם; עדיין נשארת בדיקה מקומית אם נטענה.
+      return false;
+    }
+  }
+  async function validateChangeDateTargetV538(dateStr,msg){
+    if(!dateStr||!parseIsoDateV538(dateStr)){if(msg)msg.innerHTML='<p class="danger">צריך לבחור תאריך תקין.</p>';return false;}
+    if(isSaturdayV538(dateStr)){if(msg)msg.innerHTML='<p class="danger">אי אפשר להעביר עבודה ליום שבת. שבת חסומה לעבודה, והתאריך לא שונה.</p>';return false;}
+    if(await isVacationDateV538(dateStr)){if(msg)msg.innerHTML='<p class="danger">אי אפשר להעביר עבודה ליום חופש מסומן. בטל קודם את יום החופש או בחר תאריך אחר. התאריך לא שונה.</p>';return false;}
+    return true;
+  }
+  window.confirmChangeEntryDateV537=async function(id){
+    var input=q('changeDateInputV537'), msg=q('changeDateMsgV537');
+    var newDate=input ? input.value : '';
+    if(!(await validateChangeDateTargetV538(newDate,msg))) return;
+    var entry=findEntryV538(id);
+    var oldDate=entry&&entry.date?entry.date:(typeof selectedDate!=='undefined'?selectedDate:'');
+    if(newDate===oldDate){if(msg)msg.innerHTML='<div class="notice">זה כבר התאריך הנוכחי.</div>';return;}
+    try{
+      if(msg)msg.innerHTML='<div class="notice">מעדכן תאריך...</div>';
+      await db.collection('workEntries').doc(id).set({
+        date:newDate,
+        dateChangedFrom:oldDate||'',
+        dateChangedTo:newDate,
+        dateChangedAt:new Date().toISOString(),
+        dateChangedBy:selectedWorkerNameV538(),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      try{if(typeof closeChangeDateModalV537==='function')closeChangeDateModalV537();}catch(e){}
+      var d=parseIsoDateV538(newDate);
+      if(d){try{calendarDate=new Date(d.getFullYear(),d.getMonth(),1);}catch(e){}}
+      try{selectedDate=newDate;selectedType=null;}catch(e){}
+      if(typeof loadMonth==='function')await loadMonth();
+      try{if(typeof loadVacationDaysV437==='function')await loadVacationDaysV437();}catch(e){}
+      try{if(typeof renderCalendar==='function')renderCalendar();}catch(e){}
+      try{if(typeof renderDay==='function')renderDay();}catch(e){}
+      try{if(typeof renderStats==='function')renderStats();}catch(e){}
+      try{if(typeof renderSmartDashboard==='function')renderSmartDashboard();}catch(e){}
+    }catch(err){
+      if(msg)msg.innerHTML='<p class="danger">שגיאה בשינוי תאריך: '+safeEsc(err&&(err.message||err.code)?(err.message||err.code):err)+'</p>';
+    }
+  };
+  window.confirmChangeEntryDateV538=window.confirmChangeEntryDateV537;
+  try{
+    var oldRequired=window.requiredChangelogRows || (typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof oldRequired==='function'&&!oldRequired.__v538Wrapped){
+      var wrapped=function(){
+        var rows=[];try{rows=oldRequired.apply(this,arguments)||[];}catch(e){rows=[];}
+        var exists=rows.some(function(r){return String(r.version||r.id||'')==='5.38';});
+        if(!exists){rows.unshift({version:'5.38',title:'חסימת שינוי תאריך לשבת או יום חופש',createdAt:'2026-06-01',items:[
+          'שינוי תאריך לא מאפשר להעביר עבודה ליום שבת.',
+          'שינוי תאריך לא מאפשר להעביר עבודה ליום שמסומן כיום חופש.',
+          'במקרה חסום מוצגת הודעה ברורה והתאריך המקורי נשאר ללא שינוי.',
+          'לא שונו שמירת עבודות, מתוזמנות, לא בוצע, מחירון, תבניות, דשבורד, אופליין, גיבוי, אקסל או לוגין.'
+        ]});}
+        return rows;
+      };
+      wrapped.__v538Wrapped=true;
+      window.requiredChangelogRows=wrapped;
+      try{requiredChangelogRows=wrapped;}catch(e){}
+    }
+  }catch(e){}
+  function bootV538(){updateVersionUiV538();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bootV538);else bootV538();
+  window.addEventListener('load',bootV538);
+  setInterval(function(){try{updateVersionUiV538();}catch(e){}},2500);
+})();
+</script>
+
 </body>
 
 
@@ -16873,6 +17494,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+    {version:"5.35", title:"איפוס פק״ע וקריאת שירות חוזרת אחרי שמירה/ניקוי", items:["שדה סוג פק״ע CN/CH מתאפס אחרי שמירת התקנה רגילה או מתוזמנת.","שדה סוג פק״ע CN/CH מתאפס גם אחרי ניקוי בחירת התקנה.","סימון קריאת שירות חוזרת יורד אחרי שמירת קריאת שירות רגילה או מתוזמנת, והסכום חוזר למחיר הרגיל.","התיקון נוגע רק לאיפוס שדות טופס ולא משנה יום חופש, תבניות, מתוזמנות, דשבורד, אופליין, גיבוי או לוגין."], createdAt:"2026-06-01"},
     {version:"5.34", title:"החזרת יום חופש למסך יום נבחר", items:["כפתור סמן כיום חופש הוחזר למסך היום הנבחר אחרי הפרדת בוצעו / מתוזמנות / לא בוצעו.","יום שמסומן כחופש מציג שוב הודעה ברורה וכפתור בטל יום חופש.","התיקון הוא תצוגה בלבד ולא משנה שמירת עבודות, פק״ע, תבניות, אופליין, גיבוי או לוגין."], createdAt:"2026-06-01"},
     {version:"5.33", title:"הפרדת עבודות שבוצעו ומתוזמנות ביום נבחר", items:["תצוגת היום הנבחר הוחזרה להפרדה ברורה בין עבודות שבוצעו לבין מתוזמנות.","עבודות בסטטוס not_done מוצגות באזור נפרד לא בוצעו אם קיימות באותו יום.","לא שונו שמירת עבודות, סימון בוצע, לא בוצע, מחירון, תבניות, אופליין, גיבוי או לוגין."], createdAt:"2026-05-31"},
     {version:"5.32", title:"תיקון תצוגת פק״ע וטעינת תבניות", items:["הוחלף הכיתוב למשתמש מפקה לפק״ע בכל התצוגות הרלוונטיות, בלי לשנות את שדה הנתונים pekaType.","תוקנה בחירת תבניות התקנה כך שאם ID ישן של פריט מחירון לא נמצא, המערכת מחפשת התאמה לפי שם הפריט.","פריטים שלא קיימים יותר במחירון מדולגים בלי לעצור את טעינת התבנית ובלי לפגוע בחישוב הסכום."], createdAt:"2026-05-31"},
@@ -17582,7 +18204,7 @@ CHANGE 5.33 - הפרדת תצוגת יום: בוצעו / מתוזמנות / לא
 <script id="v5-33-day-sections-fix-js">
 (function(){
   'use strict';
-  var APP_VERSION_V533='5.33';
+  var APP_VERSION_V533='5.38';
 
   function byId(id){ return document.getElementById(id); }
   function html(v){
@@ -17715,7 +18337,7 @@ CHANGE 5.34 - החזרת יום חופש למסך יום נבחר
 <script id="v5-34-vacation-day-restore-js">
 (function(){
   'use strict';
-  var APP_VERSION_V534='5.34';
+  var APP_VERSION_V534='5.38';
 
   function q(id){ return document.getElementById(id); }
   function heDateSafeV534(v){ try{ if(typeof heDate==='function') return heDate(v); }catch(e){} return String(v||''); }
