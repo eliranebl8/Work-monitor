@@ -609,74 +609,104 @@ input:focus,textarea:focus,select:focus{animation:popIn .2s ease both}
 @media(max-width:800px){.peka-smart-grid-v528{grid-template-columns:1fr 1fr;gap:8px}.peka-smart-value-v528{font-size:22px}}
 
 
-/* ===== v5.42: יישור ניווט חודשים לרוחב הלוח =====
-   שינוי תצוגה בלבד: ניווט החודשים נשאר מחובר ל-changeMonth הקיים,
-   אבל יושב בתוך אותו רוחב של לוח השנה כדי שהחצים לא ייחתכו בגלילה/מובייל.
-*/
-.edit-install-items-scroll-v540{
-  max-height:360px;
-  overflow-y:auto;
-  overflow-x:hidden;
-  padding:6px 4px;
-  margin:8px 0 12px;
-  border:1px solid #e2e8f0;
-  border-radius:18px;
-  background:rgba(248,250,252,.82);
-  scrollbar-width:thin;
-  scrollbar-color:#94a3b8 transparent;
-}
-.edit-install-items-scroll-v540::-webkit-scrollbar{width:8px}
-.edit-install-items-scroll-v540::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:999px}
-.edit-install-items-scroll-v540::-webkit-scrollbar-track{background:transparent}
-.edit-install-items-scroll-v540 .item{margin:6px 4px}
-.month-nav-v540{
-  display:grid!important;
-  grid-template-columns:44px minmax(0,1fr) 44px!important;
-  align-items:center!important;
-  justify-content:stretch!important;
-  gap:6px!important;
+/* ===== v5.44: ניווט חודש רספונסיבי נקי =====
+   שינוי תצוגה בלבד: החצים ושם החודש יושבים ברוחב מלא של אזור לוח השנה,
+   בלי להיחתך במובייל ובלי לשנות את changeMonth או את לוגיקת הלוח. */
+.calendar-card-v544{
   width:100%!important;
   max-width:100%!important;
+  overflow:visible!important;
+}
+.month-nav-v540,
+.month-nav-v544{
+  display:grid!important;
+  grid-template-columns:40px minmax(0,1fr) 40px!important;
+  align-items:center!important;
+  gap:8px!important;
+  width:100%!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
   margin:0 0 10px!important;
-  padding:6px!important;
+  padding:8px 8px!important;
   min-height:48px!important;
   text-align:center!important;
   overflow:visible!important;
-  border-radius:20px!important;
-  background:rgba(248,250,252,.62)!important;
+  border-radius:18px!important;
+  background:rgba(248,250,252,.78)!important;
+  border:1px solid rgba(226,232,240,.95)!important;
+  direction:ltr!important;
 }
-.month-nav-btn-v540{
-  width:44px!important;
-  min-width:44px!important;
-  max-width:44px!important;
-  height:38px!important;
-  min-height:38px!important;
-  max-height:38px!important;
-  flex:0 0 44px!important;
+.month-nav-btn-v540,
+.month-nav-btn-v544{
+  width:36px!important;
+  min-width:36px!important;
+  max-width:36px!important;
+  height:36px!important;
+  min-height:36px!important;
+  max-height:36px!important;
   padding:0!important;
-  border-radius:14px!important;
-  display:inline-flex!important;
-  flex-direction:column!important;
+  margin:0!important;
+  border-radius:999px!important;
+  display:flex!important;
   align-items:center!important;
   justify-content:center!important;
-  gap:0!important;
+  flex:0 0 36px!important;
   line-height:1!important;
-  box-shadow:0 6px 14px rgba(15,23,42,.08)!important;
-  overflow:hidden!important;
+  font-size:21px!important;
+  font-weight:1000!important;
+  color:#0f172a!important;
+  background:#fff!important;
+  border:1px solid #e2e8f0!important;
+  box-shadow:0 4px 10px rgba(15,23,42,.07)!important;
+  overflow:visible!important;
 }
-.month-nav-arrow-v540{font-size:16px;font-weight:1000;line-height:1}
-.month-nav-text-v540{font-size:7.5px;font-weight:900;color:inherit;line-height:1;white-space:nowrap;margin-top:1px}
-.month-title-wrap-v540{text-align:center;min-width:0;width:100%;overflow:hidden;padding:0 2px}
-.month-title-small-v540{font-size:8.5px;color:#94a3b8;font-weight:900;line-height:1;margin-bottom:2px;white-space:nowrap}
-.month-title-wrap-v540 #calTitle{margin:0;font-size:17px;line-height:1.08;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.month-nav-arrow-v540,
+.month-nav-arrow-v544{
+  display:block!important;
+  font-size:22px!important;
+  font-weight:1000!important;
+  line-height:1!important;
+  margin:0!important;
+  padding:0!important;
+}
+.month-nav-text-v540,.month-nav-text-v544{display:none!important}
+.month-title-wrap-v540,
+.month-title-wrap-v544{
+  text-align:center!important;
+  min-width:0!important;
+  width:100%!important;
+  overflow:visible!important;
+  padding:0 4px!important;
+  direction:rtl!important;
+}
+.month-title-small-v540,
+.month-title-small-v544{display:none!important}
+.month-title-wrap-v540 #calTitle,
+.month-title-wrap-v544 #calTitle{
+  margin:0!important;
+  font-size:20px!important;
+  line-height:1.15!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  color:#0f172a!important;
+}
 @media(max-width:800px){
-  .edit-install-items-scroll-v540{max-height:310px;border-radius:16px}
-  .month-nav-v540{grid-template-columns:38px minmax(0,1fr) 38px!important;gap:4px!important;min-height:44px!important;padding:5px!important;margin-bottom:8px!important;border-radius:18px!important}
-  .month-nav-btn-v540{width:38px!important;min-width:38px!important;max-width:38px!important;flex-basis:38px!important;height:34px!important;min-height:34px!important;max-height:34px!important;border-radius:12px!important}
-  .month-nav-text-v540{font-size:7px}
-  .month-nav-arrow-v540{font-size:14px}
-  .month-title-small-v540{font-size:7.5px}
-  .month-title-wrap-v540 #calTitle{font-size:14.5px}
+  .month-nav-v540,.month-nav-v544{
+    grid-template-columns:34px minmax(0,1fr) 34px!important;
+    gap:6px!important;
+    min-height:44px!important;
+    padding:6px 6px!important;
+    margin-bottom:8px!important;
+    border-radius:16px!important;
+  }
+  .month-nav-btn-v540,.month-nav-btn-v544{
+    width:32px!important;min-width:32px!important;max-width:32px!important;flex-basis:32px!important;
+    height:32px!important;min-height:32px!important;max-height:32px!important;
+    font-size:19px!important;
+  }
+  .month-nav-arrow-v540,.month-nav-arrow-v544{font-size:20px!important}
+  .month-title-wrap-v540 #calTitle,.month-title-wrap-v544 #calTitle{font-size:18px!important}
 }
 </style>
 
@@ -1066,6 +1096,138 @@ body.app-booting-v434 #startupView{
 @media(max-width:380px){.day-not-done-v539{font-size:8.5px}}
 </style>
 
+
+<style id="v5-45-final-month-nav-mobile-fix">
+/*
+===============================================================================
+CHANGE 5.45 - FINAL MONTH NAV MOBILE FIX
+-------------------------------------------------------------------------------
+תיקון תצוגה בלבד: כפתורי החצים של ניווט החודש יושבים בתוך אותו רוחב של לוח השנה,
+קטנים וברורים, בלי להיחתך ובלי לדרוס את שם החודש. אין שינוי בלוגיקת changeMonth.
+===============================================================================
+*/
+.calendar-card-v544{
+  width:100%!important;
+  max-width:100%!important;
+  overflow:visible!important;
+  padding-left:12px!important;
+  padding-right:12px!important;
+}
+.calendar-card-v544 .cal-head.month-nav-v540,
+.calendar-card-v544 .cal-head.month-nav-v544{
+  display:grid!important;
+  grid-template-columns:30px minmax(0,1fr) 30px!important;
+  align-items:center!important;
+  justify-items:center!important;
+  gap:6px!important;
+  width:100%!important;
+  max-width:100%!important;
+  margin:0 0 10px 0!important;
+  padding:6px 8px!important;
+  min-height:42px!important;
+  box-sizing:border-box!important;
+  overflow:visible!important;
+  border-radius:18px!important;
+  background:rgba(248,250,252,.90)!important;
+  border:1px solid rgba(226,232,240,.95)!important;
+  direction:ltr!important;
+}
+.calendar-card-v544 .month-title-wrap-v540,
+.calendar-card-v544 .month-title-wrap-v544{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  text-align:center!important;
+  overflow:hidden!important;
+  direction:rtl!important;
+  padding:0!important;
+}
+.calendar-card-v544 #calTitle{
+  display:block!important;
+  width:100%!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  text-align:center!important;
+  font-size:18px!important;
+  line-height:1.15!important;
+  font-weight:1000!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  color:#0f172a!important;
+}
+.calendar-card-v544 .month-nav-btn-v540,
+.calendar-card-v544 .month-nav-btn-v544,
+#workerView .calendar-card-v544 .month-nav-btn-v540,
+#workerView .calendar-card-v544 .month-nav-btn-v544{
+  width:28px!important;
+  min-width:28px!important;
+  max-width:28px!important;
+  height:28px!important;
+  min-height:28px!important;
+  max-height:28px!important;
+  padding:0!important;
+  margin:0!important;
+  flex:none!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border-radius:999px!important;
+  background:#ffffff!important;
+  border:1px solid #dbe3ef!important;
+  color:#0f172a!important;
+  box-shadow:0 3px 8px rgba(15,23,42,.07)!important;
+  overflow:hidden!important;
+  line-height:1!important;
+  font-size:0!important;
+  transform:none!important;
+}
+.calendar-card-v544 .month-nav-arrow-v540,
+.calendar-card-v544 .month-nav-arrow-v544{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  margin:0!important;
+  padding:0!important;
+  text-align:center!important;
+  font-size:17px!important;
+  line-height:26px!important;
+  font-weight:900!important;
+  color:#0f172a!important;
+}
+.calendar-card-v544 .month-nav-text-v540,
+.calendar-card-v544 .month-nav-text-v544,
+.calendar-card-v544 .month-title-small-v540,
+.calendar-card-v544 .month-title-small-v544{
+  display:none!important;
+}
+@media(max-width:800px){
+  .calendar-card-v544{padding-left:8px!important;padding-right:8px!important;}
+  .calendar-card-v544 .cal-head.month-nav-v540,
+  .calendar-card-v544 .cal-head.month-nav-v544{
+    grid-template-columns:28px minmax(0,1fr) 28px!important;
+    gap:5px!important;
+    padding:5px 6px!important;
+    min-height:38px!important;
+    border-radius:16px!important;
+  }
+  .calendar-card-v544 .month-nav-btn-v540,
+  .calendar-card-v544 .month-nav-btn-v544,
+  #workerView .calendar-card-v544 .month-nav-btn-v540,
+  #workerView .calendar-card-v544 .month-nav-btn-v544{
+    width:26px!important;min-width:26px!important;max-width:26px!important;
+    height:26px!important;min-height:26px!important;max-height:26px!important;
+  }
+  .calendar-card-v544 .month-nav-arrow-v540,
+  .calendar-card-v544 .month-nav-arrow-v544{
+    font-size:16px!important;
+    line-height:24px!important;
+  }
+  .calendar-card-v544 #calTitle{font-size:17px!important;}
+}
+</style>
+
 </head>
 <body class="app-booting-v433 app-booting-v434">
 <div class="app">
@@ -1422,7 +1584,7 @@ body.app-booting-v434 #startupView{
 
 <div class="calendar-work-shell-v420">
   <div class="calendar-work-title-v420">📅 לוח שנה ועבודות</div>
-<div class="card"><div class="cal-head month-nav-v540"><button class="btn-light month-nav-btn-v540" type="button" onclick="changeMonth(-1)" aria-label="חודש קודם"><span class="month-nav-arrow-v540">→</span><span class="month-nav-text-v540">קודם</span></button><div class="month-title-wrap-v540"><div class="month-title-small-v540">חודש בתצוגה</div><h2 id="calTitle"></h2></div><button class="btn-light month-nav-btn-v540" type="button" onclick="changeMonth(1)" aria-label="חודש הבא"><span class="month-nav-text-v540">הבא</span><span class="month-nav-arrow-v540">←</span></button></div><div id="calendar" class="cal"></div></div>
+<div class="card calendar-card-v544"><div class="cal-head month-nav-v540 month-nav-v544"><button class="btn-light month-nav-btn-v540 month-nav-btn-v544" type="button" onclick="changeMonth(-1)" aria-label="חודש קודם"><span class="month-nav-arrow-v540 month-nav-arrow-v544">‹</span></button><div class="month-title-wrap-v540 month-title-wrap-v544"><h2 id="calTitle"></h2></div><button class="btn-light month-nav-btn-v540 month-nav-btn-v544" type="button" onclick="changeMonth(1)" aria-label="חודש הבא"><span class="month-nav-arrow-v540 month-nav-arrow-v544">›</span></button></div><div id="calendar" class="cal"></div></div>
 <div id="dayPanel" class="card hidden"><h2 id="dateTitle">בחר יום</h2><p id="shabbatMsg" class="danger hidden">שבת חסומה לעבודה.</p>
 <div id="entryForm"><div class="grid2"><div id="serviceBtn" class="type-card" onclick="setType('service')">קריאת שירות<br><span id="servicePriceLabel" class="muted">₪65 קבוע</span></div><div id="installBtn" class="type-card" onclick="setType('install')">התקנה<br><span class="muted">לפי מחירון</span></div></div>
 <div id="serviceForm" class="hidden" style="margin-top:14px"><h3>קריאת שירות</h3><input id="sCustomer" inputmode="numeric" pattern="[0-9]*" placeholder="מספר לקוח - ספרות בלבד" onblur="checkRecentCustomer('sCustomer','sCustomerHistory')"><div id="sCustomerHistory" class="muted"></div><div class="grid2"><input id="sAddress" placeholder="כתובת"><button class="btn-light" onclick="fillAddressFromLocation('sAddress')">📍 מיקום</button></div><label style="display:flex;align-items:center;gap:8px;font-weight:900;margin:10px 0"><input id="sReturnCall" type="checkbox" onchange="updateServicePreview()" style="width:24px;height:24px;margin:0"> קריאת שירות חוזרת / ללא תשלום</label><textarea id="sNotes" placeholder="הערות"></textarea><div id="servicePreview" class="total-preview">סה״כ: ₪65</div><button class="btn-green" onclick="addService()">שמור קריאת שירות</button></div>
@@ -1452,7 +1614,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.42";
+const APP_VERSION = "5.45";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1467,6 +1629,25 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
+
+CHANGELOG 5.45 - תיקון סופי לתצוגת חצי ניווט חודש במובייל
+1. APP_VERSION עודכן ל-"5.45" כמקור גרסה יחיד.
+2. חצי ניווט החודש הוקטנו משמעותית והוגבלו לרוחב/גובה קבועים כדי שלא ייחתכו במובייל.
+3. שם החודש נשאר במרכז, ברוחב מלא של אזור הלוח, בלי שהחצים דורסים אותו.
+4. התיקון הוא CSS/תצוגה בלבד ואינו משנה את לוגיקת changeMonth, לוח שנה, פק״ע, לקוח חוזר, Last Login, שמירה, גיבוי או אקסל.
+
+CHANGELOG 5.44 - ניווט חודש רספונסיבי ומילוי כתובת בפועל
+1. APP_VERSION עודכן ל-"5.44" ונשאר מקור הגרסה היחיד לכל התצוגות ושמות הקבצים.
+2. ניווט החודשים בלוח השנה סודר מחדש לרוחב מלא של אזור הלוח, עם חצים קטנים ונקיים ללא טקסט וללא חיתוך במובייל.
+3. שם החודש נשאר במרכז, קריא וברור גם במסכים צרים.
+4. בדיקת לקוח חוזר ממלאת בפועל את שדה הכתובת המתאים כאשר נמצאה כתובת קודמת והשדה ריק.
+5. לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, דשבורד, אופליין, גיבוי או אקסל.
+
+CHANGELOG 5.43 - ניווט חודש נקי ומילוי כתובת לקוח חוזר
+1. APP_VERSION עודכן ל-"5.43" ונשאר מקור הגרסה היחיד לכל התצוגות ושמות הקבצים.
+2. ניווט החודשים בלוח השנה הוחלף לתצוגה נקייה עם חצים קטנים בלבד ושם חודש מרכזי וברור.
+3. בדיקת לקוח חוזר ממלאת אוטומטית את שדה הכתובת לפי העבודה האחרונה של אותו לקוח, כאשר שדה הכתובת עדיין ריק.
+4. לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, דשבורד, אופליין, גיבוי או אקסל.
 
 CHANGELOG 5.42 - יישור ניווט חודשים לרוחב הלוח
 1. APP_VERSION עודכן ל-"5.42" ונשאר מקור הגרסה היחיד לכל התצוגות ושמות הקבצים.
@@ -2336,6 +2517,15 @@ async function checkRecentCustomer(inputId, resultId){
     const plannedMatches=all
       .filter(e=>((window.isPlannedV49 && window.isPlannedV49(e)) || e.entryStatus==="planned") && String(e.date||"")>=today)
       .sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
+
+    // v5.43: מילוי כתובת אוטומטי ללקוח חוזר.
+    // אם נמצאה עבודה אחרונה לאותו לקוח ושדה הכתובת עדיין ריק, הכתובת מתמלאת אוטומטית.
+    const addressTargetId = inputId === "sCustomer" ? "sAddress" : (inputId === "iCustomer" ? "iAddress" : "");
+    const addressTarget = addressTargetId ? $(addressTargetId) : null;
+    const addressSource = doneMatches.find(e=>String(e.address||"").trim()) || plannedMatches.find(e=>String(e.address||"").trim()) || all.find(e=>String(e.address||"").trim());
+    if(addressTarget && !String(addressTarget.value||"").trim() && addressSource && addressSource.address){
+      addressTarget.value = addressSource.address;
+    }
 
     if(!doneMatches.length && !plannedMatches.length){
       box.innerHTML="<div class='recent-ok'>לא נמצאה עבודה שבוצעה ב־30 הימים האחרונים, ואין סידור מתוזמן ללקוח הזה ✅</div>";
@@ -11894,6 +12084,19 @@ service cloud.firestore {
       const plannedMatches=all
         .filter(e=>isPlannedEntryV416(e) && String(e.date||"")>=today)
         .sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
+
+      // v5.44: מילוי כתובת בפועל ללקוח חוזר.
+      // הבדיקה רצה בעת יציאה משדה מספר הלקוח; אם נמצאה כתובת קודמת והשדה ריק,
+      // הכתובת מוזרקת לשדה הכתובת של אותו טופס שירות/התקנה ומופעלים אירועי input/change.
+      const addressTargetId = inputId === "sCustomer" ? "sAddress" : (inputId === "iCustomer" ? "iAddress" : "");
+      const addressTarget = addressTargetId ? $(addressTargetId) : null;
+      const addressSource = doneMatches.find(e=>String(e.address||"").trim()) || plannedMatches.find(e=>String(e.address||"").trim()) || all.find(e=>String(e.address||"").trim());
+      if(addressTarget && !String(addressTarget.value||"").trim() && addressSource && String(addressSource.address||"").trim()){
+        addressTarget.value = String(addressSource.address||"").trim();
+        try{ addressTarget.dispatchEvent(new Event("input",{bubbles:true})); }catch(_e){}
+        try{ addressTarget.dispatchEvent(new Event("change",{bubbles:true})); }catch(_e){}
+      }
+
       if(!doneMatches.length && !plannedMatches.length){
         box.innerHTML="<div class='recent-ok'>לא נמצאה עבודה שבוצעה ב־30 הימים האחרונים, ואין סידור מתוזמן ללקוח הזה ✅</div>";
         return;
@@ -17613,6 +17816,9 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"5.45", title:"תיקון תצוגת חצי ניווט חודש במובייל", items:["חצי ניווט החודש הוקטנו משמעותית וקיבלו רוחב וגובה קבועים כדי שלא ייחתכו במסך מובייל.","שם החודש נשאר במרכז וברוחב מלא של אזור הלוח, בלי שהחצים דורסים אותו.","התיקון הוא תצוגה בלבד ולא משנה את לוגיקת changeMonth או את נתוני הלוח.","לא שונו פק״ע, לא בוצע, שכפול, לקוח חוזר, Last Login, דשבורד, אופליין, גיבוי או אקסל."], date:d},
+      {version:"5.44", title:"ניווט חודש רספונסיבי ומילוי כתובת בפועל", items:["ניווט החודשים בלוח השנה סודר לרוחב מלא של אזור הלוח עם חצים קטנים וברורים ללא חיתוך במובייל.","שם החודש נשאר במרכז, ברור וקריא גם במסכים צרים.","בדיקת לקוח חוזר ממלאת בפועל את שדה הכתובת של קריאת שירות או התקנה כאשר נמצאה כתובת קודמת והשדה ריק.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, דשבורד, אופליין, גיבוי או אקסל."], date:d},
+    {version:"5.43", title:"ניווט חודש נקי ומילוי כתובת לקוח חוזר", items:["ניווט החודשים בלוח השנה הוחלף לתצוגה נקייה עם חצים קטנים בלבד ושם חודש מרכזי וברור.","החצים יושבים בתוך אותה מסגרת רוחב של הלוח כדי שלא ייחתכו או ידרסו את כותרת החודש במובייל.","בדיקת לקוח חוזר ממלאת אוטומטית את שדה הכתובת מהעבודה האחרונה של אותו לקוח כאשר השדה ריק.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, דשבורד, אופליין, גיבוי או אקסל."], createdAt:"2026-06-02"},
     {version:"5.42", title:"יישור ניווט חודשים לרוחב הלוח", items:["ניווט החודשים יושב עכשיו באותו רוחב של לוח השנה ושורת ימי השבוע כדי שהחצים לא ייחתכו בגלילה או במובייל.","החצים הוקטנו ונשארים בתוך מסגרת הלוח; שם החודש נשאר במרכז עם כיתוב קטן וברור.","תוקנה התנגשות CSS מול חוקי יציבות הכפתורים במובייל, בלי לשנות את לוגיקת changeMonth.","לא שונו עריכת עבודה, מחירון, פק״ע, לא בוצע, שכפול, Last Login, דשבורד, אופליין, גיבוי או אקסל."], createdAt:"2026-06-02"},
     {version:"5.41", title:"התאמת גובה ניווט חודשים", items:["כפתורי חודש קודם/חודש הבא הוקטנו וקיבלו רוחב וגובה קבועים כדי שלא ידרסו את שם החודש.","שם החודש נשאר במרכז וקיבל הגנת גלישה במובייל כדי שהתצוגה תישאר נקייה.","השינוי הוא עיצוב בלבד ומשתמש באותה לוגיקת changeMonth הקיימת.","לא שונו עריכת עבודה, מחירון, פק״ע, לא בוצע, שכפול, Last Login, דשבורד, אופליין, גיבוי או אקסל."], createdAt:"2026-06-02"},
     {version:"5.40", title:"גלילה בעריכת מחירון וניווט חודשים קומפקטי", items:["במסך עריכת עבודה, רשימת פריטי המחירון של התקנה מוצגת בגלילה פנימית כדי שהעריכה לא תאריך את כל המסך.","ניווט החודשים בלוח השנה הוחלף לכפתורי חץ ימינה/שמאלה קומפקטיים עם כיתוב קטן ליד שם החודש.","הושלמו במקור מה חדש הרשומות החסרות 5.36 עד 5.39 כדי שהתצוגה לא תיעצר ב-5.35.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, דשבורד, אופליין, גיבוי או אקסל."], createdAt:"2026-06-02"},
