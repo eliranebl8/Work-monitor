@@ -708,28 +708,6 @@ input:focus,textarea:focus,select:focus{animation:popIn .2s ease both}
   .month-nav-arrow-v540,.month-nav-arrow-v544{font-size:20px!important}
   .month-title-wrap-v540 #calTitle,.month-title-wrap-v544 #calTitle{font-size:18px!important}
 }
-
-
-/* ===== v5.47: דוח התחשבנות חודשי + גיבוי ימי חופש לעובד ===== */
-.settlement-v547{margin-top:14px;padding:14px;border-radius:22px;background:rgba(255,255,255,.72);border:1px solid var(--line);box-shadow:0 8px 18px rgba(15,23,42,.055)}
-.settlement-v547 h3{margin-bottom:8px}
-.settlement-grid-v547{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:10px 0}
-.settlement-line-v547{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:#fff;border:1px solid #e2e8f0;margin:6px 0;font-weight:900}
-.settlement-line-v547 span:first-child{color:#64748b;font-size:13px}
-.settlement-line-v547 b{white-space:nowrap}
-.settlement-total-v547{background:#ecfdf5;border-color:#bbf7d0;color:#166534}
-.settlement-warning-v547{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
-.settlement-deductions-v547{margin-top:10px}
-.settlement-deduction-row-v547{display:grid;grid-template-columns:1.4fr 1fr auto;gap:8px;align-items:center;margin:8px 0}
-.settlement-deduction-row-v547 button{min-height:42px!important;padding:8px 12px!important}
-.settlement-actions-v547{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.settlement-actions-v547 button{flex:1 1 150px}
-@media(max-width:800px){
-  .settlement-grid-v547{grid-template-columns:1fr}
-  .settlement-deduction-row-v547{grid-template-columns:1fr 1fr auto}
-  .settlement-deduction-row-v547 input{font-size:14px;padding:11px 10px}
-}
-
 </style>
 
 
@@ -1564,34 +1542,6 @@ CHANGE 5.46 - EDIT INSTALL PRICE LIST SCROLL
         <button class="btn-yellow" onclick="$('restoreMyFile').click()">♻️ שחזור JSON</button>
         <input id="restoreMyFile" type="file" accept="application/json" class="hidden" onchange="restoreMyJSON(event)">
       </div>
-
-      <!-- v5.47: דוח התחשבנות חודשי נשמר ב-Firestore לפי עובד וחודש, בלי לפגוע בגיבוי/ייצוא הקיימים. -->
-      <div id="monthlySettlementPanelV547" class="settlement-v547">
-        <h3>📄 דוח התחשבנות חודשי</h3>
-        <p class="muted">בחר חודש, המערכת תחשב עבודות שבוצעו בלבד ותאפשר להשוות מול ההתחשבנות שקיבלת בפועל. כל הסכומים שאתה מזין הם לפני מע״מ.</p>
-        <div class="settlement-grid-v547">
-          <input id="settlementMonthV547" type="month" onchange="loadMonthlySettlementV547()" placeholder="בחר חודש">
-          <input id="settlementActualIncomeV547" type="number" step="0.01" placeholder="הכנסה בפועל לפני מע״מ" oninput="renderSettlementReportV547()">
-          <input id="settlementFineV547" type="number" step="0.01" placeholder="קנסות בפועל לפני מע״מ" oninput="renderSettlementReportV547()">
-        </div>
-        <div class="settlement-grid-v547">
-          <input id="settlementEquipmentV547" type="number" step="0.01" placeholder="קיזוז ציוד / ציוד שחור" oninput="renderSettlementReportV547()">
-          <input id="settlementSixPercentBaseV547" type="number" step="0.01" placeholder="בסיס לקיזוז 6% - ריק = לפי העבודות" oninput="renderSettlementReportV547()">
-          <input id="settlementNotesV547" placeholder="הערות לדוח" oninput="renderSettlementReportV547()">
-        </div>
-        <div class="settlement-deductions-v547">
-          <h3 style="font-size:16px;margin-top:10px">הוצאות / קיזוזים דינמיים</h3>
-          <div id="settlementDeductionsV547"></div>
-          <button type="button" class="btn-light" onclick="addSettlementDeductionRowV547()">➕ הוסף הוצאה</button>
-        </div>
-        <div id="settlementReportV547"></div>
-        <div class="settlement-actions-v547">
-          <button type="button" class="btn-green" onclick="saveMonthlySettlementV547()">שמור דוח</button>
-          <button type="button" class="btn-light" onclick="loadMonthlySettlementV547()">טען מחדש</button>
-        </div>
-        <div id="settlementMsgV547"></div>
-      </div>
-
       <div id="workerToolsMsg"></div>
     </div>
   </div>
@@ -1706,7 +1656,7 @@ CHANGE 5.46 - EDIT INSTALL PRICE LIST SCROLL
 </div>
 
 <script>
-const APP_VERSION = "5.48";
+const APP_VERSION = "5.46";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1721,24 +1671,6 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
-
-
-CHANGELOG 5.48 - דוח התחשבנות אישי תחת העובד וקנס כסכום בפועל
-1. APP_VERSION עודכן ל-"5.48" כמקור גרסה יחיד.
-2. דוח ההתחשבנות נשמר עכשיו תחת workers/{workerId}/monthlySettlements/{YYYY-MM} במקום collection כללי.
-3. בחירת חודש לא מציגה שגיאת הרשאות אם אין דוח שמור; המערכת מציגה את חישוב העבודות בפועל וממשיכה לעבוד.
-4. שדה הקנס שונה מסימון 4% קבוע להזנת סכום קנסות בפועל לפני מע״מ.
-5. המערכת מחשבת לבד איזה אחוז הקנס מתוך ההכנסה/העבודות בפועל לפני מע״מ.
-6. גיבוי/שחזור עובד כולל גם דוחות התחשבנות חודשיים אישיים מתוך תת-האוסף של העובד.
-7. לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון או אקסל.
-
-CHANGELOG 5.47 - גיבוי ימי חופש ודוח התחשבנות חודשי
-1. APP_VERSION עודכן ל-"5.47" ונשאר מקור הגרסה היחיד בכל התצוגות ושמות הקבצים.
-2. גיבוי JSON אישי של עובד כולל עכשיו גם workerDaysOff של העובד המחובר בלבד.
-3. שחזור JSON אישי משחזר ימי חופש רק לעובד המחובר כדי למנוע שחזור נתונים של עובד אחר.
-4. נוסף דוח התחשבנות חודשי באזור הכלים: בחירת חודש, חישוב עבודות שבוצעו בלבד, מע״מ 18%, קיזוז 6%, קנסות בפועל אופציונלי והוצאות דינמיות.
-5. הדוח נשמר ב-Firestore לפי עובד וחודש כדי שיהיה זמין מכל מכשיר.
-6. לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון או אקסל.
 
 CHANGELOG 5.46 - גלילה פנימית ברשימת מחירון בעריכת עבודה
 1. APP_VERSION עודכן ל-"5.46" כמקור גרסה יחיד.
@@ -3295,7 +3227,7 @@ async function extendSubscriptionDays(days){
   await saveSubscriptionEdit();
 }
 
-async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();const worker={id:doc.id,...doc.data()};if(session&&session.role==="worker"&&isSubscriptionExpired(worker)){localStorage.removeItem("workSession");session=null;showExpiredView(worker);return;}await showWorker(worker)}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=new Date();selectedDate=null;selectedType=null;if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=Number(worker.monthlyGoal||0);if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth();try{initMonthlySettlementV547();}catch(e){console.warn("v5.47 settlement init failed",e)}}
+async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();const worker={id:doc.id,...doc.data()};if(session&&session.role==="worker"&&isSubscriptionExpired(worker)){localStorage.removeItem("workSession");session=null;showExpiredView(worker);return;}await showWorker(worker)}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=new Date();selectedDate=null;selectedType=null;if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=Number(worker.monthlyGoal||0);if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth()}
 async function loadMonth(){await loadPriceList();await loadTemplates();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);monthEntries=[];renderCalendar();renderDay();renderStats();const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();monthEntries=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats();renderSmartDashboard();if($('searchPanel')&&!$('searchPanel').classList.contains('hidden'))renderFullSummary()}
 function renderCalendar(){const cal=$("calendar");cal.innerHTML="";weekdays.forEach(w=>{const d=document.createElement("div");d.className="weekday";d.textContent=w;cal.appendChild(d)});const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0).getDate(),today=formatDate(new Date());for(let i=0;i<first.getDay();i++){const e=document.createElement("div");e.className="day empty";cal.appendChild(e)}for(let d=1;d<=last;d++){const ds=`${y}-${pad(m+1)}-${pad(d)}`,dt=new Date(y,m,d),sh=dt.getDay()===6,entries=monthEntries.filter(e=>e.date===ds),total=entries.reduce((s,e)=>s+Number(e.amount||0),0),div=document.createElement("div");div.className="day";if(sh)div.classList.add("shabbat");if(ds===today)div.classList.add("today");if(ds===selectedDate)div.classList.add("selected");div.innerHTML=`<div class="day-num">${d}</div>${total?`<div class="day-total">${money(total)}</div>`:""}${entries.length?`<div class="day-count">${entries.length} עבודות</div>`:""}`;if(!sh)div.onclick=()=>selectDay(ds);cal.appendChild(div)}}
 function selectDay(ds){selectedDate=ds;selectedType=null;renderCalendar();renderDay();renderStats();renderSmartDashboard();cleanVisibleSlashN()}function renderDay(){if(!selectedDate){hide("dayPanel");show("selectDayHint");return}show("dayPanel");hide("selectDayHint");text("dateTitle",`יום ${heDate(selectedDate)}`);renderInstallItems();setType(selectedType,false);updateServicePriceLabels();const entries=monthEntries.filter(e=>e.date===selectedDate).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)),box=$("dayEntries");box.innerHTML=entries.length?"":"<p class='muted'>אין עבודות ביום הזה עדיין.</p>";entries.forEach(e=>{const details=e.workType==="service"?`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n${e.notes||""}`:`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("<br>")+`\n${e.notes||""}`,row=document.createElement("div");row.className="item";const iconClass=e.workType==="install"?"install":(e.isReturnCall?"return":"service");const icon=e.workType==="install"?"🛠️":(e.isReturnCall?"🔁":"☎️");row.innerHTML=`<div class="work-row-main"><div class="work-icon ${iconClass}">${icon}</div><div><div class="item-title">${esc(e.description)}</div><div class="item-sub">${nl2br(details)}</div></div></div><div><div class="money">${money(e.amount)}</div><div class="actions" style="margin-top:8px"><button class="btn-yellow" onclick="openEntryEdit('${e.id}')">ערוך</button>${e.workType==="install"?`<button class="btn-light" onclick="saveEntryAsTemplate('${e.id}')">שמור כתבנית</button>`:""}<button class="btn-red" onclick="deleteEntry('${e.id}')">מחק</button></div></div>`;box.appendChild(row)})}
@@ -4011,7 +3943,6 @@ async function exportMyEntriesCSV(){
 
 async function backupMyJSON(){
   if(!viewedWorker)return;
-  // v5.47: גיבוי עובד כולל עכשיו גם ימי חופש של אותו עובד בלבד.
   const data={
     version: APP_VERSION,
     appVersion: APP_VERSION,
@@ -4019,7 +3950,7 @@ async function backupMyJSON(){
     workerId:viewedWorker.id,
     workerName:viewedWorker.name||"",
     exportedAt:new Date().toISOString(),
-    collections:{workEntries:[],installTemplates:[],priceList:[],workerDaysOff:[],monthlySettlements:[]}
+    collections:{workEntries:[],installTemplates:[],priceList:[]}
   };
   const entriesSnap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
   data.collections.workEntries=entriesSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
@@ -4027,29 +3958,18 @@ async function backupMyJSON(){
   data.collections.installTemplates=tplSnap.docs.map(d=>({id:d.id,...d.data()})).filter(t=>t.ownerWorkerId===viewedWorker.id).map(t=>({id:t.id,data:serializeFirestore(t)}));
   const priceSnap=await db.collection("priceList").get();
   data.collections.priceList=priceSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
-  const daysOffSnap=await db.collection("workerDaysOff").where("workerId","==",viewedWorker.id).get();
-  data.collections.workerDaysOff=daysOffSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
-  // v5.48: גיבוי אישי כולל גם דוחות התחשבנות חודשיים שנשמרים כתת-אוסף של העובד.
-  try{
-    const settlementsSnap=await db.collection("workers").doc(viewedWorker.id).collection("monthlySettlements").get();
-    data.collections.monthlySettlements=settlementsSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
-  }catch(e){
-    console.warn("monthlySettlements backup skipped", e && (e.code||e.message) ? (e.code||e.message) : e);
-  }
   downloadFile(`my_backup_v${APP_VERSION.replaceAll(".","_")}_${viewedWorker.username||viewedWorker.name||"worker"}.json`,JSON.stringify(data,null,2),"application/json");
-  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>גיבוי אישי ירד למכשיר ✅<br>כולל עבודות, תבניות אישיות, מחירון סיב/RF, ימי חופש ודוחות התחשבנות.</div>";
+  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>גיבוי אישי ירד למכשיר ✅<br>כולל עבודות, תבניות אישיות ומחירון סיב/RF.</div>";
 }
 async function restoreMyJSON(event){
   const file=event.target.files[0];
   if(!file||!viewedWorker)return;
-  if(!confirm("שחזור אישי יוסיף/יעדכן עבודות, תבניות וימי חופש לחשבון שלך בלבד. להמשיך?"))return;
+  if(!confirm("שחזור אישי יוסיף/יעדכן עבודות ותבניות לחשבון שלך בלבד. להמשיך?"))return;
   const text=await file.text();
   const data=JSON.parse(text);
   const cols=data.collections||{};
   const entries=cols.workEntries||[];
   const templatesData=cols.installTemplates||[];
-  const daysOffData=cols.workerDaysOff||[];
-  const settlementsData=cols.monthlySettlements||[];
   const priceData=[...(cols.priceList||[]),...(cols.priceListFiber||[]).map((x,i)=>({id:(x.id||`fiber_${i}`),data:{...(x.data||x),priceType:"fiber",installKind:"fiber",category:"fiber"}})),...(cols.priceListRF||[]).map((x,i)=>({id:(x.id||`rf_${i}`),data:{...(x.data||x),priceType:"rf",installKind:"rf",category:"rf"}}))];
   for(const doc of priceData){
     const nd=normalizeBackupDocV413(doc); if(!nd)continue;
@@ -4065,226 +3985,10 @@ async function restoreMyJSON(event){
     const payload={...(nd.data||{}),ownerWorkerId:viewedWorker.id,ownerWorkerName:viewedWorker.name,restoredAt:new Date().toISOString()};
     await db.collection("installTemplates").doc(nd.id).set(payload,{merge:true});
   }
-  // v5.47: שחזור ימי חופש תמיד משויך לעובד המחובר בלבד כדי לא לשחזר ימים של עובד אחר.
-  for(const doc of daysOffData){
-    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
-    const original=nd.data||{};
-    const date=String(original.date||"").trim();
-    if(!date) continue;
-    const docId=(typeof docIdDayOff==='function') ? docIdDayOff(viewedWorker.id,date) : (viewedWorker.id+'_'+date);
-    const payload={...original,workerId:viewedWorker.id,workerName:viewedWorker.name,date,restoredAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-    await db.collection("workerDaysOff").doc(docId).set(payload,{merge:true});
-  }
-  // v5.48: שחזור דוחות התחשבנות נשמר תמיד בתת-אוסף של העובד המחובר בלבד.
-  for(const doc of settlementsData){
-    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
-    const original=nd.data||{};
-    const month=String(original.month||nd.id||"").slice(0,7);
-    if(!/^\d{4}-\d{2}$/.test(month)) continue;
-    const payload={...original,workerId:viewedWorker.id,workerName:viewedWorker.name,month,restoredAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-    await db.collection("workers").doc(viewedWorker.id).collection("monthlySettlements").doc(month).set(payload,{merge:true});
-  }
   event.target.value="";
-  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>השחזור האישי הסתיים ✅<br>כולל עבודות, תבניות, ימי חופש, דוחות התחשבנות ותמיכה במחירוני סיב/RF.</div>";
+  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>השחזור האישי הסתיים ✅<br>כולל תמיכה במחירוני סיב/RF.</div>";
   await loadMonth();
 }
-
-
-/* ===== v5.48: דוח התחשבנות חודשי דינמי לעובד =====
-   שינוי נקי בתוך מודול הדוח הקיים:
-   - הדוח נשמר תחת workers/{workerId}/monthlySettlements/{YYYY-MM}, כלומר שייך לעובד עצמו.
-   - בחירת חודש לא נופלת על permission-denied: אם אין דוח שמור או שאין הרשאה לקריאה, עדיין מוצג חישוב העבודות שבוצעו.
-   - קנס מוזן כסכום בפועל לפני מע״מ, והמערכת מחשבת את אחוז הקנס מתוך הסכום בפועל/המערכתי.
-   - הדוח קורא עבודות שבוצעו בלבד: ללא מתוזמנות וללא not_done.
-*/
-function settlementDefaultMonthV547(){
-  try{return `${calendarDate.getFullYear()}-${pad(calendarDate.getMonth()+1)}`;}catch(e){return new Date().toISOString().slice(0,7);}
-}
-function settlementDocIdV547(month){
-  return String(month||settlementDefaultMonthV547()).slice(0,7);
-}
-function settlementRefV548(month){
-  if(!viewedWorker || !viewedWorker.id) return null;
-  return db.collection("workers").doc(viewedWorker.id).collection("monthlySettlements").doc(settlementDocIdV547(month));
-}
-function isDoneEntryForSettlementV547(e){
-  const st=String(e.entryStatus||e.status||"done").toLowerCase();
-  if(st==="planned" || st==="not_done" || st==="cancelled") return false;
-  if(typeof window.isPlannedV49 === "function" && window.isPlannedV49(e)) return false;
-  return true;
-}
-async function loadSettlementEntriesV547(month){
-  if(!viewedWorker||!month) return [];
-  const parts=month.split("-");
-  const y=Number(parts[0]),m=Number(parts[1]);
-  if(!y||!m) return [];
-  const last=new Date(y,m,0).getDate();
-  const start=`${y}-${pad(m)}-01`, end=`${y}-${pad(m)}-${pad(last)}`;
-  const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
-  return snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>String(e.date||"")>=start && String(e.date||"")<=end && isDoneEntryForSettlementV547(e));
-}
-function getSettlementDeductionsV547(){
-  const rows=[...document.querySelectorAll(".settlement-deduction-row-v547")];
-  return rows.map(row=>({
-    name:(row.querySelector('[data-deduction-name]')||{}).value||"",
-    amount:Number((row.querySelector('[data-deduction-amount]')||{}).value||0)
-  })).filter(x=>x.name || x.amount);
-}
-function addSettlementDeductionRowV547(name="",amount=""){
-  const box=$("settlementDeductionsV547");
-  if(!box)return;
-  const row=document.createElement("div");
-  row.className="settlement-deduction-row-v547";
-  row.innerHTML=`<input data-deduction-name placeholder="שם הוצאה" value="${esc(name)}" oninput="renderSettlementReportV547()"><input data-deduction-amount type="number" step="0.01" placeholder="סכום" value="${esc(amount)}" oninput="renderSettlementReportV547()"><button type="button" class="btn-red" onclick="this.closest('.settlement-deduction-row-v547').remove();renderSettlementReportV547();">×</button>`;
-  box.appendChild(row);
-}
-function setSettlementDeductionsV547(items){
-  const box=$("settlementDeductionsV547");
-  if(!box)return;
-  box.innerHTML="";
-  (items&&items.length?items:[{name:"",amount:""}]).forEach(x=>addSettlementDeductionRowV547(x.name||"",x.amount||""));
-}
-function settlementTotalsV547(entries){
-  const expected=entries.reduce((s,e)=>s+Number(e.amount||0),0);
-  const services=entries.filter(e=>e.workType==="service").length;
-  const installs=entries.filter(e=>e.workType==="install").length;
-  const pekaCN=entries.filter(e=>String(e.pekaType||"").toUpperCase()==="CN").length;
-  const pekaCH=entries.filter(e=>String(e.pekaType||"").toUpperCase()==="CH").length;
-  const vat=expected*0.18;
-  return {expected,vat,gross:expected+vat,services,installs,pekaCN,pekaCH,count:entries.length};
-}
-async function readSavedSettlementV548(month){
-  const ref=settlementRefV548(month);
-  if(!ref) return {exists:false,data:{},readError:null};
-  try{
-    const doc=await ref.get();
-    return {exists:doc.exists,data:doc.exists?(doc.data()||{}):{},readError:null};
-  }catch(e){
-    console.warn("settlement read skipped", e && (e.code||e.message) ? (e.code||e.message) : e);
-    return {exists:false,data:{},readError:e};
-  }
-}
-async function loadMonthlySettlementV547(){
-  if(!viewedWorker)return;
-  const monthEl=$("settlementMonthV547");
-  if(monthEl && !monthEl.value) monthEl.value=settlementDefaultMonthV547();
-  const month=monthEl?monthEl.value:settlementDefaultMonthV547();
-  const msg=$("settlementMsgV547");
-  if(msg) msg.innerHTML="<div class='notice'>טוען דוח...</div>";
-  try{
-    window.settlementEntriesV547=await loadSettlementEntriesV547(month);
-    const saved=await readSavedSettlementV548(month);
-    const d=saved.data||{};
-    if($("settlementActualIncomeV547")) $("settlementActualIncomeV547").value=d.actualIncomeBeforeVat||"";
-    if($("settlementEquipmentV547")) $("settlementEquipmentV547").value=d.equipmentDeduction||"";
-    if($("settlementSixPercentBaseV547")) $("settlementSixPercentBaseV547").value=d.sixPercentBase||"";
-    if($("settlementFineV547")) $("settlementFineV547").value=(d.fineDeduction!==undefined?d.fineDeduction:(d.fineAmount||""))||"";
-    if($("settlementNotesV547")) $("settlementNotesV547").value=d.notes||"";
-    setSettlementDeductionsV547(d.deductions||[]);
-    renderSettlementReportV547();
-    if(msg){
-      if(saved.exists) msg.innerHTML="<div class='notice'>דוח שמור נטען ✅</div>";
-      else if(saved.readError) msg.innerHTML="<div class='notice'>נפתח דוח חדש לחודש הנבחר ✅<br>לא נמצא/לא נטען דוח שמור, החישוב מוצג לפי העבודות שבוצעו.</div>";
-      else msg.innerHTML="<div class='notice'>נפתח דוח חדש לחודש הנבחר ✅</div>";
-    }
-  }catch(e){
-    if(msg) msg.innerHTML=`<p class='danger'>שגיאה בטעינת עבודות לדוח: ${esc(e.message||String(e))}</p>`;
-  }
-}
-function renderSettlementReportV547(){
-  const entries=window.settlementEntriesV547||[];
-  const t=settlementTotalsV547(entries);
-  const actual=Number(val("settlementActualIncomeV547")||0);
-  const equipment=Number(val("settlementEquipmentV547")||0);
-  const sixBase=Number(val("settlementSixPercentBaseV547")||0) || t.expected;
-  const six=sixBase*0.06;
-  const fine=Number(val("settlementFineV547")||0);
-  const fineBase=actual || t.expected;
-  const finePct=fineBase>0 ? (fine/fineBase*100) : 0;
-  const extra=getSettlementDeductionsV547().reduce((s,x)=>s+Number(x.amount||0),0);
-  const actualVat=actual*0.18;
-  const actualGross=actual+actualVat;
-  const deductionsTotal=equipment+six+fine+extra;
-  const netAfterDeductions=actual-deductionsTotal;
-  const expectedDiff=actual-t.expected;
-  const box=$("settlementReportV547");
-  if(!box)return;
-  const diffCls=expectedDiff>=0?"settlement-total-v547":"settlement-warning-v547";
-  box.innerHTML=`
-    <div class="settlement-line-v547"><span>עבודות שבוצעו בחודש</span><b>${t.count}</b></div>
-    <div class="settlement-line-v547"><span>קריאות / התקנות / פק״ע CN / CH</span><b>${t.services} / ${t.installs} / ${t.pekaCN} / ${t.pekaCH}</b></div>
-    <div class="settlement-line-v547"><span>מגיע לפי המערכת לפני מע״מ</span><b>${money(t.expected)}</b></div>
-    <div class="settlement-line-v547"><span>מע״מ 18% לפי המערכת</span><b>${money(t.vat)}</b></div>
-    <div class="settlement-line-v547 settlement-total-v547"><span>סה״כ ברוטו לפי המערכת</span><b>${money(t.gross)}</b></div>
-    <div class="settlement-line-v547"><span>הכנסה בפועל לפני מע״מ</span><b>${money(actual)}</b></div>
-    <div class="settlement-line-v547"><span>קיזוז 6%</span><b>${money(six)}</b></div>
-    <div class="settlement-line-v547"><span>קיזוז ציוד / ציוד שחור</span><b>${money(equipment)}</b></div>
-    <div class="settlement-line-v547"><span>קנסות בפועל</span><b>${money(fine)}${fine?` · ${finePct.toFixed(2)}%`:""}</b></div>
-    <div class="settlement-line-v547"><span>הוצאות דינמיות</span><b>${money(extra)}</b></div>
-    <div class="settlement-line-v547 settlement-warning-v547"><span>סה״כ קיזוזים</span><b>${money(deductionsTotal)}</b></div>
-    <div class="settlement-line-v547 ${diffCls}"><span>פער בין התחשבנות בפועל למערכת</span><b>${money(expectedDiff)}</b></div>
-    <div class="settlement-line-v547 settlement-total-v547"><span>נטו אחרי קיזוזים לפני מע״מ</span><b>${money(netAfterDeductions)}</b></div>
-    <div class="settlement-line-v547 settlement-total-v547"><span>ברוטו בפועל כולל מע״מ</span><b>${money(actualGross)}</b></div>
-  `;
-}
-async function saveMonthlySettlementV547(){
-  if(!viewedWorker)return;
-  const month=val("settlementMonthV547")||settlementDefaultMonthV547();
-  const entries=window.settlementEntriesV547||await loadSettlementEntriesV547(month);
-  const t=settlementTotalsV547(entries);
-  const actual=Number(val("settlementActualIncomeV547")||0);
-  const equipment=Number(val("settlementEquipmentV547")||0);
-  const sixBase=Number(val("settlementSixPercentBaseV547")||0) || t.expected;
-  const fine=Number(val("settlementFineV547")||0);
-  const fineBase=actual || t.expected;
-  const deductions=getSettlementDeductionsV547();
-  const extra=deductions.reduce((s,x)=>s+Number(x.amount||0),0);
-  const payload={
-    workerId:viewedWorker.id,
-    workerName:viewedWorker.name||"",
-    month,
-    expectedFromWorkEntries:t.expected,
-    doneEntriesCount:t.count,
-    servicesCount:t.services,
-    installsCount:t.installs,
-    pekaCNCount:t.pekaCN,
-    pekaCHCount:t.pekaCH,
-    actualIncomeBeforeVat:actual,
-    vatRate:18,
-    vatAmount:actual*0.18,
-    equipmentDeduction:equipment,
-    sixPercentBase:sixBase,
-    sixPercentDeduction:sixBase*0.06,
-    fineDeduction:fine,
-    finePercent:fineBase>0 ? (fine/fineBase*100) : 0,
-    finePercentBase:fineBase,
-    deductions,
-    dynamicDeductionsTotal:extra,
-    totalDeductions:equipment+(sixBase*0.06)+fine+extra,
-    netAfterDeductionsBeforeVat:actual-(equipment+(sixBase*0.06)+fine+extra),
-    notes:val("settlementNotesV547"),
-    updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
-    createdAt:firebase.firestore.FieldValue.serverTimestamp()
-  };
-  const ref=settlementRefV548(month);
-  if(!ref){
-    if($("settlementMsgV547"))$("settlementMsgV547").innerHTML="<p class='danger'>לא זוהה עובד לשמירת הדוח.</p>";
-    return;
-  }
-  try{
-    await ref.set(payload,{merge:true});
-    if($("settlementMsgV547"))$("settlementMsgV547").innerHTML="<div class='notice'>דוח ההתחשבנות נשמר ✅</div>";
-  }catch(e){
-    if($("settlementMsgV547"))$("settlementMsgV547").innerHTML=`<p class='danger'>שגיאה בשמירת דוח: ${esc(e.message||String(e))}</p>`;
-  }
-}
-function initMonthlySettlementV547(){
-  const monthEl=$("settlementMonthV547");
-  if(monthEl && !monthEl.value) monthEl.value=settlementDefaultMonthV547();
-  if($("settlementDeductionsV547") && !$("settlementDeductionsV547").children.length) setSettlementDeductionsV547([]);
-  try{ loadMonthlySettlementV547(); }catch(e){}
-}
-
 async function saveEntryAsTemplate(id){
   const e=monthEntries.find(x=>x.id===id);
   if(!e||e.workType!=="install"||!e.items||!e.items.length){
@@ -18160,8 +17864,6 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
-      {version:"5.48", title:"דוח התחשבנות אישי וקנס כסכום בפועל", items:["דוח ההתחשבנות נשמר עכשיו תחת workers/{workerId}/monthlySettlements/{YYYY-MM} במקום collection כללי.","בחירת חודש לא מציגה שגיאת הרשאות אם אין דוח שמור; מוצג חישוב לפי העבודות שבוצעו.","שדה הקנס הפך להזנת סכום קנסות בפועל לפני מע״מ, והמערכת מחשבת את אחוז הקנס אוטומטית.","גיבוי ושחזור עובד כוללים גם דוחות התחשבנות אישיים.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון או אקסל."], date:d},
-      {version:"5.47", title:"גיבוי ימי חופש ודוח התחשבנות חודשי", items:["גיבוי JSON אישי של עובד כולל עכשיו גם ימי חופש של העובד המחובר בלבד.","שחזור JSON אישי משחזר ימי חופש רק לעובד המחובר, בלי לגעת בנתוני עובדים אחרים.","נוסף דוח התחשבנות חודשי דינמי באזור הכלים: בחירת חודש, חישוב עבודות שבוצעו בלבד, מע״מ 18%, קיזוז 6%, קנסות בפועל אופציונלי והוצאות דינמיות.","דוח ההתחשבנות נשמר ב-Firestore תחת workerMonthlySettlements לפי עובד וחודש, כדי שיהיה זמין מכל מכשיר.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון או אקסל."], date:d},
       {version:"5.46", title:"גלילה פנימית ברשימת מחירון בעריכת עבודה", items:["במסך עריכת עבודה, רשימת פריטי המחירון של התקנה מוצגת בגלילה פנימית קבועה כדי שהעריכה לא תהפוך לרשימה ארוכה על כל המסך.","התיקון חל גם על עריכת התקנות סיב/RF וגם על עבודות מתוזמנות שנערכות כעבודת התקנה.","השינוי הוא תצוגה בלבד ולא משנה את חישוב הסכום או את שמירת העריכה.","לא שונו פק״ע, לא בוצע, שכפול, לקוח חוזר, Last Login, דשבורד, אופליין, גיבוי או אקסל."], date:d},
       {version:"5.45", title:"תיקון תצוגת חצי ניווט חודש במובייל", items:["חצי ניווט החודש הוקטנו משמעותית וקיבלו רוחב וגובה קבועים כדי שלא ייחתכו במסך מובייל.","שם החודש נשאר במרכז וברוחב מלא של אזור הלוח, בלי שהחצים דורסים אותו.","התיקון הוא תצוגה בלבד ולא משנה את לוגיקת changeMonth או את נתוני הלוח.","לא שונו פק״ע, לא בוצע, שכפול, לקוח חוזר, Last Login, דשבורד, אופליין, גיבוי או אקסל."], date:d},
       {version:"5.44", title:"ניווט חודש רספונסיבי ומילוי כתובת בפועל", items:["ניווט החודשים בלוח השנה סודר לרוחב מלא של אזור הלוח עם חצים קטנים וברורים ללא חיתוך במובייל.","שם החודש נשאר במרכז, ברור וקריא גם במסכים צרים.","בדיקת לקוח חוזר ממלאת בפועל את שדה הכתובת של קריאת שירות או התקנה כאשר נמצאה כתובת קודמת והשדה ריק.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, דשבורד, אופליין, גיבוי או אקסל."], date:d},
