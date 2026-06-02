@@ -987,6 +987,14 @@ body.app-booting-v434 #startupView{
   display:block!important;
 }
 </style>
+
+<style id="v5-39-not-done-calendar-count-css">
+/* 5.39 bugfix: not_done entries are displayed separately in the calendar and are not counted as done. */
+.day-not-done-v539{margin-top:3px;font-size:11px;font-weight:900;color:#991b1b;background:#fee2e2;border:1px solid #fecaca;border-radius:999px;padding:2px 5px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:800px){.day-not-done-v539{font-size:9px;padding:1px 3px;margin-top:2px}}
+@media(max-width:380px){.day-not-done-v539{font-size:8.5px}}
+</style>
+
 </head>
 <body class="app-booting-v433 app-booting-v434">
 <div class="app">
@@ -1385,6 +1393,16 @@ function setAppVersionUI(){
 setAppVersionUI();
 window.addEventListener("DOMContentLoaded", setAppVersionUI);
 window.addEventListener("load", setAppVersionUI);
+
+/*
+===============================================================================
+
+CHANGELOG 5.39 - מקור גרסה יחיד ללא קפיצות
+1. APP_VERSION נשאר "5.39" והוא מקור הגרסה היחיד להצגת הגרסה בממשק.
+2. נוקו קבועי גרסה פנימיים ישנים של 5.33 ו-5.38 שעדכנו את ה-UI וגרמו לקפיצות תצוגה.
+3. לא שונו פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, שמירה, גיבוי, אקסל או הרשאות.
+===============================================================================
+*/
 
 /*
 ===============================================================================
@@ -10262,7 +10280,7 @@ service cloud.firestore {
 (function(){
   function entryStatusV49(e){ return (e && e.entryStatus) ? e.entryStatus : 'done'; }
   function isPlannedV49(e){ return entryStatusV49(e)==='planned'; }
-  function isDoneV49(e){ return !isPlannedV49(e); }
+  function isDoneV49(e){ var st=String((e && (e.entryStatus || e.status)) || 'done'); return !isPlannedV49(e) && st!=='not_done'; }
   function doneEntriesV49(list){ return (Array.isArray(list)?list:[]).filter(isDoneV49); }
   function plannedEntriesV49(list){ return (Array.isArray(list)?list:[]).filter(isPlannedV49); }
   function sumV49(list){ return (Array.isArray(list)?list:[]).reduce(function(s,e){return s+Number(e.amount||0)},0); }
@@ -12142,7 +12160,7 @@ service cloud.firestore {
     try{ if(typeof ensurePlannedButtonsV49 === 'function') ensurePlannedButtonsV49(); }catch(_e){}
 
     var entries=safeArrV419(monthEntries).filter(function(e){return e.date===selectedDate;}).sort(function(a,b){return entryTimeV419(b)-entryTimeV419(a);});
-    var done=entries.filter(function(e){return !isPlannedSafeV419(e);});
+    var done=entries.filter(function(e){ var st=String((e && (e.entryStatus || e.status)) || 'done'); return !isPlannedSafeV419(e) && st!=='not_done'; });
     var planned=entries.filter(function(e){return isPlannedSafeV419(e);});
     var box=$('dayEntries'); if(!box) return;
     box.innerHTML='';
@@ -14717,7 +14735,7 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
   window.cancelVacationDayV487=cancelVacationDay;
   window.cancelVacationDayV489=cancelVacationDay;
 
-  function doneEntries(arr){return safeArr(arr).filter(function(e){return !isPlannedEntry(e);});}
+  function doneEntries(arr){return safeArr(arr).filter(function(e){var st=String((e && (e.entryStatus || e.status)) || 'done');return !isPlannedEntry(e) && st!=='not_done';});}
   function plannedEntries(arr){return safeArr(arr).filter(isPlannedEntry);}
   function sumAmount(arr){return safeArr(arr).reduce(function(s,e){return s+Number(e.amount||0);},0);}
   function todayStrSafe(){try{return formatDate(new Date());}catch(e){return fmt(new Date());}}
@@ -14805,7 +14823,7 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
     for(var d=1;d<=range.last;d++){
       var ds=range.year+'-'+pad2(range.month+1)+'-'+pad2(d), dt=new Date(range.year,range.month,d), sh=dt.getDay()===6, vac=isVacation(ds);
       var all=safeArr(typeof monthEntries!=='undefined'?monthEntries:[]).filter(function(e){return e.date===ds;});
-      var done=doneEntries(all), planned=plannedEntries(all), total=sumAmount(done), plannedTotal=sumAmount(planned);
+      var done=doneEntries(all), planned=plannedEntries(all), notDone=safeArr(all).filter(function(e){var st=String((e && (e.entryStatus || e.status)) || 'done');return st==='not_done';}), total=sumAmount(done), plannedTotal=sumAmount(planned);
       var div=document.createElement('div'); div.className='day';
       if(sh) div.classList.add('shabbat');
       if(vac) div.classList.add('vacation-v437');
@@ -14815,8 +14833,9 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
         (vac?'<div class="day-vacation-label-v437">יום חופש</div>':'')+
         (total&&!vac?'<div class="day-total">'+moneySafe(total)+'</div>':'')+
         (done.length&&!vac?'<div class="day-count">'+done.length+' בוצע</div>':'')+
+        (notDone.length&&!vac?'<div class="day-not-done-v539">🚫 '+notDone.length+' לא בוצע</div>':'')+
         (planned.length&&!vac?'<div class="day-planned-v49">📋 '+planned.length+' מתוכנן<br>'+moneySafe(plannedTotal)+'</div>':'')+
-        (vac&&(done.length||planned.length)?'<div class="day-count">יש נתונים קיימים</div>':'');
+        (vac&&(done.length||planned.length||notDone.length)?'<div class="day-count">יש נתונים קיימים</div>':'');
       if(!sh || vac) div.onclick=(function(date){return function(){selectDay(date);};})(ds);
       cal.appendChild(div);
     }
@@ -15608,7 +15627,7 @@ CHANGE 5.35 - איפוס שדות חדשים אחרי שמירה / מתוזמן 
 */
 (function(){
   'use strict';
-  var APP_VERSION_V535='5.39';
+  var APP_VERSION_V535 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
 
   function q(id){ return document.getElementById(id); }
 
@@ -15725,7 +15744,7 @@ CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
 */
 (function(){
   'use strict';
-  var APP_VERSION_V536='5.39';
+  var APP_VERSION_V536 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
 
   function q(id){ return document.getElementById(id); }
 
@@ -15899,7 +15918,7 @@ CHANGE 5.37 - גלילה פנימית למחירון התקנה + שינוי ת�
 <script id="v5-37-install-scroll-change-date-js">
 (function(){
   'use strict';
-  var APP_VERSION_V537='5.39';
+  var APP_VERSION_V537 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
 
   function q(id){ return document.getElementById(id); }
   function safeEsc(v){ try{ if(typeof esc==='function') return esc(v); }catch(e){} return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -16090,7 +16109,7 @@ CHANGE 5.38 - חסימת שינוי תאריך לשבת או יום חופש
 <script id="v5-38-change-date-blocked-days-js">
 (function(){
   'use strict';
-  var APP_VERSION_V538='5.39';
+  var APP_VERSION_V538 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
   function q(id){return document.getElementById(id);}
   function safeEsc(v){try{if(typeof esc==='function')return esc(v);}catch(e){}return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function safeHeDate(v){try{if(typeof heDate==='function')return heDate(v);}catch(e){}return String(v||'');}
@@ -18079,7 +18098,7 @@ CHANGE 5.32 - פק״ע + תיקון טעינת תבניות לפי שם פריט
 <script id="v5-32-peka-label-template-fix-js">
 (function(){
   'use strict';
-  var APP_VERSION_V532='5.33';
+  var APP_VERSION_V532 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
 
   function q(id){ return document.getElementById(id); }
   function normNameV532(v){ return String(v||'').replace(/\s+/g,' ').trim(); }
@@ -18213,7 +18232,7 @@ CHANGE 5.33 - הפרדת תצוגת יום: בוצעו / מתוזמנות / לא
 <script id="v5-33-day-sections-fix-js">
 (function(){
   'use strict';
-  var APP_VERSION_V533='5.39';
+  var APP_VERSION_V533 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
 
   function byId(id){ return document.getElementById(id); }
   function html(v){
@@ -18346,7 +18365,7 @@ CHANGE 5.34 - החזרת יום חופש למסך יום נבחר
 <script id="v5-34-vacation-day-restore-js">
 (function(){
   'use strict';
-  var APP_VERSION_V534='5.39';
+  var APP_VERSION_V534 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
 
   function q(id){ return document.getElementById(id); }
   function heDateSafeV534(v){ try{ if(typeof heDate==='function') return heDate(v); }catch(e){} return String(v||''); }
@@ -18464,7 +18483,7 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
 <script id="v5-39-not-done-reschedule-js">
 (function(){
   'use strict';
-  var APP_VERSION_V539='5.39';
+  var APP_VERSION_V539 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
   if(window.__notDoneRescheduleV539Applied) return;
   window.__notDoneRescheduleV539Applied=true;
 
@@ -18509,6 +18528,11 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
     var originalAmount=Number(entry&& (entry.originalAmount||entry.amount) ||0);
     if(!originalAmount && entry&&Array.isArray(entry.items)) originalAmount=entry.items.reduce(function(s,i){return s+Number(i.total||0);},0);
     if(!originalAmount && entry&&entry.workType==='service'&&!entry.isReturnCall){try{originalAmount=Number(SERVICE_PRICE||0);}catch(e){}}
+    var originalDateLabel='';
+    try{ originalDateLabel=safeHeDate((entry&&entry.date)||''); }catch(e){ originalDateLabel=(entry&&entry.date)||''; }
+    var clonedFromLine='שוכפלה מתאריך '+originalDateLabel;
+    var clonedNotes=String((entry&&entry.notes)||'').trim();
+    clonedNotes=clonedNotes ? (clonedNotes+'\n'+clonedFromLine) : clonedFromLine;
     var out={
       workerId:(entry&&entry.workerId)||currentWorkerIdV539(),
       workerName:(entry&&entry.workerName)||currentWorkerNameV539(),
@@ -18518,7 +18542,7 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
       description:(entry&&entry.description)||((entry&&entry.workType)==='service'?'קריאת שירות':'התקנה'),
       customerNumber:(entry&&entry.customerNumber)||'',
       address:(entry&&entry.address)||'',
-      notes:(entry&&entry.notes)||'',
+      notes:clonedNotes,
       isReturnCall:!!(entry&&entry.isReturnCall),
       pekaType:(entry&&entry.pekaType)||'',
       entryStatus:'planned',
@@ -18642,6 +18666,7 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
           'בחלון לא בוצע נוספה אפשרות אופציונלית לקבוע מועד חדש וליצור פק״ע מתוזמנת חדשה.',
           'אם לא מסמנים קביעת מועד חדש, לא בוצע נשאר עובד בדיוק כמו קודם בלי שכפול.',
           'הפק״ע המקורית נשארת בתאריך המקורי בסטטוס לא בוצע עם סיבה והערת תיעוד אם נוצר מועד חדש.',
+          'הפק״ע החדשה שנוצרת כמתוזמנת מקבלת הערה אוטומטית: שוכפלה מתאריך המקור.',
           'הפק״ע החדשה נוצרת כמתוזמנת עם אותם פרטי לקוח, כתובת, פריטים, סכום, הערות וסוג פק״ע CN/CH.',
           'קביעת מועד חדש נחסמת לשבת או ליום חופש מסומן.'
         ]});}
