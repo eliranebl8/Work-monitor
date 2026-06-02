@@ -1572,7 +1572,7 @@ CHANGE 5.46 - EDIT INSTALL PRICE LIST SCROLL
         <div class="settlement-grid-v547">
           <input id="settlementMonthV547" type="month" onchange="loadMonthlySettlementV547()" placeholder="בחר חודש">
           <input id="settlementActualIncomeV547" type="number" step="0.01" placeholder="הכנסה בפועל לפני מע״מ" oninput="renderSettlementReportV547()">
-          <label class="checkline" style="margin:7px 0"><input id="settlementFineV547" type="checkbox" onchange="renderSettlementReportV547()"> קנס 4%</label>
+          <input id="settlementFineV547" type="number" step="0.01" placeholder="קנסות בפועל לפני מע״מ" oninput="renderSettlementReportV547()">
         </div>
         <div class="settlement-grid-v547">
           <input id="settlementEquipmentV547" type="number" step="0.01" placeholder="קיזוז ציוד / ציוד שחור" oninput="renderSettlementReportV547()">
@@ -1706,7 +1706,7 @@ CHANGE 5.46 - EDIT INSTALL PRICE LIST SCROLL
 </div>
 
 <script>
-const APP_VERSION = "5.47";
+const APP_VERSION = "5.48";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1723,12 +1723,21 @@ window.addEventListener("load", setAppVersionUI);
 ===============================================================================
 
 
+CHANGELOG 5.48 - דוח התחשבנות אישי תחת העובד וקנס כסכום בפועל
+1. APP_VERSION עודכן ל-"5.48" כמקור גרסה יחיד.
+2. דוח ההתחשבנות נשמר עכשיו תחת workers/{workerId}/monthlySettlements/{YYYY-MM} במקום collection כללי.
+3. בחירת חודש לא מציגה שגיאת הרשאות אם אין דוח שמור; המערכת מציגה את חישוב העבודות בפועל וממשיכה לעבוד.
+4. שדה הקנס שונה מסימון 4% קבוע להזנת סכום קנסות בפועל לפני מע״מ.
+5. המערכת מחשבת לבד איזה אחוז הקנס מתוך ההכנסה/העבודות בפועל לפני מע״מ.
+6. גיבוי/שחזור עובד כולל גם דוחות התחשבנות חודשיים אישיים מתוך תת-האוסף של העובד.
+7. לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון או אקסל.
+
 CHANGELOG 5.47 - גיבוי ימי חופש ודוח התחשבנות חודשי
 1. APP_VERSION עודכן ל-"5.47" ונשאר מקור הגרסה היחיד בכל התצוגות ושמות הקבצים.
 2. גיבוי JSON אישי של עובד כולל עכשיו גם workerDaysOff של העובד המחובר בלבד.
 3. שחזור JSON אישי משחזר ימי חופש רק לעובד המחובר כדי למנוע שחזור נתונים של עובד אחר.
-4. נוסף דוח התחשבנות חודשי באזור הכלים: בחירת חודש, חישוב עבודות שבוצעו בלבד, מע״מ 18%, קיזוז 6%, קנס 4% אופציונלי והוצאות דינמיות.
-5. הדוח נשמר ב-Firestore תחת workerMonthlySettlements לפי עובד וחודש, כדי שיהיה זמין מכל מכשיר.
+4. נוסף דוח התחשבנות חודשי באזור הכלים: בחירת חודש, חישוב עבודות שבוצעו בלבד, מע״מ 18%, קיזוז 6%, קנסות בפועל אופציונלי והוצאות דינמיות.
+5. הדוח נשמר ב-Firestore לפי עובד וחודש כדי שיהיה זמין מכל מכשיר.
 6. לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון או אקסל.
 
 CHANGELOG 5.46 - גלילה פנימית ברשימת מחירון בעריכת עבודה
@@ -4010,7 +4019,7 @@ async function backupMyJSON(){
     workerId:viewedWorker.id,
     workerName:viewedWorker.name||"",
     exportedAt:new Date().toISOString(),
-    collections:{workEntries:[],installTemplates:[],priceList:[],workerDaysOff:[]}
+    collections:{workEntries:[],installTemplates:[],priceList:[],workerDaysOff:[],monthlySettlements:[]}
   };
   const entriesSnap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
   data.collections.workEntries=entriesSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
@@ -4020,8 +4029,15 @@ async function backupMyJSON(){
   data.collections.priceList=priceSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
   const daysOffSnap=await db.collection("workerDaysOff").where("workerId","==",viewedWorker.id).get();
   data.collections.workerDaysOff=daysOffSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+  // v5.48: גיבוי אישי כולל גם דוחות התחשבנות חודשיים שנשמרים כתת-אוסף של העובד.
+  try{
+    const settlementsSnap=await db.collection("workers").doc(viewedWorker.id).collection("monthlySettlements").get();
+    data.collections.monthlySettlements=settlementsSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+  }catch(e){
+    console.warn("monthlySettlements backup skipped", e && (e.code||e.message) ? (e.code||e.message) : e);
+  }
   downloadFile(`my_backup_v${APP_VERSION.replaceAll(".","_")}_${viewedWorker.username||viewedWorker.name||"worker"}.json`,JSON.stringify(data,null,2),"application/json");
-  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>גיבוי אישי ירד למכשיר ✅<br>כולל עבודות, תבניות אישיות, מחירון סיב/RF וימי חופש.</div>";
+  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>גיבוי אישי ירד למכשיר ✅<br>כולל עבודות, תבניות אישיות, מחירון סיב/RF, ימי חופש ודוחות התחשבנות.</div>";
 }
 async function restoreMyJSON(event){
   const file=event.target.files[0];
@@ -4033,6 +4049,7 @@ async function restoreMyJSON(event){
   const entries=cols.workEntries||[];
   const templatesData=cols.installTemplates||[];
   const daysOffData=cols.workerDaysOff||[];
+  const settlementsData=cols.monthlySettlements||[];
   const priceData=[...(cols.priceList||[]),...(cols.priceListFiber||[]).map((x,i)=>({id:(x.id||`fiber_${i}`),data:{...(x.data||x),priceType:"fiber",installKind:"fiber",category:"fiber"}})),...(cols.priceListRF||[]).map((x,i)=>({id:(x.id||`rf_${i}`),data:{...(x.data||x),priceType:"rf",installKind:"rf",category:"rf"}}))];
   for(const doc of priceData){
     const nd=normalizeBackupDocV413(doc); if(!nd)continue;
@@ -4058,21 +4075,37 @@ async function restoreMyJSON(event){
     const payload={...original,workerId:viewedWorker.id,workerName:viewedWorker.name,date,restoredAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
     await db.collection("workerDaysOff").doc(docId).set(payload,{merge:true});
   }
+  // v5.48: שחזור דוחות התחשבנות נשמר תמיד בתת-אוסף של העובד המחובר בלבד.
+  for(const doc of settlementsData){
+    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
+    const original=nd.data||{};
+    const month=String(original.month||nd.id||"").slice(0,7);
+    if(!/^\d{4}-\d{2}$/.test(month)) continue;
+    const payload={...original,workerId:viewedWorker.id,workerName:viewedWorker.name,month,restoredAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+    await db.collection("workers").doc(viewedWorker.id).collection("monthlySettlements").doc(month).set(payload,{merge:true});
+  }
   event.target.value="";
-  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>השחזור האישי הסתיים ✅<br>כולל עבודות, תבניות, ימי חופש ותמיכה במחירוני סיב/RF.</div>";
+  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>השחזור האישי הסתיים ✅<br>כולל עבודות, תבניות, ימי חופש, דוחות התחשבנות ותמיכה במחירוני סיב/RF.</div>";
   await loadMonth();
 }
 
 
-/* ===== v5.47: דוח התחשבנות חודשי דינמי לעובד =====
-   נשמר ב-Firestore תחת workerMonthlySettlements/{workerId_YYYY-MM}.
-   הדוח קורא עבודות שבוצעו בלבד: ללא מתוזמנות וללא not_done.
+/* ===== v5.48: דוח התחשבנות חודשי דינמי לעובד =====
+   שינוי נקי בתוך מודול הדוח הקיים:
+   - הדוח נשמר תחת workers/{workerId}/monthlySettlements/{YYYY-MM}, כלומר שייך לעובד עצמו.
+   - בחירת חודש לא נופלת על permission-denied: אם אין דוח שמור או שאין הרשאה לקריאה, עדיין מוצג חישוב העבודות שבוצעו.
+   - קנס מוזן כסכום בפועל לפני מע״מ, והמערכת מחשבת את אחוז הקנס מתוך הסכום בפועל/המערכתי.
+   - הדוח קורא עבודות שבוצעו בלבד: ללא מתוזמנות וללא not_done.
 */
 function settlementDefaultMonthV547(){
   try{return `${calendarDate.getFullYear()}-${pad(calendarDate.getMonth()+1)}`;}catch(e){return new Date().toISOString().slice(0,7);}
 }
 function settlementDocIdV547(month){
-  return `${viewedWorker.id}_${month}`.replace(/[^a-zA-Z0-9_\-]/g,"_");
+  return String(month||settlementDefaultMonthV547()).slice(0,7);
+}
+function settlementRefV548(month){
+  if(!viewedWorker || !viewedWorker.id) return null;
+  return db.collection("workers").doc(viewedWorker.id).collection("monthlySettlements").doc(settlementDocIdV547(month));
 }
 function isDoneEntryForSettlementV547(e){
   const st=String(e.entryStatus||e.status||"done").toLowerCase();
@@ -4120,6 +4153,17 @@ function settlementTotalsV547(entries){
   const vat=expected*0.18;
   return {expected,vat,gross:expected+vat,services,installs,pekaCN,pekaCH,count:entries.length};
 }
+async function readSavedSettlementV548(month){
+  const ref=settlementRefV548(month);
+  if(!ref) return {exists:false,data:{},readError:null};
+  try{
+    const doc=await ref.get();
+    return {exists:doc.exists,data:doc.exists?(doc.data()||{}):{},readError:null};
+  }catch(e){
+    console.warn("settlement read skipped", e && (e.code||e.message) ? (e.code||e.message) : e);
+    return {exists:false,data:{},readError:e};
+  }
+}
 async function loadMonthlySettlementV547(){
   if(!viewedWorker)return;
   const monthEl=$("settlementMonthV547");
@@ -4129,18 +4173,22 @@ async function loadMonthlySettlementV547(){
   if(msg) msg.innerHTML="<div class='notice'>טוען דוח...</div>";
   try{
     window.settlementEntriesV547=await loadSettlementEntriesV547(month);
-    const doc=await db.collection("workerMonthlySettlements").doc(settlementDocIdV547(month)).get();
-    const d=doc.exists?(doc.data()||{}):{};
+    const saved=await readSavedSettlementV548(month);
+    const d=saved.data||{};
     if($("settlementActualIncomeV547")) $("settlementActualIncomeV547").value=d.actualIncomeBeforeVat||"";
     if($("settlementEquipmentV547")) $("settlementEquipmentV547").value=d.equipmentDeduction||"";
     if($("settlementSixPercentBaseV547")) $("settlementSixPercentBaseV547").value=d.sixPercentBase||"";
-    if($("settlementFineV547")) $("settlementFineV547").checked=!!d.includeFine;
+    if($("settlementFineV547")) $("settlementFineV547").value=(d.fineDeduction!==undefined?d.fineDeduction:(d.fineAmount||""))||"";
     if($("settlementNotesV547")) $("settlementNotesV547").value=d.notes||"";
     setSettlementDeductionsV547(d.deductions||[]);
     renderSettlementReportV547();
-    if(msg) msg.innerHTML=doc.exists?"<div class='notice'>דוח שמור נטען ✅</div>":"<div class='notice'>נפתח דוח חדש לחודש הנבחר ✅</div>";
+    if(msg){
+      if(saved.exists) msg.innerHTML="<div class='notice'>דוח שמור נטען ✅</div>";
+      else if(saved.readError) msg.innerHTML="<div class='notice'>נפתח דוח חדש לחודש הנבחר ✅<br>לא נמצא/לא נטען דוח שמור, החישוב מוצג לפי העבודות שבוצעו.</div>";
+      else msg.innerHTML="<div class='notice'>נפתח דוח חדש לחודש הנבחר ✅</div>";
+    }
   }catch(e){
-    if(msg) msg.innerHTML=`<p class='danger'>שגיאה בטעינת דוח: ${esc(e.message||String(e))}</p>`;
+    if(msg) msg.innerHTML=`<p class='danger'>שגיאה בטעינת עבודות לדוח: ${esc(e.message||String(e))}</p>`;
   }
 }
 function renderSettlementReportV547(){
@@ -4150,7 +4198,9 @@ function renderSettlementReportV547(){
   const equipment=Number(val("settlementEquipmentV547")||0);
   const sixBase=Number(val("settlementSixPercentBaseV547")||0) || t.expected;
   const six=sixBase*0.06;
-  const fine=($("settlementFineV547")&&$("settlementFineV547").checked)?(t.expected*0.04):0;
+  const fine=Number(val("settlementFineV547")||0);
+  const fineBase=actual || t.expected;
+  const finePct=fineBase>0 ? (fine/fineBase*100) : 0;
   const extra=getSettlementDeductionsV547().reduce((s,x)=>s+Number(x.amount||0),0);
   const actualVat=actual*0.18;
   const actualGross=actual+actualVat;
@@ -4169,7 +4219,7 @@ function renderSettlementReportV547(){
     <div class="settlement-line-v547"><span>הכנסה בפועל לפני מע״מ</span><b>${money(actual)}</b></div>
     <div class="settlement-line-v547"><span>קיזוז 6%</span><b>${money(six)}</b></div>
     <div class="settlement-line-v547"><span>קיזוז ציוד / ציוד שחור</span><b>${money(equipment)}</b></div>
-    <div class="settlement-line-v547"><span>קנס 4%</span><b>${money(fine)}</b></div>
+    <div class="settlement-line-v547"><span>קנסות בפועל</span><b>${money(fine)}${fine?` · ${finePct.toFixed(2)}%`:""}</b></div>
     <div class="settlement-line-v547"><span>הוצאות דינמיות</span><b>${money(extra)}</b></div>
     <div class="settlement-line-v547 settlement-warning-v547"><span>סה״כ קיזוזים</span><b>${money(deductionsTotal)}</b></div>
     <div class="settlement-line-v547 ${diffCls}"><span>פער בין התחשבנות בפועל למערכת</span><b>${money(expectedDiff)}</b></div>
@@ -4185,7 +4235,8 @@ async function saveMonthlySettlementV547(){
   const actual=Number(val("settlementActualIncomeV547")||0);
   const equipment=Number(val("settlementEquipmentV547")||0);
   const sixBase=Number(val("settlementSixPercentBaseV547")||0) || t.expected;
-  const includeFine=!!($("settlementFineV547")&&$("settlementFineV547").checked);
+  const fine=Number(val("settlementFineV547")||0);
+  const fineBase=actual || t.expected;
   const deductions=getSettlementDeductionsV547();
   const extra=deductions.reduce((s,x)=>s+Number(x.amount||0),0);
   const payload={
@@ -4204,17 +4255,28 @@ async function saveMonthlySettlementV547(){
     equipmentDeduction:equipment,
     sixPercentBase:sixBase,
     sixPercentDeduction:sixBase*0.06,
-    includeFine,
-    fineRate:includeFine?4:0,
-    fineDeduction:includeFine?t.expected*0.04:0,
+    fineDeduction:fine,
+    finePercent:fineBase>0 ? (fine/fineBase*100) : 0,
+    finePercentBase:fineBase,
     deductions,
     dynamicDeductionsTotal:extra,
+    totalDeductions:equipment+(sixBase*0.06)+fine+extra,
+    netAfterDeductionsBeforeVat:actual-(equipment+(sixBase*0.06)+fine+extra),
     notes:val("settlementNotesV547"),
     updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
     createdAt:firebase.firestore.FieldValue.serverTimestamp()
   };
-  await db.collection("workerMonthlySettlements").doc(settlementDocIdV547(month)).set(payload,{merge:true});
-  if($("settlementMsgV547"))$("settlementMsgV547").innerHTML="<div class='notice'>דוח ההתחשבנות נשמר ✅</div>";
+  const ref=settlementRefV548(month);
+  if(!ref){
+    if($("settlementMsgV547"))$("settlementMsgV547").innerHTML="<p class='danger'>לא זוהה עובד לשמירת הדוח.</p>";
+    return;
+  }
+  try{
+    await ref.set(payload,{merge:true});
+    if($("settlementMsgV547"))$("settlementMsgV547").innerHTML="<div class='notice'>דוח ההתחשבנות נשמר ✅</div>";
+  }catch(e){
+    if($("settlementMsgV547"))$("settlementMsgV547").innerHTML=`<p class='danger'>שגיאה בשמירת דוח: ${esc(e.message||String(e))}</p>`;
+  }
 }
 function initMonthlySettlementV547(){
   const monthEl=$("settlementMonthV547");
@@ -18098,7 +18160,8 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
-      {version:"5.47", title:"גיבוי ימי חופש ודוח התחשבנות חודשי", items:["גיבוי JSON אישי של עובד כולל עכשיו גם ימי חופש של העובד המחובר בלבד.","שחזור JSON אישי משחזר ימי חופש רק לעובד המחובר, בלי לגעת בנתוני עובדים אחרים.","נוסף דוח התחשבנות חודשי דינמי באזור הכלים: בחירת חודש, חישוב עבודות שבוצעו בלבד, מע״מ 18%, קיזוז 6%, קנס 4% אופציונלי והוצאות דינמיות.","דוח ההתחשבנות נשמר ב-Firestore תחת workerMonthlySettlements לפי עובד וחודש, כדי שיהיה זמין מכל מכשיר.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון או אקסל."], date:d},
+      {version:"5.48", title:"דוח התחשבנות אישי וקנס כסכום בפועל", items:["דוח ההתחשבנות נשמר עכשיו תחת workers/{workerId}/monthlySettlements/{YYYY-MM} במקום collection כללי.","בחירת חודש לא מציגה שגיאת הרשאות אם אין דוח שמור; מוצג חישוב לפי העבודות שבוצעו.","שדה הקנס הפך להזנת סכום קנסות בפועל לפני מע״מ, והמערכת מחשבת את אחוז הקנס אוטומטית.","גיבוי ושחזור עובד כוללים גם דוחות התחשבנות אישיים.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון או אקסל."], date:d},
+      {version:"5.47", title:"גיבוי ימי חופש ודוח התחשבנות חודשי", items:["גיבוי JSON אישי של עובד כולל עכשיו גם ימי חופש של העובד המחובר בלבד.","שחזור JSON אישי משחזר ימי חופש רק לעובד המחובר, בלי לגעת בנתוני עובדים אחרים.","נוסף דוח התחשבנות חודשי דינמי באזור הכלים: בחירת חודש, חישוב עבודות שבוצעו בלבד, מע״מ 18%, קיזוז 6%, קנסות בפועל אופציונלי והוצאות דינמיות.","דוח ההתחשבנות נשמר ב-Firestore תחת workerMonthlySettlements לפי עובד וחודש, כדי שיהיה זמין מכל מכשיר.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון או אקסל."], date:d},
       {version:"5.46", title:"גלילה פנימית ברשימת מחירון בעריכת עבודה", items:["במסך עריכת עבודה, רשימת פריטי המחירון של התקנה מוצגת בגלילה פנימית קבועה כדי שהעריכה לא תהפוך לרשימה ארוכה על כל המסך.","התיקון חל גם על עריכת התקנות סיב/RF וגם על עבודות מתוזמנות שנערכות כעבודת התקנה.","השינוי הוא תצוגה בלבד ולא משנה את חישוב הסכום או את שמירת העריכה.","לא שונו פק״ע, לא בוצע, שכפול, לקוח חוזר, Last Login, דשבורד, אופליין, גיבוי או אקסל."], date:d},
       {version:"5.45", title:"תיקון תצוגת חצי ניווט חודש במובייל", items:["חצי ניווט החודש הוקטנו משמעותית וקיבלו רוחב וגובה קבועים כדי שלא ייחתכו במסך מובייל.","שם החודש נשאר במרכז וברוחב מלא של אזור הלוח, בלי שהחצים דורסים אותו.","התיקון הוא תצוגה בלבד ולא משנה את לוגיקת changeMonth או את נתוני הלוח.","לא שונו פק״ע, לא בוצע, שכפול, לקוח חוזר, Last Login, דשבורד, אופליין, גיבוי או אקסל."], date:d},
       {version:"5.44", title:"ניווט חודש רספונסיבי ומילוי כתובת בפועל", items:["ניווט החודשים בלוח השנה סודר לרוחב מלא של אזור הלוח עם חצים קטנים וברורים ללא חיתוך במובייל.","שם החודש נשאר במרכז, ברור וקריא גם במסכים צרים.","בדיקת לקוח חוזר ממלאת בפועל את שדה הכתובת של קריאת שירות או התקנה כאשר נמצאה כתובת קודמת והשדה ריק.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, דשבורד, אופליין, גיבוי או אקסל."], date:d},
