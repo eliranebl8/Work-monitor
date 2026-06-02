@@ -607,6 +607,77 @@ input:focus,textarea:focus,select:focus{animation:popIn .2s ease both}
 .peka-search-row-v528{margin:8px 0 10px}
 .peka-search-row-v528 select{min-height:44px!important;border-radius:16px!important;font-weight:900!important}
 @media(max-width:800px){.peka-smart-grid-v528{grid-template-columns:1fr 1fr;gap:8px}.peka-smart-value-v528{font-size:22px}}
+
+
+/* ===== v5.42: יישור ניווט חודשים לרוחב הלוח =====
+   שינוי תצוגה בלבד: ניווט החודשים נשאר מחובר ל-changeMonth הקיים,
+   אבל יושב בתוך אותו רוחב של לוח השנה כדי שהחצים לא ייחתכו בגלילה/מובייל.
+*/
+.edit-install-items-scroll-v540{
+  max-height:360px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:6px 4px;
+  margin:8px 0 12px;
+  border:1px solid #e2e8f0;
+  border-radius:18px;
+  background:rgba(248,250,252,.82);
+  scrollbar-width:thin;
+  scrollbar-color:#94a3b8 transparent;
+}
+.edit-install-items-scroll-v540::-webkit-scrollbar{width:8px}
+.edit-install-items-scroll-v540::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:999px}
+.edit-install-items-scroll-v540::-webkit-scrollbar-track{background:transparent}
+.edit-install-items-scroll-v540 .item{margin:6px 4px}
+.month-nav-v540{
+  display:grid!important;
+  grid-template-columns:44px minmax(0,1fr) 44px!important;
+  align-items:center!important;
+  justify-content:stretch!important;
+  gap:6px!important;
+  width:100%!important;
+  max-width:100%!important;
+  margin:0 0 10px!important;
+  padding:6px!important;
+  min-height:48px!important;
+  text-align:center!important;
+  overflow:visible!important;
+  border-radius:20px!important;
+  background:rgba(248,250,252,.62)!important;
+}
+.month-nav-btn-v540{
+  width:44px!important;
+  min-width:44px!important;
+  max-width:44px!important;
+  height:38px!important;
+  min-height:38px!important;
+  max-height:38px!important;
+  flex:0 0 44px!important;
+  padding:0!important;
+  border-radius:14px!important;
+  display:inline-flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:0!important;
+  line-height:1!important;
+  box-shadow:0 6px 14px rgba(15,23,42,.08)!important;
+  overflow:hidden!important;
+}
+.month-nav-arrow-v540{font-size:16px;font-weight:1000;line-height:1}
+.month-nav-text-v540{font-size:7.5px;font-weight:900;color:inherit;line-height:1;white-space:nowrap;margin-top:1px}
+.month-title-wrap-v540{text-align:center;min-width:0;width:100%;overflow:hidden;padding:0 2px}
+.month-title-small-v540{font-size:8.5px;color:#94a3b8;font-weight:900;line-height:1;margin-bottom:2px;white-space:nowrap}
+.month-title-wrap-v540 #calTitle{margin:0;font-size:17px;line-height:1.08;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:800px){
+  .edit-install-items-scroll-v540{max-height:310px;border-radius:16px}
+  .month-nav-v540{grid-template-columns:38px minmax(0,1fr) 38px!important;gap:4px!important;min-height:44px!important;padding:5px!important;margin-bottom:8px!important;border-radius:18px!important}
+  .month-nav-btn-v540{width:38px!important;min-width:38px!important;max-width:38px!important;flex-basis:38px!important;height:34px!important;min-height:34px!important;max-height:34px!important;border-radius:12px!important}
+  .month-nav-text-v540{font-size:7px}
+  .month-nav-arrow-v540{font-size:14px}
+  .month-title-small-v540{font-size:7.5px}
+  .month-title-wrap-v540 #calTitle{font-size:14.5px}
+}
 </style>
 
 
@@ -730,7 +801,7 @@ button:focus{
   .cal-head{
     overflow:visible!important;
   }
-  .cal-head > button{
+  .cal-head:not(.month-nav-v540) > button{
     width:100%!important;
   }
 }
@@ -1351,7 +1422,7 @@ body.app-booting-v434 #startupView{
 
 <div class="calendar-work-shell-v420">
   <div class="calendar-work-title-v420">📅 לוח שנה ועבודות</div>
-<div class="card"><div class="cal-head"><button class="btn-light" onclick="changeMonth(-1)">חודש קודם</button><h2 id="calTitle"></h2><button class="btn-light" onclick="changeMonth(1)">חודש הבא</button></div><div id="calendar" class="cal"></div></div>
+<div class="card"><div class="cal-head month-nav-v540"><button class="btn-light month-nav-btn-v540" type="button" onclick="changeMonth(-1)" aria-label="חודש קודם"><span class="month-nav-arrow-v540">→</span><span class="month-nav-text-v540">קודם</span></button><div class="month-title-wrap-v540"><div class="month-title-small-v540">חודש בתצוגה</div><h2 id="calTitle"></h2></div><button class="btn-light month-nav-btn-v540" type="button" onclick="changeMonth(1)" aria-label="חודש הבא"><span class="month-nav-text-v540">הבא</span><span class="month-nav-arrow-v540">←</span></button></div><div id="calendar" class="cal"></div></div>
 <div id="dayPanel" class="card hidden"><h2 id="dateTitle">בחר יום</h2><p id="shabbatMsg" class="danger hidden">שבת חסומה לעבודה.</p>
 <div id="entryForm"><div class="grid2"><div id="serviceBtn" class="type-card" onclick="setType('service')">קריאת שירות<br><span id="servicePriceLabel" class="muted">₪65 קבוע</span></div><div id="installBtn" class="type-card" onclick="setType('install')">התקנה<br><span class="muted">לפי מחירון</span></div></div>
 <div id="serviceForm" class="hidden" style="margin-top:14px"><h3>קריאת שירות</h3><input id="sCustomer" inputmode="numeric" pattern="[0-9]*" placeholder="מספר לקוח - ספרות בלבד" onblur="checkRecentCustomer('sCustomer','sCustomerHistory')"><div id="sCustomerHistory" class="muted"></div><div class="grid2"><input id="sAddress" placeholder="כתובת"><button class="btn-light" onclick="fillAddressFromLocation('sAddress')">📍 מיקום</button></div><label style="display:flex;align-items:center;gap:8px;font-weight:900;margin:10px 0"><input id="sReturnCall" type="checkbox" onchange="updateServicePreview()" style="width:24px;height:24px;margin:0"> קריאת שירות חוזרת / ללא תשלום</label><textarea id="sNotes" placeholder="הערות"></textarea><div id="servicePreview" class="total-preview">סה״כ: ₪65</div><button class="btn-green" onclick="addService()">שמור קריאת שירות</button></div>
@@ -1367,7 +1438,7 @@ body.app-booting-v434 #startupView{
   <div id="editInstallItemsBox" class="hidden">
     <h3>עריכת פריטי התקנה</h3>
     <p class="muted">אם זו התקנה, אפשר לערוך כאן את הסימונים והכמויות לפי המחירון. הסכום יחושב מחדש אוטומטית.</p>
-    <div id="editInstallItems"></div>
+    <div id="editInstallItems" class="edit-install-items-scroll-v540"></div>
     <div id="editInstallPreview" class="total-preview">סה״כ התקנה: ₪0</div>
   </div>
   <div class="actions"><button class="btn-green" onclick="saveEntryEdit()">שמור עבודה</button><button class="btn-light" onclick="hide('editEntryPanel')">ביטול</button></div>
@@ -1381,7 +1452,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.39";
+const APP_VERSION = "5.42";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1396,6 +1467,26 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
+
+CHANGELOG 5.42 - יישור ניווט חודשים לרוחב הלוח
+1. APP_VERSION עודכן ל-"5.42" ונשאר מקור הגרסה היחיד לכל התצוגות ושמות הקבצים.
+2. ניווט החודשים יושב עכשיו באותו רוחב של לוח השנה ושורת ימי השבוע, כדי שהחצים לא ייחתכו בגלילה או במובייל.
+3. החצים הוקטנו ונשארים בתוך מסגרת הלוח; שם החודש נשאר במרכז עם טקסט קטן וברור.
+4. תוקנה התנגשות CSS מול חוקי יציבות הכפתורים במובייל, בלי לשנות את לוגיקת changeMonth.
+5. לא שונו עריכת עבודה, מחירון, פק״ע, לא בוצע, שכפול, Last Login, דשבורד, אופליין, גיבוי או אקסל.
+
+CHANGELOG 5.41 - התאמת גובה ניווט חודשים
+1. APP_VERSION עודכן ל-"5.41" ונשאר מקור הגרסה היחיד לכל התצוגות ושמות הקבצים.
+2. כפתורי חודש קודם/חודש הבא הוקטנו וקיבלו קנה מידה קבוע כדי שלא ידרסו את שם החודש.
+3. כותרת החודש נשארת במרכז עם טקסט קטן ומוגן בגלישה במובייל.
+4. לא שונו עריכת עבודה, מחירון, פק״ע, לא בוצע, שכפול, Last Login, דשבורד, אופליין, גיבוי או אקסל.
+
+CHANGELOG 5.40 - גלילה בעריכת מחירון וניווט חודשים קומפקטי
+1. APP_VERSION עודכן ל-"5.40" ונשאר מקור הגרסה היחיד לכל התצוגות ושמות הקבצים.
+2. במסך עריכת עבודה, רשימת פריטי המחירון של התקנה נכנסה לאזור גלילה פנימי כדי שהעריכה לא תאריך את כל המסך.
+3. ניווט החודשים בלוח השנה הוחלף לכפתורי חץ ימינה/שמאלה קומפקטיים עם כיתוב קטן ליד שם החודש.
+4. נוספו רשומות Changelog חסרות 5.36, 5.37, 5.38 ו-5.39 למקור requiredChangelogRows כדי ש"מה חדש" לא ייעצר ב-5.35.
+5. לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, דשבורד, אופליין, גיבוי או אקסל.
 
 CHANGELOG 5.39 - מקור גרסה יחיד ללא קפיצות
 1. APP_VERSION נשאר "5.39" והוא מקור הגרסה היחיד להצגת הגרסה בממשק.
@@ -15627,7 +15718,7 @@ CHANGE 5.35 - איפוס שדות חדשים אחרי שמירה / מתוזמן 
 */
 (function(){
   'use strict';
-  var APP_VERSION_V535 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
+  var APP_VERSION_V535 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.41'));
 
   function q(id){ return document.getElementById(id); }
 
@@ -15744,7 +15835,7 @@ CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
 */
 (function(){
   'use strict';
-  var APP_VERSION_V536 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
+  var APP_VERSION_V536 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.41'));
 
   function q(id){ return document.getElementById(id); }
 
@@ -15918,7 +16009,7 @@ CHANGE 5.37 - גלילה פנימית למחירון התקנה + שינוי ת�
 <script id="v5-37-install-scroll-change-date-js">
 (function(){
   'use strict';
-  var APP_VERSION_V537 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
+  var APP_VERSION_V537 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.41'));
 
   function q(id){ return document.getElementById(id); }
   function safeEsc(v){ try{ if(typeof esc==='function') return esc(v); }catch(e){} return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -16109,7 +16200,7 @@ CHANGE 5.38 - חסימת שינוי תאריך לשבת או יום חופש
 <script id="v5-38-change-date-blocked-days-js">
 (function(){
   'use strict';
-  var APP_VERSION_V538 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
+  var APP_VERSION_V538 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.41'));
   function q(id){return document.getElementById(id);}
   function safeEsc(v){try{if(typeof esc==='function')return esc(v);}catch(e){}return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function safeHeDate(v){try{if(typeof heDate==='function')return heDate(v);}catch(e){}return String(v||'');}
@@ -17522,6 +17613,13 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+    {version:"5.42", title:"יישור ניווט חודשים לרוחב הלוח", items:["ניווט החודשים יושב עכשיו באותו רוחב של לוח השנה ושורת ימי השבוע כדי שהחצים לא ייחתכו בגלילה או במובייל.","החצים הוקטנו ונשארים בתוך מסגרת הלוח; שם החודש נשאר במרכז עם כיתוב קטן וברור.","תוקנה התנגשות CSS מול חוקי יציבות הכפתורים במובייל, בלי לשנות את לוגיקת changeMonth.","לא שונו עריכת עבודה, מחירון, פק״ע, לא בוצע, שכפול, Last Login, דשבורד, אופליין, גיבוי או אקסל."], createdAt:"2026-06-02"},
+    {version:"5.41", title:"התאמת גובה ניווט חודשים", items:["כפתורי חודש קודם/חודש הבא הוקטנו וקיבלו רוחב וגובה קבועים כדי שלא ידרסו את שם החודש.","שם החודש נשאר במרכז וקיבל הגנת גלישה במובייל כדי שהתצוגה תישאר נקייה.","השינוי הוא עיצוב בלבד ומשתמש באותה לוגיקת changeMonth הקיימת.","לא שונו עריכת עבודה, מחירון, פק״ע, לא בוצע, שכפול, Last Login, דשבורד, אופליין, גיבוי או אקסל."], createdAt:"2026-06-02"},
+    {version:"5.40", title:"גלילה בעריכת מחירון וניווט חודשים קומפקטי", items:["במסך עריכת עבודה, רשימת פריטי המחירון של התקנה מוצגת בגלילה פנימית כדי שהעריכה לא תאריך את כל המסך.","ניווט החודשים בלוח השנה הוחלף לכפתורי חץ ימינה/שמאלה קומפקטיים עם כיתוב קטן ליד שם החודש.","הושלמו במקור מה חדש הרשומות החסרות 5.36 עד 5.39 כדי שהתצוגה לא תיעצר ב-5.35.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, דשבורד, אופליין, גיבוי או אקסל."], createdAt:"2026-06-02"},
+    {version:"5.39", title:"לא בוצע עם שכפול אופציונלי למועד חדש", items:["בעת סימון פק״ע מתוזמנת כלא בוצעה, ניתן לשכפל אותה לתאריך חדש לפי בחירה.","ברשומה המקורית נשמרת הערה לאיזה תאריך הפק״ע עברה.","ברשומה החדשה המתוזמנת נשמרת הערה שוכפלה מתאריך המקור.","נשמר מקור גרסה יחיד כדי למנוע קפיצות גרסה בממשק."], createdAt:"2026-06-02"},
+    {version:"5.38", title:"חסימת שינוי תאריך לשבת או יום חופש", items:["שינוי תאריך לא מאפשר להעביר עבודה ליום שבת.","שינוי תאריך לא מאפשר להעביר עבודה ליום שמסומן כיום חופש.","במקרה חסום מוצגת הודעה ברורה והתאריך המקורי נשאר ללא שינוי.","לא שונו שמירת עבודות, מתוזמנות, לא בוצע, מחירון, תבניות, דשבורד, אופליין, גיבוי, אקסל או לוגין."], createdAt:"2026-06-01"},
+    {version:"5.37", title:"גלילה למחירון התקנה + שינוי תאריך עבודה", items:["אזור פריטי המחירון בטופס התקנה קיבל גלילה פנימית כדי שהמסך לא יתארך יותר מדי.","נוסף שינוי תאריך לעבודה קיימת בלי למחוק או לשכפל את הרשומה.","שינוי התאריך שומר את כל פרטי העבודה: לקוח, כתובת, פריטים, פק״ע, סטטוס, סיבה והערות.","לא שונו שמירת עבודות, יום חופש, תבניות, לא בוצע, אופליין, גיבוי, אקסל או לוגין."], createdAt:"2026-06-01"},
+    {version:"5.36", title:"חזרה למסך בחירת סוג עבודה אחרי שמירה", items:["אחרי שמירת קריאת שירות, התקנה או סידור מתוזמן, הטופס חוזר למצב הראשוני של היום הנבחר.","היום נשאר מסומן בלוח השנה ומוצגים רק כפתורי הבחירה ויום החופש.","האיפוסים של פק״ע CN/CH וקריאת שירות חוזרת נשמרו.","לא שונו שמירת עבודות, יום חופש, תבניות, מתוזמנות, לא בוצע, דשבורד, אופליין, גיבוי או לוגין."], createdAt:"2026-06-01"},
     {version:"5.35", title:"איפוס פק״ע וקריאת שירות חוזרת אחרי שמירה/ניקוי", items:["שדה סוג פק״ע CN/CH מתאפס אחרי שמירת התקנה רגילה או מתוזמנת.","שדה סוג פק״ע CN/CH מתאפס גם אחרי ניקוי בחירת התקנה.","סימון קריאת שירות חוזרת יורד אחרי שמירת קריאת שירות רגילה או מתוזמנת, והסכום חוזר למחיר הרגיל.","התיקון נוגע רק לאיפוס שדות טופס ולא משנה יום חופש, תבניות, מתוזמנות, דשבורד, אופליין, גיבוי או לוגין."], createdAt:"2026-06-01"},
     {version:"5.34", title:"החזרת יום חופש למסך יום נבחר", items:["כפתור סמן כיום חופש הוחזר למסך היום הנבחר אחרי הפרדת בוצעו / מתוזמנות / לא בוצעו.","יום שמסומן כחופש מציג שוב הודעה ברורה וכפתור בטל יום חופש.","התיקון הוא תצוגה בלבד ולא משנה שמירת עבודות, פק״ע, תבניות, אופליין, גיבוי או לוגין."], createdAt:"2026-06-01"},
     {version:"5.33", title:"הפרדת עבודות שבוצעו ומתוזמנות ביום נבחר", items:["תצוגת היום הנבחר הוחזרה להפרדה ברורה בין עבודות שבוצעו לבין מתוזמנות.","עבודות בסטטוס not_done מוצגות באזור נפרד לא בוצעו אם קיימות באותו יום.","לא שונו שמירת עבודות, סימון בוצע, לא בוצע, מחירון, תבניות, אופליין, גיבוי או לוגין."], createdAt:"2026-05-31"},
@@ -18098,7 +18196,7 @@ CHANGE 5.32 - פק״ע + תיקון טעינת תבניות לפי שם פריט
 <script id="v5-32-peka-label-template-fix-js">
 (function(){
   'use strict';
-  var APP_VERSION_V532 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
+  var APP_VERSION_V532 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.41'));
 
   function q(id){ return document.getElementById(id); }
   function normNameV532(v){ return String(v||'').replace(/\s+/g,' ').trim(); }
@@ -18232,7 +18330,7 @@ CHANGE 5.33 - הפרדת תצוגת יום: בוצעו / מתוזמנות / לא
 <script id="v5-33-day-sections-fix-js">
 (function(){
   'use strict';
-  var APP_VERSION_V533 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
+  var APP_VERSION_V533 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.41'));
 
   function byId(id){ return document.getElementById(id); }
   function html(v){
@@ -18365,7 +18463,7 @@ CHANGE 5.34 - החזרת יום חופש למסך יום נבחר
 <script id="v5-34-vacation-day-restore-js">
 (function(){
   'use strict';
-  var APP_VERSION_V534 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
+  var APP_VERSION_V534 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.41'));
 
   function q(id){ return document.getElementById(id); }
   function heDateSafeV534(v){ try{ if(typeof heDate==='function') return heDate(v); }catch(e){} return String(v||''); }
@@ -18483,7 +18581,7 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
 <script id="v5-39-not-done-reschedule-js">
 (function(){
   'use strict';
-  var APP_VERSION_V539 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.39'));
+  var APP_VERSION_V539 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.41'));
   if(window.__notDoneRescheduleV539Applied) return;
   window.__notDoneRescheduleV539Applied=true;
 
