@@ -1580,8 +1580,7 @@ CHANGE 5.46 - EDIT INSTALL PRICE LIST SCROLL
           <input id="settlementFineV547" type="number" step="0.01" placeholder="קנסות בפועל לפני מע״מ" oninput="renderSettlementReportV547()">
         </div>
         <div class="settlement-grid-v547">
-          <input id="settlementEquipmentV547" type="number" step="0.01" placeholder="קיזוז ציוד / ציוד שחור" oninput="renderSettlementReportV547()">
-          <input id="settlementSixPercentBaseV547" type="number" step="0.01" placeholder="בסיס לקיזוז 6% - ריק = לפי העבודות" oninput="renderSettlementReportV547()">
+          <input id="settlementEquipmentV547" type="number" step="0.01" placeholder="קיזוז ציוד / ציוד שחור בפועל לפני מע״מ" oninput="renderSettlementReportV547()">
           <input id="settlementNotesV547" placeholder="הערות לדוח" oninput="renderSettlementReportV547()">
         </div>
         <div class="settlement-deductions-v547">
@@ -1711,7 +1710,7 @@ CHANGE 5.46 - EDIT INSTALL PRICE LIST SCROLL
 </div>
 
 <script>
-const APP_VERSION = "5.49";
+const APP_VERSION = "5.50";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -4200,7 +4199,6 @@ async function loadMonthlySettlementV547(){
     const d=saved.data||{};
     setSettlementIncomeBreakdownV549(d);
     if($("settlementEquipmentV547")) $("settlementEquipmentV547").value=d.equipmentDeduction||"";
-    if($("settlementSixPercentBaseV547")) $("settlementSixPercentBaseV547").value=d.sixPercentBase||"";
     if($("settlementFineV547")) $("settlementFineV547").value=(d.fineDeduction!==undefined?d.fineDeduction:(d.fineAmount||""))||"";
     if($("settlementNotesV547")) $("settlementNotesV547").value=d.notes||"";
     setSettlementDeductionsV547(d.deductions||[]);
@@ -4220,15 +4218,15 @@ function renderSettlementReportV547(){
   const income=settlementIncomeBreakdownV549();
   const actual=income.total;
   const equipment=Number(val("settlementEquipmentV547")||0);
-  const sixBase=Number(val("settlementSixPercentBaseV547")||0) || t.expected;
-  const six=sixBase*0.06;
+  // v5.50: קיזוז 6% לא מחושב אוטומטית. כאן נשמר רק קיזוז ציוד/ציוד שחור בפועל כפי שהוזן בהתחשבנות.
+  const equipmentPct=actual>0 ? (equipment/actual*100) : 0;
   const fine=Number(val("settlementFineV547")||0);
   const fineBase=actual || t.expected;
   const finePct=fineBase>0 ? (fine/fineBase*100) : 0;
   const extra=getSettlementDeductionsV547().reduce((s,x)=>s+Number(x.amount||0),0);
   const actualVat=actual*0.18;
   const actualGross=actual+actualVat;
-  const deductionsTotal=equipment+six+fine+extra;
+  const deductionsTotal=equipment+fine+extra;
   const netAfterDeductions=actual-deductionsTotal;
   const expectedDiff=actual-t.expected;
   const box=$("settlementReportV547");
@@ -4242,8 +4240,7 @@ function renderSettlementReportV547(){
     <div class="settlement-line-v547 settlement-total-v547"><span>סה״כ ברוטו לפי המערכת</span><b>${money(t.gross)}</b></div>
     <div class="settlement-line-v547"><span>הכנסה בפועל לפני מע״מ</span><b>${money(actual)}</b></div>
     <div class="settlement-line-v547"><span>פירוט הכנסות: RF / סיבים / מכירות / כללית</span><b>${money(income.rf)} / ${money(income.fiber)} / ${money(income.sales)} / ${money(income.general)}</b></div>
-    <div class="settlement-line-v547"><span>קיזוז 6%</span><b>${money(six)}</b></div>
-    <div class="settlement-line-v547"><span>קיזוז ציוד / ציוד שחור</span><b>${money(equipment)}</b></div>
+    <div class="settlement-line-v547"><span>קיזוז ציוד / ציוד שחור בפועל</span><b>${money(equipment)}${equipment?` · ${equipmentPct.toFixed(2)}%`:""}</b></div>
     <div class="settlement-line-v547"><span>קנסות בפועל</span><b>${money(fine)}${fine?` · ${finePct.toFixed(2)}%`:""}</b></div>
     <div class="settlement-line-v547"><span>הוצאות דינמיות</span><b>${money(extra)}</b></div>
     <div class="settlement-line-v547 settlement-warning-v547"><span>סה״כ קיזוזים</span><b>${money(deductionsTotal)}</b></div>
@@ -4260,7 +4257,8 @@ async function saveMonthlySettlementV547(){
   const income=settlementIncomeBreakdownV549();
   const actual=income.total;
   const equipment=Number(val("settlementEquipmentV547")||0);
-  const sixBase=Number(val("settlementSixPercentBaseV547")||0) || t.expected;
+  // v5.50: אין קיזוז 6% אוטומטי. שומרים רק את הקיזוז בפועל שהוזן.
+  const equipmentPct=actual>0 ? (equipment/actual*100) : 0;
   const fine=Number(val("settlementFineV547")||0);
   const fineBase=actual || t.expected;
   const deductions=getSettlementDeductionsV547();
@@ -4280,15 +4278,16 @@ async function saveMonthlySettlementV547(){
     vatRate:18,
     vatAmount:actual*0.18,
     equipmentDeduction:equipment,
-    sixPercentBase:sixBase,
-    sixPercentDeduction:sixBase*0.06,
+    equipmentDeductionPercent:equipmentPct,
+    sixPercentBase:0,
+    sixPercentDeduction:0,
     fineDeduction:fine,
     finePercent:fineBase>0 ? (fine/fineBase*100) : 0,
     finePercentBase:fineBase,
     deductions,
     dynamicDeductionsTotal:extra,
-    totalDeductions:equipment+(sixBase*0.06)+fine+extra,
-    netAfterDeductionsBeforeVat:actual-(equipment+(sixBase*0.06)+fine+extra),
+    totalDeductions:equipment+fine+extra,
+    netAfterDeductionsBeforeVat:actual-(equipment+fine+extra),
     notes:val("settlementNotesV547"),
     updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
     createdAt:firebase.firestore.FieldValue.serverTimestamp()
@@ -4302,7 +4301,11 @@ async function saveMonthlySettlementV547(){
     await ref.set(payload,{merge:true});
     if($("settlementMsgV547"))$("settlementMsgV547").innerHTML="<div class='notice'>דוח ההתחשבנות נשמר ✅</div>";
   }catch(e){
-    if($("settlementMsgV547"))$("settlementMsgV547").innerHTML=`<p class='danger'>שגיאה בשמירת דוח: ${esc(e.message||String(e))}</p>`;
+    if($("settlementMsgV547")){
+      const rawMsg=e.message||String(e);
+      const isPerm=String(rawMsg).toLowerCase().includes("permission") || String(e.code||"").includes("permission");
+      $("settlementMsgV547").innerHTML=`<p class='danger'>שגיאה בשמירת דוח: ${esc(rawMsg)}${isPerm?"<br>צריך לעדכן Security Rules לתת־האוסף workers/{workerId}/monthlySettlements.":""}</p>`;
+    }
   }
 }
 function initMonthlySettlementV547(){
@@ -18187,6 +18190,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"5.50", title:"דוח התחשבנות: קיזוזים בפועל והרשאות שמירה", items:["הוסר חישוב קיזוז 6% אוטומטי מדוח ההתחשבנות כדי לא לערבב בין חישוב מערכת לבין מה שנקסטקום קיזזה בפועל.","קיזוז ציוד / ציוד שחור נשאר כשדה ידני בפועל לפני מע״מ, והמערכת מחשבת לבד את האחוז שלו מתוך ההכנסות בפועל.","סה״כ קיזוזים מחושב עכשיו מקיזוז ציוד בפועל, קנסות בפועל והוצאות דינמיות בלבד.","הדוח ממשיך להישמר תחת workers/{workerId}/monthlySettlements/{YYYY-MM}; נדרשת התאמת Security Rules לתת־האוסף הזה.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון, גיבוי או אקסל."], date:d},
       {version:"5.49", title:"פירוט הכנסות בפועל בדוח התחשבנות", items:["בדוח ההתחשבנות הוחלפה רובריקת ההכנסה היחידה בארבע רובריקות נפרדות: יצרנות RF, יצרנות סיבים, מכירות והכנסה כללית.","כל ההכנסות מוזנות לפני מע״מ ומתחברות אוטומטית לסך הכנסה בפועל לפני מע״מ.","הקנס נשאר סכום בפועל והמערכת מחשבת לבד את אחוז הקנס מתוך סך ההכנסות בפועל או לפי המערכת.","הוצאות וקיזוזים דינמיים נשארו ללא שינוי.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון או אקסל."], date:d},
       {version:"5.48", title:"דוח התחשבנות אישי וקנס כסכום בפועל", items:["דוח ההתחשבנות נשמר עכשיו תחת workers/{workerId}/monthlySettlements/{YYYY-MM} במקום collection כללי.","בחירת חודש לא מציגה שגיאת הרשאות אם אין דוח שמור; מוצג חישוב לפי העבודות שבוצעו.","שדה הקנס הפך להזנת סכום קנסות בפועל לפני מע״מ, והמערכת מחשבת את אחוז הקנס אוטומטית.","גיבוי ושחזור עובד כוללים גם דוחות התחשבנות אישיים.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון או אקסל."], date:d},
       {version:"5.47", title:"גיבוי ימי חופש ודוח התחשבנות חודשי", items:["גיבוי JSON אישי של עובד כולל עכשיו גם ימי חופש של העובד המחובר בלבד.","שחזור JSON אישי משחזר ימי חופש רק לעובד המחובר, בלי לגעת בנתוני עובדים אחרים.","נוסף דוח התחשבנות חודשי דינמי באזור הכלים: בחירת חודש, חישוב עבודות שבוצעו בלבד, מע״מ 18%, קיזוז 6%, קנסות בפועל אופציונלי והוצאות דינמיות.","דוח ההתחשבנות נשמר ב-Firestore תחת workerMonthlySettlements לפי עובד וחודש, כדי שיהיה זמין מכל מכשיר.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון או אקסל."], date:d},
