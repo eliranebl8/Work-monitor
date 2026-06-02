@@ -1373,7 +1373,7 @@ body.app-booting-v434 #startupView{
 </div>
 
 <script>
-const APP_VERSION = "5.38";
+const APP_VERSION = "5.39";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1388,6 +1388,15 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
+
+CHANGELOG 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
+1. APP_VERSION עודכן ל-"5.39".
+2. בחלון "לא בוצע" נוספה אפשרות אופציונלית לקבוע מועד חדש וליצור פק״ע מתוזמנת חדשה.
+3. אם לא מסמנים קביעת מועד חדש, "לא בוצע" נשאר עובד בדיוק כמו קודם בלי שכפול.
+4. הפק״ע המקורית נשארת בתאריך המקורי בסטטוס לא בוצע, כולל סיבה והערת תיעוד אוטומטית אם נוצר מועד חדש.
+5. הפק״ע החדשה נוצרת כמתוזמנת עם אותם פרטי לקוח, כתובת, פריטים, סכום, הערות וסוג פק״ע CN/CH.
+6. קביעת מועד חדש נחסמת לשבת או ליום חופש מסומן, בדיוק כמו שינוי תאריך רגיל.
+7. לא שונו שמירה רגילה, שינוי תאריך רגיל, יום חופש, תבניות, דשבורד, אופליין, גיבוי, אקסל או לוגין.
 
 CHANGELOG 5.38 - חסימת שינוי תאריך לשבת או יום חופש
 1. APP_VERSION עודכן ל-"5.38".
@@ -15599,7 +15608,7 @@ CHANGE 5.35 - איפוס שדות חדשים אחרי שמירה / מתוזמן 
 */
 (function(){
   'use strict';
-  var APP_VERSION_V535='5.38';
+  var APP_VERSION_V535='5.39';
 
   function q(id){ return document.getElementById(id); }
 
@@ -15716,7 +15725,7 @@ CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
 */
 (function(){
   'use strict';
-  var APP_VERSION_V536='5.38';
+  var APP_VERSION_V536='5.39';
 
   function q(id){ return document.getElementById(id); }
 
@@ -15890,7 +15899,7 @@ CHANGE 5.37 - גלילה פנימית למחירון התקנה + שינוי ת�
 <script id="v5-37-install-scroll-change-date-js">
 (function(){
   'use strict';
-  var APP_VERSION_V537='5.38';
+  var APP_VERSION_V537='5.39';
 
   function q(id){ return document.getElementById(id); }
   function safeEsc(v){ try{ if(typeof esc==='function') return esc(v); }catch(e){} return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -16081,7 +16090,7 @@ CHANGE 5.38 - חסימת שינוי תאריך לשבת או יום חופש
 <script id="v5-38-change-date-blocked-days-js">
 (function(){
   'use strict';
-  var APP_VERSION_V538='5.38';
+  var APP_VERSION_V538='5.39';
   function q(id){return document.getElementById(id);}
   function safeEsc(v){try{if(typeof esc==='function')return esc(v);}catch(e){}return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function safeHeDate(v){try{if(typeof heDate==='function')return heDate(v);}catch(e){}return String(v||'');}
@@ -18204,7 +18213,7 @@ CHANGE 5.33 - הפרדת תצוגת יום: בוצעו / מתוזמנות / לא
 <script id="v5-33-day-sections-fix-js">
 (function(){
   'use strict';
-  var APP_VERSION_V533='5.38';
+  var APP_VERSION_V533='5.39';
 
   function byId(id){ return document.getElementById(id); }
   function html(v){
@@ -18337,7 +18346,7 @@ CHANGE 5.34 - החזרת יום חופש למסך יום נבחר
 <script id="v5-34-vacation-day-restore-js">
 (function(){
   'use strict';
-  var APP_VERSION_V534='5.38';
+  var APP_VERSION_V534='5.39';
 
   function q(id){ return document.getElementById(id); }
   function heDateSafeV534(v){ try{ if(typeof heDate==='function') return heDate(v); }catch(e){} return String(v||''); }
@@ -18405,5 +18414,248 @@ CHANGE 5.34 - החזרת יום חופש למסך יום נבחר
   document.addEventListener('DOMContentLoaded',function(){ setTimeout(bootV534,350); setTimeout(bootV534,1500); });
   window.addEventListener('load',function(){ setTimeout(bootV534,450); setTimeout(bootV534,1800); });
   setInterval(function(){ try{ updateVersionUiV534(); }catch(e){} },2500);
+})();
+</script>
+
+
+<style id="v5-39-not-done-reschedule-css">
+/*
+===============================================================================
+CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
+-------------------------------------------------------------------------------
+1. מוסיף לחלון "לא בוצע" אפשרות בחירה לקבוע מועד חדש.
+2. אם לא מסמנים את האפשרות, מנגנון לא בוצע נשאר בדיוק כמו ב-5.38.
+3. אם מסמנים ובוחרים תאריך תקין, נוצרת פק״ע מתוזמנת חדשה והמקור נשאר לא בוצע עם תיעוד.
+4. התאריך החדש נחסם אם הוא שבת או יום חופש מסומן.
+===============================================================================
+*/
+.not-done-reschedule-v539{
+  margin-top:10px!important;
+  border:1px solid #bfdbfe!important;
+  background:#eff6ff!important;
+  border-radius:18px!important;
+  padding:10px!important;
+}
+.not-done-reschedule-v539 label{
+  display:flex!important;
+  align-items:center!important;
+  gap:9px!important;
+  font-weight:900!important;
+  color:#1e3a8a!important;
+}
+.not-done-reschedule-v539 input[type="checkbox"]{
+  width:22px!important;
+  height:22px!important;
+  margin:0!important;
+  flex:0 0 auto!important;
+}
+.not-done-reschedule-date-v539.hidden{display:none!important}
+.not-done-reschedule-date-v539{
+  margin-top:8px!important;
+}
+.not-done-reschedule-help-v539{
+  font-size:12px!important;
+  color:#64748b!important;
+  font-weight:800!important;
+  line-height:1.45!important;
+  margin-top:6px!important;
+}
+</style>
+<script id="v5-39-not-done-reschedule-js">
+(function(){
+  'use strict';
+  var APP_VERSION_V539='5.39';
+  if(window.__notDoneRescheduleV539Applied) return;
+  window.__notDoneRescheduleV539Applied=true;
+
+  function q(id){return document.getElementById(id);}
+  function safeEsc(v){try{if(typeof esc==='function')return esc(v);}catch(e){}return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function safeHeDate(v){try{if(typeof heDate==='function')return heDate(v);}catch(e){}return String(v||'');}
+  function parseIsoV539(v){var p=String(v||'').split('-').map(Number);if(p.length!==3||!p[0]||!p[1]||!p[2])return null;return new Date(p[0],p[1]-1,p[2]);}
+  function isSaturdayV539(dateStr){var d=parseIsoV539(dateStr);return !!(d&&d.getDay()===6);}
+  function currentWorkerIdV539(){try{if(typeof viewedWorker!=='undefined'&&viewedWorker&&viewedWorker.id)return viewedWorker.id;}catch(e){}try{if(typeof session!=='undefined'&&session&&session.workerId)return session.workerId;}catch(e){}return '';}
+  function currentWorkerNameV539(){try{if(typeof viewedWorker!=='undefined'&&viewedWorker&&viewedWorker.name)return viewedWorker.name;}catch(e){}try{if(typeof session!=='undefined'&&session&&session.name)return session.name;}catch(e){}return '';}
+  function findEntryV539(id){try{return (Array.isArray(monthEntries)?monthEntries:[]).find(function(e){return e&&String(e.id)===String(id);});}catch(e){return null;}}
+  function updateVersionUiV539(){
+    try{window.APP_VERSION=APP_VERSION_V539;}catch(e){}
+    try{document.title='מעקב עבודה - גרסה '+APP_VERSION_V539;}catch(e){}
+    try{document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){el.textContent=APP_VERSION_V539;});}catch(e){}
+    try{document.querySelectorAll('.secret,#secretTap').forEach(function(el){el.textContent='גרסה '+APP_VERSION_V539;});}catch(e){}
+  }
+
+  async function isVacationDateV539(dateStr){
+    try{if(typeof window.isVacationDayV437==='function'&&window.isVacationDayV437(dateStr))return true;}catch(e){}
+    try{if(Array.isArray(window.vacationDaysV437)&&window.vacationDaysV437.indexOf(dateStr)>=0)return true;}catch(e){}
+    var workerId=currentWorkerIdV539();
+    if(!workerId||typeof db==='undefined'||!db||!db.collection)return false;
+    try{
+      var snap=await db.collection('workerDaysOff').where('workerId','==',workerId).get();
+      var found=false;
+      snap.docs.forEach(function(doc){var d=doc.data()||{};if(d.active!==false&&String(d.date||'')===String(dateStr))found=true;});
+      return found;
+    }catch(e){
+      console.warn('v5.39 vacation validation failed',e&&(e.code||e.message)?(e.code||e.message):e);
+      return false;
+    }
+  }
+  async function validateTargetDateV539(dateStr,msg){
+    if(!dateStr||!parseIsoV539(dateStr)){if(msg)msg.innerHTML='<p class="danger">צריך לבחור תאריך חדש תקין.</p>';return false;}
+    if(isSaturdayV539(dateStr)){if(msg)msg.innerHTML='<p class="danger">אי אפשר לקבוע פק״ע מתוזמנת לשבת. לא נוצר מועד חדש.</p>';return false;}
+    if(await isVacationDateV539(dateStr)){if(msg)msg.innerHTML='<p class="danger">אי אפשר לקבוע פק״ע מתוזמנת ליום חופש מסומן. בטל קודם את יום החופש או בחר תאריך אחר.</p>';return false;}
+    return true;
+  }
+
+  function clonePlannedEntryV539(entry,newDate,reason,note){
+    var originalAmount=Number(entry&& (entry.originalAmount||entry.amount) ||0);
+    if(!originalAmount && entry&&Array.isArray(entry.items)) originalAmount=entry.items.reduce(function(s,i){return s+Number(i.total||0);},0);
+    if(!originalAmount && entry&&entry.workType==='service'&&!entry.isReturnCall){try{originalAmount=Number(SERVICE_PRICE||0);}catch(e){}}
+    var out={
+      workerId:(entry&&entry.workerId)||currentWorkerIdV539(),
+      workerName:(entry&&entry.workerName)||currentWorkerNameV539(),
+      authUid:(entry&&entry.authUid)||'',
+      date:newDate,
+      workType:(entry&&entry.workType)||'install',
+      description:(entry&&entry.description)||((entry&&entry.workType)==='service'?'קריאת שירות':'התקנה'),
+      customerNumber:(entry&&entry.customerNumber)||'',
+      address:(entry&&entry.address)||'',
+      notes:(entry&&entry.notes)||'',
+      isReturnCall:!!(entry&&entry.isReturnCall),
+      pekaType:(entry&&entry.pekaType)||'',
+      entryStatus:'planned',
+      status:'planned',
+      planned:true,
+      amount:originalAmount,
+      originalAmount:originalAmount,
+      rescheduledFrom:(entry&&entry.id)||'',
+      rescheduledFromDate:(entry&&entry.date)||'',
+      rescheduledReason:reason||'',
+      rescheduledNote:String(note||'').trim(),
+      rescheduledAt:new Date().toISOString(),
+      rescheduledBy:currentWorkerNameV539(),
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if(entry&&Array.isArray(entry.items)) out.items=JSON.parse(JSON.stringify(entry.items));
+    Object.keys(out).forEach(function(k){if(out[k]==='' && k==='pekaType') delete out[k];});
+    return out;
+  }
+
+  function openNotDoneModalV539(entryId){
+    try{var old=q('notDoneOverlayV529');if(old)old.remove();}catch(e){}
+    var reasons=(window.NOT_DONE_REASONS_V529||['לקוח לא בבית','לקוח לא עונה','לקוח ביטל','ביקש מועד אחר','אין תשתית','השחלה תקועה','אין גישה','אחר']);
+    var overlay=document.createElement('div');
+    overlay.id='notDoneOverlayV529';
+    overlay.className='not-done-overlay-v529';
+    overlay.innerHTML='<div class="not-done-modal-v529" role="dialog" aria-modal="true">'+
+      '<h3>סימון עבודה כלא בוצעה</h3>'+
+      '<p class="muted">בחר סיבה. העבודה המקורית לא תימחק ותישמר בדוחות כלא בוצעה.</p>'+
+      '<select id="notDoneReasonSelectV529">'+reasons.map(function(r){return '<option value="'+safeEsc(r)+'">'+safeEsc(r)+'</option>';}).join('')+'</select>'+
+      '<textarea id="notDoneNoteV529" class="not-done-other-v529 hidden" placeholder="כתוב סיבה חופשית"></textarea>'+
+      '<div class="not-done-reschedule-v539">'+
+        '<label><input id="notDoneRescheduleCheckV539" type="checkbox"> קבע מועד חדש ושכפל כמתוזמן</label>'+
+        '<div id="notDoneRescheduleDateWrapV539" class="not-done-reschedule-date-v539 hidden">'+
+          '<input id="notDoneRescheduleDateV539" type="date">'+
+          '<div class="not-done-reschedule-help-v539">המקור יישאר לא בוצע בתאריך המקורי, ותיווצר פק״ע מתוזמנת חדשה לתאריך שבחרת.</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="actions" style="margin-top:12px"><button class="btn-red" type="button" id="confirmNotDoneV529">שמור כלא בוצע</button><button class="btn-light" type="button" id="cancelNotDoneV529">ביטול</button></div>'+
+      '<div id="notDoneMsgV529"></div>'+
+      '</div>';
+    document.body.appendChild(overlay);
+    var select=q('notDoneReasonSelectV529'), note=q('notDoneNoteV529'), check=q('notDoneRescheduleCheckV539'), wrap=q('notDoneRescheduleDateWrapV539'), date=q('notDoneRescheduleDateV539');
+    function refresh(){
+      if(note) note.classList.toggle('hidden', !(select&&select.value==='אחר'));
+      if(wrap) wrap.classList.toggle('hidden', !(check&&check.checked));
+      if(check&&select&&select.value==='ביקש מועד אחר') check.checked=true;
+      if(wrap) wrap.classList.toggle('hidden', !(check&&check.checked));
+    }
+    if(select) select.onchange=refresh;
+    if(check) check.onchange=refresh;
+    try{if(date){var e=findEntryV539(entryId);date.value=(e&&e.date)||'';}}catch(e){}
+    refresh();
+    q('cancelNotDoneV529').onclick=function(){overlay.remove();};
+    overlay.addEventListener('click',function(ev){if(ev.target===overlay)overlay.remove();});
+    q('confirmNotDoneV529').onclick=function(){saveNotDoneV539(entryId);};
+  }
+  window.openNotDoneModalV529=openNotDoneModalV539;
+
+  async function saveNotDoneV539(entryId){
+    var reason=(q('notDoneReasonSelectV529')||{}).value||'';
+    var note=(q('notDoneNoteV529')||{}).value||'';
+    var msg=q('notDoneMsgV529');
+    var shouldReschedule=!!(q('notDoneRescheduleCheckV539')&&q('notDoneRescheduleCheckV539').checked);
+    var newDate=(q('notDoneRescheduleDateV539')||{}).value||'';
+    if(!reason){if(msg)msg.innerHTML='<p class="danger">חובה לבחור סיבה.</p>';return;}
+    if(reason==='אחר'&&!String(note).trim()){if(msg)msg.innerHTML='<p class="danger">בחרת אחר — חובה לרשום סיבה.</p>';return;}
+    if(shouldReschedule&&!(await validateTargetDateV539(newDate,msg))) return;
+    var entry=findEntryV539(entryId)||{};
+    var originalDate=entry.date||'';
+    if(shouldReschedule&&newDate===originalDate){if(msg)msg.innerHTML='<p class="danger">בחרת את אותו תאריך. כדי לשכפל למועד חדש צריך לבחור תאריך אחר.</p>';return;}
+    try{
+      if(msg)msg.innerHTML='<div class="notice">שומר לא בוצע...</div>';
+      var finalNote=String(note||'').trim();
+      var newDocRef=null;
+      if(shouldReschedule){
+        var newEntry=clonePlannedEntryV539(entry,newDate,reason,note);
+        newDocRef=await db.collection('workEntries').add(newEntry);
+        var transferLine='לא בוצע - נוצרה פק״ע מתוזמנת חדשה לתאריך '+safeHeDate(newDate);
+        finalNote=finalNote ? (finalNote+'\n'+transferLine) : transferLine;
+      }
+      await db.collection('workEntries').doc(entryId).set({
+        entryStatus:'not_done',
+        status:'not_done',
+        planned:false,
+        notDoneReason:reason,
+        notDoneNote:finalNote,
+        notDoneAt:firebase.firestore.FieldValue.serverTimestamp(),
+        notDoneByWorkerId:currentWorkerIdV539(),
+        notDoneByName:currentWorkerNameV539(),
+        originalEntryStatus:entry.entryStatus||'planned',
+        originalAmount:Number(entry.originalAmount||entry.amount||0),
+        rescheduledToDate:shouldReschedule?newDate:'',
+        rescheduledToEntryId:(newDocRef&&newDocRef.id)||'',
+        rescheduledToCreatedAt:shouldReschedule?firebase.firestore.FieldValue.serverTimestamp():null,
+        amount:0,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      var overlay=q('notDoneOverlayV529');if(overlay)overlay.remove();
+      if(q('entryMsg')) q('entryMsg').innerHTML= shouldReschedule ? '<div class="notice">המקור סומן כלא בוצע ונוצרה פק״ע מתוזמנת חדשה ✅</div>' : '<div class="notice">העבודה סומנה כלא בוצעה ונשמרה בדוחות ✅</div>';
+      if(shouldReschedule){
+        var d=parseIsoV539(newDate); if(d){try{calendarDate=new Date(d.getFullYear(),d.getMonth(),1);}catch(e){}}
+        try{selectedDate=originalDate||selectedDate; selectedType=null;}catch(e){}
+      }
+      if(typeof loadMonth==='function') await loadMonth();
+    }catch(e){
+      if(msg) msg.innerHTML='<p class="danger">שגיאה בשמירה: '+safeEsc(e&&(e.message||e.code)?(e.message||e.code):e)+'</p>';
+    }
+  }
+  window.saveNotDoneV529=saveNotDoneV539;
+  window.saveNotDoneV539=saveNotDoneV539;
+
+  try{
+    var oldRequired=window.requiredChangelogRows || (typeof requiredChangelogRows==='function' ? requiredChangelogRows : null);
+    if(typeof oldRequired==='function'&&!oldRequired.__v539Wrapped){
+      var wrapped=function(){
+        var rows=[];try{rows=oldRequired.apply(this,arguments)||[];}catch(e){rows=[];}
+        var exists=rows.some(function(r){return String(r.version||r.id||'')==='5.39';});
+        if(!exists){rows.unshift({version:'5.39',title:'לא בוצע עם שכפול אופציונלי למועד חדש',createdAt:'2026-06-02',items:[
+          'בחלון לא בוצע נוספה אפשרות אופציונלית לקבוע מועד חדש וליצור פק״ע מתוזמנת חדשה.',
+          'אם לא מסמנים קביעת מועד חדש, לא בוצע נשאר עובד בדיוק כמו קודם בלי שכפול.',
+          'הפק״ע המקורית נשארת בתאריך המקורי בסטטוס לא בוצע עם סיבה והערת תיעוד אם נוצר מועד חדש.',
+          'הפק״ע החדשה נוצרת כמתוזמנת עם אותם פרטי לקוח, כתובת, פריטים, סכום, הערות וסוג פק״ע CN/CH.',
+          'קביעת מועד חדש נחסמת לשבת או ליום חופש מסומן.'
+        ]});}
+        return rows;
+      };
+      wrapped.__v539Wrapped=true;
+      window.requiredChangelogRows=wrapped;
+      try{requiredChangelogRows=wrapped;}catch(e){}
+    }
+  }catch(e){}
+
+  updateVersionUiV539();
+  window.addEventListener('load',updateVersionUiV539);
+  document.addEventListener('DOMContentLoaded',updateVersionUiV539);
+  setInterval(updateVersionUiV539,2200);
 })();
 </script>
