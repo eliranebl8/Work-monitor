@@ -1656,7 +1656,23 @@ CHANGE 5.46 - EDIT INSTALL PRICE LIST SCROLL
     <h2>⚙️ הגדרות אישיות</h2>
     <div id="workerSettingsPanel">
       <p>כאן אפשר לשנות סיסמה ויעד חודשי.</p>
-      <div class="grid2"><input id="selfMonthlyGoal" type="number" placeholder="יעד חודשי"><input id="selfNewPassword" type="password" placeholder="סיסמה חדשה - לא חובה"></div>
+      <div class="grid2">
+        <div>
+          <div class="muted" style="font-size:12px;font-weight:900;margin:0 4px 2px">יעד חודשי לחודש הנבחר</div>
+          <input id="selfMonthlyGoal" type="number" placeholder="לדוגמה 35000">
+        </div>
+        <div>
+          <div class="muted" style="font-size:12px;font-weight:900;margin:0 4px 2px">בחר חודש לשמירת היעד</div>
+          <input id="selfGoalMonth" type="month">
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <div class="muted" style="font-size:12px;font-weight:900;margin:0 4px 2px">סיסמה חדשה - לא חובה</div>
+          <input id="selfNewPassword" type="password" placeholder="השאר ריק אם לא משנים סיסמה">
+        </div>
+        <div class="muted" style="padding:14px 4px;font-size:12px;line-height:1.45">היעד נשמר לפי חודש בתוך העובד. אם אין יעד לחודש מסוים, המערכת משתמשת ביעד הכללי הישן.</div>
+      </div>
       <button class="btn-green" onclick="saveWorkerSelfSettings()">שמור הגדרות אישיות</button>
       <div id="selfSettingsMsg"></div>
     </div>
@@ -1762,7 +1778,7 @@ CHANGE 5.46 - EDIT INSTALL PRICE LIST SCROLL
 </div>
 
 <script>
-const APP_VERSION = "5.54";
+const APP_VERSION = "5.57";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1872,6 +1888,13 @@ CHANGELOG 5.39 - לא בוצע עם שכפול אופציונלי למועד ח�
 5. הפק״ע החדשה נוצרת כמתוזמנת עם אותם פרטי לקוח, כתובת, פריטים, סכום, הערות וסוג פק״ע CN/CH.
 6. קביעת מועד חדש נחסמת לשבת או ליום חופש מסומן, בדיוק כמו שינוי תאריך רגיל.
 7. לא שונו שמירה רגילה, שינוי תאריך רגיל, יום חופש, תבניות, דשבורד, אופליין, גיבוי, אקסל או לוגין.
+
+CHANGELOG 5.57 - יעד חודשי אמיתי לפי חודש
+1. APP_VERSION עודכן ל-"5.57".
+2. יעד חודשי נשמר ונקרא לפי החודש הנבחר במסמך העובד monthlyGoalsByMonth.
+3. אם קיימים יעדים חודשיים לעובד, חודש שאין לו יעד שמור לא משתמש אוטומטית ביעד האחרון שנשמר.
+4. דשבורד, כרטיסי יעד, חסר ליעד ואחוז התקדמות קוראים את היעד לפי החודש שמוצג בלוח.
+5. לא שונו Security Rules, שמירת עבודות, ימי חופש, אופליין, גיבוי, אקסל או לוגין.
 
 CHANGELOG 5.38 - חסימת שינוי תאריך לשבת או יום חופש
 1. APP_VERSION עודכן ל-"5.38".
@@ -2762,6 +2785,63 @@ async function fillAddressFromLocation(targetInputId){
   },{enableHighAccuracy:true,timeout:12000,maximumAge:60000});
 }
 
+
+function currentCalendarMonthKeyV556(){
+  const d = calendarDate instanceof Date ? calendarDate : new Date();
+  return d.getFullYear() + "-" + pad(d.getMonth()+1);
+}
+function getWorkerGoalForMonthV556(monthKey){
+  const w = viewedWorker || {};
+  const key = monthKey || currentCalendarMonthKeyV556();
+  const map = (w && typeof w.monthlyGoalsByMonth === "object" && w.monthlyGoalsByMonth) ? w.monthlyGoalsByMonth : {};
+  const keys = Object.keys(map);
+
+  // v5.57 CORE FIX:
+  // ברגע שיש לעובד יעדים חודשיים, כל חודש קורא רק את היעד שלו.
+  // אם לחודש הנוכחי בלוח אין יעד שמור — מחזירים 0 ולא את היעד האחרון שנשמר,
+  // כדי שלא יקרה מצב שמאי/יוני מציגים את אותו יעד אחרון.
+  if(keys.length){
+    if(Object.prototype.hasOwnProperty.call(map,key)){
+      const specific = Number(map[key]||0);
+      return Number.isNaN(specific) ? 0 : specific;
+    }
+    return 0;
+  }
+
+  // תאימות לעובדים ישנים שעוד לא נשמר להם monthlyGoalsByMonth בכלל.
+  return Number(w.monthlyGoal||0);
+}
+function syncGoalSettingsMonthV556(){
+  if(!viewedWorker) return;
+  const monthEl = $("selfGoalMonth");
+  const goalEl = $("selfMonthlyGoal");
+  const key = currentCalendarMonthKeyV556();
+  if(monthEl && !monthEl.dataset.userEditingGoalMonthV557){
+    monthEl.value = key;
+  }
+  const activeKey = monthEl && monthEl.value ? monthEl.value : key;
+  if(goalEl && !goalEl.dataset.userEditingGoalV557){
+    const g=getWorkerGoalForMonthV556(activeKey);
+    goalEl.value = g ? g : "";
+  }
+}
+function bindGoalMonthInputV556(){
+  const monthEl = $("selfGoalMonth");
+  const goalEl = $("selfMonthlyGoal");
+  if(goalEl && !goalEl.dataset.v557Bound){
+    goalEl.dataset.v557Bound="1";
+    goalEl.addEventListener("focus",function(){goalEl.dataset.userEditingGoalV557="1";});
+    goalEl.addEventListener("blur",function(){setTimeout(function(){delete goalEl.dataset.userEditingGoalV557;},250);});
+  }
+  if(!monthEl || monthEl.dataset.v556Bound) return;
+  monthEl.dataset.v556Bound = "1";
+  monthEl.addEventListener("focus",function(){monthEl.dataset.userEditingGoalMonthV557="1";});
+  monthEl.addEventListener("blur",function(){setTimeout(function(){delete monthEl.dataset.userEditingGoalMonthV557;},250);});
+  monthEl.addEventListener("change", function(){
+    const goalEl = $("selfMonthlyGoal");
+    if(goalEl) goalEl.value = getWorkerGoalForMonthV556(monthEl.value) || "";
+  });
+}
 function renderSmartDashboard(){
   const box=$("smartDashboard");
   if(!box)return;
@@ -2780,7 +2860,7 @@ function renderSmartDashboard(){
   const bestDay=dayKeys.length?dayKeys.reduce((a,b)=>byDay[a]>byDay[b]?a:b):null;
   const weakDay=dayKeys.length?dayKeys.reduce((a,b)=>byDay[a]<byDay[b]?a:b):null;
 
-  const goal=Number(viewedWorker?.monthlyGoal||0);
+  const goal=getWorkerGoalForMonthV556();
   const left=Math.max(goal-total,0);
   const remaining=remainingWorkDaysInMonth();
   const needed=remaining?left/remaining:left;
@@ -3124,21 +3204,26 @@ function renderInstallItemsSummary(obj){
   return keys.map(k=>`<div class="item"><div><div class="item-title">${esc(k)}</div><div class="item-sub">כמות: ${obj[k].qty}</div></div><div class="money">${money(obj[k].total)}</div></div>`).join("");
 }
 
-function toggleWorkerSettings(){const p=$("workerSettingsPanel");p.classList.toggle("hidden");if(viewedWorker&&$("selfMonthlyGoal"))$("selfMonthlyGoal").value=Number(viewedWorker.monthlyGoal||0)}
+function toggleWorkerSettings(){const p=$("workerSettingsPanel");p.classList.toggle("hidden");try{bindGoalMonthInputV556();if($("selfGoalMonth"))$("selfGoalMonth").value=currentCalendarMonthKeyV556();if(viewedWorker&&$("selfMonthlyGoal"))$("selfMonthlyGoal").value=getWorkerGoalForMonthV556();}catch(e){}}
 async function saveWorkerSelfSettings(){
   if(!viewedWorker)return;
 
   const msg=$("selfSettingsMsg");
   const goal=Number(val("selfMonthlyGoal")||0);
   const pass=val("selfNewPassword");
+  const monthKey=(val("selfGoalMonth") || currentCalendarMonthKeyV556());
 
   if(Number.isNaN(goal)||goal<0){
     if(msg) msg.innerHTML="<p class='danger'>יעד חודשי לא תקין.</p>";
     return;
   }
 
+  const monthlyGoalsByMonth=Object.assign({}, viewedWorker.monthlyGoalsByMonth||{});
+  monthlyGoalsByMonth[monthKey]=goal;
+
   const update={
     monthlyGoal:goal,
+    monthlyGoalsByMonth,
     updatedAt:firebase.firestore.FieldValue.serverTimestamp()
   };
 
@@ -3189,15 +3274,17 @@ async function saveWorkerSelfSettings(){
 
   await db.collection("workers").doc(viewedWorker.id).set(update,{merge:true});
   viewedWorker.monthlyGoal=goal;
+  viewedWorker.monthlyGoalsByMonth=monthlyGoalsByMonth;
   if(pass){
     viewedWorker.passwordHash=update.passwordHash;
     viewedWorker.passwordChangedAt=new Date().toISOString();
   }
   if($("selfNewPassword")) $("selfNewPassword").value="";
   if(msg) msg.innerHTML=pass
-    ? "<div class='notice'>ההגדרות והסיסמה נשמרו ✅<br>בכניסה הבאה השתמש בסיסמה החדשה.</div>"
-    : "<div class='notice'>ההגדרות נשמרו ✅</div>";
+    ? `<div class='notice'>היעד לחודש ${esc(monthKey)} והסיסמה נשמרו ✅<br>בכניסה הבאה השתמש בסיסמה החדשה.</div>`
+    : `<div class='notice'>היעד לחודש ${esc(monthKey)} נשמר ✅</div>`;
   renderStats();
+  renderSmartDashboard();
 }
 
 
@@ -3364,11 +3451,11 @@ async function extendSubscriptionDays(days){
   await saveSubscriptionEdit();
 }
 
-async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();const worker={id:doc.id,...doc.data()};if(session&&session.role==="worker"&&isSubscriptionExpired(worker)){localStorage.removeItem("workSession");session=null;showExpiredView(worker);return;}await showWorker(worker)}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=new Date();selectedDate=null;selectedType=null;if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=Number(worker.monthlyGoal||0);if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth();try{initMonthlySettlementV547();}catch(e){console.warn("v5.47 settlement init failed",e)}}
+async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();const worker={id:doc.id,...doc.data()};if(session&&session.role==="worker"&&isSubscriptionExpired(worker)){localStorage.removeItem("workSession");session=null;showExpiredView(worker);return;}await showWorker(worker)}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=new Date();selectedDate=null;selectedType=null;bindGoalMonthInputV556();if($("selfGoalMonth"))$("selfGoalMonth").value=currentCalendarMonthKeyV556();if($("selfGoalMonth"))$("selfGoalMonth").value=currentCalendarMonthKeyV556();if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=getWorkerGoalForMonthV556();if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth();try{initMonthlySettlementV547();}catch(e){console.warn("v5.47 settlement init failed",e)}}
 async function loadMonth(){await loadPriceList();await loadTemplates();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);monthEntries=[];renderCalendar();renderDay();renderStats();const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();monthEntries=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats();renderSmartDashboard();if($('searchPanel')&&!$('searchPanel').classList.contains('hidden'))renderFullSummary()}
 function renderCalendar(){const cal=$("calendar");cal.innerHTML="";weekdays.forEach(w=>{const d=document.createElement("div");d.className="weekday";d.textContent=w;cal.appendChild(d)});const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0).getDate(),today=formatDate(new Date());for(let i=0;i<first.getDay();i++){const e=document.createElement("div");e.className="day empty";cal.appendChild(e)}for(let d=1;d<=last;d++){const ds=`${y}-${pad(m+1)}-${pad(d)}`,dt=new Date(y,m,d),sh=dt.getDay()===6,entries=monthEntries.filter(e=>e.date===ds),total=entries.reduce((s,e)=>s+Number(e.amount||0),0),div=document.createElement("div");div.className="day";if(sh)div.classList.add("shabbat");if(ds===today)div.classList.add("today");if(ds===selectedDate)div.classList.add("selected");div.innerHTML=`<div class="day-num">${d}</div>${total?`<div class="day-total">${money(total)}</div>`:""}${entries.length?`<div class="day-count">${entries.length} עבודות</div>`:""}`;if(!sh)div.onclick=()=>selectDay(ds);cal.appendChild(div)}}
 function selectDay(ds){selectedDate=ds;selectedType=null;renderCalendar();renderDay();renderStats();renderSmartDashboard();cleanVisibleSlashN()}function renderDay(){if(!selectedDate){hide("dayPanel");show("selectDayHint");return}show("dayPanel");hide("selectDayHint");text("dateTitle",`יום ${heDate(selectedDate)}`);renderInstallItems();setType(selectedType,false);updateServicePriceLabels();const entries=monthEntries.filter(e=>e.date===selectedDate).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)),box=$("dayEntries");box.innerHTML=entries.length?"":"<p class='muted'>אין עבודות ביום הזה עדיין.</p>";entries.forEach(e=>{const details=e.workType==="service"?`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n${e.notes||""}`:`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("<br>")+`\n${e.notes||""}`,row=document.createElement("div");row.className="item";const iconClass=e.workType==="install"?"install":(e.isReturnCall?"return":"service");const icon=e.workType==="install"?"🛠️":(e.isReturnCall?"🔁":"☎️");row.innerHTML=`<div class="work-row-main"><div class="work-icon ${iconClass}">${icon}</div><div><div class="item-title">${esc(e.description)}</div><div class="item-sub">${nl2br(details)}</div></div></div><div><div class="money">${money(e.amount)}</div><div class="actions" style="margin-top:8px"><button class="btn-yellow" onclick="openEntryEdit('${e.id}')">ערוך</button>${e.workType==="install"?`<button class="btn-light" onclick="saveEntryAsTemplate('${e.id}')">שמור כתבנית</button>`:""}<button class="btn-red" onclick="deleteEntry('${e.id}')">מחק</button></div></div>`;box.appendChild(row)})}
-function renderStats(){const monthTotal=monthEntries.reduce((s,e)=>s+Number(e.amount||0),0),dayTotal=selectedDate?monthEntries.filter(e=>e.date===selectedDate).reduce((s,e)=>s+Number(e.amount||0),0):0,goal=Number(viewedWorker.monthlyGoal||0),left=Math.max(goal-monthTotal,0);$("monthTotal").textContent=money(monthTotal);$("dayTotal").textContent=money(dayTotal);$("goalTotal").textContent=money(goal);$("leftTotal").textContent=money(left);$("goalBar").style.width=goal?Math.min(monthTotal/goal*100,100)+"%":"0%";text("paceLine",goal?(left<=0?"מעולה — היעד הושג.":`חסר ליעד: ${money(left)}.`):"לא הוגדר יעד חודשי.")}
+function renderStats(){const monthTotal=monthEntries.reduce((s,e)=>s+Number(e.amount||0),0),dayTotal=selectedDate?monthEntries.filter(e=>e.date===selectedDate).reduce((s,e)=>s+Number(e.amount||0),0):0,goal=getWorkerGoalForMonthV556(),left=Math.max(goal-monthTotal,0);$("monthTotal").textContent=money(monthTotal);$("dayTotal").textContent=money(dayTotal);$("goalTotal").textContent=money(goal);$("leftTotal").textContent=money(left);$("goalBar").style.width=goal?Math.min(monthTotal/goal*100,100)+"%":"0%";text("paceLine",goal?(left<=0?"מעולה — היעד הושג.":`חסר ליעד: ${money(left)}.`):"לא הוגדר יעד חודשי לחודש הזה.");syncGoalSettingsMonthV556();}
 function setType(type,clear=true){selectedType=type;$("serviceForm").classList.toggle("hidden",type!=="service");$("installForm").classList.toggle("hidden",type!=="install");$("serviceBtn").classList.toggle("active",type==="service");$("installBtn").classList.toggle("active",type==="install");if(clear)$("entryMsg").innerHTML=""}
 function renderInstallItems(){const box=$("installItems");box.innerHTML="";priceList.forEach(item=>{const row=document.createElement("div");row.className="item";const mode=item.inputMode||"qty",control=mode==="check"?`<label style="display:flex;align-items:center;gap:8px;font-weight:900"><input id="qty_${item.id}" type="checkbox" onchange="updateInstallPreview()" style="width:24px;height:24px;margin:0"> בוצע</label>`:`<input class="qty" id="qty_${item.id}" type="number" min="0" placeholder="כמות" oninput="updateInstallPreview()">`;row.innerHTML=`<div><div class="item-title">${esc(item.name)}</div><div class="item-sub">מחיר: ${money(item.price)} · ${mode==="check"?"סימון כן/לא":"כמות מספרית"}</div></div>${control}`;box.appendChild(row)});updateInstallPreview()}function updateInstallPreview(){let total=0;priceList.forEach(p=>{const el=$("qty_"+p.id);let q=0;if(el)q=(p.inputMode||"qty")==="check"?(el.checked?1:0):Number(el.value||0);if(q>0)total+=q*Number(p.price||0)});$("installPreview").textContent="סה״כ התקנה: "+money(total)}
 async function addService(){const customerNumber=val("sCustomer"),address=val("sAddress"),notes=val("sNotes"),isReturnCall=$("sReturnCall")&&$("sReturnCall").checked;const amount=isReturnCall?0:SERVICE_PRICE;if(!customerNumber||!/^\d+$/.test(customerNumber))return $("entryMsg").innerHTML="<p class='danger'>חובה למלא מספר לקוח בספרות בלבד.</p>";if(!address)return $("entryMsg").innerHTML="<p class='danger'>חובה למלא כתובת.</p>";await db.collection("workEntries").add({workerId:viewedWorker.id,workerName:viewedWorker.name,authUid:viewedWorker.authUid||currentAuthUid(),date:selectedDate,workType:"service",description:isReturnCall?"קריאת שירות חוזרת":"קריאת שירות",customerNumber,address,notes,isReturnCall,amount,createdAt:firebase.firestore.FieldValue.serverTimestamp()});$("sCustomer").value="";$("sAddress").value="";$("sNotes").value="";if($("sReturnCall"))$("sReturnCall").checked=false;updateServicePreview();showEntryFeedbackV41("service", amount);await loadMonth()}
@@ -6885,7 +6972,7 @@ async function showWorker(worker){
   calendarDate = new Date();
   selectedDate = null;
   selectedType = null;
-  if($("selfMonthlyGoal")) $("selfMonthlyGoal").value = Number(worker.monthlyGoal || 0);
+  if($("selfGoalMonth")) $("selfGoalMonth").value = currentCalendarMonthKeyV556(); if($("selfMonthlyGoal")) $("selfMonthlyGoal").value = getWorkerGoalForMonthV556();
   if($("selfNewPassword")) $("selfNewPassword").value = "";
   await loadSettings();
   await loadMonth();
@@ -7297,7 +7384,7 @@ function renderStats(){
   const entries = Array.isArray(monthEntries) ? monthEntries : [];
   const monthTotal = entries.reduce((s,e)=>s+Number(e.amount||0),0);
   const dayTotal = selectedDate ? entries.filter(e=>e.date===selectedDate).reduce((s,e)=>s+Number(e.amount||0),0) : 0;
-  const goal = Number(worker.monthlyGoal || 0);
+  const goal = getWorkerGoalForMonthV556();
   const left = Math.max(goal-monthTotal,0);
   if($("monthTotal")) $("monthTotal").textContent = money(monthTotal);
   if($("dayTotal")) $("dayTotal").textContent = money(dayTotal);
@@ -7352,7 +7439,7 @@ async function showWorker(worker, token){
   calendarDate = new Date();
   selectedDate = null;
   selectedType = null;
-  if($("selfMonthlyGoal")) $("selfMonthlyGoal").value = Number(worker.monthlyGoal || 0);
+  if($("selfGoalMonth")) $("selfGoalMonth").value = currentCalendarMonthKeyV556(); if($("selfMonthlyGoal")) $("selfMonthlyGoal").value = getWorkerGoalForMonthV556();
   if($("selfNewPassword")) $("selfNewPassword").value = "";
 
   try{ await loadSettings(); }catch(e){ console.warn("loadSettings skipped in showWorker", e); }
@@ -11236,7 +11323,7 @@ service cloud.firestore {
     const dayTotal=sumV49(dayDone);
     const plannedTotal=sumV49(planned);
     const dayPlannedTotal=selectedDate?sumV49(planned.filter(e=>e.date===selectedDate)):0;
-    const goal=Number(worker.monthlyGoal||0);
+    const goal=getWorkerGoalForMonthV556();
     const left=Math.max(goal-monthTotal,0);
     if($('monthTotal')) $('monthTotal').textContent=money(monthTotal);
     if($('dayTotal')) $('dayTotal').textContent=money(dayTotal);
@@ -11313,7 +11400,7 @@ service cloud.firestore {
     const installs=done.filter(e=>e.workType==='install');
     const plannedServices=planned.filter(e=>e.workType==='service');
     const plannedInstalls=planned.filter(e=>e.workType==='install');
-    const goal=Number((viewedWorker||{}).monthlyGoal||0);
+    const goal=getWorkerGoalForMonthV556();
     const left=Math.max(goal-total,0);
     const progress=goal?Math.min(total/goal*100,100):0;
     box.innerHTML=`
@@ -12967,7 +13054,7 @@ service cloud.firestore {
   window.toggleClientHistory = function(){ window.openWorkerTabV420('client'); };
   window.toggleSearchPanel = function(){ window.openWorkerTabV420('search'); if(typeof renderFullSummary === 'function') renderFullSummary(); };
   window.toggleWorkerTools = function(){ window.openWorkerTabV420('tools'); };
-  window.toggleWorkerSettings = function(){ window.openWorkerTabV420('settings'); if((typeof viewedWorker !== 'undefined' && viewedWorker)&&document.getElementById('selfMonthlyGoal')) document.getElementById('selfMonthlyGoal').value=Number(viewedWorker.monthlyGoal||0); };
+  window.toggleWorkerSettings = function(){ window.openWorkerTabV420('settings'); try{ bindGoalMonthInputV556(); if(document.getElementById('selfGoalMonth')) document.getElementById('selfGoalMonth').value=currentCalendarMonthKeyV556(); if((typeof viewedWorker !== 'undefined' && viewedWorker)&&document.getElementById('selfMonthlyGoal')) document.getElementById('selfMonthlyGoal').value=getWorkerGoalForMonthV556(); }catch(e){} };
 
   window.addEventListener('DOMContentLoaded', function(){
     forcePanelsVisibleV420();
@@ -13040,7 +13127,7 @@ body.a11y-readable-font-v422,body.a11y-readable-font-v422 *{font-family:Arial,"N
     const services=done.filter(e=>e.workType==='service'), installs=done.filter(e=>e.workType==='install');
     const plannedServices=planned.filter(e=>e.workType==='service'), plannedInstalls=planned.filter(e=>e.workType==='install');
     const returnCalls=services.filter(e=>e.isReturnCall);
-    const goal=Number((viewedWorker||{}).monthlyGoal||0), left=Math.max(goal-total,0), progress=goal?Math.min(100,pct422(total,goal)):0;
+    const goal=getWorkerGoalForMonthV556(), left=Math.max(goal-total,0), progress=goal?Math.min(100,pct422(total,goal)):0;
     const workDays=[...new Set(done.map(e=>e.date).filter(Boolean))].length, avg=workDays?total/workDays:0;
     const byDate=group422(done,e=>e.date||'ללא תאריך');
     const byWeekday=group422(done,e=>weekdayName422(e.date)||'ללא יום');
@@ -13167,7 +13254,7 @@ body.a11y-readable-font-v422,body.a11y-readable-font-v422 *{font-family:Arial,"N
     const plannedServices=planned.filter(e=>e.workType==='service'), plannedInstalls=planned.filter(e=>e.workType==='install');
     const returnCalls=services.filter(e=>e.isReturnCall);
     const paidServices=services.filter(e=>!e.isReturnCall);
-    const goal=Number((viewedWorker||{}).monthlyGoal||0), progress=goal?Math.min(100,pct423(total,goal)):0, left=Math.max(goal-total,0);
+    const goal=getWorkerGoalForMonthV556(), progress=goal?Math.min(100,pct423(total,goal)):0, left=Math.max(goal-total,0);
     const dates=[...new Set(done.map(e=>e.date).filter(Boolean))], workDays=dates.length, avg=workDays?total/workDays:0;
     const byDate=group423(done,e=>e.date||'ללא תאריך'), byWeekday=group423(done,e=>weekday423(e.date)||'ללא יום'), byClient=group423(done,e=>e.customerNumber||'ללא מספר');
     const bestDate=best423(byDate,'total'), bestWeekday=best423(byWeekday,'total'), topClient=best423(byClient,'count');
@@ -13661,7 +13748,7 @@ body.worker-main-loading-v428 #startupView{
       monthEntries = [];
 
       if($('helloTitle')) text('helloTitle','שלום ' + (worker.name || ''));
-      if($('selfMonthlyGoal')) $('selfMonthlyGoal').value = Number(worker.monthlyGoal || 0);
+      if($('selfMonthlyGoal')) $('selfMonthlyGoal').value = getWorkerGoalForMonthV556();
       if($('selfNewPassword')) $('selfNewPassword').value = '';
 
       try{ await loadSettings(); }catch(e){ console.warn('loadSettings v4.28 skipped',e); }
@@ -14278,7 +14365,7 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
     var plannedServices=planned.filter(function(e){return e.workType==='service'}), plannedInstalls=planned.filter(function(e){return e.workType==='install'});
     var returnCalls=services.filter(function(e){return e.isReturnCall});
     var paidServices=services.filter(function(e){return !e.isReturnCall});
-    var goal=Number((viewedWorker||{}).monthlyGoal||0), left=Math.max(goal-total,0), progress=goal?Math.min(100,pct436(total,goal)):0;
+    var goal=getWorkerGoalForMonthV556(), left=Math.max(goal-total,0), progress=goal?Math.min(100,pct436(total,goal)):0;
     var dates=[...new Set(done.map(function(e){return e.date}).filter(Boolean))], workDays=dates.length, avg=workDays?total/workDays:0;
     // v4.98 CORE UPDATE:
     // מקור אמת יחיד לחישובי יעד: ימי עבודה שנשארו אחרי שבתות וימי חופש עתידיים, עם חישוב "נשאר לך לעבוד" ללא היום וללא חופש עתידי.
@@ -15608,7 +15695,7 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
     box=box||q('smartDashboard'); if(!box)return;
     stats=stats||{};
     var all=safeArr(typeof monthEntries!=='undefined'?monthEntries:[]), dn=doneEntries(all), total=Number(stats.total!==undefined?stats.total:sumAmount(dn));
-    var goal=Number(stats.goal!==undefined?stats.goal:((typeof viewedWorker!=='undefined'&&viewedWorker?viewedWorker.monthlyGoal:0)||0));
+    var goal=Number(stats.goal!==undefined?stats.goal:(getWorkerGoalForMonthV556()));
     var left=Number(stats.left!==undefined?stats.left:Math.max(goal-total,0));
     var regular=Number(stats.regular!==undefined?stats.regular:regularWorkDaysInMonth());
     var vacCount=Number(stats.vacCount!==undefined?stats.vacCount:safeArr(window.vacationDaysV437).length);
