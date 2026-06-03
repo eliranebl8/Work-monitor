@@ -722,6 +722,15 @@ input:focus,textarea:focus,select:focus{animation:popIn .2s ease both}
 .settlement-line-v547{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:#fff;border:1px solid #e2e8f0;margin:6px 0;font-weight:900}
 .settlement-line-v547 span:first-child{color:#64748b;font-size:13px}
 .settlement-line-v547 b{white-space:nowrap}
+/* v5.53: צבעים ברורים בדוח התחשבנות + מניעת גלישת טקסט בשורת ההפרש. */
+.settlement-income-v553,.settlement-positive-v553{background:#ecfdf5!important;border-color:#bbf7d0!important;color:#166534!important}
+.settlement-expense-v553,.settlement-negative-v553{background:#fef2f2!important;border-color:#fecaca!important;color:#991b1b!important}
+.settlement-neutral-v553{background:#f8fafc!important;border-color:#e2e8f0!important;color:#475569!important}
+.settlement-diff-v553{align-items:flex-start!important;gap:12px!important}
+.settlement-diff-v553 span:first-child{white-space:normal!important;line-height:1.25!important;max-width:45%;}
+.settlement-diff-v553 b{white-space:normal!important;text-align:left!important;line-height:1.18!important;min-width:0!important;max-width:55%;display:flex!important;flex-direction:column!important;align-items:flex-start!important;overflow-wrap:anywhere!important}
+.settlement-diff-main-v553{font-size:18px;font-weight:1000;white-space:nowrap}
+.settlement-diff-note-v553{font-size:10px;font-weight:800;opacity:.8;margin-top:2px;white-space:normal}
 .settlement-total-v547{background:#ecfdf5;border-color:#bbf7d0;color:#166534}
 .settlement-warning-v547{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
 .settlement-deductions-v547{margin-top:10px}
@@ -735,6 +744,10 @@ input:focus,textarea:focus,select:focus{animation:popIn .2s ease both}
   .settlement-deduction-row-v547 input{font-size:14px;padding:11px 10px}
   .settlement-field-label-v552{font-size:10.5px}
   .settlement-field-help-v552{font-size:9px}
+  .settlement-diff-v553{display:grid!important;grid-template-columns:1fr 1fr!important;align-items:start!important}
+  .settlement-diff-v553 span:first-child{max-width:none!important;font-size:12px!important}
+  .settlement-diff-v553 b{max-width:none!important;font-size:15px!important}
+  .settlement-diff-main-v553{font-size:16px!important}
 }
 
 </style>
@@ -1612,8 +1625,8 @@ CHANGE 5.46 - EDIT INSTALL PRICE LIST SCROLL
         </div>
         <div class="settlement-grid-v547">
           <div class="settlement-field-v552">
-            <label class="settlement-field-label-v552" for="settlementEquipmentV547">קיזוז ציוד / ציוד שחור</label>
-            <div class="settlement-field-help-v552">קיזוז בפועל לפני מע״מ, לא חישוב אוטומטי.</div>
+            <label class="settlement-field-label-v552" for="settlementEquipmentV547">ציוד שחור</label>
+            <div class="settlement-field-help-v552">סכום ציוד/ציוד שחור שקוזז בפועל.</div>
             <input id="settlementEquipmentV547" type="number" step="0.01" oninput="renderSettlementReportV547()">
           </div>
           <div class="settlement-field-v552">
@@ -1623,7 +1636,7 @@ CHANGE 5.46 - EDIT INSTALL PRICE LIST SCROLL
           </div>
         </div>
         <div class="settlement-deductions-v547">
-          <h3 style="font-size:16px;margin-top:10px">הוצאות / קיזוזים דינמיים</h3>
+          <h3 style="font-size:16px;margin-top:10px">הוצאות נוספות</h3>
           <div id="settlementDeductionsV547"></div>
           <button type="button" class="btn-light" onclick="addSettlementDeductionRowV547()">➕ הוסף הוצאה</button>
         </div>
@@ -1749,7 +1762,7 @@ CHANGE 5.46 - EDIT INSTALL PRICE LIST SCROLL
 </div>
 
 <script>
-const APP_VERSION = "5.52";
+const APP_VERSION = "5.53";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -4202,7 +4215,7 @@ function addSettlementDeductionRowV547(name="",amount=""){
   if(!box)return;
   const row=document.createElement("div");
   row.className="settlement-deduction-row-v547";
-  row.innerHTML=`<div class="settlement-field-v552"><label class="settlement-field-label-v552">שם הוצאה דינמית</label><div class="settlement-field-help-v552">לדוגמה: טאבלט / ציוד / החזר.</div><input data-deduction-name value="${esc(name)}" oninput="renderSettlementReportV547()"></div><div class="settlement-field-v552"><label class="settlement-field-label-v552">סכום לפני מע״מ</label><div class="settlement-field-help-v552">הסכום שקוזז בפועל.</div><input data-deduction-amount type="number" step="0.01" value="${esc(amount)}" oninput="renderSettlementReportV547()"></div><button type="button" class="btn-red" onclick="this.closest('.settlement-deduction-row-v547').remove();renderSettlementReportV547();">×</button>`;
+  row.innerHTML=`<div class="settlement-field-v552"><label class="settlement-field-label-v552">שם הוצאה דינמית</label><div class="settlement-field-help-v552">לדוגמה: טאבלט / החזר / הוצאה חד־פעמית.</div><input data-deduction-name value="${esc(name)}" oninput="renderSettlementReportV547()"></div><div class="settlement-field-v552"><label class="settlement-field-label-v552">סכום לפני מע״מ</label><div class="settlement-field-help-v552">הסכום שקוזז בפועל.</div><input data-deduction-amount type="number" step="0.01" value="${esc(amount)}" oninput="renderSettlementReportV547()"></div><button type="button" class="btn-red" onclick="this.closest('.settlement-deduction-row-v547').remove();renderSettlementReportV547();">×</button>`;
   box.appendChild(row);
 }
 function setSettlementDeductionsV547(items){
@@ -4275,26 +4288,29 @@ function renderSettlementReportV547(){
   const actualVatAfterDeductions=netAfterDeductions*0.18;
   const actualGross=netAfterDeductions+actualVatAfterDeductions;
   const expectedDiff=actual-t.expected;
-  const diffLabel=expectedDiff<0 ? `חסר ${money(Math.abs(expectedDiff))} לעומת סכום המערכת` : (expectedDiff>0 ? `יותר ${money(expectedDiff)} מסכום המערכת` : "תואם לסכום המערכת");
+  const diffState=expectedDiff<0 ? "negative" : (expectedDiff>0 ? "positive" : "neutral");
+  const diffMain=expectedDiff<0 ? `חסר ${money(Math.abs(expectedDiff))}` : (expectedDiff>0 ? `עודף ${money(expectedDiff)}` : "מאוזן");
+  const diffNote=expectedDiff===0 ? "תואם לסכום המערכת" : "לעומת סכום המערכת";
   const box=$("settlementReportV547");
   if(!box)return;
-  const diffCls=expectedDiff>=0?"settlement-total-v547":"settlement-warning-v547";
+  const diffCls=diffState==="negative" ? "settlement-negative-v553" : (diffState==="positive" ? "settlement-positive-v553" : "settlement-neutral-v553");
+  const diffHtml=`<span class="settlement-diff-main-v553">${diffMain}</span><span class="settlement-diff-note-v553">${diffNote}</span>`;
   box.innerHTML=`
     <div class="settlement-line-v547"><span>עבודות שבוצעו בחודש</span><b>${t.count}</b></div>
     <div class="settlement-line-v547"><span>קריאות / התקנות / פק״ע CN / CH</span><b>${t.services} / ${t.installs} / ${t.pekaCN} / ${t.pekaCH}</b></div>
-    <div class="settlement-line-v547"><span>מגיע לפי המערכת לפני מע״מ</span><b>${money(t.expected)}</b></div>
+    <div class="settlement-line-v547 settlement-income-v553"><span>מגיע לפי המערכת לפני מע״מ</span><b>${money(t.expected)}</b></div>
     <div class="settlement-line-v547"><span>מע״מ 18% לפי המערכת</span><b>${money(t.vat)}</b></div>
-    <div class="settlement-line-v547 settlement-total-v547"><span>סה״כ ברוטו לפי המערכת</span><b>${money(t.gross)}</b></div>
-    <div class="settlement-line-v547"><span>הכנסה בפועל לפני מע״מ</span><b>${money(actual)}</b></div>
-    <div class="settlement-line-v547"><span>פירוט הכנסות: RF / סיבים / מכירות / כללית</span><b>${money(income.rf)} / ${money(income.fiber)} / ${money(income.sales)} / ${money(income.general)}</b></div>
-    <div class="settlement-line-v547"><span>קיזוז ציוד / ציוד שחור בפועל</span><b>${money(equipment)}${equipment?` · ${equipmentPct.toFixed(2)}%`:""}</b></div>
-    <div class="settlement-line-v547"><span>קנסות בפועל</span><b>${money(fine)}${fine?` · ${finePct.toFixed(2)}%`:""}</b></div>
-    <div class="settlement-line-v547"><span>הוצאות דינמיות</span><b>${money(extra)}</b></div>
-    <div class="settlement-line-v547 settlement-warning-v547"><span>סה״כ קיזוזים</span><b>${money(deductionsTotal)}</b></div>
-    <div class="settlement-line-v547 ${diffCls}"><span>הפרש מול סכום המערכת</span><b>${diffLabel}</b></div>
-    <div class="settlement-line-v547 settlement-total-v547"><span>נטו אחרי קיזוזים לפני מע״מ</span><b>${money(netAfterDeductions)}</b></div>
+    <div class="settlement-line-v547 settlement-income-v553"><span>סה״כ ברוטו לפי המערכת</span><b>${money(t.gross)}</b></div>
+    <div class="settlement-line-v547 settlement-income-v553"><span>הכנסה בפועל לפני מע״מ</span><b>${money(actual)}</b></div>
+    <div class="settlement-line-v547 settlement-income-v553"><span>פירוט הכנסות</span><b>${money(income.rf)} / ${money(income.fiber)} / ${money(income.sales)} / ${money(income.general)}</b></div>
+    <div class="settlement-line-v547 settlement-expense-v553"><span>ציוד שחור</span><b>${money(equipment)}${equipment?` · ${equipmentPct.toFixed(2)}%`:""}</b></div>
+    <div class="settlement-line-v547 settlement-expense-v553"><span>קנסות בפועל</span><b>${money(fine)}${fine?` · ${finePct.toFixed(2)}%`:""}</b></div>
+    <div class="settlement-line-v547 settlement-expense-v553"><span>הוצאות נוספות</span><b>${money(extra)}</b></div>
+    <div class="settlement-line-v547 settlement-expense-v553"><span>סה״כ קיזוזים</span><b>${money(deductionsTotal)}</b></div>
+    <div class="settlement-line-v547 settlement-diff-v553 ${diffCls}"><span>הפרש מול המערכת</span><b>${diffHtml}</b></div>
+    <div class="settlement-line-v547 settlement-income-v553"><span>נטו לפני מע״מ</span><b>${money(netAfterDeductions)}</b></div>
     <div class="settlement-line-v547"><span>מע״מ 18% אחרי קיזוזים</span><b>${money(actualVatAfterDeductions)}</b></div>
-    <div class="settlement-line-v547 settlement-total-v547"><span>ברוטו בפועל כולל מע״מ אחרי קיזוזים</span><b>${money(actualGross)}</b></div>
+    <div class="settlement-line-v547 settlement-income-v553"><span>סכום סופי כולל מע״מ</span><b>${money(actualGross)}</b></div>
   `;
 }
 async function saveMonthlySettlementV547(){
@@ -18240,6 +18256,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"5.53", title:"דוח התחשבנות: צבעים וטקסטים קצרים", items:["שורת ההפרש מול המערכת קוצרה לשתי שורות כדי שלא תגלוש מחוץ לכרטיס במובייל.","חסר מול המערכת מוצג באדום, עודף מול המערכת מוצג בירוק, ומצב מאוזן מוצג באפור.","הכנסות, נטו וסכום סופי מוצגים בירוק; קנסות, ציוד שחור, הוצאות נוספות וסה״כ קיזוזים מוצגים באדום.","קוצרו טקסטים בדוח: ציוד שחור, הוצאות נוספות, נטו לפני מע״מ, סכום סופי כולל מע״מ.","לא שונו חישובי הדוח או שמירת הדוחות, ולא נגעו בעבודות, פק״ע, לא בוצע, גיבוי, אקסל או לוגין."], date:d},
       {version:"5.52", title:"דוח התחשבנות: הסברים קטנים וברוטו אחרי קיזוזים", items:["נוספו הסברונים קטנים מעל שדות דוח ההתחשבנות כדי שיהיה ברור מה מזינים בכל מספר גם אחרי שהשדה מלא.","תוקן חישוב הברוטו בפועל כך שמע״מ 18% מחושב על הנטו אחרי קיזוזים ולא על ההכנסה לפני קיזוזים.","שורת הפער מול המערכת מציגה עכשיו חסר / יותר / תואם במקום מספר שלילי מבלבל.","נשמרו כל שדות הדוח והמסמך הקיים תחת העובד, בלי לשנות שמירת עבודות, פק״ע, לא בוצע, גיבוי או אקסל."], date:d},
       {version:"5.50", title:"דוח התחשבנות: קיזוזים בפועל והרשאות שמירה", items:["הוסר חישוב קיזוז 6% אוטומטי מדוח ההתחשבנות כדי לא לערבב בין חישוב מערכת לבין מה שנקסטקום קיזזה בפועל.","קיזוז ציוד / ציוד שחור נשאר כשדה ידני בפועל לפני מע״מ, והמערכת מחשבת לבד את האחוז שלו מתוך ההכנסות בפועל.","סה״כ קיזוזים מחושב עכשיו מקיזוז ציוד בפועל, קנסות בפועל והוצאות דינמיות בלבד.","הדוח ממשיך להישמר תחת workers/{workerId}/monthlySettlements/{YYYY-MM}; נדרשת התאמת Security Rules לתת־האוסף הזה.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון, גיבוי או אקסל."], date:d},
       {version:"5.49", title:"פירוט הכנסות בפועל בדוח התחשבנות", items:["בדוח ההתחשבנות הוחלפה רובריקת ההכנסה היחידה בארבע רובריקות נפרדות: יצרנות RF, יצרנות סיבים, מכירות והכנסה כללית.","כל ההכנסות מוזנות לפני מע״מ ומתחברות אוטומטית לסך הכנסה בפועל לפני מע״מ.","הקנס נשאר סכום בפועל והמערכת מחשבת לבד את אחוז הקנס מתוך סך ההכנסות בפועל או לפי המערכת.","הוצאות וקיזוזים דינמיים נשארו ללא שינוי.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון או אקסל."], date:d},
