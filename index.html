@@ -714,6 +714,11 @@ input:focus,textarea:focus,select:focus{animation:popIn .2s ease both}
 .settlement-v547{margin-top:14px;padding:14px;border-radius:22px;background:rgba(255,255,255,.72);border:1px solid var(--line);box-shadow:0 8px 18px rgba(15,23,42,.055)}
 .settlement-v547 h3{margin-bottom:8px}
 .settlement-grid-v547{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:10px 0}
+/* v5.52: הסברונים קטנים מעל שדות דוח התחשבנות, במקום להסתמך על placeholder שנעלם אחרי הקלדה. */
+.settlement-field-v552{display:flex;flex-direction:column;gap:3px;min-width:0}
+.settlement-field-label-v552{font-size:11px;color:#64748b;font-weight:900;line-height:1.25;padding:0 4px}
+.settlement-field-help-v552{font-size:9.5px;color:#94a3b8;font-weight:700;line-height:1.25;padding:0 4px;margin-top:-1px}
+.settlement-field-v552 input,.settlement-field-v552 select{margin:0!important}
 .settlement-line-v547{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:#fff;border:1px solid #e2e8f0;margin:6px 0;font-weight:900}
 .settlement-line-v547 span:first-child{color:#64748b;font-size:13px}
 .settlement-line-v547 b{white-space:nowrap}
@@ -728,6 +733,8 @@ input:focus,textarea:focus,select:focus{animation:popIn .2s ease both}
   .settlement-grid-v547{grid-template-columns:1fr}
   .settlement-deduction-row-v547{grid-template-columns:1fr 1fr auto}
   .settlement-deduction-row-v547 input{font-size:14px;padding:11px 10px}
+  .settlement-field-label-v552{font-size:10.5px}
+  .settlement-field-help-v552{font-size:9px}
 }
 
 </style>
@@ -1570,18 +1577,50 @@ CHANGE 5.46 - EDIT INSTALL PRICE LIST SCROLL
         <h3>📄 דוח התחשבנות חודשי</h3>
         <p class="muted">בחר חודש, המערכת תחשב עבודות שבוצעו בלבד ותאפשר להשוות מול ההתחשבנות שקיבלת בפועל. כל הסכומים שאתה מזין הם לפני מע״מ.</p>
         <div class="settlement-grid-v547">
-          <input id="settlementMonthV547" type="month" onchange="loadMonthlySettlementV547()" placeholder="בחר חודש">
-          <input id="settlementIncomeRfV549" type="number" step="0.01" placeholder="הכנסת יצרנות RF לפני מע״מ" oninput="renderSettlementReportV547()">
-          <input id="settlementIncomeFiberV549" type="number" step="0.01" placeholder="הכנסת יצרנות סיבים לפני מע״מ" oninput="renderSettlementReportV547()">
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementMonthV547">חודש הדוח</label>
+            <div class="settlement-field-help-v552">החודש שעליו משווים מערכת מול התחשבנות בפועל.</div>
+            <input id="settlementMonthV547" type="month" onchange="loadMonthlySettlementV547()">
+          </div>
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementIncomeRfV549">יצרנות RF לפני מע״מ</label>
+            <div class="settlement-field-help-v552">הסכום שקיבלת בפועל על RF.</div>
+            <input id="settlementIncomeRfV549" type="number" step="0.01" oninput="renderSettlementReportV547()">
+          </div>
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementIncomeFiberV549">יצרנות סיבים לפני מע״מ</label>
+            <div class="settlement-field-help-v552">הסכום שקיבלת בפועל על סיבים.</div>
+            <input id="settlementIncomeFiberV549" type="number" step="0.01" oninput="renderSettlementReportV547()">
+          </div>
         </div>
         <div class="settlement-grid-v547">
-          <input id="settlementIncomeSalesV549" type="number" step="0.01" placeholder="הכנסה ממכירות לפני מע״מ" oninput="renderSettlementReportV547()">
-          <input id="settlementIncomeGeneralV549" type="number" step="0.01" placeholder="הכנסה כללית לפני מע״מ" oninput="renderSettlementReportV547()">
-          <input id="settlementFineV547" type="number" step="0.01" placeholder="קנסות בפועל לפני מע״מ" oninput="renderSettlementReportV547()">
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementIncomeSalesV549">מכירות לפני מע״מ</label>
+            <div class="settlement-field-help-v552">סכום מכירות שהופיע בהתחשבנות.</div>
+            <input id="settlementIncomeSalesV549" type="number" step="0.01" oninput="renderSettlementReportV547()">
+          </div>
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementIncomeGeneralV549">הכנסה כללית לפני מע״מ</label>
+            <div class="settlement-field-help-v552">כל הכנסה נוספת שלא נכנסת ל־RF/סיבים/מכירות.</div>
+            <input id="settlementIncomeGeneralV549" type="number" step="0.01" oninput="renderSettlementReportV547()">
+          </div>
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementFineV547">קנסות בפועל לפני מע״מ</label>
+            <div class="settlement-field-help-v552">קנס שנוכה בפועל מההתחשבנות.</div>
+            <input id="settlementFineV547" type="number" step="0.01" oninput="renderSettlementReportV547()">
+          </div>
         </div>
         <div class="settlement-grid-v547">
-          <input id="settlementEquipmentV547" type="number" step="0.01" placeholder="קיזוז ציוד / ציוד שחור בפועל לפני מע״מ" oninput="renderSettlementReportV547()">
-          <input id="settlementNotesV547" placeholder="הערות לדוח" oninput="renderSettlementReportV547()">
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementEquipmentV547">קיזוז ציוד / ציוד שחור</label>
+            <div class="settlement-field-help-v552">קיזוז בפועל לפני מע״מ, לא חישוב אוטומטי.</div>
+            <input id="settlementEquipmentV547" type="number" step="0.01" oninput="renderSettlementReportV547()">
+          </div>
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementNotesV547">הערות לדוח</label>
+            <div class="settlement-field-help-v552">טקסט חופשי לעצמך על הדוח.</div>
+            <input id="settlementNotesV547" oninput="renderSettlementReportV547()">
+          </div>
         </div>
         <div class="settlement-deductions-v547">
           <h3 style="font-size:16px;margin-top:10px">הוצאות / קיזוזים דינמיים</h3>
@@ -1710,7 +1749,7 @@ CHANGE 5.46 - EDIT INSTALL PRICE LIST SCROLL
 </div>
 
 <script>
-const APP_VERSION = "5.50";
+const APP_VERSION = "5.52";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1726,6 +1765,12 @@ window.addEventListener("load", setAppVersionUI);
 /*
 ===============================================================================
 
+CHANGELOG 5.52 - תיקון דוח התחשבנות: הסברים קטנים וברוטו אחרי קיזוזים
+1. APP_VERSION עודכן ל-"5.52" כמקור גרסה יחיד.
+2. נוספו הסברונים קטנים מעל שדות דוח ההתחשבנות כדי שיהיה ברור מה כל מספר מייצג גם אחרי שמקלידים ערך.
+3. תוקן חישוב הברוטו בפועל: המע״מ והברוטו מחושבים עכשיו לפי נטו אחרי קיזוזים, ולא לפי ההכנסה לפני קיזוזים.
+4. שורת הפער מול המערכת מציגה ניסוח ברור: חסר / יותר / תואם לסכום המערכת.
+5. נשמרו שדות הקלט הקיימים והלוגיקה הקיימת של שמירת הדוח תחת העובד, בלי שינוי ללוגין, עבודות, פק״ע, גיבוי או אקסל.
 
 CHANGELOG 5.48 - דוח התחשבנות אישי תחת העובד וקנס כסכום בפועל
 1. APP_VERSION עודכן ל-"5.48" כמקור גרסה יחיד.
@@ -4094,7 +4139,7 @@ async function restoreMyJSON(event){
 }
 
 
-/* ===== v5.49: דוח התחשבנות חודשי דינמי לעובד =====
+/* ===== v5.52: דוח התחשבנות חודשי דינמי לעובד =====
    שינוי נקי בתוך מודול הדוח הקיים:
    - הדוח נשמר תחת workers/{workerId}/monthlySettlements/{YYYY-MM}, כלומר שייך לעובד עצמו.
    - בחירת חודש לא נופלת על permission-denied: אם אין דוח שמור או שאין הרשאה לקריאה, עדיין מוצג חישוב העבודות שבוצעו.
@@ -4157,7 +4202,7 @@ function addSettlementDeductionRowV547(name="",amount=""){
   if(!box)return;
   const row=document.createElement("div");
   row.className="settlement-deduction-row-v547";
-  row.innerHTML=`<input data-deduction-name placeholder="שם הוצאה" value="${esc(name)}" oninput="renderSettlementReportV547()"><input data-deduction-amount type="number" step="0.01" placeholder="סכום" value="${esc(amount)}" oninput="renderSettlementReportV547()"><button type="button" class="btn-red" onclick="this.closest('.settlement-deduction-row-v547').remove();renderSettlementReportV547();">×</button>`;
+  row.innerHTML=`<div class="settlement-field-v552"><label class="settlement-field-label-v552">שם הוצאה דינמית</label><div class="settlement-field-help-v552">לדוגמה: טאבלט / ציוד / החזר.</div><input data-deduction-name value="${esc(name)}" oninput="renderSettlementReportV547()"></div><div class="settlement-field-v552"><label class="settlement-field-label-v552">סכום לפני מע״מ</label><div class="settlement-field-help-v552">הסכום שקוזז בפועל.</div><input data-deduction-amount type="number" step="0.01" value="${esc(amount)}" oninput="renderSettlementReportV547()"></div><button type="button" class="btn-red" onclick="this.closest('.settlement-deduction-row-v547').remove();renderSettlementReportV547();">×</button>`;
   box.appendChild(row);
 }
 function setSettlementDeductionsV547(items){
@@ -4224,11 +4269,13 @@ function renderSettlementReportV547(){
   const fineBase=actual || t.expected;
   const finePct=fineBase>0 ? (fine/fineBase*100) : 0;
   const extra=getSettlementDeductionsV547().reduce((s,x)=>s+Number(x.amount||0),0);
-  const actualVat=actual*0.18;
-  const actualGross=actual+actualVat;
   const deductionsTotal=equipment+fine+extra;
   const netAfterDeductions=actual-deductionsTotal;
+  // v5.52 FIX: ברוטו בפועל חייב להיות מחושב אחרי קיזוזים, כי הנטו לפני מע״מ הוא הבסיס לחשבונית.
+  const actualVatAfterDeductions=netAfterDeductions*0.18;
+  const actualGross=netAfterDeductions+actualVatAfterDeductions;
   const expectedDiff=actual-t.expected;
+  const diffLabel=expectedDiff<0 ? `חסר ${money(Math.abs(expectedDiff))} לעומת סכום המערכת` : (expectedDiff>0 ? `יותר ${money(expectedDiff)} מסכום המערכת` : "תואם לסכום המערכת");
   const box=$("settlementReportV547");
   if(!box)return;
   const diffCls=expectedDiff>=0?"settlement-total-v547":"settlement-warning-v547";
@@ -4244,9 +4291,10 @@ function renderSettlementReportV547(){
     <div class="settlement-line-v547"><span>קנסות בפועל</span><b>${money(fine)}${fine?` · ${finePct.toFixed(2)}%`:""}</b></div>
     <div class="settlement-line-v547"><span>הוצאות דינמיות</span><b>${money(extra)}</b></div>
     <div class="settlement-line-v547 settlement-warning-v547"><span>סה״כ קיזוזים</span><b>${money(deductionsTotal)}</b></div>
-    <div class="settlement-line-v547 ${diffCls}"><span>פער בין התחשבנות בפועל למערכת</span><b>${money(expectedDiff)}</b></div>
+    <div class="settlement-line-v547 ${diffCls}"><span>הפרש מול סכום המערכת</span><b>${diffLabel}</b></div>
     <div class="settlement-line-v547 settlement-total-v547"><span>נטו אחרי קיזוזים לפני מע״מ</span><b>${money(netAfterDeductions)}</b></div>
-    <div class="settlement-line-v547 settlement-total-v547"><span>ברוטו בפועל כולל מע״מ</span><b>${money(actualGross)}</b></div>
+    <div class="settlement-line-v547"><span>מע״מ 18% אחרי קיזוזים</span><b>${money(actualVatAfterDeductions)}</b></div>
+    <div class="settlement-line-v547 settlement-total-v547"><span>ברוטו בפועל כולל מע״מ אחרי קיזוזים</span><b>${money(actualGross)}</b></div>
   `;
 }
 async function saveMonthlySettlementV547(){
@@ -4276,7 +4324,9 @@ async function saveMonthlySettlementV547(){
     actualIncomeBeforeVat:actual,
     actualIncomeBreakdown:{rf:income.rf,fiber:income.fiber,sales:income.sales,general:income.general},
     vatRate:18,
-    vatAmount:actual*0.18,
+    // v5.52: המע״מ שנשמר בדוח הוא לפי הנטו אחרי קיזוזים, לא לפי הכנסה לפני קיזוזים.
+    vatAmount:(actual-(equipment+fine+extra))*0.18,
+    grossAfterDeductionsIncludingVat:(actual-(equipment+fine+extra))*1.18,
     equipmentDeduction:equipment,
     equipmentDeductionPercent:equipmentPct,
     sixPercentBase:0,
@@ -18190,6 +18240,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"5.52", title:"דוח התחשבנות: הסברים קטנים וברוטו אחרי קיזוזים", items:["נוספו הסברונים קטנים מעל שדות דוח ההתחשבנות כדי שיהיה ברור מה מזינים בכל מספר גם אחרי שהשדה מלא.","תוקן חישוב הברוטו בפועל כך שמע״מ 18% מחושב על הנטו אחרי קיזוזים ולא על ההכנסה לפני קיזוזים.","שורת הפער מול המערכת מציגה עכשיו חסר / יותר / תואם במקום מספר שלילי מבלבל.","נשמרו כל שדות הדוח והמסמך הקיים תחת העובד, בלי לשנות שמירת עבודות, פק״ע, לא בוצע, גיבוי או אקסל."], date:d},
       {version:"5.50", title:"דוח התחשבנות: קיזוזים בפועל והרשאות שמירה", items:["הוסר חישוב קיזוז 6% אוטומטי מדוח ההתחשבנות כדי לא לערבב בין חישוב מערכת לבין מה שנקסטקום קיזזה בפועל.","קיזוז ציוד / ציוד שחור נשאר כשדה ידני בפועל לפני מע״מ, והמערכת מחשבת לבד את האחוז שלו מתוך ההכנסות בפועל.","סה״כ קיזוזים מחושב עכשיו מקיזוז ציוד בפועל, קנסות בפועל והוצאות דינמיות בלבד.","הדוח ממשיך להישמר תחת workers/{workerId}/monthlySettlements/{YYYY-MM}; נדרשת התאמת Security Rules לתת־האוסף הזה.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון, גיבוי או אקסל."], date:d},
       {version:"5.49", title:"פירוט הכנסות בפועל בדוח התחשבנות", items:["בדוח ההתחשבנות הוחלפה רובריקת ההכנסה היחידה בארבע רובריקות נפרדות: יצרנות RF, יצרנות סיבים, מכירות והכנסה כללית.","כל ההכנסות מוזנות לפני מע״מ ומתחברות אוטומטית לסך הכנסה בפועל לפני מע״מ.","הקנס נשאר סכום בפועל והמערכת מחשבת לבד את אחוז הקנס מתוך סך ההכנסות בפועל או לפי המערכת.","הוצאות וקיזוזים דינמיים נשארו ללא שינוי.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון או אקסל."], date:d},
       {version:"5.48", title:"דוח התחשבנות אישי וקנס כסכום בפועל", items:["דוח ההתחשבנות נשמר עכשיו תחת workers/{workerId}/monthlySettlements/{YYYY-MM} במקום collection כללי.","בחירת חודש לא מציגה שגיאת הרשאות אם אין דוח שמור; מוצג חישוב לפי העבודות שבוצעו.","שדה הקנס הפך להזנת סכום קנסות בפועל לפני מע״מ, והמערכת מחשבת את אחוז הקנס אוטומטית.","גיבוי ושחזור עובד כוללים גם דוחות התחשבנות אישיים.","לא שונו שמירת עבודות, פק״ע, לא בוצע, שכפול, Last Login, לוח שנה, מחירון או אקסל."], date:d},
