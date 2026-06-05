@@ -1,5 +1,5 @@
 /* 
-Work Monitor app - extracted JavaScript pilot
+Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
 */
@@ -2093,18 +2093,4183 @@ function buildXlsxBlobV505(sheetDefs){
   files.push({name:"_rels/.rels",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`});
   files.push({name:"xl/workbook.xml",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><workbookPr/><bookViews><workbookView rightToLeft="1"/></bookViews><sheets>${sheets.map((s,i)=>`<sheet name="${xmlEscV505(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")}</sheets></workbook>`});
   files.push({name:"xl/_rels/workbook.xml.rels",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`});
-  files.push({name:"xl/styles.xml",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<script>
+  files.push({name:"xl/styles.xml",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Arial"/></font><font><b/><sz val="11"/><name val="Arial"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>`});
+  sheets.forEach((s,i)=>files.push({name:`xl/worksheets/sheet${i+1}.xml`,data:worksheetXmlV505(s.rows,s.headers)}));
+  return makeZipV505(files);
+}
+function downloadXlsxV505(filename,sheets){
+  const blob=buildXlsxBlobV505(sheets);
+  downloadBlobV505(filename,blob);
+}
+
+/* ===== v5.06: Backward compatibility wrapper for existing worker export button =====
+   שינוי נקודתי בלבד: כפתור העובד עדיין קורא לשם הישן downloadExcelTsvV504.
+   במקום לשנות HTML/onclick קיים ולסכן מסכים אחרים, החזרנו את שם הפונקציה
+   והוא מפנה למנגנון XLSX האמיתי של v5.05.
+*/
+function downloadExcelTsvV504(filename, rows, headers){
+  try{
+    const cleanName = String(filename || 'work_monitor_export.xlsx').replace(/\.xls$/i,'.xlsx').replace(/\.csv$/i,'.xlsx');
+    const safeHeaders = Array.isArray(headers) && headers.length ? headers : collectHeadersV505(rows || []);
+    const safeRows = Array.isArray(rows) && rows.length ? rows : [{info:'אין נתונים'}];
+    downloadXlsxV505(cleanName, [{
+      name: 'my_work_entries',
+      headers: safeHeaders,
+      rows: safeRows
+    }]);
+  }catch(err){
+    console.error('downloadExcelTsvV504 compatibility wrapper failed', err);
+    throw err;
+  }
+}
+window.downloadExcelTsvV504 = downloadExcelTsvV504;
+
+function adminExportRowsV505(collectionName, rows){
+  const rowsArr=(rows||[]).map(row=>{
+    const out={id:row.id||""};
+    Object.keys(row||{}).forEach(k=>{ if(k!=="id") out[k]=safeCellV505(row[k]); });
+    return out;
+  });
+  if(!rowsArr.length) rowsArr.push({id:"",info:"אין נתונים"});
+  return rowsArr;
+}
+async function readCollectionForAdminToolsV502(collectionName){
+  const snap=await db.collection(collectionName).get();
+  return snap.docs.map(d=>({id:d.id,...serializeFirestore(d.data())}));
+}
+
+async function exportEntriesCSV(){
+  try{
+    setBackupStatusV413("<div class='notice'>מכין קובץ Excel אדמין מלא...</div>");
+    const collections=backupCollectionNamesV413();
+    const sheets=[{
+      name:"summary",
+      headers:["field","value"],
+      rows:[
+        {field:"appVersion",value:APP_VERSION},
+        {field:"exportedAt",value:new Date().toISOString()},
+        {field:"exportType",value:"admin-full-database-xlsx"}
+      ]
+    }];
+    for(const c of collections){
+      try{
+        const rows=await readCollectionForAdminToolsV502(c);
+        sheets[0].rows.push({field:c,value:rows.length+" records"});
+        sheets.push({name:c,rows:adminExportRowsV505(c,rows)});
+      }catch(e){
+        sheets.push({name:c,headers:["error","message"],rows:[{error:e.code||"error",message:e.message||String(e)}]});
+      }
+    }
+    downloadXlsxV505(`work_monitor_admin_full_export_v${APP_VERSION.replaceAll(".","_")}.xlsx`,sheets);
+    setBackupStatusV413("<div class='notice'>ייצוא אדמין מלא ירד כקובץ XLSX אמיתי ✅<br>כל אוסף במסד נמצא בגיליון נפרד.</div>");
+  }catch(err){
+    console.error(err);
+    setBackupStatusV413("<p class='danger'>שגיאה בייצוא אדמין מלא לאקסל: "+esc(err.message||String(err))+"</p>");
+    alert("שגיאה בייצוא אדמין מלא לאקסל");
+  }
+}
+
+async function backupJSON(){
+  try{
+    setBackupStatusV413("<div class='notice'>מכין גיבוי אדמין מלא...</div>");
+    const collections=backupCollectionNamesV413();
+    const data={
+      version: APP_VERSION,
+      appVersion: APP_VERSION,
+      backupSchema:"work-monitor-admin-full-v505",
+      backupType:"admin-full-database",
+      exportedAt:new Date().toISOString(),
+      notes:"Admin full backup: workers, worker days off, work entries, price list, settings, users, username lookup, install templates, payment requests, logs and changelog.",
+      collections:{}
+    };
+    for(const c of collections){
+      try{
+        const snap=await db.collection(c).get();
+        data.collections[c]=snap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+      }catch(e){
+        data.collections[c]=[];
+        data.collections[c+"__backupError"]=[{id:"error",data:{message:e.message||String(e),code:e.code||""}}];
+      }
+    }
+    downloadFile(`work_monitor_admin_full_backup_v${APP_VERSION.replaceAll(".","_")}_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(data,null,2),"application/json;charset=utf-8");
+    setBackupStatusV413("<div class='notice'>גיבוי אדמין מלא ירד למכשיר ✅</div>");
+  }catch(err){
+    console.error(err);
+    setBackupStatusV413("<p class='danger'>שגיאה בגיבוי אדמין מלא: "+esc(err.message||String(err))+"</p>");
+    alert("שגיאה בגיבוי אדמין מלא");
+  }
+}
+
+function mergeLegacyPriceListsV502(cols){
+  const normalizedCols={...cols};
+  const mergedPriceList=[];
+  function pushLegacyPriceList(list, kind){
+    (list||[]).forEach((raw,idx)=>{
+      const doc=normalizeBackupDocV413(raw);
+      if(!doc) return;
+      mergedPriceList.push({id:doc.id || (kind+"_"+idx),data:{...(doc.data||{}),priceType:kind,installKind:kind,category:kind,active:(doc.data||{}).active!==false}});
+    });
+  }
+  pushLegacyPriceList(cols.priceListFiber,"fiber");
+  pushLegacyPriceList(cols.priceListRF,"rf");
+  pushLegacyPriceList(cols.fiberPriceList,"fiber");
+  pushLegacyPriceList(cols.rfPriceList,"rf");
+  if(mergedPriceList.length) normalizedCols.priceList=[...(normalizedCols.priceList||[]),...mergedPriceList];
+  return normalizedCols;
+}
+
+async function restoreJSON(event){
+  const file=event.target.files[0];
+  if(!file) return;
+  try{
+    const createSafetyBackup=confirm("שחזור אדמין מלא יכול לדרוס נתונים קיימים.\n\nחובה ליצור גיבוי בטיחות מלא לפני שחזור כדי שתוכל לחזור אחורה במקרה של טעות.\n\nליצור עכשיו Auto Backup מלא?");
+    if(!createSafetyBackup){
+      alert("השחזור בוטל. לא מבצעים שחזור מלא בלי גיבוי בטיחות לפני כן.");
+      event.target.value="";
+      return;
+    }
+    await backupJSON();
+    alert("נוצר Auto Backup מלא לפני שחזור ✅\nעכשיו בחרת להמשיך לשחזור הקובץ שנבחר.");
+    if(!confirm("אישור אחרון: לשחזר עכשיו את קובץ ה-JSON שנבחר למסד הנתונים?")){
+      event.target.value="";
+      return;
+    }
+    setBackupStatusV413("<div class='notice'>מבצע שחזור אדמין מלא...</div>");
+    const text=await file.text();
+    const data=JSON.parse(text);
+    const cols=mergeLegacyPriceListsV502(data.collections||{});
+    const restoreOrder=["settings","users","usernameLookup","workers","workerDaysOff","priceList","installTemplates","workEntries","paymentRequests","appLogs","appChangelog"];
+    const ignoreLegacy=["priceListFiber","priceListRF","fiberPriceList","rfPriceList"];
+    const keys=[...restoreOrder,...Object.keys(cols).filter(k=>!restoreOrder.includes(k) && !k.includes("__backupError") && !ignoreLegacy.includes(k))];
+    let restored=0;
+    for(const c of keys){
+      const arr=cols[c];
+      if(!Array.isArray(arr)) continue;
+      for(const raw of arr){
+        const doc=normalizeBackupDocV413(raw);
+        if(!doc || !doc.id || !doc.data) continue;
+        await db.collection(c).doc(doc.id).set(doc.data,{merge:true});
+        restored++;
+      }
+    }
+    setBackupStatusV413(`<div class='notice'>השחזור האדמיני המלא הסתיים ✅<br>שוחזרו/עודכנו ${restored} רשומות.</div>`);
+    event.target.value="";
+    await showAdmin();
+  }catch(err){
+    console.error(err);
+    event.target.value="";
+    setBackupStatusV413("<p class='danger'>שגיאה בשחזור אדמין מלא: "+esc(err.message||String(err))+"</p>");
+    alert("שגיאה בשחזור אדמין מלא");
+  }
+}
+
+
+async function loadTemplates(){
+  try{
+    const snap=await db.collection("installTemplates").get();
+    const currentWorkerId = viewedWorker ? viewedWorker.id : null;
+    templates=snap.docs
+      .map(d=>({id:d.id,...d.data()}))
+      .filter(t=>t.active!==false)
+      .filter(t=>!t.ownerWorkerId || t.ownerWorkerId===currentWorkerId || (session&&session.role==="admin"))
+      .sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+    renderTemplateSelect();
+  }catch(e){templates=[]}
+}
+function renderTemplateSelect(){
+  const sel=$("installTemplateSelect");
+  if(!sel)return;
+  sel.innerHTML='<option value="">בחר תבנית התקנה מוכנה</option>';
+  templates.forEach(t=>{
+    const opt=document.createElement("option");
+    opt.value=t.id;
+    opt.textContent=t.name;
+    sel.appendChild(opt);
+  });
+}
+async function loadTemplatesAdmin(){
+  await loadTemplates();
+  const targets=["templatesAdmin","templatesAdminTop"];
+  targets.forEach(id=>{
+    const box=$(id);
+    if(!box)return;
+    box.innerHTML=templates.length?"":"<p class='muted'>אין תבניות עדיין.</p>";
+    templates.forEach(t=>{
+      const div=document.createElement("div");
+      div.className="item";
+      div.innerHTML=`<div><div class="item-title">⚡ ${esc(t.name)}</div><div class="item-sub">${(t.items||[]).map(i=>`${i.name} × ${i.quantity}`).join("<br>")}</div></div><div class="actions"><button class="btn-red" onclick="deleteTemplate('${t.id}')">מחק</button></div>`;
+      box.appendChild(div);
+    });
+  });
+}
+function openTemplateBuilderTop(){
+  show("templateBuilderTop");
+  renderTemplateBuilderItemsTop();
+}
+function renderTemplateBuilderItemsTop(){
+  const box=$("templateItemsTop");
+  if(!box)return;
+  box.innerHTML="";
+  priceList.forEach(item=>{
+    const row=document.createElement("div");
+    row.className="item";
+    const mode=item.inputMode||"qty";
+    const control=mode==="check"
+      ? `<input id="tplTop_${item.id}" type="checkbox" style="width:24px;height:24px;margin:0">`
+      : `<input class="qty" id="tplTop_${item.id}" type="number" min="0" placeholder="כמות">`;
+    row.innerHTML=`<div><div class="item-title">${esc(item.name)}</div><div class="item-sub">${money(item.price)} · ${mode==="check"?"סימון":"כמות"}</div></div>${control}`;
+    box.appendChild(row);
+  });
+}
+async function saveTemplateTop(){
+  const name=val("tplNameTop");
+  if(!name)return $("templateMsgTop").innerHTML="<p class='danger'>חובה למלא שם תבנית.</p>";
+  const items=[];
+  priceList.forEach(p=>{
+    const el=$("tplTop_"+p.id);
+    if(!el)return;
+    const q=(p.inputMode||"qty")==="check"?(el.checked?1:0):Number(el.value||0);
+    if(q>0)items.push({id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||"qty",total:q*Number(p.price||0)});
+  });
+  if(!items.length)return $("templateMsgTop").innerHTML="<p class='danger'>חובה לבחור לפחות פריט אחד.</p>";
+  await db.collection("installTemplates").add({name,items,active:true,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  $("tplNameTop").value="";
+  hide("templateBuilderTop");
+  $("templateMsgTop").innerHTML="<div class='notice'>התבנית נשמרה ✅</div>";
+  await loadTemplatesAdmin();
+}
+async function deleteTemplate(id){
+  if(!confirm("למחוק את התבנית?"))return;
+  await db.collection("installTemplates").doc(id).update({active:false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  await loadTemplatesAdmin();
+}
+function applyTemplateFromSelect(){
+  const id=val("installTemplateSelect");
+  if(!id)return;
+  const tpl=templates.find(t=>t.id===id);
+  if(!tpl)return;
+  (tpl.items||[]).forEach(i=>{
+    const el=$("qty_"+i.id);
+    if(!el)return;
+    if((i.inputMode||"qty")==="check")el.checked=true;
+    else el.value=i.quantity;
+  });
+  updateInstallPreview();
+}
+function renderEditInstallItems(entry){
+  const box=$("editInstallItems");
+  const wrap=$("editInstallItemsBox");
+  if(!box||!wrap)return;
+  if(entry.workType!=="install"){
+    wrap.classList.add("hidden");
+    return;
+  }
+  wrap.classList.remove("hidden");
+  box.innerHTML="";
+  const oldItems={};
+  (entry.items||[]).forEach(i=>oldItems[i.id]=i);
+  priceList.forEach(item=>{
+    const old=oldItems[item.id];
+    const row=document.createElement("div");
+    row.className="item";
+    const mode=item.inputMode||"qty";
+    let control="";
+    if(mode==="check"){
+      control=`<label style="display:flex;align-items:center;gap:8px;font-weight:900"><input id="editQty_${item.id}" type="checkbox" ${old&&Number(old.quantity)>0?"checked":""} onchange="updateEditInstallPreview()" style="width:24px;height:24px;margin:0"> בוצע</label>`;
+    }else{
+      control=`<input class="qty" id="editQty_${item.id}" type="number" min="0" placeholder="כמות" value="${old?Number(old.quantity||0):""}" oninput="updateEditInstallPreview()">`;
+    }
+    row.innerHTML=`<div><div class="item-title">${esc(item.name)}</div><div class="item-sub">${money(item.price)} · ${mode==="check"?"סימון כן/לא":"כמות מספרית"}</div></div>${control}`;
+    box.appendChild(row);
+  });
+  updateEditInstallPreview();
+}
+function getEditedInstallItems(){
+  const items=[];
+  let total=0;
+  priceList.forEach(p=>{
+    const el=$("editQty_"+p.id);
+    if(!el)return;
+    let q=0;
+    if((p.inputMode||"qty")==="check")q=el.checked?1:0;
+    else q=Number(el.value||0);
+    if(q>0){
+      const item={id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||"qty",total:q*Number(p.price||0)};
+      items.push(item);
+      total+=item.total;
+    }
+  });
+  return {items,total};
+}
+function updateEditInstallPreview(){
+  const data=getEditedInstallItems();
+  if($("editInstallPreview"))$("editInstallPreview").textContent="סה״כ התקנה: "+money(data.total);
+  if($("editEntryAmount"))$("editEntryAmount").value=data.total;
+}
+
+
+function toggleWorkerTools(){
+  const p=$("workerToolsPanel");
+  if(p)p.classList.toggle("hidden");
+}
+async function exportMyEntriesCSV(){
+  if(!viewedWorker)return;
+  try{
+    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>מכין ייצוא אישי לאקסל...</div>";
+    const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
+    const rows=snap.docs.map(d=>({id:d.id,...serializeFirestore(d.data())})).sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
+    const exportRows=rows.map(e=>({
+      id:e.id,
+      date:e.date||"",
+      workerName:e.workerName||viewedWorker.name||"",
+      customerNumber:e.customerNumber||"",
+      address:e.address||"",
+      workType:e.workType==="service"?"קריאת שירות":(e.workType==="install"?"התקנה":(e.workType||"")),
+      description:e.description||"",
+      amount:e.amount??"",
+      notes:e.notes||"",
+      items:(e.items||[]).map(i=>`${i.name||""} x ${i.quantity||""} = ${i.total??""}`).join(" | "),
+      createdAt:e.createdAt||"",
+      updatedAt:e.updatedAt||""
+    }));
+    downloadExcelTsvV504(
+      `my_work_entries_${viewedWorker.username||viewedWorker.name||"worker"}_v${APP_VERSION.replaceAll(".","_")}.xls`,
+      exportRows,
+      ["id","date","workerName","customerNumber","address","workType","description","amount","notes","items","createdAt","updatedAt"]
+    );
+    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>הייצוא האישי לאקסל ירד למכשיר ✅<br>העמודות מופרדות בטאבים אמיתיים ושורות CRLF, כך שלא ייפתח כשורה אחת ארוכה.</div>";
+  }catch(err){
+    console.error(err);
+    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<p class='danger'>שגיאה בייצוא אישי לאקסל: "+esc(err.message||String(err))+"</p>";
+  }
+}
+
+async function backupMyJSON(){
+  if(!viewedWorker)return;
+  // v5.47: גיבוי עובד כולל עכשיו גם ימי חופש של אותו עובד בלבד.
+  const data={
+    version: APP_VERSION,
+    appVersion: APP_VERSION,
+    type:"worker-backup-v413",
+    workerId:viewedWorker.id,
+    workerName:viewedWorker.name||"",
+    exportedAt:new Date().toISOString(),
+    collections:{workEntries:[],installTemplates:[],priceList:[],workerDaysOff:[],monthlySettlements:[]}
+  };
+  const entriesSnap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
+  data.collections.workEntries=entriesSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+  const tplSnap=await db.collection("installTemplates").get();
+  data.collections.installTemplates=tplSnap.docs.map(d=>({id:d.id,...d.data()})).filter(t=>t.ownerWorkerId===viewedWorker.id).map(t=>({id:t.id,data:serializeFirestore(t)}));
+  const priceSnap=await db.collection("priceList").get();
+  data.collections.priceList=priceSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+  const daysOffSnap=await db.collection("workerDaysOff").where("workerId","==",viewedWorker.id).get();
+  data.collections.workerDaysOff=daysOffSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+  // v5.48: גיבוי אישי כולל גם דוחות התחשבנות חודשיים שנשמרים כתת-אוסף של העובד.
+  try{
+    const settlementsSnap=await db.collection("workers").doc(viewedWorker.id).collection("monthlySettlements").get();
+    data.collections.monthlySettlements=settlementsSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+  }catch(e){
+    console.warn("monthlySettlements backup skipped", e && (e.code||e.message) ? (e.code||e.message) : e);
+  }
+  downloadFile(`my_backup_v${APP_VERSION.replaceAll(".","_")}_${viewedWorker.username||viewedWorker.name||"worker"}.json`,JSON.stringify(data,null,2),"application/json");
+  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>גיבוי אישי ירד למכשיר ✅<br>כולל עבודות, תבניות אישיות, מחירון סיב/RF, ימי חופש ודוחות התחשבנות.</div>";
+}
+async function restoreMyJSON(event){
+  const file=event.target.files[0];
+  if(!file||!viewedWorker)return;
+  if(!confirm("שחזור אישי יוסיף/יעדכן עבודות, תבניות וימי חופש לחשבון שלך בלבד. להמשיך?"))return;
+  const text=await file.text();
+  const data=JSON.parse(text);
+  const cols=data.collections||{};
+  const entries=cols.workEntries||[];
+  const templatesData=cols.installTemplates||[];
+  const daysOffData=cols.workerDaysOff||[];
+  const settlementsData=cols.monthlySettlements||[];
+  const priceData=[...(cols.priceList||[]),...(cols.priceListFiber||[]).map((x,i)=>({id:(x.id||`fiber_${i}`),data:{...(x.data||x),priceType:"fiber",installKind:"fiber",category:"fiber"}})),...(cols.priceListRF||[]).map((x,i)=>({id:(x.id||`rf_${i}`),data:{...(x.data||x),priceType:"rf",installKind:"rf",category:"rf"}}))];
+  for(const doc of priceData){
+    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
+    await db.collection("priceList").doc(nd.id).set(nd.data,{merge:true});
+  }
+  for(const doc of entries){
+    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
+    const payload={...(nd.data||{}),workerId:viewedWorker.id,workerName:viewedWorker.name,restoredAt:new Date().toISOString()};
+    await db.collection("workEntries").doc(nd.id).set(payload,{merge:true});
+  }
+  for(const doc of templatesData){
+    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
+    const payload={...(nd.data||{}),ownerWorkerId:viewedWorker.id,ownerWorkerName:viewedWorker.name,restoredAt:new Date().toISOString()};
+    await db.collection("installTemplates").doc(nd.id).set(payload,{merge:true});
+  }
+  // v5.47: שחזור ימי חופש תמיד משויך לעובד המחובר בלבד כדי לא לשחזר ימים של עובד אחר.
+  for(const doc of daysOffData){
+    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
+    const original=nd.data||{};
+    const date=String(original.date||"").trim();
+    if(!date) continue;
+    const docId=(typeof docIdDayOff==='function') ? docIdDayOff(viewedWorker.id,date) : (viewedWorker.id+'_'+date);
+    const payload={...original,workerId:viewedWorker.id,workerName:viewedWorker.name,date,restoredAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+    await db.collection("workerDaysOff").doc(docId).set(payload,{merge:true});
+  }
+  // v5.48: שחזור דוחות התחשבנות נשמר תמיד בתת-אוסף של העובד המחובר בלבד.
+  for(const doc of settlementsData){
+    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
+    const original=nd.data||{};
+    const month=String(original.month||nd.id||"").slice(0,7);
+    if(!/^\d{4}-\d{2}$/.test(month)) continue;
+    const payload={...original,workerId:viewedWorker.id,workerName:viewedWorker.name,month,restoredAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+    await db.collection("workers").doc(viewedWorker.id).collection("monthlySettlements").doc(month).set(payload,{merge:true});
+  }
+  event.target.value="";
+  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>השחזור האישי הסתיים ✅<br>כולל עבודות, תבניות, ימי חופש, דוחות התחשבנות ותמיכה במחירוני סיב/RF.</div>";
+  await loadMonth();
+}
+
+
+/* ===== v5.52: דוח התחשבנות חודשי דינמי לעובד =====
+   שינוי נקי בתוך מודול הדוח הקיים:
+   - הדוח נשמר תחת workers/{workerId}/monthlySettlements/{YYYY-MM}, כלומר שייך לעובד עצמו.
+   - בחירת חודש לא נופלת על permission-denied: אם אין דוח שמור או שאין הרשאה לקריאה, עדיין מוצג חישוב העבודות שבוצעו.
+   - במקום הכנסה אחת, העובד מזין ארבע הכנסות לפני מע״מ: יצרנות RF, יצרנות סיבים, מכירות והכנסה כללית.
+   - קנס מוזן כסכום בפועל לפני מע״מ, והמערכת מחשבת את אחוז הקנס מתוך סך ההכנסה בפועל/המערכת.
+   - הדוח קורא עבודות שבוצעו בלבד: ללא מתוזמנות וללא not_done.
+*/
+function settlementDefaultMonthV547(){
+  try{return `${calendarDate.getFullYear()}-${pad(calendarDate.getMonth()+1)}`;}catch(e){return new Date().toISOString().slice(0,7);}
+}
+function settlementDocIdV547(month){
+  return String(month||settlementDefaultMonthV547()).slice(0,7);
+}
+function settlementRefV548(month){
+  if(!viewedWorker || !viewedWorker.id) return null;
+  return db.collection("workers").doc(viewedWorker.id).collection("monthlySettlements").doc(settlementDocIdV547(month));
+}
+function isDoneEntryForSettlementV547(e){
+  const st=String(e.entryStatus||e.status||"done").toLowerCase();
+  if(st==="planned" || st==="not_done" || st==="cancelled") return false;
+  if(typeof window.isPlannedV49 === "function" && window.isPlannedV49(e)) return false;
+  return true;
+}
+async function loadSettlementEntriesV547(month){
+  if(!viewedWorker||!month) return [];
+  const parts=month.split("-");
+  const y=Number(parts[0]),m=Number(parts[1]);
+  if(!y||!m) return [];
+  const last=new Date(y,m,0).getDate();
+  const start=`${y}-${pad(m)}-01`, end=`${y}-${pad(m)}-${pad(last)}`;
+  const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
+  return snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>String(e.date||"")>=start && String(e.date||"")<=end && isDoneEntryForSettlementV547(e));
+}
+function settlementIncomeBreakdownV549(){
+  const rf=Number(val("settlementIncomeRfV549")||0);
+  const fiber=Number(val("settlementIncomeFiberV549")||0);
+  const sales=Number(val("settlementIncomeSalesV549")||0);
+  const general=Number(val("settlementIncomeGeneralV549")||0);
+  return {rf,fiber,sales,general,total:rf+fiber+sales+general};
+}
+function setSettlementIncomeBreakdownV549(data){
+  data=data||{};
+  const hasNew=data.actualIncomeBreakdown && typeof data.actualIncomeBreakdown==="object";
+  const b=hasNew?data.actualIncomeBreakdown:{};
+  const legacy=Number(data.actualIncomeBeforeVat||0);
+  if($("settlementIncomeRfV549")) $("settlementIncomeRfV549").value=b.rf||"";
+  if($("settlementIncomeFiberV549")) $("settlementIncomeFiberV549").value=b.fiber||"";
+  if($("settlementIncomeSalesV549")) $("settlementIncomeSalesV549").value=b.sales||"";
+  if($("settlementIncomeGeneralV549")) $("settlementIncomeGeneralV549").value=(b.general!==undefined?b.general:(legacy||""))||"";
+}
+function getSettlementDeductionsV547(){
+  const rows=[...document.querySelectorAll(".settlement-deduction-row-v547")];
+  return rows.map(row=>({
+    name:(row.querySelector('[data-deduction-name]')||{}).value||"",
+    amount:Number((row.querySelector('[data-deduction-amount]')||{}).value||0)
+  })).filter(x=>x.name || x.amount);
+}
+function addSettlementDeductionRowV547(name="",amount=""){
+  const box=$("settlementDeductionsV547");
+  if(!box)return;
+  const row=document.createElement("div");
+  row.className="settlement-deduction-row-v547";
+  row.innerHTML=`<div class="settlement-field-v552"><label class="settlement-field-label-v552">שם הוצאה דינמית</label><div class="settlement-field-help-v552">לדוגמה: טאבלט / החזר / הוצאה חד־פעמית.</div><input data-deduction-name value="${esc(name)}" oninput="renderSettlementReportV547()"></div><div class="settlement-field-v552"><label class="settlement-field-label-v552">סכום לפני מע״מ</label><div class="settlement-field-help-v552">הסכום שקוזז בפועל.</div><input data-deduction-amount type="number" step="0.01" value="${esc(amount)}" oninput="renderSettlementReportV547()"></div><button type="button" class="btn-red" onclick="this.closest('.settlement-deduction-row-v547').remove();renderSettlementReportV547();">×</button>`;
+  box.appendChild(row);
+}
+function setSettlementDeductionsV547(items){
+  const box=$("settlementDeductionsV547");
+  if(!box)return;
+  box.innerHTML="";
+  (items&&items.length?items:[{name:"",amount:""}]).forEach(x=>addSettlementDeductionRowV547(x.name||"",x.amount||""));
+}
+function settlementTotalsV547(entries){
+  const expected=entries.reduce((s,e)=>s+Number(e.amount||0),0);
+  const services=entries.filter(e=>e.workType==="service").length;
+  const installs=entries.filter(e=>e.workType==="install").length;
+  const pekaCN=entries.filter(e=>String(e.pekaType||"").toUpperCase()==="CN").length;
+  const pekaCH=entries.filter(e=>String(e.pekaType||"").toUpperCase()==="CH").length;
+  const vat=expected*0.18;
+  return {expected,vat,gross:expected+vat,services,installs,pekaCN,pekaCH,count:entries.length};
+}
+async function readSavedSettlementV548(month){
+  const ref=settlementRefV548(month);
+  if(!ref) return {exists:false,data:{},readError:null};
+  try{
+    const doc=await ref.get();
+    return {exists:doc.exists,data:doc.exists?(doc.data()||{}):{},readError:null};
+  }catch(e){
+    console.warn("settlement read skipped", e && (e.code||e.message) ? (e.code||e.message) : e);
+    return {exists:false,data:{},readError:e};
+  }
+}
+async function loadMonthlySettlementV547(){
+  if(!viewedWorker)return;
+  const monthEl=$("settlementMonthV547");
+  if(monthEl && !monthEl.value) monthEl.value=settlementDefaultMonthV547();
+  const month=monthEl?monthEl.value:settlementDefaultMonthV547();
+  const msg=$("settlementMsgV547");
+  if(msg) msg.innerHTML="<div class='notice'>טוען דוח...</div>";
+  try{
+    window.settlementEntriesV547=await loadSettlementEntriesV547(month);
+    const saved=await readSavedSettlementV548(month);
+    const d=saved.data||{};
+    setSettlementIncomeBreakdownV549(d);
+    if($("settlementEquipmentV547")) $("settlementEquipmentV547").value=d.equipmentDeduction||"";
+    if($("settlementFineV547")) $("settlementFineV547").value=(d.fineDeduction!==undefined?d.fineDeduction:(d.fineAmount||""))||"";
+    if($("settlementNotesV547")) $("settlementNotesV547").value=d.notes||"";
+    setSettlementDeductionsV547(d.deductions||[]);
+    renderSettlementReportV547();
+    if(msg){
+      if(saved.exists) msg.innerHTML="<div class='notice'>דוח שמור נטען ✅</div>";
+      else if(saved.readError) msg.innerHTML="<div class='notice'>נפתח דוח חדש לחודש הנבחר ✅<br>לא נמצא/לא נטען דוח שמור, החישוב מוצג לפי העבודות שבוצעו.</div>";
+      else msg.innerHTML="<div class='notice'>נפתח דוח חדש לחודש הנבחר ✅</div>";
+    }
+  }catch(e){
+    if(msg) msg.innerHTML=`<p class='danger'>שגיאה בטעינת עבודות לדוח: ${esc(e.message||String(e))}</p>`;
+  }
+}
+function renderSettlementReportV547(){
+  const entries=window.settlementEntriesV547||[];
+  const t=settlementTotalsV547(entries);
+  const income=settlementIncomeBreakdownV549();
+  const actual=income.total;
+  const equipment=Number(val("settlementEquipmentV547")||0);
+  // v5.50: קיזוז 6% לא מחושב אוטומטית. כאן נשמר רק קיזוז ציוד/ציוד שחור בפועל כפי שהוזן בהתחשבנות.
+  const equipmentPct=actual>0 ? (equipment/actual*100) : 0;
+  const fine=Number(val("settlementFineV547")||0);
+  const fineBase=actual || t.expected;
+  const finePct=fineBase>0 ? (fine/fineBase*100) : 0;
+  const extra=getSettlementDeductionsV547().reduce((s,x)=>s+Number(x.amount||0),0);
+  const deductionsTotal=equipment+fine+extra;
+  const netAfterDeductions=actual-deductionsTotal;
+  // v5.52 FIX: ברוטו בפועל חייב להיות מחושב אחרי קיזוזים, כי הנטו לפני מע״מ הוא הבסיס לחשבונית.
+  const actualVatAfterDeductions=netAfterDeductions*0.18;
+  const actualGross=netAfterDeductions+actualVatAfterDeductions;
+  const expectedDiff=actual-t.expected;
+  const diffState=expectedDiff<0 ? "negative" : (expectedDiff>0 ? "positive" : "neutral");
+  const diffMain=expectedDiff<0 ? `חסר ${money(Math.abs(expectedDiff))}` : (expectedDiff>0 ? `עודף ${money(expectedDiff)}` : "מאוזן");
+  const diffNote=expectedDiff===0 ? "תואם לסכום המערכת" : "לעומת סכום המערכת";
+  const box=$("settlementReportV547");
+  if(!box)return;
+  const diffCls=diffState==="negative" ? "settlement-negative-v553" : (diffState==="positive" ? "settlement-positive-v553" : "settlement-neutral-v553");
+  const diffHtml=`<span class="settlement-diff-main-v553">${diffMain}</span><span class="settlement-diff-note-v553">${diffNote}</span>`;
+  box.innerHTML=`
+    <div class="settlement-line-v547"><span>עבודות שבוצעו בחודש</span><b>${t.count}</b></div>
+    <div class="settlement-line-v547"><span>קריאות / התקנות / פק״ע CN / CH</span><b>${t.services} / ${t.installs} / ${t.pekaCN} / ${t.pekaCH}</b></div>
+    <div class="settlement-line-v547 settlement-income-v553"><span>מגיע לפי המערכת לפני מע״מ</span><b>${money(t.expected)}</b></div>
+    <div class="settlement-line-v547"><span>מע״מ 18% לפי המערכת</span><b>${money(t.vat)}</b></div>
+    <div class="settlement-line-v547 settlement-income-v553"><span>סה״כ ברוטו לפי המערכת</span><b>${money(t.gross)}</b></div>
+    <div class="settlement-line-v547 settlement-income-v553"><span>הכנסה בפועל לפני מע״מ</span><b>${money(actual)}</b></div>
+    <div class="settlement-line-v547 settlement-income-v553"><span>פירוט הכנסות</span><b>${money(income.rf)} / ${money(income.fiber)} / ${money(income.sales)} / ${money(income.general)}</b></div>
+    <div class="settlement-line-v547 settlement-expense-v553"><span>ציוד שחור</span><b>${money(equipment)}${equipment?` · ${equipmentPct.toFixed(2)}%`:""}</b></div>
+    <div class="settlement-line-v547 settlement-expense-v553"><span>קנסות בפועל</span><b>${money(fine)}${fine?` · ${finePct.toFixed(2)}%`:""}</b></div>
+    <div class="settlement-line-v547 settlement-expense-v553"><span>הוצאות נוספות</span><b>${money(extra)}</b></div>
+    <div class="settlement-line-v547 settlement-expense-v553"><span>סה״כ קיזוזים</span><b>${money(deductionsTotal)}</b></div>
+    <div class="settlement-line-v547 settlement-diff-v553 ${diffCls}"><span>הפרש מול המערכת</span><b>${diffHtml}</b></div>
+    <div class="settlement-line-v547 settlement-income-v553"><span>נטו לפני מע״מ</span><b>${money(netAfterDeductions)}</b></div>
+    <div class="settlement-line-v547"><span>מע״מ 18% אחרי קיזוזים</span><b>${money(actualVatAfterDeductions)}</b></div>
+    <div class="settlement-line-v547 settlement-income-v553"><span>סכום סופי כולל מע״מ</span><b>${money(actualGross)}</b></div>
+  `;
+}
+async function saveMonthlySettlementV547(){
+  if(!viewedWorker)return;
+  const month=val("settlementMonthV547")||settlementDefaultMonthV547();
+  const entries=window.settlementEntriesV547||await loadSettlementEntriesV547(month);
+  const t=settlementTotalsV547(entries);
+  const income=settlementIncomeBreakdownV549();
+  const actual=income.total;
+  const equipment=Number(val("settlementEquipmentV547")||0);
+  // v5.50: אין קיזוז 6% אוטומטי. שומרים רק את הקיזוז בפועל שהוזן.
+  const equipmentPct=actual>0 ? (equipment/actual*100) : 0;
+  const fine=Number(val("settlementFineV547")||0);
+  const fineBase=actual || t.expected;
+  const deductions=getSettlementDeductionsV547();
+  const extra=deductions.reduce((s,x)=>s+Number(x.amount||0),0);
+  const payload={
+    workerId:viewedWorker.id,
+    workerName:viewedWorker.name||"",
+    month,
+    expectedFromWorkEntries:t.expected,
+    doneEntriesCount:t.count,
+    servicesCount:t.services,
+    installsCount:t.installs,
+    pekaCNCount:t.pekaCN,
+    pekaCHCount:t.pekaCH,
+    actualIncomeBeforeVat:actual,
+    actualIncomeBreakdown:{rf:income.rf,fiber:income.fiber,sales:income.sales,general:income.general},
+    vatRate:18,
+    // v5.52: המע״מ שנשמר בדוח הוא לפי הנטו אחרי קיזוזים, לא לפי הכנסה לפני קיזוזים.
+    vatAmount:(actual-(equipment+fine+extra))*0.18,
+    grossAfterDeductionsIncludingVat:(actual-(equipment+fine+extra))*1.18,
+    equipmentDeduction:equipment,
+    equipmentDeductionPercent:equipmentPct,
+    sixPercentBase:0,
+    sixPercentDeduction:0,
+    fineDeduction:fine,
+    finePercent:fineBase>0 ? (fine/fineBase*100) : 0,
+    finePercentBase:fineBase,
+    deductions,
+    dynamicDeductionsTotal:extra,
+    totalDeductions:equipment+fine+extra,
+    netAfterDeductionsBeforeVat:actual-(equipment+fine+extra),
+    notes:val("settlementNotesV547"),
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+    createdAt:firebase.firestore.FieldValue.serverTimestamp()
+  };
+  const ref=settlementRefV548(month);
+  if(!ref){
+    if($("settlementMsgV547"))$("settlementMsgV547").innerHTML="<p class='danger'>לא זוהה עובד לשמירת הדוח.</p>";
+    return;
+  }
+  try{
+    await ref.set(payload,{merge:true});
+    if($("settlementMsgV547"))$("settlementMsgV547").innerHTML="<div class='notice'>דוח ההתחשבנות נשמר ✅</div>";
+  }catch(e){
+    if($("settlementMsgV547")){
+      const rawMsg=e.message||String(e);
+      const isPerm=String(rawMsg).toLowerCase().includes("permission") || String(e.code||"").includes("permission");
+      $("settlementMsgV547").innerHTML=`<p class='danger'>שגיאה בשמירת דוח: ${esc(rawMsg)}${isPerm?"<br>צריך לעדכן Security Rules לתת־האוסף workers/{workerId}/monthlySettlements.":""}</p>`;
+    }
+  }
+}
+function initMonthlySettlementV547(){
+  const monthEl=$("settlementMonthV547");
+  if(monthEl && !monthEl.value) monthEl.value=settlementDefaultMonthV547();
+  if($("settlementDeductionsV547") && !$("settlementDeductionsV547").children.length) setSettlementDeductionsV547([]);
+  try{ loadMonthlySettlementV547(); }catch(e){}
+}
+
+async function saveEntryAsTemplate(id){
+  const e=monthEntries.find(x=>x.id===id);
+  if(!e||e.workType!=="install"||!e.items||!e.items.length){
+    alert("אפשר לשמור כתבנית רק התקנה עם פריטים.");
+    return;
+  }
+  const defaultName=`תבנית מ-${heDate(e.date)} לקוח ${e.customerNumber||""}`.trim();
+  const name=prompt("שם לתבנית",defaultName);
+  if(name===null)return;
+  if(!name.trim())return alert("חובה לתת שם לתבנית");
+  await db.collection("installTemplates").add({
+    name:name.trim(),
+    items:e.items.map(i=>({id:i.id,name:i.name,price:Number(i.price||0),quantity:Number(i.quantity||0),inputMode:i.inputMode||"qty",total:Number(i.total||0)})),
+    active:true,
+    ownerWorkerId:viewedWorker?viewedWorker.id:null,
+    ownerWorkerName:viewedWorker?viewedWorker.name:"",
+    createdFromEntry:id,
+    createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  });
+  alert("התבנית נשמרה ✅ בפעם הבאה בהתקנה תוכל לבחור אותה מהרשימה.");
+  await loadTemplates();
+}
+
+
+async function cleanupAndReloadPriceList(){
+  await cleanupDuplicatePriceList();
+  await loadPriceListAdmin();
+  alert("ניקוי כפילויות הסתיים ✅");
+}
+
+
+const SUBSCRIPTION_PLANS={
+  monthly:{key:"monthly",name:"מנוי חודשי",amount:19,months:1,days:30,paymentLink:"PAYMENT_LINK_MONTHLY_19_NIS"},
+  quarterly:{key:"quarterly",name:"מנוי 3 חודשים",amount:45,months:3,days:90,paymentLink:"PAYMENT_LINK_QUARTERLY_45_NIS"},
+  halfyear:{key:"halfyear",name:"מנוי חצי שנה",amount:60,months:6,days:180,paymentLink:"PAYMENT_LINK_HALFYEAR_60_NIS"}
+};
+
+function buildPaymentLink(plan, paymentId, worker){
+  const base=plan.paymentLink;
+  const params=new URLSearchParams({
+    paymentId:paymentId,
+    workerId:worker.id||"",
+    username:worker.username||"",
+    plan:plan.key,
+    amount:String(plan.amount)
+  });
+  if(!base || base.startsWith("PAYMENT_LINK_")) return "";
+  return base + (base.includes("?")?"&":"?") + params.toString();
+}
+
+function cleanPhoneV441(phone){
+  return String(phone||"").trim().replace(/[\s\-()]/g,"");
+}
+function isValidPhoneV441(phone){
+  const clean=cleanPhoneV441(phone);
+  return /^\+?[0-9]{8,15}$/.test(clean);
+}
+
+async function startPaymentPlan(planKey){
+  const plan=SUBSCRIPTION_PLANS[planKey];
+  const worker=window.expiredWorker;
+  const msg=$("paymentMsg");
+  if(!plan || !worker || !worker.id){
+    msg.innerHTML="<p class='danger'>לא נמצאו פרטי משתמש לשיוך התשלום. חזור למסך הכניסה ונסה שוב.</p>";
+    return;
+  }
+
+  const contactPhoneRaw = $("paymentContactPhone") ? $("paymentContactPhone").value.trim() : "";
+  const contactPhoneClean = cleanPhoneV441(contactPhoneRaw);
+  if(!contactPhoneRaw){
+    msg.innerHTML="<p class='danger'>חובה למלא מספר טלפון ליצירת קשר לפני בחירת מסלול.</p>";
+    if($("paymentContactPhone"))$("paymentContactPhone").focus();
+    return;
+  }
+  if(!isValidPhoneV441(contactPhoneRaw)){
+    msg.innerHTML="<p class='danger'>מספר הטלפון לא תקין. הכנס מספר עם 8-15 ספרות.</p>";
+    if($("paymentContactPhone"))$("paymentContactPhone").focus();
+    return;
+  }
+  try{
+    msg.innerHTML="<div class='notice'>יוצר בקשת תשלום...</div>";
+    const ref=await db.collection("paymentRequests").add({
+      workerId:worker.id,
+      workerName:worker.name||"",
+      workerUsername:worker.username||"",
+      authUid:worker.authUid||currentAuthUid(),
+      authEmail:worker.authEmail||authEmailFromUsername(worker.username||worker.id||""),
+      contactPhone:contactPhoneRaw,
+      contactPhoneClean:contactPhoneClean,
+      planKey:plan.key,
+      planName:plan.name,
+      amount:plan.amount,
+      months:plan.months,
+      days:plan.days,
+      status:"pending",
+      source:"expired_screen",
+      clientTime:new Date().toISOString(),
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    const link=buildPaymentLink(plan, ref.id, worker);
+    if(link){
+      msg.innerHTML=`<div class='notice'>בקשת התשלום נשמרה ✅<br>מזהה תשלום: ${esc(ref.id)}<br>מעביר אותך לסליקה...</div>`;
+      setTimeout(()=>{window.location.href=link},900);
+    }else{
+      msg.innerHTML=`<div class='paywall'>בקשת התשלום נשמרה בהצלחה ✅<br><br><b>מזהה תשלום:</b> ${esc(ref.id)}<br><b>שם משתמש:</b> ${esc(worker.username||"")}<br><b>טלפון:</b> ${esc(contactPhoneRaw)}<br><b>מסלול:</b> ${esc(plan.name)}<br><b>סכום:</b> ₪${plan.amount}<br><br>כרגע זה פלייסהולדר. אחרי שנחבר משולם, הכפתור יעביר לעמוד סליקה אמיתי.</div>`;
+    }
+  }catch(e){
+    msg.innerHTML=`<p class='danger'>שגיאה ביצירת בקשת תשלום: ${esc(e.message)}</p>`;
+  }
+}
+
+function paymentStatusText(status){
+  if(status==="paid")return "שולם";
+  if(status==="cancelled")return "בוטל";
+  return "ממתין לתשלום";
+}
+
+async function loadPaymentRequests(){
+  const box=$("paymentRequestsAdmin");
+  if(!box)return;
+  box.innerHTML="<p>טוען תשלומים...</p>";
+  try{
+    const snap=await db.collection("paymentRequests").get();
+    const rows=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    if(!rows.length){box.innerHTML="<p class='muted'>אין בקשות תשלום עדיין.</p>";return;}
+    const totalPaid=rows.filter(r=>r.status==="paid").reduce((s,r)=>s+Number(r.amount||0),0);
+    const totalPending=rows.filter(r=>r.status!=="paid"&&r.status!=="cancelled").reduce((s,r)=>s+Number(r.amount||0),0);
+    box.innerHTML=`<div class="kpi-strip"><div class="kpi">שולם בפועל<b>${money(totalPaid)}</b></div><div class="kpi">ממתין<b>${money(totalPending)}</b></div><div class="kpi">בקשות<b>${rows.length}</b></div><div class="kpi">שולמו<b>${rows.filter(r=>r.status==="paid").length}</b></div></div>`;
+    rows.forEach(r=>{
+      const div=document.createElement("div");
+      div.className="payment-row";
+      const created=r.clientTime ? new Date(r.clientTime).toLocaleString("he-IL") : "";
+      const statusClass=r.status==="paid"?"payment-status-paid":(r.status==="cancelled"?"payment-status-cancelled":"payment-status-pending");
+      div.innerHTML=`
+        <div class="client-head">
+          <div>
+            <div class="item-title">${esc(r.workerName||"")} · ${esc(r.workerUsername||"")}</div>
+            <div class="item-sub">
+              מזהה עובד: ${esc(r.workerId||"")}<br>
+              טלפון ליצירת קשר: ${esc(r.contactPhone||r.contactPhoneClean||"לא הוזן")}<br>
+              מסלול: ${esc(r.planName||r.planKey||"")} · סכום: ${money(r.amount||0)}<br>
+              נוצר: ${esc(created)}<br>
+              מזהה תשלום: ${esc(r.id)}<br>
+              עדכון מנוי עד: ${esc(r.subscriptionUntil||"עדיין לא עודכן")}
+            </div>
+          </div>
+          <div>
+            <div class="${statusClass}">${paymentStatusText(r.status)}</div>
+            <div class="actions" style="margin-top:8px">
+              <button class="btn-green" onclick="markPaymentPaid('${r.id}')">אשר תשלום ועדכן מנוי</button>
+              <button class="btn-yellow" onclick="cancelPaymentRequest('${r.id}')">בטל</button>
+              <button class="btn-red" onclick="deletePaymentRequest('${r.id}')">מחק</button>
+            </div>
+          </div>
+        </div>`;
+      box.appendChild(div);
+    });
+  }catch(e){
+    box.innerHTML=`<p class='danger'>שגיאה בטעינת תשלומים: ${esc(e.message)}</p>`;
+  }
+}
+
+async function markPaymentPaid(paymentId){
+  const doc=await db.collection("paymentRequests").doc(paymentId).get();
+  if(!doc.exists)return alert("בקשת התשלום לא נמצאה");
+  const p={id:doc.id,...doc.data()};
+  if(!p.workerId)return alert("אין מזהה עובד בבקשת התשלום");
+  const workerDoc=await db.collection("workers").doc(p.workerId).get();
+  if(!workerDoc.exists)return alert("העובד לא נמצא");
+  const worker={id:workerDoc.id,...workerDoc.data()};
+  const baseStr=worker.subscriptionUntil || worker.trialUntil || formatDate(new Date());
+  let base=parseDate(baseStr);
+  const today=new Date();
+  if(base<today)base=today;
+  base.setDate(base.getDate()+Number(p.days||30));
+  const until=formatDate(base);
+  await db.collection("workers").doc(p.workerId).set({
+    subscriptionUntil:until,
+    subscriptionStatus:"active",
+    active:true,
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+  await db.collection("paymentRequests").doc(paymentId).set({
+    status:"paid",
+    paidAt:new Date().toISOString(),
+    subscriptionUntil:until,
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+  alert("התשלום סומן כשולם והמנוי הוארך עד " + heDate(until));
+  await loadWorkers();
+  await loadPaymentRequests();
+}
+
+async function cancelPaymentRequest(paymentId){
+  if(!confirm("לבטל את בקשת התשלום? הבקשה תישאר ברשימה בסטטוס בוטל."))return;
+  await db.collection("paymentRequests").doc(paymentId).set({status:"cancelled",cancelledAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+  await loadPaymentRequests();
+}
+
+async function deletePaymentRequest(paymentId){
+  if(!confirm("למחוק את בקשת התשלום לגמרי? אחרי מחיקה היא לא תופיע במעקב התשלומים."))return;
+  await db.collection("paymentRequests").doc(paymentId).delete();
+  await loadPaymentRequests();
+}
+
+async function loadDebugLogs(){const box=$("debugLog");if(!box)return;try{const snap=await db.collection("appLogs").limit(30).get();box.textContent=snap.empty?"אין לוגים":snap.docs.map(d=>JSON.stringify(d.data())).join("<br>")}catch(e){box.textContent="שגיאה בלוג: "+e.message}}
+
+function nl2br(s){
+  return esc(String(s||"")).replaceAll("\\n","<br>").replaceAll("\n","<br>");
+}
+
+function cleanVisibleSlashN(){
+  document.querySelectorAll(".item-sub").forEach(el=>{
+    if(el.innerHTML.includes("\\n")){
+      el.innerHTML = el.innerHTML.replaceAll("\\n","<br>");
+    }
+  });
+}
+function $(id){return document.getElementById(id)}function show(id){$(id).classList.remove("hidden")}function hide(id){$(id).classList.add("hidden")}function hideAll(){["startupView","workerLoginView","registerView","expiredView","adminLoginView","adminView","workerView"].forEach(id=>{if($(id))hide(id)})}function val(id){return $(id).value.trim()}function text(id,v){$(id).textContent=v}function normalize(s){return String(s||"").trim().toLowerCase()}function workerIdFromUsername(k){return"worker_"+String(k||"").replace(/[^a-z0-9_\-א-ת]/gi,"_")}function pad(n){return String(n).padStart(2,"0")}function formatDate(d){return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}function parseDate(s){const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}function heDate(s){const d=parseDate(s);return`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`}function money(n){return`₪${Number(n||0).toLocaleString("he-IL",{maximumFractionDigits:0})}`}function esc(s){return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}async function sha256(str){const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("")}
+;
+(function(){
+  function fixVisibleLineBreaks(){
+    document.querySelectorAll(".item-sub").forEach(function(el){
+      var h = el.innerHTML;
+      var fixed = h
+        .replace(/&lt;br\s*\/?&gt;/gi, "<br>")
+        .replace(/\\n/g, "<br>")
+        .replace(/\/n/g, "<br>");
+      if (fixed !== h) el.innerHTML = fixed;
+    });
+  }
+  window.addEventListener("load", fixVisibleLineBreaks);
+  document.addEventListener("click", function(){ setTimeout(fixVisibleLineBreaks, 80); });
+  document.addEventListener("input", function(){ setTimeout(fixVisibleLineBreaks, 80); });
+  setInterval(fixVisibleLineBreaks, 700);
+})();
+;
+/* ===== FIX 1.5.3: Template creator display + manual assignment ===== */
+
+function getTemplateOwnerTextV153(t){
+  if(!t) return "לא ידוע";
+  return t.ownerWorkerName ||
+         t.createdByName ||
+         t.workerName ||
+         t.ownerUsername ||
+         t.createdFromWorkerName ||
+         (t.ownerWorkerId ? ("עובד: " + t.ownerWorkerId) : "לא ידוע");
+}
+
+function ensureTemplateDebugBoxV153(){
+  var target = document.getElementById("templatesAdminTop") || document.getElementById("templatesAdmin");
+  if(!target) return null;
+  var box = document.getElementById("templateDebugBox");
+  if(!box){
+    box = document.createElement("div");
+    box.id = "templateDebugBox";
+    box.className = "debug";
+    box.style.marginTop = "10px";
+    target.parentNode.insertBefore(box, target.nextSibling);
+  }
+  return box;
+}
+
+async function enrichTemplateOwnersV153(list){
+  for(const t of list){
+    const hasOwner = t.ownerWorkerName || t.createdByName || t.ownerUsername || t.createdFromWorkerName;
+    if(hasOwner) continue;
+
+    if(t.createdFromEntry){
+      try{
+        const entryDoc = await db.collection("workEntries").doc(t.createdFromEntry).get();
+        if(entryDoc.exists){
+          const e = entryDoc.data();
+          const ownerName = e.workerName || "לא ידוע";
+          t.ownerWorkerName = ownerName;
+          t.createdByName = ownerName;
+          t.ownerWorkerId = e.workerId || t.ownerWorkerId || "";
+          t.createdFromWorkerName = ownerName;
+
+          await db.collection("installTemplates").doc(t.id).set({
+            ownerWorkerName: ownerName,
+            createdByName: ownerName,
+            ownerWorkerId: e.workerId || "",
+            createdFromWorkerName: ownerName,
+            autoOwnerFixedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, {merge:true});
+        }
+      }catch(err){
+        console.error("enrichTemplateOwnersV153 failed", err);
+      }
+    }
+  }
+  return list;
+}
+
+async function assignTemplateOwner(templateId){
+  try{
+    if(!workers || !workers.length){
+      await loadWorkers();
+    }
+    const list = workers.map((w,i)=>`${i+1}. ${w.name} (${w.username})`).join("\n");
+    const choice = prompt("בחר מספר עובד לשיוך התבנית:\n" + list);
+    if(choice === null) return;
+    const worker = workers[Number(choice)-1];
+    if(!worker) return alert("בחירה לא תקינה");
+
+    await db.collection("installTemplates").doc(templateId).set({
+      ownerWorkerId: worker.id,
+      ownerWorkerName: worker.name,
+      ownerUsername: worker.username || "",
+      createdByName: worker.name,
+      manualOwnerFixedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, {merge:true});
+
+    alert("התבנית שויכה ל-" + worker.name);
+    await loadTemplatesAdmin();
+  }catch(e){
+    alert("שגיאה בשיוך תבנית: " + e.message);
+  }
+}
+
+async function loadTemplatesAdmin(){
+  try{
+    if(typeof loadWorkers === "function") await loadWorkers();
+    if(typeof loadTemplates === "function") await loadTemplates();
+
+    templates = await enrichTemplateOwnersV153(templates || []);
+
+    const boxes = [];
+    const b1 = document.getElementById("templatesAdminTop");
+    const b2 = document.getElementById("templatesAdmin");
+    if(b1) boxes.push(b1);
+    if(b2 && b2 !== b1) boxes.push(b2);
+
+    if(!boxes.length){
+      alert("לא נמצא אזור תבניות באדמין. שלח צילום מסך של אזור התבניות.");
+      return;
+    }
+
+    boxes.forEach(box=>{
+      box.innerHTML = templates.length ? "" : "<p class='muted'>אין תבניות עדיין.</p>";
+      templates.forEach(t=>{
+        const owner = getTemplateOwnerTextV153(t);
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+          <div>
+            <div class="item-title">⚡ ${esc(t.name || "")}</div>
+            <div class="item-sub">
+              <b>נוצר על ידי:</b> ${esc(owner)}<br><br>
+              ${(t.items || []).map(i=>`${esc(i.name || "")} × ${i.quantity}`).join("<br>")}
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn-yellow" onclick="assignTemplateOwner('${t.id}')">שייך לעובד</button>
+            <button class="btn-red" onclick="deleteTemplate('${t.id}')">מחק</button>
+          </div>
+        `;
+        box.appendChild(div);
+      });
+    });
+
+    const debug = ensureTemplateDebugBoxV153();
+    if(debug){
+      debug.style.display = "none";
+      debug.innerHTML = "";
+    }
+
+    if(typeof cleanVisibleSlashN === "function") cleanVisibleSlashN();
+  }catch(e){
+    alert("שגיאה בטעינת תבניות: " + e.message);
+    console.error(e);
+  }
+}
+
+async function saveEntryAsTemplate(id){
+  const e = monthEntries.find(x=>x.id===id);
+  if(!e || e.workType !== "install" || !e.items || !e.items.length){
+    alert("אפשר לשמור כתבנית רק התקנה עם פריטים.");
+    return;
+  }
+
+  const defaultName = `תבנית מ-${heDate(e.date)} לקוח ${e.customerNumber || ""}`.trim();
+  const name = prompt("שם לתבנית", defaultName);
+  if(name === null) return;
+  if(!name.trim()) return alert("חובה לתת שם לתבנית");
+
+  const ownerName = viewedWorker ? (viewedWorker.name || "") : (session ? (session.name || "") : "");
+  const ownerId = viewedWorker ? viewedWorker.id : "";
+  const ownerUsername = viewedWorker ? (viewedWorker.username || "") : "";
+
+  await db.collection("installTemplates").add({
+    name: name.trim(),
+    items: e.items.map(i=>({
+      id: i.id,
+      name: i.name,
+      price: Number(i.price || 0),
+      quantity: Number(i.quantity || 0),
+      inputMode: i.inputMode || "qty",
+      total: Number(i.total || 0)
+    })),
+    active: true,
+    ownerWorkerId: ownerId,
+    ownerWorkerName: ownerName || "לא ידוע",
+    ownerUsername: ownerUsername,
+    ownerAuthUid: viewedWorker ? (viewedWorker.authUid || currentAuthUid()) : currentAuthUid(),
+    createdByName: ownerName || "לא ידוע",
+    createdByRole: session ? session.role : "",
+    createdFromEntry: id,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  await db.collection("appLogs").add({
+    action: "templateCreated",
+    pageVersion: APP_VERSION,
+    clientTime: new Date().toISOString(),
+    data: {
+      templateName: name.trim(),
+      ownerWorkerId: ownerId,
+      ownerWorkerName: ownerName,
+      ownerUsername: ownerUsername,
+      createdFromEntry: id
+    },
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(()=>{});
+
+  alert("התבנית נשמרה ✅");
+  if(typeof loadTemplates === "function") await loadTemplates();
+}
+
+/* Patch admin after it opens */
+(function(){
+  const oldShowAdmin = window.showAdmin;
+  if(typeof oldShowAdmin === "function"){
+    window.showAdmin = async function(){
+      await oldShowAdmin();
+      setTimeout(()=>loadTemplatesAdmin(), 300);
+    };
+  }
+})();
+;
+/* ===== v1.6.6: Firebase Auth creation for new + existing workers ===== */
+function authStatusTextV166(w){
+  return w && w.authUid ? "מחובר ✅" : "בהכנה ⚠️";
+}
+
+async function createWorker(){
+  const btn=$("createWorkerBtn"), msg=$("workerMsg");
+  msg.innerHTML="<div class='notice'>יוצר עובד ומחבר Firebase Auth...</div>";
+  btn.disabled=true;
+  try{
+    const name=val("wName"), username=val("wUser"), pass=val("wPass"), goal=Number(val("wGoal")||0);
+    const usernameKey=normalize(username), id=workerIdFromUsername(usernameKey), authEmail=authEmailFromUsername(username);
+    if(!name||!username||!pass) return msg.innerHTML="<p class='danger'>חובה למלא שם, שם משתמש וסיסמה.</p>";
+    if(pass.length<6) return msg.innerHTML="<p class='danger'>ל־Firebase Auth הסיסמה חייבת להיות לפחות 6 תווים.</p>";
+
+    let authResult={ok:false,email:authEmail,uid:"",reason:"not_attempted"};
+    try{
+      authResult = await createOrLoginWorkerAuth(username, pass, name);
+    }catch(authErr){
+      authResult={ok:false,email:authEmail,uid:"",reason:authErr.code||authErr.message};
+    }
+
+    await db.collection("workers").doc(id).set({
+      name,username,usernameKey,
+      authEmail:authResult.email||authEmail,
+      authUid:authResult.uid||"",
+      authReady:!!authResult.ok,
+      authNote:authResult.ok ? ("Firebase Auth נוצר/חובר בגרסה "+APP_VERSION) : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      passwordHash:await sha256(pass),
+      monthlyGoal:goal,
+      active:true,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+
+    await ensureUserRoleDoc(authResult.uid,"worker",{username,name,authEmail:authResult.email||authEmail}).catch(()=>{});
+    try{ if(firebaseAuthReady()) await auth.signOut(); }catch(e){}
+
+    ["wName","wUser","wPass","wGoal"].forEach(x=>$(x).value="");
+    msg.innerHTML=`<div class='notice'>העובד ${esc(name)} נוצר/עודכן בהצלחה ✅<br>${authResult.ok?"Firebase Auth חובר ✅":"העובד נשמר, אבל Auth עדיין בהכנה ⚠️"}<br>אימייל פנימי: ${esc(authResult.email||authEmail)}</div>`;
+    await loadWorkers();
+  }catch(e){
+    msg.innerHTML=`<p class='danger'>שגיאה: ${esc(e.message)}</p>`;
+  }finally{
+    btn.disabled=false;
+  }
+}
+
+async function createAuthForWorker(workerId){
+  const w = (workers||[]).find(x=>x.id===workerId);
+  if(!w) return alert("העובד לא נמצא ברשימה. לחץ רענן ונסה שוב.");
+  if(w.authUid) return alert("לעובד הזה כבר יש Firebase Auth מחובר ✅");
+
+  const pass = prompt(
+    "יצירת Firebase Auth לעובד קיים:\n\n"+
+    "עובד: " + (w.name||"") + "\n"+
+    "שם משתמש: " + (w.username||"") + "\n\n"+
+    "חשוב: אי אפשר לשחזר סיסמה קיימת כי היא שמורה כהאש מאובטח.\n"+
+    "הכנס כאן סיסמה לעובד. אם אתה יודע את הסיסמה הקיימת — הכנס אותה.\n"+
+    "אם תכניס סיסמה חדשה, זו תהיה הסיסמה שלו מעכשיו. מינימום 6 תווים."
+  );
+  if(pass===null) return;
+  if(!pass || pass.length<6) return alert("סיסמה חייבת להיות לפחות 6 תווים.");
+
+  try{
+    const authResult = await createOrLoginWorkerAuth(w.username||w.usernameKey||w.id, pass, w.name||"");
+    if(!authResult.ok || !authResult.uid){
+      return alert("לא הצלחתי ליצור/לחבר Auth: " + (authResult.reason||"לא ידוע"));
+    }
+
+    await db.collection("workers").doc(workerId).set({
+      authUid:authResult.uid,
+      authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
+      authReady:true,
+      authNote:("Firebase Auth חובר ידנית מאדמין בגרסה "+APP_VERSION),
+      passwordHash:await sha256(pass),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+
+    await ensureUserRoleDoc(authResult.uid,"worker",{
+      username:w.username||w.usernameKey||w.id,
+      name:w.name||"",
+      authEmail:authResult.email || authEmailFromUsername(w.username||w.id)
+    }).catch(()=>{});
+
+    try{ if(firebaseAuthReady()) await auth.signOut(); }catch(e){}
+
+    await db.collection("appLogs").add({
+      action:"authLinkedForExistingWorker",
+      pageVersion: APP_VERSION,
+      workerId,
+      workerName:w.name||"",
+      authEmail:authResult.email||"",
+      clientTime:new Date().toISOString(),
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(()=>{});
+
+    alert("Firebase Auth נוצר וחובר לעובד ✅\nהסיסמה שהזנת היא הסיסמה שלו מעכשיו.");
+    await loadWorkers();
+  }catch(e){
+    alert("שגיאה ביצירת Auth לעובד: " + (e.code||e.message));
+  }
+}
+
+async function loadWorkers(){
+  const box=$("workersList");
+  box.innerHTML="<p>טוען עובדים...</p>";
+  const snap=await db.collection("workers").get();
+  workers=snap.docs.map(d=>({id:d.id,...d.data()})).filter(w=>!w.movedTo).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+  box.innerHTML=workers.length?"":"<p class='muted'>אין עובדים עדיין.</p>";
+  workers.forEach(w=>{
+    const row=document.createElement("div");
+    row.className="item";
+    const authTxt = authStatusTextV166(w);
+    const authBtn = w.authUid ? "" : `<button class="btn-green" onclick="createAuthForWorker('${w.id}')">צור Auth</button>`;
+    row.innerHTML=`<div><div class="item-title">${esc(w.name)}</div><div class="item-sub">שם משתמש: ${esc(w.username)} · יעד: ${money(w.monthlyGoal||0)} · ${w.active===false?"לא פעיל":"פעיל"} · Auth: ${authTxt} · מנוי: ${esc(w.subscriptionStatus||"רגיל")} עד ${esc(w.subscriptionUntil||w.trialUntil||"ללא הגבלה")} · ID: ${w.id}</div></div><div class="actions"><button onclick="showWorkerById('${w.id}')">פתח מעקב</button>${authBtn}<button class="btn-yellow" onclick="openWorkerEdit('${w.id}')">ערוך</button><button onclick="openSubscriptionEdit('${w.id}')">מנוי</button><button class="${w.active===false?"btn-green":"btn-red"}" onclick="toggleWorker('${w.id}', ${w.active===false})">${w.active===false?"הפעל":"בטל"}</button></div>`;
+    box.appendChild(row);
+  });
+  cleanVisibleSlashN();
+}
+
+(function(){
+  try{
+    const secret=document.getElementById("secretTap");
+    if(secret) setAppVersionUI();
+  }catch(e){}
+})();
+;
+/* ===== v1.6.8: Better Auth diagnostics + copy admin log ===== */
+function safeJsonV167(obj){
+  try{return JSON.stringify(obj,null,2)}catch(e){return String(obj)}
+}
+function getClientDiagnosticsV167(extra={}){
+  let authInfo={ready:false,currentUserUid:"",currentUserEmail:""};
+  try{
+    authInfo.ready = !!(window.firebase && firebase.auth && auth);
+    authInfo.currentUserUid = auth && auth.currentUser ? auth.currentUser.uid : "";
+    authInfo.currentUserEmail = auth && auth.currentUser ? auth.currentUser.email : "";
+  }catch(e){}
+  return {
+    pageVersion:APP_VERSION,
+    clientTime:new Date().toISOString(),
+    location:{
+      href: String(location.href||""),
+      origin: String(location.origin||""),
+      protocol: String(location.protocol||""),
+      hostname: String(location.hostname||""),
+      isLocalFile: String(location.protocol||"")==="file:"
+    },
+    firebase:{
+      authReady:authInfo.ready,
+      projectId: firebaseConfig && firebaseConfig.projectId,
+      authDomain: firebaseConfig && firebaseConfig.authDomain,
+      appName: (firebase && firebase.app ? firebase.app().name : "")
+    },
+    auth:authInfo,
+    browser:{
+      userAgent:navigator.userAgent,
+      language:navigator.language,
+      online:navigator.onLine
+    },
+    extra
+  };
+}
+async function writeAppLogV167(action, payload={}){
+  const data={
+    action,
+    pageVersion:APP_VERSION,
+    ...getClientDiagnosticsV167(payload),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try{
+    await db.collection("appLogs").add(data);
+  }catch(e){
+    try{
+      const local=JSON.parse(localStorage.getItem("localDebugLogsV167")||"[]");
+      local.unshift({...data, firestoreLogFailed:e.code||e.message, createdAt:"local-only"});
+      localStorage.setItem("localDebugLogsV167", JSON.stringify(local.slice(0,80)));
+    }catch(_e){}
+  }
+  return data;
+}
+function formatLogItemV167(d){
+  const data=d.data ? d.data : d;
+  return "────────────\n" + safeJsonV167(data);
+}
+async function loadDebugLogs(){
+  const box=$("debugLog");
+  if(!box)return;
+  box.textContent="טוען לוגים...";
+  try{
+    const snap=await db.collection("appLogs").limit(80).get();
+    let logs=snap.docs.map(d=>({id:d.id,...d.data()}));
+    logs.sort((a,b)=>String(b.clientTime||"").localeCompare(String(a.clientTime||"")));
+    let local=[];
+    try{local=JSON.parse(localStorage.getItem("localDebugLogsV167")||"[]")}catch(e){}
+    const all=[...local,...logs];
+    box.textContent=all.length?all.map(formatLogItemV167).join("\n"):"אין לוגים עדיין";
+  }catch(e){
+    box.textContent="שגיאה בטעינת לוג: "+(e.code||e.message)+"\n\n"+safeJsonV167(getClientDiagnosticsV167({loadDebugError:e.code||e.message}));
+  }
+}
+async function copyDebugLog(){
+  const box=$("debugLog");
+  const content=box ? box.textContent : "";
+  if(!content.trim()) return alert("אין לוג להעתקה.");
+  try{
+    await navigator.clipboard.writeText(content);
+    alert("הלוג הועתק ✅\nשלח לי אותו כמו שהוא.");
+  }catch(e){
+    const ta=document.createElement("textarea");
+    ta.value=content;
+    document.body.appendChild(ta);
+    ta.focus();ta.select();
+    try{document.execCommand("copy");alert("הלוג הועתק ✅")}catch(_e){alert("לא הצלחתי להעתיק אוטומטית. סמן ידנית את הטקסט בלוג.")}
+    ta.remove();
+  }
+}
+async function runAuthDiagnostics(){
+  const diag=getClientDiagnosticsV167({manualAuthDiagnostics:true});
+  await writeAppLogV167("manualAuthDiagnostics", diag.extra);
+  await loadDebugLogs();
+  alert("בדיקת Auth נרשמה ללוג ✅\nלחץ 'העתק לוג' ושלח לי.");
+}
+
+async function createOrLoginWorkerAuth(username,pass,name){
+  const email=authEmailFromUsername(username);
+  const basePayload={
+    username:String(username||""),
+    workerName:String(name||""),
+    authEmail:email,
+    passwordLength: pass ? String(pass).length : 0,
+    passwordProvided:!!pass
+  };
+  await writeAppLogV167("authCreateAttemptStart", basePayload);
+
+  if(!firebaseAuthReady()){
+    await writeAppLogV167("authCreateAttemptFailed", {...basePayload, stage:"firebaseAuthReady", reason:"auth_not_loaded"});
+    return {ok:false,reason:"auth_not_loaded",email};
+  }
+
+  try{
+    const cred=await auth.createUserWithEmailAndPassword(email,pass);
+    const uid=cred && cred.user ? cred.user.uid : "";
+    await writeAppLogV167("authCreateUserReturned", {...basePayload, uid, hasUser:!!(cred&&cred.user)});
+    if(uid){
+      try{await cred.user.updateProfile({displayName:name||username})}catch(profileErr){
+        await writeAppLogV167("authUpdateProfileFailed", {...basePayload, uid, errorCode:profileErr.code||"", errorMessage:profileErr.message||String(profileErr)});
+      }
+      try{
+        await ensureUserRoleDoc(uid,"worker",{username,name,authEmail:email});
+        await writeAppLogV167("authUserRoleDocSaved", {...basePayload, uid});
+      }catch(roleErr){
+        await writeAppLogV167("authUserRoleDocFailed", {...basePayload, uid, errorCode:roleErr.code||"", errorMessage:roleErr.message||String(roleErr)});
+      }
+      return {ok:true,uid,email,created:true};
+    }
+    await writeAppLogV167("authCreateAttemptFailed", {...basePayload, stage:"createUser", reason:"no_uid_returned"});
+    return {ok:false,reason:"no_uid_returned",email};
+  }catch(e){
+    await writeAppLogV167("authCreateUserFailed", {
+      ...basePayload,
+      errorCode:e.code||"",
+      errorMessage:e.message||String(e),
+      errorName:e.name||"",
+      stack:String(e.stack||"").slice(0,1200)
+    });
+    if(e.code==="auth/email-already-in-use"){
+      try{
+        await writeAppLogV167("authLoginExistingAttemptStart", basePayload);
+        const cred=await auth.signInWithEmailAndPassword(email,pass);
+        const uid=cred && cred.user ? cred.user.uid : "";
+        await writeAppLogV167("authLoginExistingReturned", {...basePayload, uid, hasUser:!!(cred&&cred.user)});
+        if(uid){
+          await ensureUserRoleDoc(uid,"worker",{username,name,authEmail:email}).catch(async roleErr=>{
+            await writeAppLogV167("authExistingUserRoleDocFailed", {...basePayload, uid, errorCode:roleErr.code||"", errorMessage:roleErr.message||String(roleErr)});
+          });
+          return {ok:true,uid,email,created:false};
+        }
+        return {ok:false,reason:"existing_login_no_uid",email};
+      }catch(loginErr){
+        await writeAppLogV167("authLoginExistingFailed", {
+          ...basePayload,
+          errorCode:loginErr.code||"",
+          errorMessage:loginErr.message||String(loginErr),
+          errorName:loginErr.name||"",
+          stack:String(loginErr.stack||"").slice(0,1200)
+        });
+        return {ok:false,reason:loginErr.code||loginErr.message,email};
+      }
+    }
+    return {ok:false,reason:e.code||e.message,email};
+  }
+}
+
+async function createAuthForWorker(workerId){
+  const w = (workers||[]).find(x=>x.id===workerId);
+  if(!w) return alert("העובד לא נמצא ברשימה. לחץ רענן ונסה שוב.");
+  if(w.authUid) return alert("לעובד הזה כבר יש Firebase Auth מחובר ✅");
+
+  const pass = prompt(
+    "יצירת Firebase Auth לעובד קיים:\n\n"+
+    "עובד: " + (w.name||"") + "\n"+
+    "שם משתמש: " + (w.username||"") + "\n\n"+
+    "הכנס סיסמה לעובד. מינימום 6 תווים. הסיסמה לא תופיע בלוג."
+  );
+  if(pass===null) return;
+  if(!pass || pass.length<6) return alert("סיסמה חייבת להיות לפחות 6 תווים.");
+
+  await writeAppLogV167("adminCreateAuthForWorkerClicked", {
+    workerId,
+    workerName:w.name||"",
+    username:w.username||w.usernameKey||w.id,
+    authEmail:authEmailFromUsername(w.username||w.id),
+    passwordLength:pass.length
+  });
+
+  try{
+    const authResult = await createOrLoginWorkerAuth(w.username||w.usernameKey||w.id, pass, w.name||"");
+    if(!authResult.ok || !authResult.uid){
+      await writeAppLogV167("adminCreateAuthForWorkerResultFailed", {
+        workerId,
+        workerName:w.name||"",
+        reason:authResult.reason||"לא ידוע",
+        authEmail:authResult.email||""
+      });
+      await loadDebugLogs();
+      return alert("לא הצלחתי ליצור/לחבר Auth: " + (authResult.reason||"לא ידוע") + "\n\nנוסף לוג מפורט. לחץ 'העתק לוג' ושלח לי.");
+    }
+
+    await db.collection("workers").doc(workerId).set({
+      authUid:authResult.uid,
+      authEmail:authResult.email || authEmailFromUsername(w.username||w.id),
+      authReady:true,
+      authNote:("Firebase Auth חובר ידנית מאדמין בגרסה "+APP_VERSION),
+      passwordHash:await sha256(pass),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+
+    await ensureUserRoleDoc(authResult.uid,"worker",{
+      workerId,
+      username:w.username||w.usernameKey||w.id,
+      name:w.name||"",
+      authEmail:authResult.email || authEmailFromUsername(w.username||w.id)
+    }).catch(()=>{});
+
+    try{ if(firebaseAuthReady()) await auth.signOut(); }catch(e){}
+
+    await writeAppLogV167("authLinkedForExistingWorker", {
+      workerId,
+      workerName:w.name||"",
+      authUid:authResult.uid,
+      authEmail:authResult.email||""
+    });
+
+    alert("Firebase Auth נוצר וחובר לעובד ✅\nהסיסמה שהזנת היא הסיסמה שלו מעכשיו.");
+    await loadWorkers();
+    await loadDebugLogs();
+  }catch(e){
+    await writeAppLogV167("adminCreateAuthForWorkerUnexpectedError", {
+      workerId,
+      workerName:w.name||"",
+      errorCode:e.code||"",
+      errorMessage:e.message||String(e),
+      stack:String(e.stack||"").slice(0,1200)
+    });
+    await loadDebugLogs();
+    alert("שגיאה ביצירת Auth לעובד: " + (e.code||e.message) + "\n\nנוסף לוג מפורט. לחץ 'העתק לוג' ושלח לי.");
+  }
+}
+
+(function(){
+  try{
+    const secret=document.getElementById("secretTap");
+    if(secret) setAppVersionUI();
+  }catch(e){}
+})();
+;
+/* ===== v1.6.8: Username login + optional recovery email ===== */
+function isValidEmailV168(email){
+  email=String(email||"").trim();
+  return !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+function cleanEmailV168(email){ return String(email||"").trim().toLowerCase(); }
+function effectiveAuthEmailV168(username, optionalEmail){
+  const e=cleanEmailV168(optionalEmail);
+  return e && isValidEmailV168(e) ? e : authEmailFromUsername(username);
+}
+function updateVersionV168(){ setAppVersionUI(); }
+
+// שם המשתמש נשאר שדה ההתחברות הראשי. מאחורי הקלעים Firebase Auth נכנס עם authEmail ששמור לעובד.
+async function tryWorkerAuthLogin(username,pass,worker){
+  if(!firebaseAuthReady())return {ok:false,reason:"auth_not_loaded"};
+  const email=(worker && worker.authEmail) || authEmailFromUsername(username);
+  try{
+    const cred=await auth.signInWithEmailAndPassword(email,pass);
+    const uid=cred && cred.user ? cred.user.uid : "";
+    if(uid && worker && worker.id){
+      await db.collection("workers").doc(worker.id).set({
+        authUid:uid,
+        authEmail:email,
+        authReady:true,
+        lastAuthLoginAt:firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      worker.authUid=uid; worker.authEmail=email; worker.authReady=true;
+    }
+    return {ok:true,uid,email};
+  }catch(e){
+    console.warn("Firebase Auth login fallback:", e.code||e.message);
+    if(typeof writeAppLogV167==="function"){
+      await writeAppLogV167("workerAuthLoginFallback",{username,authEmail:email,errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+    }
+    return {ok:false,reason:e.code||e.message,email};
+  }
+}
+
+async function createOrLoginWorkerAuth(username,pass,name,authEmailOverride){
+  const email=effectiveAuthEmailV168(username, authEmailOverride);
+  const basePayload={username:String(username||""),workerName:String(name||""),authEmail:email,passwordLength:pass?String(pass).length:0,passwordProvided:!!pass};
+  if(typeof writeAppLogV167==="function") await writeAppLogV167("authCreateAttemptStart", basePayload).catch(()=>{});
+  if(!firebaseAuthReady()){
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("authCreateAttemptFailed", {...basePayload,stage:"firebaseAuthReady",reason:"auth_not_loaded"}).catch(()=>{});
+    return {ok:false,reason:"auth_not_loaded",email};
+  }
+  try{
+    const cred=await auth.createUserWithEmailAndPassword(email,pass);
+    const uid=cred && cred.user ? cred.user.uid : "";
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("authCreateUserReturned", {...basePayload,uid,hasUser:!!(cred&&cred.user)}).catch(()=>{});
+    if(uid){
+      try{await cred.user.updateProfile({displayName:name||username})}catch(_e){}
+      await ensureUserRoleDoc(uid,"worker",{username,name,authEmail:email,recoveryEmail:email.includes("@work-monitor.local")?"":email}).catch(()=>{});
+      return {ok:true,uid,email,created:true};
+    }
+    return {ok:false,reason:"no_uid_returned",email};
+  }catch(e){
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("authCreateUserFailed", {...basePayload,errorCode:e.code||"",errorMessage:e.message||String(e),errorName:e.name||""}).catch(()=>{});
+    if(e.code==="auth/email-already-in-use"){
+      try{
+        const cred=await auth.signInWithEmailAndPassword(email,pass);
+        const uid=cred && cred.user ? cred.user.uid : "";
+        if(uid){
+          await ensureUserRoleDoc(uid,"worker",{username,name,authEmail:email,recoveryEmail:email.includes("@work-monitor.local")?"":email}).catch(()=>{});
+          return {ok:true,uid,email,created:false};
+        }
+        return {ok:false,reason:"existing_login_no_uid",email};
+      }catch(loginErr){
+        if(typeof writeAppLogV167==="function") await writeAppLogV167("authLoginExistingFailed", {...basePayload,errorCode:loginErr.code||"",errorMessage:loginErr.message||String(loginErr)}).catch(()=>{});
+        return {ok:false,reason:loginErr.code||loginErr.message,email};
+      }
+    }
+    return {ok:false,reason:e.code||e.message,email};
+  }
+}
+
+async function createWorker(){
+  const btn=$("createWorkerBtn"), msg=$("workerMsg");
+  msg.innerHTML="<div class='notice'>יוצר עובד ומחבר Firebase Auth...</div>";
+  btn.disabled=true;
+  try{
+    const name=val("wName"), username=val("wUser"), pass=val("wPass"), goal=Number(val("wGoal")||0);
+    const recoveryEmail=cleanEmailV168($("wEmail")?val("wEmail"):"");
+    if(!name||!username||!pass) return msg.innerHTML="<p class='danger'>חובה למלא שם, שם משתמש וסיסמה.</p>";
+    if(recoveryEmail && !isValidEmailV168(recoveryEmail)) return msg.innerHTML="<p class='danger'>האימייל לא תקין.</p>";
+    if(pass.length<6) return msg.innerHTML="<p class='danger'>ל־Firebase Auth הסיסמה חייבת להיות לפחות 6 תווים.</p>";
+    const usernameKey=normalize(username), id=workerIdFromUsername(usernameKey), preferredAuthEmail=effectiveAuthEmailV168(username,recoveryEmail);
+
+    let authResult={ok:false,email:preferredAuthEmail,uid:"",reason:"not_attempted"};
+    try{ authResult=await createOrLoginWorkerAuth(username,pass,name,preferredAuthEmail); }
+    catch(authErr){ authResult={ok:false,email:preferredAuthEmail,uid:"",reason:authErr.code||authErr.message}; }
+
+    await db.collection("workers").doc(id).set({
+      name,username,usernameKey,
+      authEmail:authResult.email||preferredAuthEmail,
+      recoveryEmail,
+      authUid:authResult.uid||"",
+      authReady:!!authResult.ok,
+      authNote:authResult.ok ? ("Firebase Auth נוצר/חובר בגרסה "+APP_VERSION) : ("Auth לא נוצר עדיין: "+(authResult.reason||"לא ידוע")),
+      passwordHash:await sha256(pass),
+      monthlyGoal:goal,
+      active:true,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+
+    if(authResult.uid) await ensureUserRoleDoc(authResult.uid,"worker",{username,name,authEmail:authResult.email||preferredAuthEmail,recoveryEmail,workerId:id}).catch(()=>{});
+    try{ if(firebaseAuthReady()) await auth.signOut(); }catch(e){}
+    ["wName","wUser","wPass","wGoal","wEmail"].forEach(x=>{if($(x))$(x).value=""});
+    msg.innerHTML=`<div class='notice'>העובד ${esc(name)} נוצר/עודכן בהצלחה ✅<br>${authResult.ok?"Firebase Auth חובר ✅":"העובד נשמר, אבל Auth עדיין בהכנה ⚠️"}<br>כניסה נשארת עם שם משתמש וסיסמה.<br>אימייל Auth: ${esc(authResult.email||preferredAuthEmail)}</div>`;
+    await loadWorkers();
+  }catch(e){ msg.innerHTML=`<p class='danger'>שגיאה: ${esc(e.message)}</p>`; }
+  finally{ btn.disabled=false; }
+}
+
+function openWorkerEdit(id){
+  const w=workers.find(x=>x.id===id); if(!w)return;
+  show("editWorkerPanel");
+  $("editWorkerId").value=id;
+  $("editWorkerName").value=w.name||"";
+  $("editWorkerUsername").value=w.username||"";
+  $("editWorkerPassword").value="";
+  $("editWorkerGoal").value=w.monthlyGoal||0;
+  $("editWorkerActive").value=w.active===false?"false":"true";
+  if($("editWorkerRecoveryEmail"))$("editWorkerRecoveryEmail").value=w.recoveryEmail||"";
+  if($("editWorkerAuthEmail"))$("editWorkerAuthEmail").value=w.authEmail||authEmailFromUsername(w.username||w.id||"");
+  $("editWorkerMsg").innerHTML="";
+  window.scrollTo({top:$("editWorkerPanel").offsetTop-20,behavior:"smooth"});
+}
+
+async function saveWorkerEdit(){
+  const id=val("editWorkerId"), name=val("editWorkerName"), username=val("editWorkerUsername"), pass=val("editWorkerPassword"), goal=Number(val("editWorkerGoal")||0), active=$("editWorkerActive").value==="true";
+  const recoveryEmail=cleanEmailV168($("editWorkerRecoveryEmail")?val("editWorkerRecoveryEmail"):"");
+  if(!name||!username)return $("editWorkerMsg").innerHTML="<p class='danger'>חובה למלא שם ושם משתמש.</p>";
+  if(recoveryEmail && !isValidEmailV168(recoveryEmail)) return $("editWorkerMsg").innerHTML="<p class='danger'>האימייל לא תקין.</p>";
+  const usernameKey=normalize(username), newId=workerIdFromUsername(usernameKey);
+  const update={name,username,usernameKey,recoveryEmail,monthlyGoal:goal,active,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  if(pass){
+    if(pass.length<6)return $("editWorkerMsg").innerHTML="<p class='danger'>סיסמה חייבת להיות לפחות 6 תווים.</p>";
+    update.passwordHash=await sha256(pass);
+  }
+  if(newId!==id){
+    const oldDoc=await db.collection("workers").doc(id).get();
+    await db.collection("workers").doc(newId).set({...oldDoc.data(),...update},{merge:true});
+    await db.collection("workers").doc(id).update({active:false,movedTo:newId,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  }else await db.collection("workers").doc(id).update(update);
+  const w=(workers||[]).find(x=>x.id===id);
+  if(w && w.authUid){
+    await ensureUserRoleDoc(w.authUid,"worker",{workerId:id,username,name,authEmail:w.authEmail||"",recoveryEmail}).catch(()=>{});
+  }
+  $("editWorkerMsg").innerHTML="<div class='notice'>העובד נשמר ✅<br>שים לב: שינוי אימייל שחזור לא משנה את אימייל Auth בפועל לעובדים שכבר חוברו.</div>";
+  await loadWorkers();
+}
+
+async function createAuthForWorker(workerId){
+  const w=(workers||[]).find(x=>x.id===workerId);
+  if(!w)return alert("העובד לא נמצא ברשימה. לחץ רענן ונסה שוב.");
+  if(w.authUid)return alert("לעובד הזה כבר יש Firebase Auth מחובר ✅");
+  let emailPrompt=prompt("אימייל לשחזור / Auth לעובד הזה (לא חובה).\nאם תשאיר ריק, ניצור אימייל פנימי לפי שם המשתמש.", w.recoveryEmail||"");
+  if(emailPrompt===null)return;
+  emailPrompt=cleanEmailV168(emailPrompt);
+  if(emailPrompt && !isValidEmailV168(emailPrompt))return alert("האימייל לא תקין.");
+  const pass=prompt("הכנס סיסמה לעובד. מינימום 6 תווים. הסיסמה לא תופיע בלוג.");
+  if(pass===null)return;
+  if(!pass||pass.length<6)return alert("סיסמה חייבת להיות לפחות 6 תווים.");
+  const preferredAuthEmail=effectiveAuthEmailV168(w.username||w.usernameKey||w.id,emailPrompt);
+
+  if(typeof writeAppLogV167==="function") await writeAppLogV167("adminCreateAuthForWorkerClicked",{workerId,workerName:w.name||"",username:w.username||w.usernameKey||w.id,authEmail:preferredAuthEmail,recoveryEmail:emailPrompt,passwordLength:pass.length}).catch(()=>{});
+  try{
+    const authResult=await createOrLoginWorkerAuth(w.username||w.usernameKey||w.id,pass,w.name||"",preferredAuthEmail);
+    if(!authResult.ok||!authResult.uid){
+      if(typeof writeAppLogV167==="function") await writeAppLogV167("adminCreateAuthForWorkerResultFailed",{workerId,workerName:w.name||"",reason:authResult.reason||"לא ידוע",authEmail:authResult.email||""}).catch(()=>{});
+      await loadDebugLogs();
+      return alert("לא הצלחתי ליצור/לחבר Auth: "+(authResult.reason||"לא ידוע")+"\n\nנוסף לוג מפורט. לחץ 'העתק לוג' ושלח לי.");
+    }
+    await db.collection("workers").doc(workerId).set({
+      authUid:authResult.uid,
+      authEmail:authResult.email||preferredAuthEmail,
+      recoveryEmail:emailPrompt,
+      authReady:true,
+      authNote:("Firebase Auth חובר ידנית מאדמין בגרסה "+APP_VERSION),
+      passwordHash:await sha256(pass),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+    await ensureUserRoleDoc(authResult.uid,"worker",{workerId,username:w.username||w.usernameKey||w.id,name:w.name||"",authEmail:authResult.email||preferredAuthEmail,recoveryEmail:emailPrompt}).catch(()=>{});
+    try{if(firebaseAuthReady())await auth.signOut();}catch(e){}
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("authLinkedForExistingWorker",{workerId,workerName:w.name||"",authUid:authResult.uid,authEmail:authResult.email||preferredAuthEmail,recoveryEmail:emailPrompt}).catch(()=>{});
+    alert("Firebase Auth נוצר וחובר לעובד ✅\nהכניסה עדיין עם שם משתמש וסיסמה.");
+    await loadWorkers(); await loadDebugLogs();
+  }catch(e){
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminCreateAuthForWorkerUnexpectedError",{workerId,workerName:w.name||"",errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+    await loadDebugLogs();
+    alert("שגיאה ביצירת Auth לעובד: "+(e.code||e.message));
+  }
+}
+
+async function updateRecoveryEmailForWorker(workerId){
+  const w=(workers||[]).find(x=>x.id===workerId); if(!w)return alert("העובד לא נמצא.");
+  let email=prompt("אימייל לשחזור לעובד:\n"+(w.name||""), w.recoveryEmail||"");
+  if(email===null)return;
+  email=cleanEmailV168(email);
+  if(email && !isValidEmailV168(email))return alert("האימייל לא תקין.");
+  await db.collection("workers").doc(workerId).set({recoveryEmail:email,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+  if(w.authUid) await ensureUserRoleDoc(w.authUid,"worker",{workerId,username:w.username||"",name:w.name||"",authEmail:w.authEmail||"",recoveryEmail:email}).catch(()=>{});
+  alert("אימייל השחזור נשמר ✅");
+  await loadWorkers();
+}
+
+async function loadWorkers(){
+  const box=$("workersList");
+  box.innerHTML="<p>טוען עובדים...</p>";
+  const snap=await db.collection("workers").get();
+  workers=snap.docs.map(d=>({id:d.id,...d.data()})).filter(w=>!w.movedTo).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+  box.innerHTML=workers.length?"":"<p class='muted'>אין עובדים עדיין.</p>";
+  workers.forEach(w=>{
+    const row=document.createElement("div"); row.className="item";
+    const authTxt=w.authUid?"מחובר ✅":"בהכנה ⚠️";
+    const authBtn=w.authUid?"":`<button class="btn-green" onclick="createAuthForWorker('${w.id}')">צור Auth</button>`;
+    const authEmail=w.authEmail||authEmailFromUsername(w.username||w.id||"");
+    row.innerHTML=`<div><div class="item-title">${esc(w.name)}</div><div class="item-sub">שם משתמש: ${esc(w.username)} · יעד: ${money(w.monthlyGoal||0)} · ${w.active===false?"לא פעיל":"פעיל"} · Auth: ${authTxt}<br>אימייל Auth: ${esc(authEmail)} · אימייל שחזור: ${esc(w.recoveryEmail||"לא הוגדר")}<br>מנוי: ${esc(w.subscriptionStatus||"רגיל")} עד ${esc(w.subscriptionUntil||w.trialUntil||"ללא הגבלה")} · ID: ${w.id}</div></div><div class="actions"><button onclick="showWorkerById('${w.id}')">פתח מעקב</button>${authBtn}<button class="btn-light" onclick="updateRecoveryEmailForWorker('${w.id}')">אימייל שחזור</button><button class="btn-yellow" onclick="openWorkerEdit('${w.id}')">ערוך</button><button onclick="openSubscriptionEdit('${w.id}')">מנוי</button><button class="${w.active===false?"btn-green":"btn-red"}" onclick="toggleWorker('${w.id}', ${w.active===false})">${w.active===false?"הפעל":"בטל"}</button></div>`;
+    box.appendChild(row);
+  });
+  cleanVisibleSlashN();
+}
+
+// הרשמה עצמית: אימייל לא חובה. הכניסה נשארת לפי שם משתמש.
+async function registerWorker(){
+  const name=val("regName"), username=val("regUsername"), recoveryEmail=cleanEmailV168($("regEmail")?val("regEmail"):""), pass=val("regPassword"), pass2=val("regPassword2");
+  const msg=$("registerMsg"); msg.innerHTML="";
+  if(!name||!username||!pass||!pass2){msg.innerHTML="<p class='danger'>חובה למלא שם, שם משתמש וסיסמה.</p>";return}
+  if(recoveryEmail && !isValidEmailV168(recoveryEmail)){msg.innerHTML="<p class='danger'>האימייל לא תקין.</p>";return}
+  if(pass!==pass2){msg.innerHTML="<p class='danger'>הסיסמאות לא תואמות.</p>";return}
+  if(pass.length<6){msg.innerHTML="<p class='danger'>סיסמה חייבת להיות לפחות 6 תווים.</p>";return}
+  const usernameKey=normalize(username), id=workerIdFromUsername(usernameKey), ref=db.collection("workers").doc(id), existing=await ref.get();
+  if(existing.exists){msg.innerHTML="<p class='danger'>שם המשתמש כבר קיים.</p>";return}
+  const preferredAuthEmail=effectiveAuthEmailV168(username,recoveryEmail);
+  const authResult=await createOrLoginWorkerAuth(username,pass,name,preferredAuthEmail);
+  const trialUntil=addDaysToDate(DEFAULT_TRIAL_DAYS);
+  await ref.set({
+    name,username,usernameKey,
+    authEmail:authResult.email||preferredAuthEmail,
+    recoveryEmail,
+    authUid:authResult.uid||"",
+    authReady:!!authResult.ok,
+    passwordHash:await sha256(pass),
+    monthlyGoal:0,
+    active:true,
+    selfRegistered:true,
+    subscriptionStatus:"trial",
+    trialDays:DEFAULT_TRIAL_DAYS,
+    trialUntil,
+    subscriptionUntil:trialUntil,
+    createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  });
+  if(authResult.uid) await ensureUserRoleDoc(authResult.uid,"worker",{workerId:id,username,name,authEmail:authResult.email||preferredAuthEmail,recoveryEmail}).catch(()=>{});
+  try{if(firebaseAuthReady())await auth.signOut();}catch(e){}
+  msg.innerHTML=`<div class='notice'>המשתמש נפתח בהצלחה ✅<br>תקופת ניסיון עד ${heDate(trialUntil)}<br>הכניסה נשארת עם שם משתמש וסיסמה.</div>`;
+}
+
+function showRegister(){
+  clearLoginFields(); hideAll(); show("registerView"); hide("logoutBtn"); text("userLine","הרשמה חדשה");
+  ["regName","regUsername","regEmail","regPassword","regPassword2"].forEach(id=>{if($(id))$(id).value=""});
+  if($("registerMsg"))$("registerMsg").innerHTML="";
+}
+
+(function(){ updateVersionV168(); })();
+;
 /* ===== PATCH */
+function adminAuthEmailV169(){ return "admin@work-monitor.local"; }
+function usernameLookupIdV169(username){ return normalize(username||""); }
+function rulesSafeDateV169(){ return new Date().toISOString(); }
 
+function secondaryAuthV169(){
+  const name="secondaryAuthForWorkerCreate";
+  let app;
+  try{ app=firebase.app(name); }
+  catch(e){ app=firebase.initializeApp(firebaseConfig,name); }
+  return app.auth();
+}
+
+async function createOrLoginWorkerAuth(username,pass,name,authEmailOverride){
+  const email=effectiveAuthEmailV168(username, authEmailOverride);
+  const basePayload={username:String(username||""),workerName:String(name||""),authEmail:email,passwordLength:pass?String(pass).length:0,passwordProvided:!!pass,version:"1.7.0",mode:"secondaryAuth"};
+  if(typeof writeAppLogV167==="function") await writeAppLogV167("authCreateAttemptStart", basePayload).catch(()=>{});
+  try{
+    const a=secondaryAuthV169();
+    let cred=null, created=false;
+    try{
+      cred=await a.createUserWithEmailAndPassword(email,pass);
+      created=true;
+    }catch(e){
+      if(e.code==="auth/email-already-in-use"){
+        cred=await a.signInWithEmailAndPassword(email,pass);
+      }else{
+        throw e;
+      }
+    }
+    const uid=cred && cred.user ? cred.user.uid : "";
+    if(uid){
+      try{ await cred.user.updateProfile({displayName:name||username}); }catch(_e){}
+      try{ await a.signOut(); }catch(_e){}
+      await ensureUserRoleDoc(uid,"worker",{username,name,authEmail:email,recoveryEmail:email.includes("@work-monitor.local")?"":email}).catch(()=>{});
+      if(typeof writeAppLogV167==="function") await writeAppLogV167("authCreateUserSuccess", {...basePayload,uid,created}).catch(()=>{});
+      return {ok:true,uid,email,created};
+    }
+    return {ok:false,reason:"no_uid_returned",email};
+  }catch(e){
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("authCreateUserFailed", {...basePayload,errorCode:e.code||"",errorMessage:e.message||String(e),errorName:e.name||""}).catch(()=>{});
+    return {ok:false,reason:e.code||e.message,email};
+  }
+}
+
+async function ensureUsernameLookupV169(workerId,w){
+  if(!workerId||!w)return;
+  const usernameKey=normalize(w.usernameKey||w.username||workerId.replace(/^worker_/,""));
+  if(!usernameKey)return;
+  const authEmail=w.authEmail||authEmailFromUsername(w.username||usernameKey);
+  await db.collection("usernameLookup").doc(usernameKey).set({
+    workerId,
+    username:w.username||usernameKey,
+    usernameKey,
+    authEmail,
+    active:w.active!==false,
+    authUid:w.authUid||"",
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+}
+
+async function syncAuthSecurityDataV169(){
+  try{
+    const snap=await db.collection("workers").get();
+    const batch=db.batch();
+    let count=0;
+    for(const d of snap.docs){
+      const w={id:d.id,...d.data()};
+      if(w.movedTo)continue;
+      const usernameKey=normalize(w.usernameKey||w.username||d.id.replace(/^worker_/,""));
+      if(usernameKey){
+        batch.set(db.collection("usernameLookup").doc(usernameKey),{
+          workerId:d.id,
+          username:w.username||usernameKey,
+          usernameKey,
+          authEmail:w.authEmail||authEmailFromUsername(w.username||usernameKey),
+          active:w.active!==false,
+          authUid:w.authUid||"",
+          updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+        },{merge:true});
+        count++;
+      }
+      if(w.authUid){
+        batch.set(db.collection("users").doc(w.authUid),{
+          uid:w.authUid,
+          role:"worker",
+          workerId:d.id,
+          username:w.username||usernameKey,
+          name:w.name||"",
+          authEmail:w.authEmail||"",
+          recoveryEmail:w.recoveryEmail||"",
+          updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+        },{merge:true});
+      }
+    }
+    await batch.commit();
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("syncAuthSecurityDataV169",{count}).catch(()=>{});
+  }catch(e){
+    console.error("syncAuthSecurityDataV169",e);
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("syncAuthSecurityDataV169Failed",{errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+  }
+}
+
+function waitForAuthReadyV169(timeoutMs=3500){
+  return new Promise(resolve=>{
+    if(!firebaseAuthReady())return resolve(null);
+    let done=false;
+    const timer=setTimeout(()=>{ if(!done){done=true; unsub&&unsub(); resolve(auth.currentUser||null);} }, timeoutMs);
+    const unsub=auth.onAuthStateChanged(user=>{ if(!done){done=true; clearTimeout(timer); unsub(); resolve(user||null);} });
+  });
+}
+
+async function ensureAdminAuthLoginV169(password){
+  if(!firebaseAuthReady())return {ok:false,reason:"auth_not_loaded"};
+  const email=adminAuthEmailV169();
+  try{
+    let cred=null, created=false;
+    try{
+      cred=await auth.signInWithEmailAndPassword(email,password);
+    }catch(e){
+      if(e.code==="auth/user-not-found" || e.code==="auth/invalid-credential" || e.code==="auth/wrong-password"){
+        // אם זה user-not-found ננסה ליצור. אם זה wrong-password/invalid-credential — יצירה תיכשל אם המשתמש כבר קיים.
+        if(e.code==="auth/user-not-found"){
+          cred=await auth.createUserWithEmailAndPassword(email,password);
+          created=true;
+        }else{
+          throw e;
+        }
+      }else throw e;
+    }
+    const uid=cred && cred.user ? cred.user.uid : "";
+    if(!uid)return {ok:false,reason:"no_admin_uid"};
+    try{ await cred.user.updateProfile({displayName:"מנהל"}); }catch(_e){}
+    await db.collection("users").doc(uid).set({uid,role:"admin",name:"מנהל",authEmail:email,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+    return {ok:true,uid,email,created};
+  }catch(e){
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminAuthLoginFailedV169",{errorCode:e.code||"",errorMessage:e.message||String(e),authEmail:email}).catch(()=>{});
+    return {ok:false,reason:e.code||e.message,email};
+  }
+}
+
+async function adminLogin(){
+  const u=val("adminUsername"), p=val("adminPassword");
+  if(!u||!p)return text("adminLoginMsg","חובה למלא שם משתמש וסיסמה.");
+  if(u!==ADMIN_USERNAME)return text("adminLoginMsg","שם משתמש או סיסמה לא נכונים.");
+  const authResult=await ensureAdminAuthLoginV169(p);
+  if(!authResult.ok){
+    return text("adminLoginMsg","Firebase Auth לאדמין נכשל: "+(authResult.reason||"לא ידוע")+". אם כבר נוצר משתמש אדמין עם סיסמה אחרת, צריך לאפס אותו ב־Firebase Authentication.");
+  }
+  session={role:"admin",name:"מנהל",authUid:authResult.uid,authEmail:authResult.email};
+  localStorage.setItem("workSession",JSON.stringify(session));
+  clearLoginFields();
+  await showAdmin();
+}
+
+async function workerLogin(){
+  const username=val("workerUsername"), pass=val("workerPassword");
+  if(!username||!pass)return text("workerLoginMsg","חובה למלא שם משתמש וסיסמה.");
+  const usernameKey=normalize(username);
+  let lookup=null;
+  try{
+    const lookupDoc=await db.collection("usernameLookup").doc(usernameKey).get();
+    if(lookupDoc.exists)lookup={id:lookupDoc.id,...lookupDoc.data()};
+  }catch(e){ console.warn("usernameLookup failed, legacy fallback",e); }
+
+  if(lookup && lookup.active===false)return text("workerLoginMsg","העובד לא פעיל.");
+
+  // התחברות אמיתית ל־Firebase Auth לפני קריאת מסמך העובד. זה מה שמאפשר Security Rules נעולות.
+  if(lookup && lookup.authEmail){
+    try{
+      const cred=await auth.signInWithEmailAndPassword(lookup.authEmail,pass);
+      const uid=cred && cred.user ? cred.user.uid : "";
+      const doc=await db.collection("workers").doc(lookup.workerId).get();
+      if(!doc.exists)return text("workerLoginMsg","העובד לא נמצא במסד.");
+      const worker={id:doc.id,...doc.data()};
+      if(worker.active===false)return text("workerLoginMsg","העובד לא פעיל.");
+      if(worker.authUid && uid && worker.authUid!==uid){
+        await auth.signOut().catch(()=>{});
+        return text("workerLoginMsg","התחברות Auth לא תואמת לעובד. פנה למנהל.");
+      }
+      if(isSubscriptionExpired(worker)){
+        localStorage.removeItem("workSession"); session=null; showExpiredView(worker); return;
+      }
+      await db.collection("workers").doc(worker.id).set({
+        authUid:uid,
+        authEmail:lookup.authEmail,
+        authReady:true,
+        lastAuthLoginAt:firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      await ensureUserRoleDoc(uid,"worker",{workerId:worker.id,username:worker.username||username, name:worker.name||"",authEmail:lookup.authEmail,recoveryEmail:worker.recoveryEmail||""}).catch(()=>{});
+      const remember=$("rememberMe")&&$("rememberMe").checked;
+      session={role:"worker",workerId:worker.id,name:worker.name,authUid:uid,authEmail:lookup.authEmail,remember,loginAt:Date.now(),expiresAt:remember?null:Date.now()+(2*60*60*1000)};
+      localStorage.setItem("workSession",JSON.stringify(session));
+      clearLoginFields();
+      await showWorker(worker);
+      return;
+    }catch(e){
+      if(typeof writeAppLogV167==="function") await writeAppLogV167("workerAuthLoginFailedV169",{username,usernameKey,authEmail:lookup.authEmail,errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+      return text("workerLoginMsg","שם משתמש או סיסמה לא נכונים / Auth נכשל: "+(e.code||e.message));
+    }
+  }
+
+  // fallback זמני לגרסה לפני שה־usernameLookup סונכרן. אחרי Security Rules נעולות זה לא יעבוד, לכן יש לסנכרן באדמין לפני החלפת Rules.
+  try{
+    const workerDocId=workerIdFromUsername(usernameKey);
+    let doc=await db.collection("workers").doc(workerDocId).get();
+    if(!doc.exists)return text("workerLoginMsg","לא נמצא Lookup לעובד. היכנס לאדמין ולחץ סנכרון אבטחה.");
+    const worker={id:doc.id,...doc.data()};
+    if(worker.passwordHash!==await sha256(pass))return text("workerLoginMsg","סיסמה שגויה.");
+    if(!worker.authEmail)return text("workerLoginMsg","לעובד חסר Auth Email. צור Auth באדמין.");
+    return text("workerLoginMsg","לעובד חסר Lookup. היכנס לאדמין ולחץ סנכרון אבטחה ואז נסה שוב.");
+  }catch(e){ text("workerLoginMsg","שגיאה בכניסה: "+e.message); }
+}
+
+async function showAdmin(){
+  hideAll(); show("adminView"); show("logoutBtn"); text("userLine","מנהל · Auth מאובטח");
+  await waitForAuthReadyV169();
+  await ensureDefaultPriceList(); await loadSettings();
+  try{
+    const settingsDocV518 = await db.collection("settings").doc("main").get();
+    const settingsV518 = settingsDocV518.exists ? settingsDocV518.data() : {};
+    // v5.19 FIX: מציגים את ההתחברות הקודמת לפני שמעדכנים את ההתחברות הנוכחית.
+    let localAdminLastLoginV519 = "";
+    try{ localAdminLastLoginV519 = localStorage.getItem("wm_last_login_admin") || ""; }catch(e){}
+    renderLastLoginTopV518(settingsV518.adminLastLoginAt || settingsV518.adminLastLoginClientAt || localAdminLastLoginV519);
+    recordAdminLastLoginV518();
+  }catch(e){ console.warn("admin last login display skipped", e); }
+  if($("servicePriceInput"))$("servicePriceInput").value=SERVICE_PRICE;
+  if($("adminSetUsername"))$("adminSetUsername").value=ADMIN_USERNAME;
+  if($("trialDaysInput"))$("trialDaysInput").value=DEFAULT_TRIAL_DAYS;
+  await loadWorkers(); await syncAuthSecurityDataV169(); await loadPriceListAdmin(); await loadTemplatesAdmin(); await loadPaymentRequests(); await loadDebugLogs();
+  addSecurityToolsV169();
+}
+
+function addSecurityToolsV169(){
+  if(document.getElementById("securityToolsV169"))return;
+  const admin=document.getElementById("adminView"); if(!admin)return;
+  const div=document.createElement("div");
+  div.id="securityToolsV169";
+  div.className="card panel";
+  div.innerHTML=`
+    <div class="cal-head"><h2>🔒 הכנת אבטחת Firebase</h2><button class="btn-green" onclick="manualSyncSecurityV169()">סנכרן אבטחה</button></div>
+    <p>הכפתור יוצר/מעדכן usernameLookup ו־users/role לכל העובדים. חובה להריץ לפני שמחליפים Security Rules.</p>
+    <div class="actions"><button class="btn-light" onclick="copySecurityRulesV169()">העתק Security Rules</button></div>
+    <div id="securityToolsMsgV169"></div>`;
+  const first=admin.querySelector(".card");
+  admin.insertBefore(div, first||admin.firstChild);
+}
+async function manualSyncSecurityV169(){
+  const msg=document.getElementById("securityToolsMsgV169");
+  if(msg)msg.innerHTML="<div class='notice'>מסנכרן...</div>";
+  await syncAuthSecurityDataV169();
+  if(msg)msg.innerHTML="<div class='notice'>סנכרון אבטחה הסתיים ✅ עכשיו אפשר להעתיק Rules ולעדכן ב־Firebase.</div>";
+  await loadWorkers();
+}
+
+const FIRESTORE_RULES_V169 = String.raw`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function hasUserDoc() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return hasUserDoc() && userDoc().data.role == 'admin';
+    }
+
+    function myWorkerId() {
+      return hasUserDoc() ? userDoc().data.workerId : '';
+    }
+
+    function isOwnWorker(workerId) {
+      return hasUserDoc() && userDoc().data.role == 'worker' && myWorkerId() == workerId;
+    }
+
+    match /usernameLookup/{usernameKey} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /settings/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /workers/{workerId} {
+      allow read: if isAdmin() || isOwnWorker(workerId);
+      allow create, update, delete: if isAdmin() || (isOwnWorker(workerId) && request.resource.data.authUid == request.auth.uid);
+    }
+
+    match /workEntries/{entryId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create: if isAdmin() || (signedIn() && request.resource.data.workerId == myWorkerId());
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId() && request.resource.data.workerId == resource.data.workerId);
+    }
+
+    match /priceList/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /installTemplates/{doc} {
+      allow read: if isAdmin() || (signedIn() && (!('ownerWorkerId' in resource.data) || resource.data.ownerWorkerId == null || resource.data.ownerWorkerId == '' || resource.data.ownerWorkerId == myWorkerId()));
+      allow create: if isAdmin() || (signedIn() && request.resource.data.ownerWorkerId == myWorkerId());
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.ownerWorkerId == myWorkerId());
+    }
+
+    match /paymentRequests/{doc} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create: if signedIn() && request.resource.data.workerId == myWorkerId();
+      allow update, delete: if isAdmin();
+    }
+
+    match /payments/{doc} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /appLogs/{doc} {
+      allow read: if isAdmin();
+      allow create: if signedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}`;
+
+async function copySecurityRulesV169(){
+  try{
+    await navigator.clipboard.writeText(FIRESTORE_RULES_V169);
+    const msg=document.getElementById("securityToolsMsgV169");
+    if(msg)msg.innerHTML="<div class='notice'>Security Rules הועתקו ✅</div>";
+  }catch(e){
+    prompt("העתק את ה־Security Rules:", FIRESTORE_RULES_V169);
+  }
+}
+
+// שמירת Lookup אחרי יצירה/עריכה/הרשמה
+const oldCreateWorkerV169 = window.createWorker;
+if(typeof oldCreateWorkerV169==="function"){
+  window.createWorker = async function(){ await oldCreateWorkerV169(); await syncAuthSecurityDataV169(); };
+}
+const oldRegisterWorkerV169 = window.registerWorker;
+if(typeof oldRegisterWorkerV169==="function"){
+  window.registerWorker = async function(){ await oldRegisterWorkerV169(); };
+}
+;
+/* ===== PATCH
+   המטרה: לא לחסום את האדמין אם עדיין אין לו Firebase Auth UID.
+   קודם מאמתים סיסמת אדמין ישנה. אם Auth לא קיים/נכשל — נכנסים במצב הכנה ומציגים כפתור יצירת Auth למנהל.
+*/
+function adminAuthEmailV170(){ return "admin@work-monitor.local"; }
+function adminLegacyOkV170(username,password){
+  return username===ADMIN_USERNAME;
+}
+async function adminPasswordHashOkV170(password){
+  return await sha256(password)===ADMIN_PASSWORD_SHA256;
+}
+
+async function ensureAdminRoleDocV170(uid,email){
+  if(!uid) return;
+  await db.collection("users").doc(uid).set({
+    uid,
+    role:"admin",
+    name:"מנהל",
+    username:ADMIN_USERNAME,
+    authEmail:email||adminAuthEmailV170(),
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+}
+
+async function tryAdminFirebaseAuthV170(password){
+  const email=adminAuthEmailV170();
+  if(!firebaseAuthReady()) return {ok:false,reason:"auth_not_loaded",email};
+  try{
+    const cred=await auth.signInWithEmailAndPassword(email,password);
+    const uid=cred && cred.user ? cred.user.uid : "";
+    if(!uid) return {ok:false,reason:"no_admin_uid",email};
+    await ensureAdminRoleDocV170(uid,email);
+    return {ok:true,uid,email,created:false};
+  }catch(signErr){
+    // אם האדמין עוד לא קיים ב-Auth ונכנסה סיסמה באורך תקין — ניצור אותו אוטומטית.
+    if((signErr.code==="auth/user-not-found" || signErr.code==="auth/invalid-login-credentials") && String(password||"").length>=6){
+      try{
+        const cred=await auth.createUserWithEmailAndPassword(email,password);
+        const uid=cred && cred.user ? cred.user.uid : "";
+        if(!uid) return {ok:false,reason:"no_admin_uid_after_create",email};
+        try{ await cred.user.updateProfile({displayName:"מנהל"}); }catch(_e){}
+        await ensureAdminRoleDocV170(uid,email);
+        return {ok:true,uid,email,created:true};
+      }catch(createErr){
+        if(typeof writeAppLogV167==="function") await writeAppLogV167("adminAuthCreateFailedV170",{errorCode:createErr.code||"",errorMessage:createErr.message||String(createErr),authEmail:email}).catch(()=>{});
+        return {ok:false,reason:createErr.code||createErr.message,email};
+      }
+    }
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminAuthLoginFailedV170",{errorCode:signErr.code||"",errorMessage:signErr.message||String(signErr),authEmail:email,passwordLength:String(password||"").length}).catch(()=>{});
+    return {ok:false,reason:signErr.code||signErr.message,email};
+  }
+}
+
+async function adminLogin(){
+  await loadSettings();
+  const u=val("adminUsername"), p=val("adminPassword");
+  if(!u||!p) return text("adminLoginMsg","חובה למלא שם משתמש וסיסמה.");
+  if(!adminLegacyOkV170(u,p) || !(await adminPasswordHashOkV170(p))){
+    return text("adminLoginMsg","שם משתמש או סיסמה לא נכונים.");
+  }
+
+  const authResult=await tryAdminFirebaseAuthV170(p);
+  if(authResult.ok){
+    session={role:"admin",name:"מנהל",authUid:authResult.uid,authEmail:authResult.email,adminAuthReady:true};
+    localStorage.setItem("workSession",JSON.stringify(session));
+    clearLoginFields();
+    await showAdmin();
+    return;
+  }
+
+  // לא שובר את האדמין: נותן כניסה במצב הכנה כדי ליצור UID למנהל.
+  session={role:"admin",name:"מנהל",authUid:"",authEmail:adminAuthEmailV170(),adminAuthReady:false,adminAuthError:authResult.reason||"unknown"};
+  localStorage.setItem("workSession",JSON.stringify(session));
+  clearLoginFields();
+  await showAdmin();
+  const msg=document.getElementById("securityToolsMsgV169") || document.getElementById("adminAuthBootstrapMsgV170");
+  if(msg){
+    msg.innerHTML=`<div class='paywall'>נכנסת כמנהל במצב הכנה. עדיין חסר UID למנהל ב-Firebase Auth.<br>הסיבה: ${esc(authResult.reason||"לא ידוע")}<br>לחץ "צור/תקן Auth למנהל" לפני עדכון Security Rules.</div>`;
+  }
+}
+
+function addAdminAuthBootstrapToolsV170(){
+  const admin=document.getElementById("adminView");
+  if(!admin || document.getElementById("adminAuthBootstrapV170")) return;
+  const div=document.createElement("div");
+  div.id="adminAuthBootstrapV170";
+  div.className="card panel";
+  const ready = session && session.adminAuthReady && session.authUid;
+  div.innerHTML=`
+    <div class="cal-head"><h2>👑 Firebase Auth למנהל</h2><button class="btn-green" onclick="createOrFixAdminAuthV170()">צור/תקן Auth למנהל</button></div>
+    <p>זה יוצר UID אמיתי למנהל ומסמך <b>users/role=admin</b>. חובה לבצע לפני שמפרסמים Security Rules.</p>
+    <div class="item-sub">מצב נוכחי: ${ready ? "Auth מנהל מחובר ✅" : "Auth מנהל חסר/בהכנה ⚠️"} · אימייל פנימי: ${adminAuthEmailV170()}</div>
+    <div id="adminAuthBootstrapMsgV170"></div>`;
+  const first=admin.querySelector(".card");
+  admin.insertBefore(div, first||admin.firstChild);
+}
+
+async function createOrFixAdminAuthV170(){
+  const pass=prompt("הכנס סיסמת Firebase Auth למנהל. מינימום 6 תווים.\nמומלץ לבחור סיסמה חזקה ולשמור אותה.\nשם המשתמש באפליקציה יישאר אותו דבר.");
+  if(pass===null) return;
+  if(!pass || pass.length<6) return alert("סיסמת Firebase Auth חייבת להיות לפחות 6 תווים.");
+  const msg=document.getElementById("adminAuthBootstrapMsgV170") || document.getElementById("securityToolsMsgV169");
+  if(msg) msg.innerHTML="<div class='notice'>יוצר/מחבר Auth למנהל...</div>";
+  const email=adminAuthEmailV170();
+  try{
+    let cred=null, created=false;
+    try{
+      cred=await auth.createUserWithEmailAndPassword(email,pass);
+      created=true;
+    }catch(e){
+      if(e.code==="auth/email-already-in-use"){
+        cred=await auth.signInWithEmailAndPassword(email,pass);
+      }else{
+        throw e;
+      }
+    }
+    const uid=cred && cred.user ? cred.user.uid : "";
+    if(!uid) throw new Error("no_admin_uid");
+    try{ await cred.user.updateProfile({displayName:"מנהל"}); }catch(_e){}
+    await ensureAdminRoleDocV170(uid,email);
+    session={...(session||{}),role:"admin",name:"מנהל",authUid:uid,authEmail:email,adminAuthReady:true};
+    localStorage.setItem("workSession",JSON.stringify(session));
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminAuthFixedV170",{uid,email,created}).catch(()=>{});
+    if(msg) msg.innerHTML="<div class='notice'>Auth למנהל נוצר/חובר בהצלחה ✅ עכשיו לחץ סנכרן אבטחה ורק אחר כך עדכן Security Rules.</div>";
+    await manualSyncSecurityV169().catch(()=>{});
+    await loadDebugLogs().catch(()=>{});
+  }catch(e){
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminAuthFixFailedV170",{errorCode:e.code||"",errorMessage:e.message||String(e),email}).catch(()=>{});
+    if(msg) msg.innerHTML=`<p class='danger'>נכשל ליצור/לחבר Auth למנהל: ${esc(e.code||e.message||String(e))}</p>`;
+    alert("נכשל ליצור/לחבר Auth למנהל: "+(e.code||e.message||String(e))+"\nאם האימייל כבר קיים עם סיסמה אחרת, צריך לאפס אותו ב-Firebase Authentication או לבחור סיסמה קיימת.");
+  }
+}
+
+// עוטף את showAdmin כדי להוסיף את פאנל יצירת ה-Auth למנהל בכל כניסה לאדמין.
+(function(){
+  const oldShowAdmin=window.showAdmin;
+  if(typeof oldShowAdmin==="function"){
+    window.showAdmin=async function(){
+      await oldShowAdmin.apply(this,arguments);
+      addAdminAuthBootstrapToolsV170();
+      const line=document.getElementById("userLine");
+      if(line){
+        line.textContent = (session && session.adminAuthReady && session.authUid) ? "מנהל · Auth מאובטח" : "מנהל · מצב הכנת Auth";
+      }
+    };
+  }
+})();
+;
+/* ===== PATCH
+   אחרי פרסום Rules, אי אפשר לקרוא settings לפני Firebase Auth.
+   לכן הכניסה למנהל מתחברת קודם ל-Firebase Auth לפי הערכים המקומיים שבקובץ,
+   ורק אחרי שהמשתמש מחובר נטען settings והאדמין נפתח.
+*/
+async function adminLogin(){
+  const msgEl = $("adminLoginMsg");
+  try{
+    if(msgEl) msgEl.textContent = "בודק כניסת מנהל...";
+    const u=val("adminUsername"), p=val("adminPassword");
+    if(!u||!p){ if(msgEl) msgEl.textContent="חובה למלא שם משתמש וסיסמה."; return; }
+
+    // לא קוראים loadSettings כאן — אחרי Security Rules זה ייחסם לפני Auth.
+    if(u!==ADMIN_USERNAME || await sha256(p)!==ADMIN_PASSWORD_SHA256){
+      if(msgEl) msgEl.textContent="שם משתמש או סיסמה לא נכונים.";
+      return;
+    }
+
+    if(!firebaseAuthReady()){
+      if(msgEl) msgEl.textContent="Firebase Auth לא נטען. רענן את הדף ונסה שוב.";
+      return;
+    }
+
+    const authResult = await tryAdminFirebaseAuthV170(p);
+    if(!authResult.ok){
+      if(typeof writeAppLogV167==="function") await writeAppLogV167("adminLoginFailedV171",{
+        reason:authResult.reason||"unknown",
+        authEmail:authResult.email||adminAuthEmailV170(),
+        location: location.href
+      }).catch(()=>{});
+      if(msgEl) msgEl.textContent="Firebase Auth לאדמין נכשל: "+(authResult.reason||"לא ידוע")+". אם כבר יצרת אדמין עם סיסמה אחרת, צריך לאפס את הסיסמה שלו ב־Firebase Authentication.";
+      return;
+    }
+
+    await ensureAdminRoleDocV170(authResult.uid, authResult.email);
+    session={role:"admin",name:"מנהל",authUid:authResult.uid,authEmail:authResult.email,adminAuthReady:true};
+    localStorage.setItem("workSession",JSON.stringify(session));
+    clearLoginFields();
+    await showAdmin();
+  }catch(e){
+    console.error("adminLogin V1.7.1 failed", e);
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminLoginExceptionV171",{
+      errorCode:e.code||"",
+      errorMessage:e.message||String(e),
+      location: location.href
+    }).catch(()=>{});
+    if(msgEl) msgEl.textContent="שגיאה בכניסת מנהל: "+(e.code||e.message||String(e));
+  }
+}
+;
+/* ===== PATCH
+   תיקון חשוב:
+   מסך מנהל משתמש תמיד באימייל הפנימי של האדמין: admin@work-monitor.local
+   ולא באימייל/שם משתמש של עובד בשם Eliran.
+   בנוסף, קודם מנסים Firebase Auth לאדמין, ורק אם נכשל עוברים לגיבוי legacy.
+*/
+function adminAuthEmailV173(){
+  return "admin@work-monitor.local";
+}
+
+async function tryAdminFirebaseAuthV173(password){
+  const email = adminAuthEmailV173();
+  try{
+    if(!firebase.auth) return {ok:false, reason:"firebase_auth_sdk_missing", email};
+    const cred = await firebase.auth().signInWithEmailAndPassword(email, password);
+    const user = cred && cred.user;
+    if(!user) return {ok:false, reason:"no_user_returned", email};
+    return {ok:true, uid:user.uid, email:user.email || email};
+  }catch(e){
+    if(typeof writeAppLogV167 === "function"){
+      await writeAppLogV167("adminAuthLoginFailedV173",{
+        errorCode:e.code||"",
+        errorMessage:e.message||String(e),
+        authEmail:email,
+        location:location.href
+      }).catch(()=>{});
+    }
+    return {ok:false, reason:e.code || e.message || String(e), email};
+  }
+}
+
+async function ensureAdminRoleDocV173(uid,email){
+  if(!uid) return;
+  await db.collection("users").doc(uid).set({
+    uid,
+    email: email || adminAuthEmailV173(),
+    role:"admin",
+    name:"מנהל",
+    active:true,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+  await db.collection("settings").doc("main").set({
+    adminAuthUid:uid,
+    adminAuthEmail: email || adminAuthEmailV173(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+}
+
+async function adminLogin(){
+  const msgEl = $("adminLoginMsg");
+  try{
+    if(msgEl) msgEl.textContent = "בודק כניסת מנהל...";
+    const u = val("adminUsername"), p = val("adminPassword");
+    if(!u || !p){ if(msgEl) msgEl.textContent="חובה למלא שם משתמש וסיסמה."; return; }
+
+    // טוענים הגדרות אם אפשר. אם Rules חוסמים, לא נופלים כאן.
+    try{ await loadSettings(); }catch(_e){}
+
+    // במסך מנהל השם Eliran הוא שם המנהל בלבד. לא מחפשים עובד בשם Eliran.
+    if(normalize(u) !== normalize(ADMIN_USERNAME)){
+      if(msgEl) msgEl.textContent="שם משתמש מנהל לא נכון.";
+      return;
+    }
+
+    // קודם מנסים Firebase Auth של מנהל בלבד: admin@work-monitor.local.
+    // זה פותר מצב שבו יש גם עובד בשם Eliran עם סיסמה אחרת.
+    const authResult = await tryAdminFirebaseAuthV173(p);
+    if(authResult && authResult.ok){
+      await ensureAdminRoleDocV173(authResult.uid, authResult.email);
+
+      // מסנכרנים גם את hash הישן כדי שלא תיתקע שוב במצב חילוץ.
+      try{
+        const newHash = await sha256(p);
+        await db.collection("settings").doc("main").set({
+          adminPasswordHash:newHash,
+          adminUsername:ADMIN_USERNAME,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        },{merge:true});
+        ADMIN_PASSWORD_SHA256 = newHash;
+      }catch(_e){}
+
+      session={role:"admin",name:"מנהל",authUid:authResult.uid,authEmail:authResult.email,adminAuthReady:true};
+      localStorage.setItem("workSession",JSON.stringify(session));
+      clearLoginFields();
+      await showAdmin();
+      return;
+    }
+
+    // גיבוי זמני: אם Auth נכשל אבל הסיסמה הישנה של האדמין נכונה, נכנסים למצב חילוץ.
+    let legacyOk=false;
+    try{ legacyOk = (await sha256(p)) === ADMIN_PASSWORD_SHA256; }catch(_e){ legacyOk=false; }
+    if(!legacyOk){
+      if(msgEl) msgEl.innerHTML=`Firebase Auth לאדמין נכשל:<br>${esc(authResult.reason||"לא ידוע")}<br>וגם הסיסמה הישנה לא תואמת.`;
+      return;
+    }
+
+    if(typeof writeAppLogV167==="function"){
+      await writeAppLogV167("adminLoginAuthFailedButLegacyAllowedV173",{
+        reason:(authResult&&authResult.reason)||"unknown",
+        authEmail:adminAuthEmailV173(),
+        note:"Entered admin in rescue mode. Admin username is separated from worker username."
+      }).catch(()=>{});
+    }
+
+    session={
+      role:"admin",
+      name:"מנהל",
+      authUid:"",
+      authEmail:adminAuthEmailV173(),
+      adminAuthReady:false,
+      adminRescueMode:true,
+      adminAuthError:(authResult&&authResult.reason)||"unknown"
+    };
+    localStorage.setItem("workSession",JSON.stringify(session));
+    clearLoginFields();
+    await showAdmin();
+
+    const msg = document.getElementById("adminAuthBootstrapMsgV170") || document.getElementById("securityToolsMsgV169") || msgEl;
+    if(msg){
+      msg.innerHTML = `<div class="paywall">נכנסת לאדמין במצב חילוץ זמני ✅<br>
+      ה־Firebase Auth של המנהל עדיין לא תקין: ${esc((authResult&&authResult.reason)||"לא ידוע")}<br>
+      לחץ <b>צור/תקן Auth למנהל</b>, הזן סיסמה של 6 תווים לפחות, ורק אחרי הצלחה לחץ <b>סנכרן אבטחה</b>.</div>`;
+    }
+  }catch(e){
+    console.error("adminLogin V1.7.3 failed", e);
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminLoginExceptionV173",{
+      errorCode:e.code||"",
+      errorMessage:e.message||String(e),
+      location:location.href
+    }).catch(()=>{});
+    if(msgEl) msgEl.textContent="שגיאה בכניסת מנהל: "+(e.code||e.message||String(e));
+  }
+}
+;
+/* ===== PATCH
+   - מוסיף מייל שחזור/אימייל Auth אמיתי למנהל במסך אדמין.
+   - אחרי 3 ניסיונות שגויים לעובד או למנהל מציג אפשרות שחזור סיסמה.
+   - שחזור Firebase עובד רק אם ה-Auth Email הוא אימייל אמיתי, לא @work-monitor.local.
+*/
+let ADMIN_RECOVERY_EMAIL_V174="";
+let ADMIN_AUTH_EMAIL_V174="admin@work-monitor.local";
+function isRealEmailV174(email){
+  email=String(email||"").trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !email.endsWith("@work-monitor.local");
+}
+function cleanEmailV174(email){ return String(email||"").trim().toLowerCase(); }
+
+// מעכשיו פונקציות האדמין ישתמשו באימייל מה-settings אם הגדרת אימייל אמיתי.
+function adminAuthEmailV173(){ return ADMIN_AUTH_EMAIL_V174 || "admin@work-monitor.local"; }
+function adminAuthEmailV170(){ return ADMIN_AUTH_EMAIL_V174 || "admin@work-monitor.local"; }
+
+const oldLoadSettingsV174 = window.loadSettings;
+window.loadSettings = async function(){
+  if(typeof oldLoadSettingsV174 === "function") await oldLoadSettingsV174();
+  try{
+    const doc=await db.collection("settings").doc("main").get();
+    if(doc.exists){
+      const d=doc.data()||{};
+      ADMIN_RECOVERY_EMAIL_V174 = cleanEmailV174(d.adminRecoveryEmail || "");
+      ADMIN_AUTH_EMAIL_V174 = cleanEmailV174(d.adminAuthEmail || "") || "admin@work-monitor.local";
+    }
+  }catch(e){ console.warn("loadSettings V174 recovery fields failed", e); }
+};
+
+function addAdminRecoveryPanelV174(){
+  const settingsMsg=document.getElementById("adminSettingsMsg");
+  if(!settingsMsg || document.getElementById("adminRecoveryPanelV174")) return;
+  const box=document.createElement("div");
+  box.id="adminRecoveryPanelV174";
+  box.className="card panel";
+  box.style.boxShadow="none";
+  box.style.marginTop="12px";
+  box.innerHTML=`
+    <h3>📧 שחזור סיסמה למנהל</h3>
+    <p class="muted">כדי ששחזור סיסמה יעבוד באמת, ה־Firebase Auth של המנהל חייב להיות על אימייל אמיתי. אימייל פנימי כמו <b>admin@work-monitor.local</b> לא יכול לקבל מייל איפוס.</p>
+    <div class="grid2">
+      <input id="adminRecoveryEmailInputV174" type="email" placeholder="אימייל אמיתי לשחזור מנהל">
+      <button class="btn-green" onclick="saveAdminRecoveryEmailV174()">שמור אימייל שחזור</button>
+    </div>
+    <div class="actions">
+      <button class="btn-yellow" onclick="createOrSwitchAdminAuthEmailV174()">חבר Auth של מנהל לאימייל הזה</button>
+      <button class="btn-light" onclick="sendAdminPasswordResetV174()">שלח איפוס סיסמה למנהל</button>
+    </div>
+    <div id="adminRecoveryMsgV174"></div>
+  `;
+  settingsMsg.parentNode.insertBefore(box, settingsMsg.nextSibling);
+  const input=document.getElementById("adminRecoveryEmailInputV174");
+  if(input) input.value=ADMIN_RECOVERY_EMAIL_V174 || (isRealEmailV174(ADMIN_AUTH_EMAIL_V174)?ADMIN_AUTH_EMAIL_V174:"");
+}
+
+const oldShowAdminV174 = window.showAdmin;
+window.showAdmin = async function(){
+  if(typeof oldShowAdminV174 === "function") await oldShowAdminV174();
+  try{ await loadSettings(); }catch(e){}
+  addAdminRecoveryPanelV174();
+  const input=document.getElementById("adminRecoveryEmailInputV174");
+  if(input) input.value=ADMIN_RECOVERY_EMAIL_V174 || (isRealEmailV174(ADMIN_AUTH_EMAIL_V174)?ADMIN_AUTH_EMAIL_V174:"");
+};
+
+async function saveAdminRecoveryEmailV174(){
+  const msg=document.getElementById("adminRecoveryMsgV174");
+  const email=cleanEmailV174(document.getElementById("adminRecoveryEmailInputV174")?.value||"");
+  if(!email || !isRealEmailV174(email)){
+    if(msg) msg.innerHTML="<p class='danger'>חובה להזין אימייל אמיתי, לא אימייל פנימי.</p>";
+    return;
+  }
+  await db.collection("settings").doc("main").set({
+    adminRecoveryEmail:email,
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+  ADMIN_RECOVERY_EMAIL_V174=email;
+  if(msg) msg.innerHTML="<div class='notice'>אימייל שחזור מנהל נשמר ✅<br>כדי שאיפוס סיסמה יישלח לשם, לחץ גם: חבר Auth של מנהל לאימייל הזה.</div>";
+}
+
+async function createOrSwitchAdminAuthEmailV174(){
+  const msg=document.getElementById("adminRecoveryMsgV174");
+  const email=cleanEmailV174(document.getElementById("adminRecoveryEmailInputV174")?.value||ADMIN_RECOVERY_EMAIL_V174||"");
+  if(!email || !isRealEmailV174(email)){
+    if(msg) msg.innerHTML="<p class='danger'>חובה להזין אימייל אמיתי לפני חיבור Auth.</p>";
+    return;
+  }
+  const pass=prompt("הכנס סיסמת מנהל ל-Firebase Auth. זו תהיה גם הסיסמה שתשתמש בה לכניסת מנהל. מינימום 6 תווים.");
+  if(pass===null) return;
+  if(!pass || pass.length<6){ alert("סיסמה חייבת להיות לפחות 6 תווים."); return; }
+  try{
+    if(msg) msg.innerHTML="<div class='notice'>יוצר/מחבר Auth למנהל עם אימייל אמיתי...</div>";
+    let cred=null, created=false;
+    try{
+      cred=await auth.createUserWithEmailAndPassword(email,pass);
+      created=true;
+    }catch(e){
+      if(e.code==="auth/email-already-in-use"){
+        cred=await auth.signInWithEmailAndPassword(email,pass);
+      }else throw e;
+    }
+    const user=cred&&cred.user;
+    if(!user||!user.uid) throw new Error("no_admin_uid");
+    try{ await user.updateProfile({displayName:"מנהל"}); }catch(_e){}
+    await db.collection("users").doc(user.uid).set({
+      uid:user.uid,
+      role:"admin",
+      name:"מנהל",
+      username:ADMIN_USERNAME,
+      authEmail:email,
+      recoveryEmail:email,
+      active:true,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+    const hash=await sha256(pass);
+    await db.collection("settings").doc("main").set({
+      adminAuthUid:user.uid,
+      adminAuthEmail:email,
+      adminRecoveryEmail:email,
+      adminPasswordHash:hash,
+      adminUsername:ADMIN_USERNAME,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+    ADMIN_AUTH_EMAIL_V174=email;
+    ADMIN_RECOVERY_EMAIL_V174=email;
+    ADMIN_PASSWORD_SHA256=hash;
+    session={...(session||{}),role:"admin",name:"מנהל",authUid:user.uid,authEmail:email,adminAuthReady:true};
+    localStorage.setItem("workSession",JSON.stringify(session));
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminAuthRealEmailConnectedV174",{uid:user.uid,email,created}).catch(()=>{});
+    if(msg) msg.innerHTML="<div class='notice'>Auth מנהל חובר לאימייל אמיתי ✅ מעכשיו שחזור סיסמה יכול להישלח לאימייל הזה.</div>";
+  }catch(e){
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("adminAuthRealEmailConnectFailedV174",{email,errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+    if(msg) msg.innerHTML=`<p class='danger'>שגיאה בחיבור Auth לאימייל אמיתי: ${esc(e.code||e.message||String(e))}</p>`;
+  }
+}
+
+async function sendPasswordResetSafeV174(email, targetMsgId){
+  const msg=targetMsgId?document.getElementById(targetMsgId):null;
+  email=cleanEmailV174(email);
+  if(!isRealEmailV174(email)){
+    const text="אי אפשר לשלוח איפוס לאימייל פנימי. צריך לחבר את המשתמש ל-Auth Email אמיתי.";
+    if(msg) msg.innerHTML=`<p class='danger'>${text}</p>`; else alert(text);
+    return false;
+  }
+  try{
+    await auth.sendPasswordResetEmail(email);
+    const text="נשלח מייל איפוס סיסמה ל־"+email+" ✅";
+    if(msg) msg.innerHTML=`<div class='notice'>${esc(text)}</div>`; else alert(text);
+    return true;
+  }catch(e){
+    const text="שגיאה בשליחת איפוס: "+(e.code||e.message||String(e));
+    if(msg) msg.innerHTML=`<p class='danger'>${esc(text)}</p>`; else alert(text);
+    return false;
+  }
+}
+
+async function sendAdminPasswordResetV174(){
+  try{ await loadSettings(); }catch(e){}
+  const email=isRealEmailV174(ADMIN_AUTH_EMAIL_V174)?ADMIN_AUTH_EMAIL_V174:ADMIN_RECOVERY_EMAIL_V174;
+  await sendPasswordResetSafeV174(email,"adminRecoveryMsgV174");
+}
+
+// שומר גם אימייל שחזור מתוך כרטיס הגדרות המנהל.
+const oldSaveAdminSettingsV174 = window.saveAdminSettings;
+window.saveAdminSettings = async function(){
+  const username=val("adminSetUsername"), password=val("adminSetPassword");
+  const recovery=cleanEmailV174(document.getElementById("adminRecoveryEmailInputV174")?.value||ADMIN_RECOVERY_EMAIL_V174||"");
+  if(!username){ $("adminSettingsMsg").innerHTML="<p class='danger'>חובה למלא שם משתמש מנהל.</p>"; return; }
+  if(recovery && !isRealEmailV174(recovery)){ $("adminSettingsMsg").innerHTML="<p class='danger'>אימייל שחזור מנהל לא תקין.</p>"; return; }
+  const update={adminUsername:username,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  if(recovery) update.adminRecoveryEmail=recovery;
+  if(password.trim()){
+    update.adminPasswordHash=await sha256(password.trim());
+    try{
+      if(auth.currentUser && session && session.authUid && auth.currentUser.uid===session.authUid){
+        await auth.currentUser.updatePassword(password.trim());
+        update.adminAuthEmail=auth.currentUser.email || ADMIN_AUTH_EMAIL_V174;
+      }
+    }catch(e){
+      // לא נכשיל שמירה בגלל צורך בכניסה מחדש, אבל נציג הודעה.
+      await writeAppLogV167?.("adminUpdatePasswordAuthFailedV174",{errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+    }
+  }
+  await db.collection("settings").doc("main").set(update,{merge:true});
+  if(password.trim()) ADMIN_PASSWORD_SHA256=update.adminPasswordHash;
+  if(recovery) ADMIN_RECOVERY_EMAIL_V174=recovery;
+  ADMIN_USERNAME=username;
+  if($("adminSetPassword"))$("adminSetPassword").value="";
+  $("adminSettingsMsg").innerHTML="<div class='notice'>הגדרות מנהל נשמרו ✅</div>";
+};
+
+function failKeyV174(type,key){ return "workFail_"+type+"_"+normalize(key||""); }
+function getFailCountV174(type,key){ return Number(localStorage.getItem(failKeyV174(type,key))||0); }
+function setFailCountV174(type,key,n){ localStorage.setItem(failKeyV174(type,key),String(n)); }
+function clearFailCountV174(type,key){ localStorage.removeItem(failKeyV174(type,key)); }
+
+function renderAdminResetOptionV174(reason){
+  const msg=document.getElementById("adminLoginMsg");
+  if(!msg) return;
+  const email=isRealEmailV174(ADMIN_AUTH_EMAIL_V174)?ADMIN_AUTH_EMAIL_V174:ADMIN_RECOVERY_EMAIL_V174;
+  const canReset=isRealEmailV174(email);
+  msg.innerHTML=`שם משתמש או סיסמה לא נכונים.<br>
+    ${reason?`<span class="muted">${esc(reason)}</span><br>`:""}
+    ${canReset?`<button class="btn-light" style="margin-top:10px" onclick="sendAdminPasswordResetFromLoginV174()">שחזר סיסמת מנהל</button>`:`<span class="muted">לא מוגדר למנהל Auth Email אמיתי לשחזור.</span>`}`;
+}
+async function sendAdminPasswordResetFromLoginV174(){
+  try{ await loadSettings(); }catch(e){}
+  const email=isRealEmailV174(ADMIN_AUTH_EMAIL_V174)?ADMIN_AUTH_EMAIL_V174:ADMIN_RECOVERY_EMAIL_V174;
+  await sendPasswordResetSafeV174(email,"adminLoginMsg");
+}
+
+const oldAdminLoginV174 = window.adminLogin;
+window.adminLogin = async function(){
+  const u=val("adminUsername");
+  const before=session&&session.role;
+  if(typeof oldAdminLoginV174 === "function") await oldAdminLoginV174();
+  setTimeout(()=>{
+    const success=session&&session.role==="admin";
+    if(success){ clearFailCountV174("admin",u||"admin"); return; }
+    const currentMsg=(document.getElementById("adminLoginMsg")?.textContent||"");
+    if(currentMsg && !currentMsg.includes("בודק")){
+      const c=getFailCountV174("admin",u||"admin")+1;
+      setFailCountV174("admin",u||"admin",c);
+      if(c>=3) renderAdminResetOptionV174(currentMsg);
+    }
+  },350);
+};
+
+function renderWorkerResetOptionV174(usernameKey, detail){
+  const msg=document.getElementById("workerLoginMsg");
+  if(!msg) return;
+  msg.innerHTML=`שם משתמש או סיסמה לא נכונים.<br>
+    <span class="muted">אחרי 3 ניסיונות שגויים אפשר לנסות שחזור סיסמה אם מוגדר למשתמש אימייל Auth אמיתי.</span><br>
+    <button class="btn-light" style="margin-top:10px" onclick="sendWorkerPasswordResetV174('${String(usernameKey||"").replaceAll("'","\\'")}')">שחזר סיסמה</button>`;
+}
+async function sendWorkerPasswordResetV174(usernameKey){
+  const msgId="workerLoginMsg";
+  usernameKey=normalize(usernameKey || val("workerUsername"));
+  if(!usernameKey){ document.getElementById(msgId).innerHTML="<p class='danger'>חובה למלא שם משתמש קודם.</p>"; return; }
+  try{
+    let lookup=null;
+    const lookupDoc=await db.collection("usernameLookup").doc(usernameKey).get();
+    if(lookupDoc.exists) lookup={id:lookupDoc.id,...lookupDoc.data()};
+    let email=lookup && lookup.authEmail ? lookup.authEmail : "";
+    if(!email){
+      const workerDoc=await db.collection("workers").doc(workerIdFromUsername(usernameKey)).get();
+      if(workerDoc.exists){
+        const w=workerDoc.data()||{};
+        email=w.authEmail||"";
+      }
+    }
+    if(!isRealEmailV174(email)){
+      document.getElementById(msgId).innerHTML="<p class='danger'>לעובד הזה אין עדיין Auth Email אמיתי. מנהל צריך להגדיר לו אימייל אמיתי ולחבר אותו ל־Firebase Auth.</p>";
+      return;
+    }
+    await sendPasswordResetSafeV174(email,msgId);
+  }catch(e){
+    document.getElementById(msgId).innerHTML=`<p class='danger'>שגיאה בשחזור סיסמה: ${esc(e.code||e.message||String(e))}</p>`;
+  }
+}
+
+const oldWorkerLoginV174 = window.workerLogin;
+window.workerLogin = async function(){
+  const username=val("workerUsername");
+  const key=normalize(username);
+  if(typeof oldWorkerLoginV174 === "function") await oldWorkerLoginV174();
+  setTimeout(()=>{
+    const success=session&&session.role==="worker";
+    if(success){ clearFailCountV174("worker",key); return; }
+    const txt=document.getElementById("workerLoginMsg")?.textContent||"";
+    const failed=txt.includes("סיסמה")||txt.includes("לא נכונים")||txt.includes("Auth נכשל")||txt.includes("שגיאה בכניסה");
+    if(failed && key){
+      const c=getFailCountV174("worker",key)+1;
+      setFailCountV174("worker",key,c);
+      if(c>=3) renderWorkerResetOptionV174(key,txt);
+    }
+  },350);
+};
+;
+/* ===== PATCH
+   תיקון מרכזי:
+   1. הרשמה עצמית יוצרת קודם Firebase Auth עם UID אמיתי.
+   2. מיד אחרי זה נשמרים users/{uid}, workers/{workerId}, usernameLookup/{usernameKey}.
+   3. העובד נכנס אוטומטית למערכת אחרי ההרשמה.
+   4. כולל Security Rules מעודכנות שמאפשרות יצירת משתמש עצמי בלי להיות מחובר מראש כמנהל.
+*/
+function registrationMsgV176(html){
+  const msg=document.getElementById("registerMsg");
+  if(msg) msg.innerHTML=html;
+}
+function setRegisterBusyV176(isBusy){
+  const btn=[...document.querySelectorAll("button")].find(b=>String(b.getAttribute("onclick")||"").includes("registerWorker()"));
+  if(btn){ btn.disabled=!!isBusy; btn.textContent=isBusy?"יוצר משתמש...":"פתח משתמש ניסיון"; }
+}
+function isPermissionErrorV176(e){
+  const code=String((e&&e.code)||"").toLowerCase();
+  const msg=String((e&&e.message)||e||"").toLowerCase();
+  return code.includes("permission") || msg.includes("permission") || msg.includes("missing or insufficient permissions");
+}
+async function ensureSelfUserRoleDocV176(uid,payload){
+  if(!uid) throw new Error("לא התקבל UID מ־Firebase Auth");
+  await db.collection("users").doc(uid).set({
+    uid,
+    role:"worker",
+    ...payload,
+    selfRegistered:true,
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+    createdAt:firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+}
+async function createPrimaryAuthForSelfRegistrationV176(username,password,name,recoveryEmail){
+  if(!firebaseAuthReady()) throw new Error("Firebase Auth לא נטען. רענן את הדף ונסה שוב.");
+  const authEmail=effectiveAuthEmailV168(username,recoveryEmail);
+  let cred=null;
+  let created=false;
+  try{
+    cred=await auth.createUserWithEmailAndPassword(authEmail,password);
+    created=true;
+  }catch(e){
+    if(e.code==="auth/email-already-in-use"){
+      // אם האימייל כבר קיים והסיסמה נכונה — נתחבר אליו ונמשיך לשייך אותו לעובד החדש.
+      cred=await auth.signInWithEmailAndPassword(authEmail,password);
+    }else{
+      throw e;
+    }
+  }
+  const user=cred && cred.user ? cred.user : auth.currentUser;
+  if(!user || !user.uid) throw new Error("Firebase Auth לא החזיר UID.");
+  try{ await user.updateProfile({displayName:name||username}); }catch(_e){}
+  return {ok:true,uid:user.uid,email:authEmail,created};
+}
+
+async function registerWorker(){
+  const msg=document.getElementById("registerMsg");
+  if(msg) msg.innerHTML="";
+  setRegisterBusyV176(true);
+  try{
+    let name=val("regName"), username=val("regUsername"), pass=val("regPassword"), pass2=val("regPassword2");
+    const recoveryEmail=cleanEmailV168(document.getElementById("regEmail")?val("regEmail"):"");
+    if(!name||!username||!pass||!pass2){ registrationMsgV176("<p class='danger'>חובה למלא שם, שם משתמש וסיסמה.</p>"); return; }
+    if(recoveryEmail && !isValidEmailV168(recoveryEmail)){ registrationMsgV176("<p class='danger'>האימייל לא תקין.</p>"); return; }
+    if(pass!==pass2){ registrationMsgV176("<p class='danger'>הסיסמאות לא תואמות.</p>"); return; }
+    if(pass.length<6){ registrationMsgV176("<p class='danger'>סיסמה חייבת להיות לפחות 6 תווים.</p>"); return; }
+
+    const usernameKey=normalize(username);
+    const workerId=workerIdFromUsername(usernameKey);
+    const authEmail=effectiveAuthEmailV168(username,recoveryEmail);
+
+    registrationMsgV176("<div class='notice'>בודק זמינות שם משתמש...</div>");
+    try{
+      const lookupDoc=await db.collection("usernameLookup").doc(usernameKey).get();
+      if(lookupDoc.exists){ registrationMsgV176("<p class='danger'>שם המשתמש כבר קיים. בחר שם משתמש אחר.</p>"); return; }
+    }catch(e){
+      // אם אין הרשאה לקרוא lookup נמשיך לנסות, אבל נציג לוג.
+      if(typeof writeAppLogV167==="function") await writeAppLogV167("registerLookupCheckSkippedV176",{usernameKey,errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+    }
+
+    registrationMsgV176("<div class='notice'>יוצר Firebase Auth ו־UID...</div>");
+    const authResult=await createPrimaryAuthForSelfRegistrationV176(username,pass,name,recoveryEmail);
+    const uid=authResult.uid;
+
+    const trialUntil=addDaysToDate(DEFAULT_TRIAL_DAYS || 90);
+    const baseWorker={
+      name,
+      username,
+      usernameKey,
+      authEmail:authResult.email||authEmail,
+      recoveryEmail,
+      authUid:uid,
+      authReady:true,
+      authNote:("נוצר בהרשמה עצמית אוטומטית בגרסה "+APP_VERSION),
+      passwordHash:await sha256(pass),
+      monthlyGoal:0,
+      active:true,
+      selfRegistered:true,
+      subscriptionStatus:"trial",
+      trialDays:DEFAULT_TRIAL_DAYS || 90,
+      trialUntil,
+      subscriptionUntil:trialUntil,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    registrationMsgV176("<div class='notice'>מחבר את ה־UID לעובד במערכת...</div>");
+    try{
+      await ensureSelfUserRoleDocV176(uid,{workerId,username,name,authEmail:baseWorker.authEmail,recoveryEmail});
+      await db.collection("workers").doc(workerId).set(baseWorker,{merge:false});
+      await db.collection("usernameLookup").doc(usernameKey).set({
+        workerId,
+        username,
+        usernameKey,
+        authEmail:baseWorker.authEmail,
+        authUid:uid,
+        active:true,
+        selfRegistered:true,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:false});
+    }catch(e){
+      if(typeof writeAppLogV167==="function") await writeAppLogV167("registerFirestoreWriteFailedV176",{username,usernameKey,workerId,uid,authEmail:baseWorker.authEmail,errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+      if(isPermissionErrorV176(e)){
+        registrationMsgV176("<p class='danger'>ה־UID נוצר ב־Firebase Auth, אבל Firestore חסם את שמירת העובד בגלל Security Rules ישנות. היכנס כמנהל, לחץ ‘העתק Security Rules’ בגרסה "+APP_VERSION+", פרסם אותן ב־Firebase ואז נסה שוב.</p>");
+      }else{
+        registrationMsgV176(`<p class='danger'>נוצר Auth אבל שמירת העובד נכשלה: ${esc(e.code||e.message||String(e))}</p>`);
+      }
+      return;
+    }
+
+    const worker={id:workerId,...baseWorker};
+    const remember=document.getElementById("rememberMe") && document.getElementById("rememberMe").checked;
+    session={role:"worker",workerId,name,authUid:uid,authEmail:baseWorker.authEmail,remember:true,loginAt:Date.now(),expiresAt:null};
+    localStorage.setItem("workSession",JSON.stringify(session));
+
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("selfRegistrationCompleteV176",{workerId,username,uid,authEmail:baseWorker.authEmail,trialUntil}).catch(()=>{});
+    registrationMsgV176(`<div class='notice'>המשתמש נפתח בהצלחה ✅<br>UID: ${esc(uid)}<br>תקופת ניסיון עד ${heDate(trialUntil)}<br>מעביר למסך העבודה...</div>`);
+    setTimeout(()=>showWorker(worker),700);
+  }catch(e){
+    if(typeof writeAppLogV167==="function") await writeAppLogV167("registerUnexpectedFailedV176",{errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+    registrationMsgV176(`<p class='danger'>שגיאה בהרשמה: ${esc(e.code||e.message||String(e))}</p>`);
+  }finally{
+    setRegisterBusyV176(false);
+  }
+}
+
+// Login fallback משופר: אם lookup עוד לא קיים אבל המשתמש כבר ב-Auth, ננסה לשחזר שיוך לפי workerId.
+const oldWorkerLoginV176 = window.workerLogin;
+window.workerLogin = async function(){
+  const username=val("workerUsername"), pass=val("workerPassword");
+  if(!username || !pass){ text("workerLoginMsg","חובה למלא שם משתמש וסיסמה."); return; }
+  if(typeof oldWorkerLoginV176 === "function"){
+    await oldWorkerLoginV176();
+    if(session && session.role==="worker") return;
+  }
+  // fallback אחרון למשתמשים שנוצרו ב-2.2 אבל lookup לא הספיק להיכתב.
+  try{
+    const usernameKey=normalize(username);
+    const authEmail=authEmailFromUsername(username);
+    const cred=await auth.signInWithEmailAndPassword(authEmail,pass);
+    const uid=cred && cred.user ? cred.user.uid : "";
+    if(!uid) return;
+    const workerId=workerIdFromUsername(usernameKey);
+    const doc=await db.collection("workers").doc(workerId).get();
+    if(!doc.exists) return;
+    const worker={id:doc.id,...doc.data()};
+    if(worker.active===false){ text("workerLoginMsg","העובד לא פעיל."); return; }
+    if(worker.authUid && worker.authUid!==uid){ text("workerLoginMsg","התחברות Auth לא תואמת לעובד."); return; }
+    await ensureSelfUserRoleDocV176(uid,{workerId,username:worker.username||username,name:worker.name||"",authEmail:worker.authEmail||authEmail,recoveryEmail:worker.recoveryEmail||""}).catch(()=>{});
+    await db.collection("usernameLookup").doc(usernameKey).set({workerId,username:worker.username||username,usernameKey,authEmail:worker.authEmail||authEmail,authUid:uid,active:true,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true}).catch(()=>{});
+    session={role:"worker",workerId:worker.id,name:worker.name,authUid:uid,authEmail:worker.authEmail||authEmail,remember:true,loginAt:Date.now(),expiresAt:null};
+    localStorage.setItem("workSession",JSON.stringify(session));
+    clearLoginFields();
+    await showWorker(worker);
+  }catch(_e){
+    // ההודעה המקורית כבר מוצגת מהפונקציה הישנה.
+  }
+};
+
+const FIRESTORE_RULES_V176 = String.raw`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function userPath(uid) { return /databases/$(database)/documents/users/$(uid); }
+    function hasUserDoc() { return signedIn() && exists(userPath(request.auth.uid)); }
+    function userDoc() { return get(userPath(request.auth.uid)); }
+    function isAdmin() { return hasUserDoc() && userDoc().data.role == 'admin'; }
+    function myWorkerId() { return hasUserDoc() ? userDoc().data.workerId : ''; }
+    function isWorker() { return hasUserDoc() && userDoc().data.role == 'worker'; }
+    function isOwnWorker(workerId) { return isWorker() && myWorkerId() == workerId; }
+
+    match /usernameLookup/{usernameKey} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.authUid == request.auth.uid
+        && request.resource.data.active == true
+        && request.resource.data.usernameKey == usernameKey;
+      allow update: if isAdmin() || (signedIn()
+        && resource.data.authUid == request.auth.uid
+        && request.resource.data.authUid == request.auth.uid
+        && request.resource.data.workerId == resource.data.workerId);
+      allow delete: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == 'worker'
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.workerId is string;
+      allow update: if isAdmin() || (signedIn()
+        && request.auth.uid == uid
+        && resource.data.role == 'worker'
+        && request.resource.data.role == 'worker'
+        && request.resource.data.workerId == resource.data.workerId);
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /workers/{workerId} {
+      allow read: if isAdmin() || isOwnWorker(workerId);
+      allow create: if isAdmin() || (signedIn()
+        && hasUserDoc()
+        && userDoc().data.role == 'worker'
+        && userDoc().data.workerId == workerId
+        && request.resource.data.authUid == request.auth.uid
+        && request.resource.data.active == true);
+      allow update: if isAdmin() || (isOwnWorker(workerId)
+        && request.resource.data.authUid == resource.data.authUid
+        && request.resource.data.usernameKey == resource.data.usernameKey);
+      allow delete: if isAdmin();
+    }
+
+    match /workEntries/{entryId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create: if isAdmin() || (signedIn() && request.resource.data.workerId == myWorkerId());
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId() && request.resource.data.workerId == resource.data.workerId);
+    }
+
+    match /priceList/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /installTemplates/{doc} {
+      allow read: if isAdmin() || (signedIn() && (!('ownerWorkerId' in resource.data) || resource.data.ownerWorkerId == null || resource.data.ownerWorkerId == '' || resource.data.ownerWorkerId == myWorkerId()));
+      allow create: if isAdmin() || (signedIn() && request.resource.data.ownerWorkerId == myWorkerId());
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.ownerWorkerId == myWorkerId());
+    }
+
+    match /paymentRequests/{doc} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create: if signedIn() && request.resource.data.workerId == myWorkerId();
+      allow update, delete: if isAdmin();
+    }
+
+    match /payments/{doc} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /appLogs/{doc} {
+      allow read: if isAdmin();
+      allow create: if signedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}`;
+
+window.copySecurityRulesV169 = async function(){
+  try{
+    await navigator.clipboard.writeText(FIRESTORE_RULES_V176);
+    const msg=document.getElementById("securityToolsMsgV169") || document.getElementById("adminAuthBootstrapMsgV170");
+    if(msg) msg.innerHTML="<div class='notice'>Security Rules של גרסה "+APP_VERSION+" הועתקו ✅</div>";
+  }catch(e){
+    prompt("העתק את ה־Security Rules של גרסה "+APP_VERSION+":", FIRESTORE_RULES_V176);
+  }
+};
+
+// כפתור בדיקה קטן באדמין לוודא שההרשמה העצמית תעבוד עם ה-Rules.
+function addSelfRegistrationToolsV176(){
+  const admin=document.getElementById("adminView");
+  if(!admin || document.getElementById("selfRegistrationToolsV176")) return;
+  const div=document.createElement("div");
+  div.id="selfRegistrationToolsV176";
+  div.className="card panel";
+  div.innerHTML=`
+    <div class="cal-head"><h2>🆕 הרשמה עצמית 2.2</h2><button class="btn-light" onclick="copySecurityRulesV169()">העתק Rules 2.2</button></div>
+    <p>הגרסה הזו יוצרת UID אוטומטי בהרשמה מהמסך הראשי, מחברת אותו לעובד, ופותחת תקופת ניסיון לפי ההגדרה באדמין.</p>
+    <div class="notice">אחרי העלאה לגיטהאב: בדוק הרשמה חדשה מחלון גלישה בסתר כדי לוודא שאין Session ישן.</div>`;
+  const first=admin.querySelector(".card");
+  admin.insertBefore(div, first||admin.firstChild);
+}
+(function(){
+  const oldShowAdmin=window.showAdmin;
+  if(typeof oldShowAdmin==="function"){
+    window.showAdmin=async function(){
+      await oldShowAdmin.apply(this,arguments);
+      addSelfRegistrationToolsV176();
+      setAppVersionUI();
+    };
+  }
+})();
+;
+/* ===== PATCH
+   תיקון קריטי: לא מציגים workerView / נתונים / חודש לפני בדיקת מנוי עדכנית מהשרת.
+*/
+function isWorkerSessionV177(){
+  return !!(session && session.role === "worker");
+}
+
+function stopExpiredWorkerSessionV177(worker){
+  try{ localStorage.removeItem("workSession"); }catch(e){}
+  session = null;
+  viewedWorker = null;
+  hideAll();
+  showExpiredView(worker);
+}
+
+async function fetchFreshWorkerV177(workerId){
+  if(!workerId) throw new Error("חסר מזהה עובד");
+  const doc = await db.collection("workers").doc(workerId).get();
+  if(!doc.exists) throw new Error("העובד לא נמצא");
+  return {id:doc.id, ...doc.data()};
+}
+
+async function assertWorkerCanViewV177(worker){
+  // מנהל רשאי לפתוח מעקב גם לעובד פג תוקף לצורך ניהול ובקרה.
+  if(!isWorkerSessionV177()) return {ok:true, worker};
+
+  const fresh = await fetchFreshWorkerV177(worker.id);
+
+  if(fresh.active === false){
+    stopExpiredWorkerSessionV177(fresh);
+    return {ok:false, worker:fresh, reason:"inactive"};
+  }
+
+  if(isSubscriptionExpired(fresh)){
+    stopExpiredWorkerSessionV177(fresh);
+    return {ok:false, worker:fresh, reason:"expired"};
+  }
+
+  return {ok:true, worker:fresh};
+}
+
+// פתיחת עובד לפי ID: קודם בדיקת תוקף מהשרת, ורק אחר כך הצגת מסך.
+async function showWorkerById(id){
+  try{
+    const worker = await fetchFreshWorkerV177(id);
+    const gate = await assertWorkerCanViewV177(worker);
+    if(!gate.ok) return;
+    await showWorker(gate.worker);
+  }catch(e){
+    try{ if(isWorkerSessionV177()) logout(); }catch(_e){}
+    alert("שגיאה בפתיחת עובד: " + (e.message || String(e)));
+  }
+}
+
+// הצגת עובד: אין show(workerView) לפני בדיקת מנוי עדכנית.
+async function showWorker(worker){
+  const gate = await assertWorkerCanViewV177(worker);
+  if(!gate.ok) return;
+  worker = gate.worker;
+
+  viewedWorker = worker;
+  hideAll();
+  show("workerView");
+  show("logoutBtn");
+  
+  text("userLine", `${worker.name} · ${session && session.role === "admin" ? "צפייה כמנהל" : "עובד"}`);
+  text("helloTitle", `שלום ${worker.name}`);
+  calendarDate = new Date();
+  selectedDate = null;
+  selectedType = null;
+  if($("selfGoalMonth")) $("selfGoalMonth").value = currentCalendarMonthKeyV556(); if($("selfMonthlyGoal")) $("selfMonthlyGoal").value = getWorkerGoalForMonthV556();
+  if($("selfNewPassword")) $("selfNewPassword").value = "";
+  await loadSettings();
+  await loadMonth();
+}
+
+// גם בזמן טעינת חודש/רענון פנימי: בודקים לפני קריאת/הצגת עבודות.
+(function(){
+  const oldLoadMonthV177 = window.loadMonth;
+  if(typeof oldLoadMonthV177 === "function"){
+    window.loadMonth = async function(){
+      if(isWorkerSessionV177() && viewedWorker && viewedWorker.id){
+        const gate = await assertWorkerCanViewV177(viewedWorker);
+        if(!gate.ok) return;
+        viewedWorker = gate.worker;
+      }
+      return oldLoadMonthV177.apply(this, arguments);
+    };
+  }
+})();
+
+// בשחזור Session אחרי רענון/פתיחה: לא מציגים כלום לפני בדיקת מנוי.
+window.onload = async()=>{
+  try{
+    // לא שוברים כניסה אם settings חסום לפני Auth; ממשיכים למסך כניסה.
+    try{ await ensureDefaultPriceList(); await loadSettings(); }catch(e){ console.warn("startup settings skipped", e); }
+    attachLoginFieldCleaner();
+  }catch(e){ console.error(e); }
+
+  const saved = localStorage.getItem("workSession");
+  if(saved){
+    try{
+      session = JSON.parse(saved);
+      if(session.role === "admin"){
+        clearLoginFields();
+        return showAdmin();
+      }
+      if(session.role === "worker"){
+        if(isSessionExpired()){
+          localStorage.removeItem("workSession");
+          session = null;
+          clearLoginFields();
+          return showWorkerLogin();
+        }
+        clearLoginFields();
+        return showWorkerById(session.workerId);
+      }
+    }catch(e){
+      localStorage.removeItem("workSession");
+      session = null;
+    }
+  }
+  showWorkerLogin();
+};
+;
+/* ===== PATCH
+   שחזור גישה לעובד ששכח סיסמה:
+   - לא מוחק workers ולא מוחק workEntries.
+   - יוצר Firebase Auth חדש עם UID חדש, בדרך כלל אימייל פנימי חד־פעמי.
+   - מעדכן workers/{workerId}.authUid/authEmail/passwordHash.
+   - מעדכן users/{newUid} ו־usernameLookup/{usernameKey}.
+   - מנטרל users/{oldUid} כדי שלא יישאר קישור ישן לאותו עובד.
+*/
+function recoveryInternalEmailV178(username){
+  const clean = safeAuthUsernamePart(username || "worker");
+  return `${clean}.reset.${Date.now()}@${AUTH_DOMAIN}`;
+}
+
+function recoveryUsernameKeyV178(w){
+  return normalize((w && (w.usernameKey || w.username)) || "");
+}
+
+function recoveryWorkerIdV178(w){
+  if(!w) return "";
+  return w.id || workerIdFromUsername(recoveryUsernameKeyV178(w));
+}
+
+function recoveryPasswordValidV178(pass){
+  return !!pass && String(pass).length >= 6;
+}
+
+async function createFreshWorkerAuthV178(w, newPassword, authEmail){
+  if(!firebaseAuthReady()) throw new Error("Firebase Auth לא נטען");
+  const username = (w.username || w.usernameKey || w.id || "worker");
+  const name = w.name || username;
+  const email = authEmail || recoveryInternalEmailV178(username);
+  const a = (typeof secondaryAuthV169 === "function") ? secondaryAuthV169() : auth;
+  let cred = null;
+  try{
+    cred = await a.createUserWithEmailAndPassword(email, newPassword);
+  }catch(e){
+    // בשחזור גישה אנחנו מעדיפים UID חדש נקי. אם האימייל תפוס, נזרוק הודעה ברורה.
+    if(e && e.code === "auth/email-already-in-use"){
+      throw new Error("האימייל שבחרת כבר קיים ב-Firebase Auth. השאר אימייל ריק כדי ליצור אימייל פנימי חדש, או בחר אימייל אחר.");
+    }
+    throw e;
+  }
+  const uid = cred && cred.user ? cred.user.uid : "";
+  if(!uid) throw new Error("Firebase Auth לא החזיר UID חדש");
+  try{ await cred.user.updateProfile({displayName:name}); }catch(_e){}
+  try{ if(a && a !== auth) await a.signOut(); }catch(_e){}
+  return {uid,email};
+}
+
+async function resetWorkerAccessV178(workerId){
+  try{
+    let w = (workers || []).find(x=>x.id===workerId);
+    if(!w){
+      const doc = await db.collection("workers").doc(workerId).get();
+      if(!doc.exists) return alert("העובד לא נמצא.");
+      w = {id:doc.id, ...doc.data()};
+    }
+
+    const newPassword = prompt(
+      "שחזור גישה לעובד:\n\n"+
+      "עובד: " + (w.name || "") + "\n"+
+      "שם משתמש: " + (w.username || "") + "\n\n"+
+      "הכנס סיסמה חדשה לעובד. מינימום 6 תווים.\n"+
+      "הנתונים שלו לא יימחקו. רק הגישה תתחבר מחדש."
+    );
+    if(newPassword === null) return;
+    if(!recoveryPasswordValidV178(newPassword)) return alert("סיסמה חדשה חייבת להיות לפחות 6 תווים.");
+
+    let optionalEmail = prompt(
+      "אימייל Auth חדש לעובד - לא חובה.\n\n"+
+      "לעובד בלי מייל מומלץ להשאיר ריק. המערכת תיצור אימייל פנימי חדש אוטומטית.\n"+
+      "הכניסה תישאר עם שם המשתמש והסיסמה החדשה.",
+      ""
+    );
+    if(optionalEmail === null) return;
+    optionalEmail = cleanEmailV168 ? cleanEmailV168(optionalEmail) : String(optionalEmail||"").trim().toLowerCase();
+    if(optionalEmail && typeof isValidEmailV168 === "function" && !isValidEmailV168(optionalEmail)){
+      return alert("האימייל שהזנת לא תקין.");
+    }
+
+    if(!confirm(
+      "לאשר שחזור גישה?\n\n"+
+      "המערכת תיצור UID חדש, תחבר אותו לעובד הקיים, ותשמור סיסמה חדשה.\n"+
+      "העבודות והנתונים של העובד לא יימחקו."
+    )) return;
+
+    const oldUid = w.authUid || "";
+    const usernameKey = recoveryUsernameKeyV178(w);
+    const id = recoveryWorkerIdV178(w);
+    const newAuthEmail = optionalEmail || recoveryInternalEmailV178(w.username || usernameKey || id);
+
+    await writeAppLogV167?.("workerAccessRecoveryStartV178",{
+      workerId:id,
+      workerName:w.name||"",
+      username:w.username||usernameKey,
+      oldUid:oldUid||"",
+      newAuthEmail,
+      usedInternalEmail:!optionalEmail,
+      passwordLength:String(newPassword||"").length
+    }).catch(()=>{});
+
+    const authResult = await createFreshWorkerAuthV178(w, newPassword, newAuthEmail);
+
+    // מנטרלים את קישור ההרשאות הישן, בלי למחוק נתונים.
+    if(oldUid && oldUid !== authResult.uid){
+      await db.collection("users").doc(oldUid).set({
+        role:"disabled",
+        disabled:true,
+        disabledReason:"worker_access_recovered_new_uid",
+        previousWorkerId:id,
+        replacedByUid:authResult.uid,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true}).catch(()=>{});
+    }
+
+    await db.collection("users").doc(authResult.uid).set({
+      uid:authResult.uid,
+      role:"worker",
+      workerId:id,
+      username:w.username || usernameKey,
+      name:w.name || "",
+      authEmail:authResult.email,
+      recoveryEmail: optionalEmail || (w.recoveryEmail || ""),
+      accessRecoveredAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+
+    await db.collection("workers").doc(id).set({
+      authUid:authResult.uid,
+      authEmail:authResult.email,
+      recoveryEmail: optionalEmail || (w.recoveryEmail || ""),
+      authReady:true,
+      authNote:("גישה שוחזרה ונוצר UID חדש בגרסה "+APP_VERSION),
+      passwordHash:await sha256(newPassword),
+      active:true,
+      accessRecoveredAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+
+    if(usernameKey){
+      await db.collection("usernameLookup").doc(usernameKey).set({
+        workerId:id,
+        username:w.username || usernameKey,
+        usernameKey,
+        authEmail:authResult.email,
+        authUid:authResult.uid,
+        active:true,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+    }
+
+    await writeAppLogV167?.("workerAccessRecoverySuccessV178",{
+      workerId:id,
+      workerName:w.name||"",
+      username:w.username||usernameKey,
+      oldUid:oldUid||"",
+      newUid:authResult.uid,
+      newAuthEmail:authResult.email
+    }).catch(()=>{});
+
+    try{ if(firebaseAuthReady() && auth.currentUser && session && session.role==="admin" && session.authEmail && auth.currentUser.email !== session.authEmail){ await auth.signOut(); } }catch(_e){}
+
+    alert(
+      "שחזור הגישה הושלם ✅\n\n"+
+      "העובד ייכנס עם אותו שם משתמש וסיסמה חדשה.\n"+
+      "הנתונים שלו נשארו במקום.\n\n"+
+      "אימייל Auth חדש: " + authResult.email
+    );
+    await loadWorkers();
+    await loadDebugLogs?.();
+  }catch(e){
+    await writeAppLogV167?.("workerAccessRecoveryFailedV178",{
+      workerId,
+      errorCode:e.code||"",
+      errorMessage:e.message||String(e)
+    }).catch(()=>{});
+    alert("שחזור הגישה נכשל: " + (e.code || e.message || String(e)));
+    await loadDebugLogs?.().catch(()=>{});
+  }
+}
+
+// מחליף את רשימת העובדים כדי להוסיף כפתור שחזור גישה בצורה קבועה.
+async function loadWorkers(){
+  const box=$("workersList");
+  if(!box) return;
+  box.innerHTML="<p>טוען עובדים...</p>";
+  const snap=await db.collection("workers").get();
+  workers=snap.docs.map(d=>({id:d.id,...d.data()})).filter(w=>!w.movedTo).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+  box.innerHTML=workers.length?"":"<p class='muted'>אין עובדים עדיין.</p>";
+  workers.forEach(w=>{
+    const row=document.createElement("div"); row.className="item";
+    const authTxt=w.authUid?"מחובר ✅":"בהכנה ⚠️";
+    const authBtn=w.authUid?"":`<button class="btn-green" onclick="createAuthForWorker('${w.id}')">צור Auth</button>`;
+    const recoverBtn=`<button class="btn-yellow" onclick="resetWorkerAccessV178('${w.id}')">שחזור גישה</button>`;
+    const authEmail=w.authEmail||authEmailFromUsername(w.username||w.id||"");
+    row.innerHTML=`
+      <div>
+        <div class="item-title">${esc(w.name)}</div>
+        <div class="item-sub">
+          שם משתמש: ${esc(w.username)} · יעד: ${money(w.monthlyGoal||0)} · ${w.active===false?"לא פעיל":"פעיל"} · Auth: ${authTxt}<br>
+          אימייל Auth: ${esc(authEmail)} · אימייל שחזור: ${esc(w.recoveryEmail||"לא הוגדר")}<br>
+          מנוי: ${esc(w.subscriptionStatus||"רגיל")} עד ${esc(w.subscriptionUntil||w.trialUntil||"ללא הגבלה")} · ID: ${w.id}
+        </div>
+      </div>
+      <div class="actions">
+        <button onclick="showWorkerById('${w.id}')">פתח מעקב</button>
+        ${authBtn}
+        ${recoverBtn}
+        <button class="btn-light" onclick="updateRecoveryEmailForWorker('${w.id}')">אימייל שחזור</button>
+        <button class="btn-yellow" onclick="openWorkerEdit('${w.id}')">ערוך</button>
+        <button onclick="openSubscriptionEdit('${w.id}')">מנוי</button>
+        <button class="${w.active===false?"btn-green":"btn-red"}" onclick="toggleWorker('${w.id}', ${w.active===false})">${w.active===false?"הפעל":"בטל"}</button>
+      </div>`;
+    box.appendChild(row);
+  });
+  cleanVisibleSlashN();
+}
+
+function addRecoveryInfoPanelV178(){
+  const admin=document.getElementById("adminView");
+  if(!admin || document.getElementById("recoveryInfoPanelV178")) return;
+  const div=document.createElement("div");
+  div.id="recoveryInfoPanelV178";
+  div.className="card panel";
+  div.innerHTML=`
+    <div class="cal-head"><h2>🔑 שחזור גישה לעובד 2.2</h2></div>
+    <p>אם עובד שכח סיסמה ואין לו מייל, לחץ ברשימת העובדים על <b>שחזור גישה</b>. זה יוצר UID חדש, שומר סיסמה חדשה, ומחבר אותו לאותו Worker בלי למחוק עבודות.</p>
+    <div class="notice">לא מוחקים Worker בשביל איפוס סיסמה. מוחקים/מנטרלים רק קישור Auth ישן אם צריך.</div>`;
+  const workersCard=[...admin.querySelectorAll(".card")].find(c=>String(c.textContent||"").includes("עובדים"));
+  if(workersCard) admin.insertBefore(div, workersCard);
+  else admin.appendChild(div);
+}
+
+(function(){
+  const oldShowAdmin=window.showAdmin;
+  if(typeof oldShowAdmin==="function"){
+    window.showAdmin=async function(){
+      await oldShowAdmin.apply(this,arguments);
+      addRecoveryInfoPanelV178();
+      setTimeout(()=>{ try{ loadWorkers(); }catch(_e){} },150);
+    };
+  }
+})();
+;
+/* ===== PATCH
+   מציג מסך טעינה ניטרלי בזמן בדיקת session/Auth, ולא את מסך הכניסה.
+*/
+function showStartupV179(){
+  try{
+    hideAll();
+    show("startupView");
+    hide("logoutBtn");
+    text("userLine","בודק חיבור...");
+  }catch(e){}
+}
+
+// מפעילים טעינה ניטרלית מוקדם ככל האפשר, לפני בדיקות Firebase/Firestore.
+try{ showStartupV179(); }catch(e){}
+
+window.onload = async()=>{
+  showStartupV179();
+
+  try{
+    try{ await ensureDefaultPriceList(); await loadSettings(); }
+    catch(e){ console.warn("startup settings skipped", e); }
+    attachLoginFieldCleaner();
+  }catch(e){ console.error(e); }
+
+  const saved = localStorage.getItem("workSession");
+  if(saved){
+    try{
+      session = JSON.parse(saved);
+
+      if(session.role === "admin"){
+        clearLoginFields();
+        await waitForAuthReadyV169().catch(()=>{});
+        return showAdmin();
+      }
+
+      if(session.role === "worker"){
+        if(isSessionExpired()){
+          localStorage.removeItem("workSession");
+          session = null;
+          clearLoginFields();
+          return showWorkerLogin();
+        }
+
+        clearLoginFields();
+        await waitForAuthReadyV169().catch(()=>{});
+        return showWorkerById(session.workerId);
+      }
+    }catch(e){
+      console.warn("saved session restore failed", e);
+      localStorage.removeItem("workSession");
+      session = null;
+    }
+  }
+
+  showWorkerLogin();
+};
+;
+/* ===== PATCH
+   תיקון: אם עובד עושה יציאה בזמן שעדיין רצות טעינות async ברקע,
+   לא מאפשרים לטעינה הישנה להמשיך לצייר דשבורד או לקרוא monthlyGoal על viewedWorker ריק.
+*/
+function nextNavTokenV180(){
+  window.__appNavTokenV180 = Number(window.__appNavTokenV180 || 0) + 1;
+  return window.__appNavTokenV180;
+}
+function currentNavTokenV180(){
+  return Number(window.__appNavTokenV180 || 0);
+}
+function isStaleNavV180(token){
+  return token !== currentNavTokenV180() || window.__isLoggingOutV180;
+}
+
+// יציאה בטוחה: קודם מבטלים טעינות רקע ומנקים session, אחר כך מציגים כניסה.
+async function logout(){
+  const token = nextNavTokenV180();
+  window.__isLoggingOutV180 = true;
+  try{ localStorage.removeItem("workSession"); }catch(e){}
+  session = null;
+  viewedWorker = null;
+  selectedDate = null;
+  selectedType = null;
+  monthEntries = [];
+  try{ clearLoginFields(); }catch(e){}
+  try{ hideAll(); show("workerLoginView"); hide("logoutBtn"); text("userLine","לא מחובר"); clearLastLoginTopV518(); }catch(e){}
+
+  // signOut יכול לקחת רגע או להיכשל בגלל מצב ביניים — לא נותנים לזה לשבור את המסך.
+  try{ if(firebaseAuthReady()) await auth.signOut(); }catch(e){ console.warn("signOut skipped/failed", e); }
+
+  // רק אם אין ניווט חדש בינתיים, מסיימים מצב logout.
+  if(token === currentNavTokenV180()){
+    window.__isLoggingOutV180 = false;
+    try{ hideAll(); show("workerLoginView"); hide("logoutBtn"); text("userLine","לא מחובר"); clearLastLoginTopV518(); }catch(e){}
+  }
+}
+
+// גרסה מוגנת לסטטיסטיקות: אם אין viewedWorker לא קוראים monthlyGoal.
+function renderStats(){
+  const worker = viewedWorker || {};
+  const entries = Array.isArray(monthEntries) ? monthEntries : [];
+  const monthTotal = entries.reduce((s,e)=>s+Number(e.amount||0),0);
+  const dayTotal = selectedDate ? entries.filter(e=>e.date===selectedDate).reduce((s,e)=>s+Number(e.amount||0),0) : 0;
+  const goal = getWorkerGoalForMonthV556();
+  const left = Math.max(goal-monthTotal,0);
+  if($("monthTotal")) $("monthTotal").textContent = money(monthTotal);
+  if($("dayTotal")) $("dayTotal").textContent = money(dayTotal);
+  if($("goalTotal")) $("goalTotal").textContent = money(goal);
+  if($("leftTotal")) $("leftTotal").textContent = money(left);
+  if($("goalBar")) $("goalBar").style.width = goal ? Math.min(monthTotal/goal*100,100)+"%" : "0%";
+  if($("paceLine")) text("paceLine", goal ? (left<=0 ? "מעולה — היעד הושג." : `חסר ליעד: ${money(left)}.`) : "לא הוגדר יעד חודשי.");
+}
+
+// פתיחת עובד מוגנת ממרוץ בין refresh/logout.
+async function showWorkerById(id){
+  const token = nextNavTokenV180();
+  window.__isLoggingOutV180 = false;
+  try{
+    if(!id) throw new Error("חסר מזהה עובד");
+    const worker = await fetchFreshWorkerV177(id);
+    if(isStaleNavV180(token)) return;
+    const gate = await assertWorkerCanViewV177(worker);
+    if(isStaleNavV180(token) || !gate.ok) return;
+    await showWorker(gate.worker, token);
+  }catch(e){
+    if(window.__isLoggingOutV180 || !session) return;
+    try{ if(isWorkerSessionV177()) await logout(); }catch(_e){}
+    if(!window.__isLoggingOutV180) alert("שגיאה בפתיחת עובד: " + (e.message || String(e)));
+  }
+}
+
+async function showWorker(worker, token){
+  token = token || nextNavTokenV180();
+  window.__isLoggingOutV180 = false;
+  if(!worker || !worker.id) return;
+
+  const gate = await assertWorkerCanViewV177(worker);
+  if(isStaleNavV180(token) || !gate.ok) return;
+  worker = gate.worker;
+
+  viewedWorker = worker;
+  hideAll();
+  show("workerView");
+  show("logoutBtn");
+  
+  text("userLine", `${worker.name || "עובד"} · ${session && session.role === "admin" ? "צפייה כמנהל" : "עובד"}`);
+  setTimeout(refreshLastLoginPanelV523, 400);
+  // v5.19 FIX:
+  // קודם מציגים את ההתחברות הקודמת, ורק אחר כך שומרים את ההתחברות הנוכחית.
+  // אם Firestore serverTimestamp עדיין לא הספיק לחזור, משתמשים ב-fallback מקומי.
+  let localWorkerLastLoginV519 = "";
+  try{ localWorkerLastLoginV519 = localStorage.getItem("wm_last_login_worker_" + worker.id) || ""; }catch(e){}
+  renderLastLoginTopV518(worker.lastLoginAt || worker.lastLoginClientAt || worker.lastAuthLoginAt || localWorkerLastLoginV519);
+  if(session && session.role === "worker") recordWorkerLastLoginV518(worker.id);
+  text("helloTitle", `שלום ${worker.name || ""}`);
+  calendarDate = new Date();
+  selectedDate = null;
+  selectedType = null;
+  if($("selfGoalMonth")) $("selfGoalMonth").value = currentCalendarMonthKeyV556(); if($("selfMonthlyGoal")) $("selfMonthlyGoal").value = getWorkerGoalForMonthV556();
+  if($("selfNewPassword")) $("selfNewPassword").value = "";
+
+  try{ await loadSettings(); }catch(e){ console.warn("loadSettings skipped in showWorker", e); }
+  if(isStaleNavV180(token)) return;
+  await loadMonth(token);
+}
+
+// טעינת חודש מוגנת: אם המשתמש יצא באמצע — עוצרים בשקט.
+async function loadMonth(token){
+  token = token || currentNavTokenV180();
+  if(!viewedWorker || !viewedWorker.id || isStaleNavV180(token)) return;
+
+  if(isWorkerSessionV177()){
+    const gate = await assertWorkerCanViewV177(viewedWorker);
+    if(isStaleNavV180(token) || !gate.ok) return;
+    viewedWorker = gate.worker;
+  }
+
+  await loadPriceList();
+  if(isStaleNavV180(token) || !viewedWorker) return;
+  await loadTemplates();
+  if(isStaleNavV180(token) || !viewedWorker) return;
+
+  const y=calendarDate.getFullYear(), m=calendarDate.getMonth();
+  const last=new Date(y,m+1,0).getDate();
+  const start=`${y}-${pad(m+1)}-01`, end=`${y}-${pad(m+1)}-${pad(last)}`;
+  if($("calTitle")) text("calTitle",`${months[m]} ${y}`);
+  if($("monthSub")) text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);
+
+  monthEntries=[];
+  renderCalendar(); renderDay(); renderStats();
+
+  const workerId = viewedWorker.id;
+  const snap = await db.collection("workEntries").where("workerId","==",workerId).get();
+  if(isStaleNavV180(token) || !viewedWorker || viewedWorker.id !== workerId) return;
+
+  // v5.11: כל עבודות העובד נשמרות לטוגל מגמת 7/14/30 ימים; monthEntries נשאר חודשי בלבד.
+  window.workerAllEntriesV511 = snap.docs.map(d=>({id:d.id,...d.data()}));
+  monthEntries = window.workerAllEntriesV511.filter(e=>e.date>=start&&e.date<=end);
+  renderCalendar(); renderDay(); renderStats();
+  try{ renderSmartDashboard(); }catch(e){ console.warn("dashboard render skipped", e); }
+  if($('searchPanel') && !$('searchPanel').classList.contains('hidden')) renderFullSummary();
+}
+
+// startup עם token כדי שלא יהיה מצב ש־session ישן ממשיך אחרי יציאה.
+window.onload = async()=>{
+  const token = nextNavTokenV180();
+  window.__isLoggingOutV180 = false;
+  try{ showStartupV179(); }catch(e){}
+  try{
+    try{ await ensureDefaultPriceList(); await loadSettings(); }catch(e){ console.warn("startup settings skipped", e); }
+    attachLoginFieldCleaner();
+  }catch(e){ console.error(e); }
+  if(isStaleNavV180(token)) return;
+
+  const saved = localStorage.getItem("workSession");
+  if(saved){
+    try{
+      session = JSON.parse(saved);
+      if(session.role === "admin"){
+        clearLoginFields();
+        await waitForAuthReadyV169().catch(()=>{});
+        if(isStaleNavV180(token)) return;
+        return showAdmin();
+      }
+      if(session.role === "worker"){
+        if(isSessionExpired()){
+          localStorage.removeItem("workSession"); session=null; clearLoginFields(); return showWorkerLogin();
+        }
+        clearLoginFields();
+        await waitForAuthReadyV169().catch(()=>{});
+        if(isStaleNavV180(token)) return;
+        return showWorkerById(session.workerId);
+      }
+    }catch(e){
+      console.warn("saved session restore failed", e);
+      localStorage.removeItem("workSession"); session=null;
+    }
+  }
+  if(!isStaleNavV180(token)) showWorkerLogin();
+};
+;
 /* ===== PATCH */
+function showStartupV179(){
+  try{
+    hideAll();
+    show("startupView");
+    hide("logoutBtn");
+    text("userLine","טוען נתונים");
+  }catch(e){}
+}
 
+function expiredStorageKeyV181(){ return "workExpiredWorkerSession"; }
+function rememberExpiredWorkerV181(worker){
+  if(!worker || !worker.id) return;
+  try{
+    localStorage.setItem(expiredStorageKeyV181(), JSON.stringify({
+      workerId: worker.id,
+      name: worker.name || "",
+      username: worker.username || "",
+      authUid: worker.authUid || "",
+      authEmail: worker.authEmail || "",
+      savedAt: Date.now()
+    }));
+  }catch(e){}
+}
+function clearExpiredWorkerV181(){
+  try{ localStorage.removeItem(expiredStorageKeyV181()); }catch(e){}
+}
+function getExpiredWorkerMarkerV181(){
+  try{
+    const raw = localStorage.getItem(expiredStorageKeyV181());
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+
+// כשעובד פג תוקף מגיע למסך תשלום, שומרים marker כדי ש-refresh יחזור לאותו מסך ולא למסך כניסה.
+function stopExpiredWorkerSessionV177(worker){
+  rememberExpiredWorkerV181(worker);
+  try{ localStorage.removeItem("workSession"); }catch(e){}
+  session = null;
+  viewedWorker = null;
+  hideAll();
+  showExpiredView(worker);
+}
+
+const __oldShowWorkerLoginV181 = window.showWorkerLogin;
+function showWorkerLogin(){
+  clearExpiredWorkerV181();
+  if(typeof __oldShowWorkerLoginV181 === "function") return __oldShowWorkerLoginV181.apply(this, arguments);
+  clearLoginFields(); hideAll(); show("workerLoginView"); hide("logoutBtn"); text("userLine","לא מחובר");
+}
+
+const __oldLogoutV181 = window.logout;
+async function logout(){
+  clearExpiredWorkerV181();
+  if(typeof __oldLogoutV181 === "function") return __oldLogoutV181.apply(this, arguments);
+  try{ localStorage.removeItem("workSession"); }catch(e){}
+  session=null; viewedWorker=null; clearLoginFields(); showWorkerLogin();
+  try{ if(firebaseAuthReady()) await auth.signOut(); }catch(e){}
+}
+
+async function showExpiredFromMarkerV181(marker){
+  if(!marker || !marker.workerId) return false;
+  try{
+    const worker = await fetchFreshWorkerV177(marker.workerId);
+    if(worker.active === false || isSubscriptionExpired(worker)){
+      rememberExpiredWorkerV181(worker);
+      try{ await waitForAuthReadyV169().catch(()=>{}); }catch(e){}
+      showExpiredView(worker);
+      return true;
+    }
+    // אם המנהל האריך מנוי בזמן שהמשתמש היה במסך תשלום — מנקים marker ומחזירים לכניסה רגילה.
+    clearExpiredWorkerV181();
+    return false;
+  }catch(e){
+    console.warn("expired marker restore failed", e);
+    clearExpiredWorkerV181();
+    return false;
+  }
+}
+
+// startup סופי: מסך טעינה יפה קודם, אחר כך expired/session/login לפי מצב אמיתי.
+window.onload = async()=>{
+  const token = (typeof nextNavTokenV180 === "function") ? nextNavTokenV180() : 0;
+  window.__isLoggingOutV180 = false;
+  showStartupV179();
+
+  try{
+    try{ await ensureDefaultPriceList(); await loadSettings(); }
+    catch(e){ console.warn("startup settings skipped", e); }
+    attachLoginFieldCleaner();
+  }catch(e){ console.error(e); }
+
+  if(typeof isStaleNavV180 === "function" && isStaleNavV180(token)) return;
+
+  const expiredMarker = getExpiredWorkerMarkerV181();
+  if(expiredMarker && await showExpiredFromMarkerV181(expiredMarker)) return;
+
+  const saved = localStorage.getItem("workSession");
+  if(saved){
+    try{
+      session = JSON.parse(saved);
+      if(session.role === "admin"){
+        clearLoginFields();
+        await waitForAuthReadyV169().catch(()=>{});
+        if(typeof isStaleNavV180 === "function" && isStaleNavV180(token)) return;
+        return showAdmin();
+      }
+      if(session.role === "worker"){
+        if(isSessionExpired()){
+          localStorage.removeItem("workSession");
+          session = null;
+          clearLoginFields();
+          return showWorkerLogin();
+        }
+        clearLoginFields();
+        await waitForAuthReadyV169().catch(()=>{});
+        if(typeof isStaleNavV180 === "function" && isStaleNavV180(token)) return;
+        return showWorkerById(session.workerId);
+      }
+    }catch(e){
+      console.warn("saved session restore failed", e);
+      localStorage.removeItem("workSession");
+      session = null;
+    }
+  }
+  showWorkerLogin();
+};
+;
+/* ===== PATCH
+   תיקון: שום בדיקת Firebase/Firestore לא יכולה להשאיר את המשתמש תקוע על מסך טעינה.
+   יש Timeout קצר לכל שלב, והרצה חד-פעמית גם ב-DOMContentLoaded וגם ב-load.
+*/
+;
+/* ===== PATCH
+   תיקון עומק: מבטל recursion שנוצר מעטיפות showWorkerLogin/logout, ומנהל טעינה/כניסה/מסך מנוי ממקום אחד.
+*/
+;
+/* ===== PATCH
+   תיקון: שחזור גישה חייב להתבצע כשה-Auth הראשי נשאר מנהל.
+   יצירת ה-UID החדש נעשית דרך Firebase App משני ומבודד, ואז חוזרים לוודא שה-main auth הוא אדמין לפני כתיבה ל-Firestore.
+*/
+function adminEmailV184(){
+  if(typeof adminAuthEmailV170 === "function") return adminAuthEmailV170();
+  if(typeof adminAuthEmailV169 === "function") return adminAuthEmailV169();
+  return "admin@work-monitor.local";
+}
+
+async function ensureAdminMainAuthForWritesV184(reason){
+  if(!firebaseAuthReady()) throw new Error("Firebase Auth לא נטען");
+  const expectedEmail = (session && session.authEmail) || adminEmailV184();
+  let user = auth.currentUser || null;
+
+  // אם הראשי כבר מחובר כאדמין — ממשיכים.
+  if(user && String(user.email||"").toLowerCase() === String(expectedEmail||"").toLowerCase()){
+    return user;
+  }
+
+  // אם יצירת משתמש החליפה בטעות את ה-main auth, חייבים להחזיר אדמין לפני Firestore writes.
+  const pass = prompt(
+    "כדי לבצע שחזור גישה בצורה מאובטחת צריך לאמת שוב את סיסמת המנהל.\n\n"+
+    "זה קורה כי Firebase Client מחליף לפעמים את המשתמש המחובר בזמן יצירת UID חדש.\n"+
+    "הכנס סיסמת מנהל כדי להמשיך."
+  );
+  if(pass === null) throw new Error("שחזור בוטל — לא אומתה סיסמת מנהל");
+  if(!pass) throw new Error("חובה להזין סיסמת מנהל");
+
+  // בדיקה מול ההאש המקומי אם קיים, כדי לא לאפשר סיסמה שגויה בשקט.
+  try{
+    if(typeof ADMIN_PASSWORD_SHA256 !== "undefined" && ADMIN_PASSWORD_SHA256){
+      const ok = (await sha256(pass)) === ADMIN_PASSWORD_SHA256;
+      if(!ok) throw new Error("סיסמת מנהל לא נכונה");
+    }
+  }catch(e){
+    if(String(e.message||"").includes("סיסמת מנהל")) throw e;
+  }
+
+  const cred = await auth.signInWithEmailAndPassword(expectedEmail, pass);
+  user = cred && cred.user ? cred.user : null;
+  if(!user) throw new Error("לא התקבל UID של מנהל אחרי אימות מחדש");
+
+  // אם יש הרשאה, מחזקים את users/admin. אם אין — לא מפילים כאן; הכתיבה הבאה תגלה את זה.
+  try{
+    await db.collection("users").doc(user.uid).set({
+      uid:user.uid,
+      role:"admin",
+      name:"מנהל",
+      username: (typeof ADMIN_USERNAME !== "undefined" ? ADMIN_USERNAME : "admin"),
+      authEmail:expectedEmail,
+      lastAdminReauthAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+  }catch(_e){}
+
+  session={...(session||{}),role:"admin",name:"מנהל",authUid:user.uid,authEmail:expectedEmail,adminAuthReady:true};
+  localStorage.setItem("workSession",JSON.stringify(session));
+  return user;
+}
+
+function isolatedRecoveryAuthV184(){
+  const appName="recoveryAuth_"+Date.now()+"_"+Math.floor(Math.random()*1000000);
+  const app=firebase.initializeApp(firebaseConfig, appName);
+  return {app, auth:app.auth()};
+}
+
+async function createFreshWorkerAuthV184(w,newPassword,authEmail){
+  if(!firebaseAuthReady()) throw new Error("Firebase Auth לא נטען");
+  const username=(w.username||w.usernameKey||w.id||"worker");
+  const name=w.name||username;
+  const email=authEmail || (typeof recoveryInternalEmailV178 === "function" ? recoveryInternalEmailV178(username) : (safeAuthUsernamePart(username)+".reset."+Date.now()+"@"+AUTH_DOMAIN));
+  const iso=isolatedRecoveryAuthV184();
+  let cred=null;
+  try{
+    cred=await iso.auth.createUserWithEmailAndPassword(email,newPassword);
+    const uid=cred && cred.user ? cred.user.uid : "";
+    if(!uid) throw new Error("Firebase Auth לא החזיר UID חדש");
+    try{await cred.user.updateProfile({displayName:name});}catch(_e){}
+    try{await iso.auth.signOut();}catch(_e){}
+    try{await iso.app.delete();}catch(_e){}
+    return {uid,email};
+  }catch(e){
+    try{await iso.auth.signOut();}catch(_e){}
+    try{await iso.app.delete();}catch(_e){}
+    if(e && e.code==="auth/email-already-in-use"){
+      throw new Error("האימייל שבחרת כבר קיים ב-Firebase Auth. השאר אימייל ריק כדי ליצור אימייל פנימי חדש, או בחר אימייל אחר.");
+    }
+    throw e;
+  }
+}
+
+async function resetWorkerAccessV178(workerId){
+  try{
+    // חשוב: לפני כל שחזור מוודאים שה-main auth הוא מנהל ולא עובד.
+    await ensureAdminMainAuthForWritesV184("before_recovery");
+
+    let w=(workers||[]).find(x=>x.id===workerId);
+    if(!w){
+      const doc=await db.collection("workers").doc(workerId).get();
+      if(!doc.exists) return alert("העובד לא נמצא.");
+      w={id:doc.id,...doc.data()};
+    }
+
+    const newPassword=prompt(
+      "שחזור גישה לעובד:\n\n"+
+      "עובד: "+(w.name||"")+"\n"+
+      "שם משתמש: "+(w.username||"")+"\n\n"+
+      "הכנס סיסמה חדשה לעובד. מינימום 6 תווים.\n"+
+      "הנתונים שלו לא יימחקו. רק הגישה תתחבר מחדש."
+    );
+    if(newPassword===null) return;
+    if(!(typeof recoveryPasswordValidV178==="function" ? recoveryPasswordValidV178(newPassword) : (newPassword && newPassword.length>=6))){
+      return alert("סיסמה חדשה חייבת להיות לפחות 6 תווים.");
+    }
+
+    let optionalEmail=prompt(
+      "אימייל Auth חדש לעובד - לא חובה.\n\n"+
+      "לעובד בלי מייל מומלץ להשאיר ריק. המערכת תיצור אימייל פנימי חדש אוטומטית.\n"+
+      "הכניסה תישאר עם שם המשתמש והסיסמה החדשה.",
+      ""
+    );
+    if(optionalEmail===null) return;
+    optionalEmail=(typeof cleanEmailV168==="function") ? cleanEmailV168(optionalEmail) : String(optionalEmail||"").trim().toLowerCase();
+    if(optionalEmail && typeof isValidEmailV168==="function" && !isValidEmailV168(optionalEmail)) return alert("האימייל שהזנת לא תקין.");
+
+    if(!confirm(
+      "לאשר שחזור גישה?\n\n"+
+      "המערכת תיצור UID חדש, תחבר אותו לעובד הקיים, ותשמור סיסמה חדשה.\n"+
+      "העבודות והנתונים של העובד לא יימחקו."
+    )) return;
+
+    const oldUid=w.authUid||"";
+    const usernameKey=(typeof recoveryUsernameKeyV178==="function") ? recoveryUsernameKeyV178(w) : normalize(w.usernameKey||w.username||"");
+    const id=(typeof recoveryWorkerIdV178==="function") ? recoveryWorkerIdV178(w) : (w.id||workerId);
+    const newAuthEmail=optionalEmail || ((typeof recoveryInternalEmailV178==="function") ? recoveryInternalEmailV178(w.username||usernameKey||id) : (safeAuthUsernamePart(w.username||usernameKey||id)+".reset."+Date.now()+"@"+AUTH_DOMAIN));
+
+    await writeAppLogV167?.("workerAccessRecoveryStartV184",{workerId:id,workerName:w.name||"",username:w.username||usernameKey,oldUid,newAuthEmail,usedInternalEmail:!optionalEmail,passwordLength:String(newPassword||"").length}).catch(()=>{});
+
+    const authResult=await createFreshWorkerAuthV184(w,newPassword,newAuthEmail);
+
+    // אחרי יצירת ה-UID החדש מוודאים שוב שה-main auth עדיין אדמין. זה התיקון ל-permission-denied.
+    await ensureAdminMainAuthForWritesV184("after_create_worker_auth");
+
+    const now=firebase.firestore.FieldValue.serverTimestamp();
+
+    if(oldUid && oldUid!==authResult.uid){
+      await db.collection("users").doc(oldUid).set({
+        role:"disabled",
+        disabled:true,
+        disabledReason:"worker_access_recovered_new_uid",
+        previousWorkerId:id,
+        replacedByUid:authResult.uid,
+        updatedAt:now
+      },{merge:true}).catch(()=>{});
+    }
+
+    await db.collection("users").doc(authResult.uid).set({
+      uid:authResult.uid,
+      role:"worker",
+      workerId:id,
+      username:w.username||usernameKey,
+      name:w.name||"",
+      authEmail:authResult.email,
+      recoveryEmail:optionalEmail || (w.recoveryEmail||""),
+      accessRecoveredAt:now,
+      updatedAt:now
+    },{merge:true});
+
+    await db.collection("workers").doc(id).set({
+      authUid:authResult.uid,
+      authEmail:authResult.email,
+      recoveryEmail:optionalEmail || (w.recoveryEmail||""),
+      authReady:true,
+      authNote:("גישה שוחזרה ונוצר UID חדש בגרסה "+APP_VERSION),
+      passwordHash:await sha256(newPassword),
+      active:true,
+      accessRecoveredAt:now,
+      updatedAt:now
+    },{merge:true});
+
+    if(usernameKey){
+      await db.collection("usernameLookup").doc(usernameKey).set({
+        workerId:id,
+        username:w.username||usernameKey,
+        usernameKey,
+        authEmail:authResult.email,
+        authUid:authResult.uid,
+        active:true,
+        updatedAt:now
+      },{merge:true});
+    }
+
+    await writeAppLogV167?.("workerAccessRecoverySuccessV184",{workerId:id,workerName:w.name||"",username:w.username||usernameKey,oldUid,newUid:authResult.uid,newAuthEmail:authResult.email}).catch(()=>{});
+
+    alert(
+      "שחזור הגישה הושלם ✅\n\n"+
+      "העובד ייכנס עם אותו שם משתמש וסיסמה חדשה.\n"+
+      "הנתונים שלו נשארו במקום.\n\n"+
+      "אימייל Auth חדש: "+authResult.email
+    );
+    await loadWorkers();
+    await loadDebugLogs?.();
+  }catch(e){
+    await writeAppLogV167?.("workerAccessRecoveryFailedV184",{workerId,errorCode:e.code||"",errorMessage:e.message||String(e)}).catch(()=>{});
+    alert("שחזור הגישה נכשל: "+(e.code||e.message||String(e)));
+    await loadDebugLogs?.().catch(()=>{});
+  }
+}
+;
+/* ===== PATCH
+   הסיבה ל-permission-denied בשחזור גישה היא בדרך כלל Security Rules שלא מזהות את האדמין
+   דרך users/{uid}, או שאין עדיין users doc תקין למנהל. בגרסה זו ה-Rules מזהות אדמין גם לפי
+   Firebase Auth email הפנימי admin@work-monitor.local, וכפתור העתקת Rules מעודכן לגרסת האפליקציה הנוכחית.
+*/
+const FIRESTORE_RULES_V185 = String.raw`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function adminByEmail() {
+      return signedIn() && request.auth.token.email == 'admin@work-monitor.local';
+    }
+
+    function hasUserDoc() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return adminByEmail() || (hasUserDoc() && userDoc().data.role == 'admin');
+    }
+
+    function myWorkerId() {
+      return hasUserDoc() ? userDoc().data.workerId : '';
+    }
+
+    function isWorker() {
+      return hasUserDoc() && userDoc().data.role == 'worker';
+    }
+
+    function isOwnWorker(workerId) {
+      return isWorker() && myWorkerId() == workerId;
+    }
+
+    match /usernameLookup/{usernameKey} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if isAdmin() || (signedIn() && request.auth.uid == uid && request.resource.data.uid == request.auth.uid && request.resource.data.role == 'worker');
+      allow update: if isAdmin() || (signedIn() && request.auth.uid == uid && resource.data.role == 'worker' && request.resource.data.role == 'worker');
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /workers/{workerId} {
+      allow read: if isAdmin() || isOwnWorker(workerId);
+      allow create, update, delete: if isAdmin() || (isOwnWorker(workerId) && request.resource.data.authUid == request.auth.uid);
+    }
+
+    match /workEntries/{entryId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create: if isAdmin() || (signedIn() && request.resource.data.workerId == myWorkerId());
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId() && request.resource.data.workerId == resource.data.workerId);
+    }
+
+    match /priceList/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /installTemplates/{doc} {
+      allow read: if isAdmin() || (signedIn() && (!('ownerWorkerId' in resource.data) || resource.data.ownerWorkerId == null || resource.data.ownerWorkerId == '' || resource.data.ownerWorkerId == myWorkerId()));
+      allow create: if isAdmin() || (signedIn() && request.resource.data.ownerWorkerId == myWorkerId());
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.ownerWorkerId == myWorkerId());
+    }
+
+    match /paymentRequests/{doc} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create: if isAdmin() || (signedIn() && request.resource.data.workerId == myWorkerId());
+      allow update, delete: if isAdmin();
+    }
+
+    match /payments/{doc} {
+      allow read: if isAdmin() || (signedIn() && resource.data.workerId == myWorkerId());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /appLogs/{doc} {
+      allow read: if isAdmin();
+      allow create: if signedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}`;
+
+async function copySecurityRulesV169(){
+  try{
+    await navigator.clipboard.writeText(FIRESTORE_RULES_V185);
+    const msg=document.getElementById("securityToolsMsgV169") || document.getElementById("adminAuthBootstrapMsgV170");
+    if(msg) msg.innerHTML="<div class='notice'>Security Rules 2.2 הועתקו ✅<br>פתח Firebase → Firestore Database → Rules → הדבק → Publish.</div>";
+    alert("Security Rules 2.2 הועתקו ✅\nחובה לפרסם אותן ב-Firebase כדי ששחזור גישה יעבוד בלי permission-denied.");
+  }catch(e){
+    prompt("העתק את ה־Security Rules 2.2:", FIRESTORE_RULES_V185);
+  }
+}
+
+function addRulesWarningV185(){
+  const admin=document.getElementById("adminView");
+  if(!admin || document.getElementById("rulesWarningV185")) return;
+  const div=document.createElement("div");
+  div.id="rulesWarningV185";
+  div.className="card panel";
+  div.innerHTML=`
+    <div class="cal-head"><h2>⚠️ תיקון הרשאות 2.2</h2><button class="btn-green" onclick="copySecurityRulesV169()">העתק Rules 2.2</button></div>
+    <p>אם בשחזור גישה מופיע <b>permission-denied</b>, זה לא באג במסך — ה־Security Rules הישנות לא מזהות את האדמין בזמן כתיבה ל־users/workers.</p>
+    <div class="notice">צריך להעתיק את Rules 2.2, להדביק ב־Firebase Firestore Rules וללחוץ Publish פעם אחת.</div>`;
+  admin.insertBefore(div, admin.firstChild);
+}
+
+(function(){
+  const oldShowAdmin=window.showAdmin;
+  if(typeof oldShowAdmin==="function"){
+    window.showAdmin=async function(){
+      await oldShowAdmin.apply(this,arguments);
+      addRulesWarningV185();
+    };
+  }
+})();
+
+// גרסת שחזור עם הודעה ברורה במקרה שה-Rules לא עודכנו.
+const oldResetWorkerAccessV185 = window.resetWorkerAccessV178;
+window.resetWorkerAccessV178 = async function(workerId){
+  try{
+    return await oldResetWorkerAccessV185(workerId);
+  }catch(e){
+    const msg=String(e && (e.code||e.message) || e);
+    if(msg.includes("permission-denied")){
+      alert("שחזור הגישה נחסם על ידי Firebase Rules.\n\nהפתרון: באדמין לחץ 'העתק Rules 2.2', הדבק ב-Firebase Firestore Rules ולחץ Publish. אחרי זה נסה שוב.");
+      return;
+    }
+    throw e;
+  }
+};
+;
+/* ===== PATCH
+   ניקוי פאנלים זמניים מהאדמין בלי למחוק פונקציות שעובדות.
+   נשאר: יצירת/תיקון Auth למנהל, עובדים, שחזור גישה דרך כפתור העובד, מנויים, מחירון, תבניות וכלים שימושיים.
+*/
+;
+/* ===== PATCH
+   מטרה: אם עובד הגיע למסך בחירת מנוי ואז עושה רענון, חוזרים לאותו מסך ולא למסך כניסה.
+   הפתרון שומר marker של worker פג תוקף, וגם אם קריאת Firestore נחסמת זמנית ב-Rules אחרי refresh,
+   מציגים את מסך התשלום לפי המידע השמור במקום למחוק את ה-marker.
+*/
+;
 /* ===== PATCH */
+;
+/* ===== PATCH */
+;
+/* ===== PATCH */
+;
+/* ===== PATCH */
+;
+/* ===== PATCH */
+;
 
+;
 
-
-
-
+;
 /* ===== v3.4: גרסה אחת + טעינה שלא נתקעת ===== */
 (function(){
   function applySingleVersionV34(){
@@ -2216,7 +6381,7 @@ function buildXlsxBlobV505(sheetDefs){
     setTimeout(function(){ if(isStartupStillVisibleV34()) bootV34(); }, 900);
   });
 })();
-
+;
 /* ===== v3.5: ניקוי כלי מעבר ישנים + יציאה יציבה ===== */
 (function(){
   const DEPRECATED_ADMIN_IDS_V35 = [
@@ -2298,7 +6463,7 @@ function buildXlsxBlobV505(sheetDefs){
 
   window.addEventListener("load",()=>setTimeout(cleanupDeprecatedAdminToolsV35,250));
 })();
-
+;
 /* ===== v3.7: Robust return from expired subscription screen ===== */
 (function(){
   function safeHideV37(id){ try{ var el=document.getElementById(id); if(el) el.classList.add('hidden'); }catch(e){} }
@@ -2352,7 +6517,7 @@ function buildXlsxBlobV505(sheetDefs){
   document.addEventListener('DOMContentLoaded', upgradeExpiredBackButtonV37);
   window.addEventListener('load', function(){ setTimeout(upgradeExpiredBackButtonV37, 100); });
 })();
-
+;
 /* ===== v3.9: Stable installation item checklist in search, using global let priceList correctly ===== */
 (function(){
   window.selectedWorkerPriceSearchItemsV38 = window.selectedWorkerPriceSearchItemsV38 || new Set();
@@ -2491,7 +6656,7 @@ function buildXlsxBlobV505(sheetDefs){
   });
   window.addEventListener('load', function(){ setTimeout(function(){ window.onWorkerSearchTypeChangeV22 && window.onWorkerSearchTypeChangeV22(); },250); });
 })();
-
+;
 /* ===== v4.1: Save feedback helper ===== */
 function showEntryFeedbackV41(type, amount){
   try{
@@ -2526,7 +6691,7 @@ function showEntryFeedbackV41(type, amount){
     }catch(_e){}
   }
 }
-
+;
 /* ===== v4.2: Reset forms, history warnings and return to work-type choice after successful save ===== */
 function resetEntryFormsAfterSaveV42(){
   try{
@@ -2635,7 +6800,7 @@ async function addInstall(){
   resetEntryFormsAfterSaveV42();
   showEntryFeedbackV41('install', total);
 }
-
+;
 /* ===== v4.4: תיקון הרשמה עצמית וחזרה למסך כניסה =====
    המטרה: לא להציג שגיאת Security שקרית כשהעובד כבר נוצר,
    לא להשאיר את המשתמש תקוע במסך הרשמה, ולא להחזיר כלי Security ישנים לאדמין.
@@ -2865,7 +7030,7 @@ async function addInstall(){
     window.cleanupDeprecatedAdminToolsV43();
   },1200);
 })();
-
+;
 /* ===== v4.4: delete workers + restore security rules panel + registration cleanup ===== */
 (function(){
   function el(id){ return document.getElementById(id); }
@@ -3082,7 +7247,7 @@ service cloud.firestore {
     try{ if(el('adminView') && !el('adminView').classList.contains('hidden')) addSecurityToolsV44(); }catch(e){}
   });
 })();
-
+;
 /* ===== v4.5: Static admin Security Rules panel + registration permission helper ===== */
 (function(){
   function fillSecurityRulesPreviewV45(){
@@ -3144,7 +7309,7 @@ service cloud.firestore {
   document.addEventListener("DOMContentLoaded", fillSecurityRulesPreviewV45);
   window.addEventListener("load", function(){ fillSecurityRulesPreviewV45(); if(document.getElementById("adminView") && !document.getElementById("adminView").classList.contains("hidden")) window.addSecurityRulesPanelV45(); });
 })();
-
+;
 /* ===== v4.6: restore Security Rules panel after old cleanup removed it ===== */
 (function(){
   function getRulesV46(){
@@ -3298,7 +7463,7 @@ service cloud.firestore {
   document.addEventListener('DOMContentLoaded',function(){ setTimeout(window.ensureSecurityRulesPanelV46,100); });
   window.addEventListener('load',function(){ setTimeout(window.ensureSecurityRulesPanelV46,300); setTimeout(window.ensureSecurityRulesPanelV46,1000); });
 })();
-
+;
 /* ===== v4.7: Final self-registration Security Rules + stronger registration message ===== */
 (function(){
   try{ window.APP_VERSION = APP_VERSION; document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
@@ -3512,7 +7677,7 @@ service cloud.firestore {
   document.addEventListener('DOMContentLoaded',function(){ setTimeout(window.ensureSecurityRulesPanelV47,200); });
   window.addEventListener('load',function(){ setTimeout(window.ensureSecurityRulesPanelV47,500); });
 })();
-
+;
 /* ===== v4.9: תיקון מחיקת קריאת שירות / התקנה =====
    הבעיה הייתה ב-Security Rules: במחיקת מסמך אין request.resource,
    לכן כלל update, delete משותף שחייב request.resource חוסם delete לעובד.
@@ -3746,7 +7911,7 @@ service cloud.firestore {
   document.addEventListener('DOMContentLoaded',function(){ setTimeout(window.ensureSecurityRulesPanelV47,200); });
   window.addEventListener('load',function(){ setTimeout(window.ensureSecurityRulesPanelV47,500); });
 })();
-
+;
 /* ===== v4.9: סידור עבודה עתידי ===== */
 (function(){
   function entryStatusV49(e){ return (e && e.entryStatus) ? e.entryStatus : 'done'; }
@@ -4086,7 +8251,7 @@ service cloud.firestore {
   document.addEventListener('DOMContentLoaded',function(){ setTimeout(ensurePlannedButtonsV49,300); });
   window.addEventListener('load',function(){ setTimeout(ensurePlannedButtonsV49,700); });
 })();
-
+;
 /* ===== v4.11: תיקון כפתורי סידור + מחירון התקנה לפי סיב/RF ===== */
 (function(){
   window.APP_VERSION = APP_VERSION;
@@ -4546,7 +8711,7 @@ service cloud.firestore {
   window.addEventListener('load',function(){setTimeout(function(){ensureInstallKindUIV411();ensureAdminPriceKindUIV411();ensurePekaTypeUIV527();wrapSaveButtonsV411();},900)});
   setInterval(wrapSaveButtonsV411,1200);
 })();
-
+;
 /* ===== v4.12: חיפוש ותבניות לפי סיב/RF ===== */
 (function(){
   window.APP_VERSION = APP_VERSION;
@@ -4807,7 +8972,7 @@ service cloud.firestore {
   document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){ensureSearchKindTabsV412(); if(window.onWorkerSearchTypeChangeV22)window.onWorkerSearchTypeChangeV22();},700)});
   window.addEventListener('load',function(){setTimeout(function(){ensureSearchKindTabsV412(); if(window.onWorkerSearchTypeChangeV22)window.onWorkerSearchTypeChangeV22();},1000)});
 })();
-
+;
 /* ===== v4.14: סידור עתידי רק מהיום והלאה + גרסה קבועה ב-UI ===== */
 (function(){
   try{
@@ -4892,7 +9057,7 @@ service cloud.firestore {
     };
   }
 })();
-
+;
 /* ===== v4.15: עריכה מלאה — התקנת RF נשארת RF, סיב נשאר סיב, ואפשר להחליף סוג בעריכה ===== */
 (function(){
   window.APP_VERSION = APP_VERSION;
@@ -5071,7 +9236,7 @@ service cloud.firestore {
     await loadMonth();
   };
 })();
-
+;
 /* ===== v4.16: בדיקת לקוח מפרידה בין בוצע לבין סידור מתוזמן ===== */
 (function(){
   try{ if(typeof setAppVersionUI === "function") setAppVersionUI(); }catch(e){}
@@ -5159,7 +9324,7 @@ service cloud.firestore {
     }
   };
 })();
-
+;
 /* ===== v4.17: סגירת חלון עריכת עבודה אחרי שמירה + זכור אותי יציב ===== */
 (function(){
   try{ if(typeof setAppVersionUI === "function") setAppVersionUI(); }catch(e){}
@@ -5340,7 +9505,7 @@ service cloud.firestore {
     }
   };
 })();
-
+;
 (function(){
   function safeArrV419(a){ return Array.isArray(a) ? a : []; }
   function isPlannedSafeV419(e){
@@ -5412,7 +9577,7 @@ service cloud.firestore {
     try{ window.APP_VERSION = APP_VERSION; document.title = "מעקב עבודה - גרסה " + APP_VERSION; setAppVersionUI && setAppVersionUI(); }catch(_e){}
   });
 })();
-
+;
 (function(){
   window.openWorkerTabV420=function(tab){
     tab = tab || 'overview';
@@ -5471,7 +9636,7 @@ service cloud.firestore {
     try{ window.APP_VERSION = APP_VERSION; document.title = "מעקב עבודה - גרסה " + APP_VERSION; if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(_e){}
   });
 })();
-
+;
 (function(){
   window.APP_VERSION = APP_VERSION;
   try{ if(typeof APP_VERSION !== 'undefined'){} }catch(e){}
@@ -5553,7 +9718,7 @@ service cloud.firestore {
   document.addEventListener('DOMContentLoaded',function(){ensureA11y422(); try{setAppVersionUI()}catch(e){}});
   window.addEventListener('load',function(){ensureA11y422(); try{setAppVersionUI()}catch(e){}; try{renderSmartDashboard()}catch(e){} });
 })();
-
+;
 (function(){
   window.APP_VERSION = APP_VERSION;
   try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
@@ -5648,7 +9813,7 @@ service cloud.firestore {
   document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){try{setAppVersionUI&&setAppVersionUI()}catch(e){} fixA11yButton423(); try{renderSmartDashboard()}catch(e){}},120)});
   window.addEventListener('load',function(){setTimeout(function(){try{setAppVersionUI&&setAppVersionUI()}catch(e){} fixA11yButton423(); try{renderSmartDashboard()}catch(e){}},180)});
 })();
-
+;
 (function(){
   window.APP_VERSION = APP_VERSION;
   try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
@@ -5705,7 +9870,7 @@ service cloud.firestore {
   window.addEventListener('load',function(){setTimeout(function(){fixVersion424();fixCalendar424();patchDashboardTopItemText424();try{ if(typeof renderSmartDashboard==='function')renderSmartDashboard(); }catch(e){}},220);});
   document.addEventListener('click',function(){setTimeout(fixCalendar424,60);});
 })();
-
+;
 (function(){
   window.APP_VERSION = APP_VERSION;
   try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
@@ -5777,7 +9942,7 @@ service cloud.firestore {
   window.addEventListener('load',function(){setTimeout(function(){setVersion425();fixCalendar425();fixDaySections425();},260);});
   document.addEventListener('click',function(){setTimeout(function(){fixCalendar425();fixDaySections425();},80);});
 })();
-
+;
 (function(){
   window.APP_VERSION = APP_VERSION;
   try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
@@ -5900,7 +10065,7 @@ service cloud.firestore {
   document.addEventListener('DOMContentLoaded',function(){ setVersion428(); });
   window.addEventListener('load',function(){ setTimeout(setVersion428,250); setTimeout(setVersion428,900); setTimeout(setVersion428,1800); });
 })();
-
+;
 /*
 ===============================================================================
 CHANGELOG 4.30 - חזרה לאדמין מתוך מעקב עובד
@@ -6027,7 +10192,7 @@ CHANGELOG 4.30 - חזרה לאדמין מתוך מעקב עובד
     try{ if(typeof enforceAppVersionUI === "function") enforceAppVersionUI(); }catch(e){}
   });
 })();
-
+;
 /*
 ===============================================================================
 CHANGELOG 4.32 - תיקון עריכת התקנה: עדכון טקסט פריטים אחרי שינוי כמות/מחיר
@@ -6150,7 +10315,7 @@ CHANGELOG 4.32 - תיקון עריכת התקנה: עדכון טקסט פריט�
 
   try{ if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(e){}
 })();
-
+;
 /* ===== v4.33: Boot guard - בלי הבהוב מסך כניסה כשיש התחברות שמורה ===== */
 (function(){
   function releaseBootGuardV433(){
@@ -6199,7 +10364,7 @@ CHANGELOG 4.32 - תיקון עריכת התקנה: עדכון טקסט פריט�
     }, 60000);
   });
 })();
-
+;
 /*
 ===============================================================================
 CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של סידור מתוזמן שבוצע
@@ -6531,7 +10696,7 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
   document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){try{setAppVersionUI&&setAppVersionUI()}catch(e){} try{renderSmartDashboard()}catch(e){}},220)});
   window.addEventListener('load',function(){setTimeout(function(){try{setAppVersionUI&&setAppVersionUI()}catch(e){} try{renderSmartDashboard()}catch(e){}},260)});
 })();
-
+;
 /*
 ===============================================================================
 CHANGELOG 4.38 - דשבורד חכם: צבעים עדינים, הסרת יום רגיל, הוצאות 6%
@@ -6634,7 +10799,7 @@ CHANGELOG 4.38 - דשבורד חכם: צבעים עדינים, הסרת יום �
   window.addEventListener('load',function(){setTimeout(function(){try{polishDashboard438()}catch(e){}},700)});
   try{ if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
 })();
-
+;
 /*
 ===============================================================================
 CHANGELOG 2.20 - דיווח על בעיה / צור קשר לעובד
@@ -6892,7 +11057,7 @@ CHANGELOG 2.20 - דיווח על בעיה / צור קשר לעובד
     },300);
   });
 })();
-
+;
 /*
 ===============================================================================
 CHANGELOG 4.5 - מחיקת דיווחי בעיות מאדמין
@@ -7000,13 +11165,13 @@ CHANGELOG 4.5 - מחיקת דיווחי בעיות מאדמין
     if(typeof enforceAppVersionUI === "function") enforceAppVersionUI();
   }catch(e){}
 })();
-
+;
 try{
   window.APP_VERSION = APP_VERSION;
   if(typeof setAppVersionUI === 'function') setAppVersionUI();
   if(typeof enforceAppVersionUI === 'function') enforceAppVersionUI();
 }catch(e){}
-
+;
 /*
 ===============================================================================
 CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
@@ -7462,7 +11627,7 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
   // לא מריצים טעינת ימי חופש לפני שיש עובד פעיל. זה היה מקור ההרשאות ברענון.
   document.addEventListener('DOMContentLoaded',function(){try{setTimeout(function(){if(typeof viewedWorker!=='undefined'&&viewedWorker&&viewedWorker.id){loadVacationDaysV487().then(function(){try{renderCalendar();renderDay();renderSmartDashboard();}catch(e){}});}},900);}catch(e){}});
 })();
-
+;
 /*
 ===============================================================================
 CHANGE 5.13 - OFFLINE SYNC SAFE LAYER
@@ -7611,7 +11776,7 @@ CHANGE 5.13 - OFFLINE SYNC SAFE LAYER
   document.addEventListener('DOMContentLoaded', function(){ setTimeout(refreshNetworkState,250); setTimeout(startPendingMonitorV513,900); });
   window.addEventListener('load', function(){ setTimeout(refreshNetworkState,250); setTimeout(startPendingMonitorV513,1100); });
 })();
-
+;
 (function(){
   var finished=false;
 
@@ -7739,7 +11904,7 @@ CHANGE 5.13 - OFFLINE SYNC SAFE LAYER
 
   setTimeout(boot,800);
 })();
-
+;
 /*
 ===============================================================================
 CHANGE 5.30 - GLOBAL PEKA COMPATIBILITY FIX
@@ -7839,7 +12004,7 @@ selectedSearchPekaV528 is not defined
   window.renderPekaSmartDashboardV528=window.renderPekaSmartDashboardV528 || renderPekaSmartDashboardV528Safe;
   window.ensurePekaSearchFilterV528=window.ensurePekaSearchFilterV528 || ensurePekaSearchFilterV528Safe;
 })();
-
+;
 (function(){
   function bootPekaV528(){
     try{ ensurePekaSearchFilterV528(); }catch(e){}
@@ -7881,7 +12046,7 @@ selectedSearchPekaV528 is not defined
   window.addEventListener('load',function(){setTimeout(bootPekaV528,1300);});
   setInterval(function(){try{bootPekaV528();}catch(e){}},2000);
 })();
-
+;
 (function(){
   window.APP_VERSION = APP_VERSION;
   try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
@@ -8082,7 +12247,7 @@ selectedSearchPekaV528 is not defined
   window.addEventListener('load',function(){setTimeout(bootV529,1500);});
   setInterval(function(){try{movePekaUnderTemplatesV529();}catch(e){}},1500);
 })();
-
+;
 /*
 ===============================================================================
 CHANGE 5.35 - איפוס שדות חדשים אחרי שמירה / מתוזמן / ניקוי
@@ -8196,7 +12361,7 @@ CHANGE 5.35 - איפוס שדות חדשים אחרי שמירה / מתוזמן 
   window.addEventListener('load',function(){ setTimeout(bootV535,450); setTimeout(updateVersionUiV535,1800); });
   setInterval(function(){ try{ updateVersionUiV535(); }catch(e){} },2500);
 })();
-
+;
 /*
 ===============================================================================
 CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
@@ -8313,7 +12478,7 @@ CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
   window.addEventListener('load',function(){ setTimeout(bootV536,450); setTimeout(updateVersionUiV536,1800); });
   setInterval(function(){ try{ updateVersionUiV536(); }catch(e){} },2500);
 })();
-
+;
 (function(){
   'use strict';
   var APP_VERSION_V537 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.41'));
@@ -8489,7 +12654,7 @@ CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
   window.addEventListener('load',function(){ setTimeout(bootV537,250); setTimeout(bootV537,1400); setTimeout(bootV537,2800); });
   setInterval(function(){ try{ updateVersionUiV537(); addChangeDateButtonsV537(); }catch(e){} },2200);
 })();
-
+;
 (function(){
   'use strict';
   var APP_VERSION_V538 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.41'));
@@ -8585,7 +12750,7 @@ CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
   window.addEventListener('load',bootV538);
   setInterval(function(){try{updateVersionUiV538();}catch(e){}},2500);
 })();
-
+;
 /* ===== v5.60: סיכום חודש PDF עם בחירת חודש וטעינת התחשבנות עצמאית ===== */
 (function(){
   'use strict';
@@ -8765,7 +12930,7 @@ CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
     var diffText=diff<0?'חסר '+moneyPdf(Math.abs(diff)):(diff>0?'עודף '+moneyPdf(diff):'מאוזן');
     var diffCls=diff<0?'red-text':(diff>0?'green-text':'muted-text');
 
-    return '<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="UTF-8"><title>סיכום חודש PDF '+safe(month)+'</title></head><body>'+
+    return '<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="UTF-8"><title>סיכום חודש PDF '+safe(month)+'</title><style>'+cssV558()+'</style></head><body>'+
       '<section class="cover"><div class="logo">₪</div><h1>סיכום חודש עבודה</h1><h2>'+safe(monthLabelV558(month))+'</h2><p>עובד: <b>'+safe(workerName)+'</b> · הופק: '+safe(now)+'</p><p class="muted-text">הדוח כולל עבודות שבוצעו בלבד. מתוזמנות ופק״ע לא בוצעה אינן נספרות כהכנסה.</p></section>'+
       '<section class="page"><h2>תמונה חודשית</h2><div class="cards">'+
       cardV558('יעד חודשי',moneyPdf(goal),'')+cardV558('הכנסה לפי מערכת לפני מע״מ',moneyPdf(t.expected),'green-text')+cardV558('הכנסה בפועל לפני מע״מ',moneyPdf(inc.total),'green-text')+cardV558('הפרש מול מערכת',diffText,diffCls)+
@@ -8911,7 +13076,7 @@ CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
     }
   };
 })();
-
+;
 /* ===== v4.34: Boot guard חזק יותר להתחברות שמורה =====
    הבעיה: בטעינה עם עובד שמור, fallback ישן היה יכול להציג לרגע את מסך הכניסה לפני שהעובד סיים להיטען.
    הפתרון: כל עוד קיימת התחברות שמורה שעדיין בבדיקה, showWorkerLogin לא מציג מסך כניסה אלא משאיר את מסך הטעינה.
@@ -9012,7 +13177,7 @@ CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
 
   try{ if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(e){}
 })();
-
+;
 /*
 ===============================================================================
 CHANGELOG 4.40 - דשבורד חכם: מגמת הכנסות לפי חודשים
@@ -9152,7 +13317,7 @@ CHANGELOG 4.40 - דשבורד חכם: מגמת הכנסות לפי חודשים
   document.addEventListener('DOMContentLoaded',function(){setTimeout(function(){try{loadMonthlyTrend440();}catch(e){}},600);});
   window.addEventListener('load',function(){setTimeout(function(){try{loadMonthlyTrend440();}catch(e){}},950);});
 })();
-
+;
 (function(){
   window.APP_VERSION = APP_VERSION;
   try{document.title = "מעקב עבודה - גרסה " + APP_VERSION;}catch(e){}
@@ -9216,7 +13381,7 @@ CHANGELOG 4.40 - דשבורד חכם: מגמת הכנסות לפי חודשים
   window.addEventListener('load',function(){setTimeout(function(){setVersion426();fixCalendarScroll426();},300);});
   document.addEventListener('click',function(){setTimeout(fixCalendarScroll426,90);});
 })();
-
+;
 (function(){
   window.APP_VERSION = APP_VERSION;
   try{ document.title = "מעקב עבודה - גרסה " + APP_VERSION; }catch(e){}
@@ -9323,7 +13488,7 @@ CHANGELOG 4.40 - דשבורד חכם: מגמת הכנסות לפי חודשים
   document.addEventListener('DOMContentLoaded',function(){ setVersion427(); ensureWorkerLoadingOverlay427(); });
   window.addEventListener('load',function(){ setTimeout(setVersion427,250); setTimeout(setVersion427,700); setTimeout(setVersion427,1400); });
 })();
-
+;
 /*
 ===============================================================================
 CHANGELOG 4.31 - תיקון אמיתי לכפתור חזרה לאדמין
@@ -9482,7 +13647,7 @@ CHANGELOG 4.31 - תיקון אמיתי לכפתור חזרה לאדמין
     setTimeout(function(){ if(shouldShowAdminBackV431()) ensureAdminBackButtonV431(); }, 400);
   });
 })();
-
+;
 /* ===== v4.30: אכיפת גרסה מקונסט יחיד בלבד ===== */
 (function(){
   function runVersionEnforcerV429(){
@@ -9494,7 +13659,7 @@ CHANGELOG 4.31 - תיקון אמיתי לכפתור חזרה לאדמין
   document.addEventListener("click", function(){ setTimeout(runVersionEnforcerV429, 80); });
   setInterval(runVersionEnforcerV429, 900);
 })();
-
+;
 /*
 ===============================================================================
 CHANGELOG 4.35 - תיקון תקיעה במסך "מכין את סביבת העבודה שלך"
@@ -9608,7 +13773,7 @@ CHANGELOG 4.35 - תיקון תקיעה במסך "מכין את סביבת העב
 
   try{ if(typeof setAppVersionUI === 'function') setAppVersionUI(); }catch(e){}
 })();
-
+;
 /*
 ===============================================================================
 CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
@@ -10079,7 +14244,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   document.addEventListener('DOMContentLoaded',function(){ setTimeout(ensureWorkerLink,300); setTimeout(function(){ if(q('adminView')&&!q('adminView').classList.contains('hidden')){ ensureAdminPanel(); window.loadAdminChangelogV475(); } },700); });
   window.addEventListener('load',function(){ setTimeout(ensureWorkerLink,300); setTimeout(ensureWorkerLink,1200); setTimeout(function(){ if(q('adminView')&&!q('adminView').classList.contains('hidden')){ ensureAdminPanel(); window.loadAdminChangelogV475(); } },900); });
 })();
-
+;
 (function(){
   try{ window.APP_VERSION = APP_VERSION; if(typeof setAppVersionUI==='function') setAppVersionUI(); if(typeof enforceAppVersionUI==='function') enforceAppVersionUI(); }catch(e){}
 
@@ -10225,7 +14390,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   window.addEventListener('load',function(){ setTimeout(bootV531,500); setTimeout(bootV531,1800); });
   setInterval(function(){ try{ attachPekaSearchTypeV531(); }catch(e){} },2000);
 })();
-
+;
 (function(){
   'use strict';
   var APP_VERSION_V532 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.41'));
@@ -10341,7 +14506,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   window.addEventListener('load',function(){ setTimeout(bootV532,300); setTimeout(bootV532,1600); });
   setInterval(function(){ try{ fixPekaLabelsV532(document); updateVersionUiV532(); }catch(e){} },2500);
 })();
-
+;
 (function(){
   'use strict';
   var APP_VERSION_V533 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.41'));
@@ -10459,7 +14624,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   window.addEventListener('load',function(){ setTimeout(bootV533,500); setTimeout(bootV533,1900); });
   setInterval(function(){ try{ updateVersionUiV533(); }catch(e){} },2500);
 })();
-
+;
 (function(){
   'use strict';
   var APP_VERSION_V534 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.41'));
@@ -10531,7 +14696,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   window.addEventListener('load',function(){ setTimeout(bootV534,450); setTimeout(bootV534,1800); });
   setInterval(function(){ try{ updateVersionUiV534(); }catch(e){} },2500);
 })();
-
+;
 (function(){
   'use strict';
   var APP_VERSION_V539 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.41'));
