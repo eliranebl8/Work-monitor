@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>מעקב עבודה</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="./styles.css"/>
+</head>
+<body class="app-booting-v433 app-booting-v434">
+<div class="app">
+<div class="top"><div class="brand"><div class="logo">₪</div><div>מעקב עבודה<br><span id="userLine" class="muted" style="font-size:13px">טוען נתונים</span><div class="app-version-mini" title="גרסת האפליקציה">v<span data-app-version></span></div><div id="lastLoginLineV518" class="last-login-line-v518 hidden"></div></div></div><button id="logoutBtn" class="btn-light hidden" onclick="logout()">יציאה</button></div>
+
+<section id="startupView" class="card login-box startup-screen">
+  <div class="startup-loader-wrap">
+    <div class="startup-orbit">
+      <div class="startup-core">₪</div>
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+  <h1 class="big-title">טוען נתונים</h1>
+  <p class="startup-sub">מכין את סביבת העבודה שלך...</p>
+  <div class="startup-progress"><div></div></div>
+</section>
+
+<section id="workerLoginView" class="card login-box hidden">
+<h1 class="big-title">כניסת עובד</h1><p style="text-align:center">הכנס שם משתמש וסיסמה שקיבלת מהמנהל.</p>
+<input id="workerUsername" placeholder="שם משתמש" autocomplete="off"><input id="workerPassword" type="password" placeholder="סיסמה" autocomplete="new-password">
+<label class="checkline"><input id="rememberMe" type="checkbox"> השאר אותי מחובר</label>
+<button class="btn-green" onclick="workerLogin()">כניסה</button>
+<button class="btn-light" onclick="showRegister()">הרשמה לעובד חדש</button>
+<p id="workerLoginMsg" class="danger"></p>
+<div id="secretTap" class="secret" onclick="secretTap()"></div>
+</section>
+
+<section id="registerView" class="card login-box hidden">
+  <div class="cal-head"><h1>הרשמה לעובד חדש</h1><button class="btn-light" onclick="showWorkerLogin()">חזרה</button></div>
+  <p style="text-align:center">פתח משתמש חדש לתקופת ניסיון. אחרי סוף התקופה יהיה צורך במנוי.</p>
+  <input id="regName" placeholder="שם מלא">
+  <input id="regUsername" placeholder="שם משתמש">
+  <input id="regEmail" type="email" placeholder="אימייל לשחזור סיסמה - לא חובה">
+  <input id="regPassword" type="password" placeholder="סיסמה">
+  <input id="regPassword2" type="password" placeholder="אימות סיסמה">
+  <button class="btn-green" onclick="registerWorker()">פתח משתמש ניסיון</button>
+  <div id="registerMsg"></div>
+</section>
+
+<section id="expiredView" class="card login-box hidden">
+  <h1 class="big-title">המנוי הסתיים</h1>
+  <div class="paywall">תקופת הניסיון או המנוי שלך הסתיימו. הנתונים שמורים, אבל הגישה נעולה עד חידוש מנוי.</div>
+
+  <div class="card panel" style="box-shadow:none">
+    <h3>פרטי משתמש לפני תשלום</h3>
+    <p class="muted">כדי שנדע לשייך את התשלום לחשבון שלך, הפרטים האלה יישמרו עם בקשת התשלום.</p>
+    <input id="paymentWorkerName" disabled placeholder="שם עובד">
+    <input id="paymentWorkerUsername" disabled placeholder="שם משתמש">
+    <input id="paymentWorkerId" disabled placeholder="מזהה משתמש במערכת">
+    <input id="paymentContactPhone" inputmode="tel" autocomplete="tel" placeholder="מספר טלפון ליצירת קשר - חובה">
+  </div>
+
+  <h2 style="text-align:center;margin-top:16px">בחר מסלול מנוי</h2>
+  <div class="subscription-plans">
+    <div class="plan-card">
+      <h3>מנוי חודשי</h3>
+      <div class="plan-price">₪19</div>
+      <div class="plan-small">מתחדש כל חודש</div>
+      <button class="btn-green" onclick="startPaymentPlan('monthly')">בחר מנוי חודשי</button>
+    </div>
+    <div class="plan-card featured">
+      <h3>מנוי 3 חודשים</h3>
+      <div class="plan-price">₪45</div>
+      <div class="plan-small">₪15 לחודש · מתחדש כל 3 חודשים</div>
+      <button class="btn-green" onclick="startPaymentPlan('quarterly')">בחר 3 חודשים</button>
+    </div>
+    <div class="plan-card">
+      <h3>מנוי חצי שנה</h3>
+      <div class="plan-price">₪60</div>
+      <div class="plan-small">₪10 לחודש · מתחדש כל 6 חודשים</div>
+      <button class="btn-green" onclick="startPaymentPlan('halfyear')">בחר חצי שנה</button>
+    </div>
+  </div>
+
+  <div id="paymentMsg"></div>
+  <button id="expiredBackToLoginBtn" class="btn-light expired-back-btn" type="button" onclick="returnFromExpiredToLoginV37(event)">חזרה למסך כניסה</button>
+</section>
+
+<section id="adminLoginView" class="card login-box hidden">
+<div class="cal-head"><h1>כניסת מנהל</h1><button class="btn-light" onclick="showWorkerLogin()">חזרה</button></div>
+<input id="adminUsername" placeholder="שם משתמש מנהל" autocomplete="off"><input id="adminPassword" type="password" placeholder="סיסמה" autocomplete="new-password">
+<button onclick="adminLogin()">כניסת מנהל</button><p id="adminLoginMsg" class="danger"></p>
+</section>
+
+<section id="adminView" class="hidden">
+<div id="securityRulesPanelV45" class="card panel security-rules-panel-v45">
+  <div class="cal-head">
+    <h2>🔒 Security Rules ל־Firebase</h2>
+    <div class="actions">
+      <button class="btn-green" type="button" onclick="copySecurityRulesV169()">העתק Security Rules</button>
+      <button class="btn-light" type="button" onclick="manualSyncSecurityV169 && manualSyncSecurityV169()">סנכרן אבטחה</button>
+    </div>
+  </div>
+  <p>כאן מעתיקים את ה־Rules, מדביקים ב־Firebase → Firestore Database → Rules ולוחצים Publish. זה נדרש כדי שהרשמה עצמית ושמירת עובדים יעבדו בלי חסימת הרשאות.</p>
+  <textarea id="securityRulesPreviewV45" readonly style="direction:ltr;text-align:left;min-height:210px;font-family:monospace;font-size:12px"></textarea>
+  <div id="securityToolsMsgV169"></div>
+</div>
+<div id="adminDataToolsPrimary" class="card">
+  <div class="cal-head"><h2>📦 ייצוא, גיבוי, שחזור ותבניות</h2></div>
+  <p>כלי ניהול מתקדמים: ייצוא אדמין מלא לאקסל, גיבוי מלא, שחזור מלא ותבניות התקנה מוכנות.</p>
+  <div class="actions">
+    <button class="btn-green" onclick="exportEntriesCSV()">📊 ייצוא אדמין מלא לאקסל</button>
+    <button onclick="backupJSON()">💾 גיבוי אדמין מלא JSON</button>
+    <button class="btn-yellow" onclick="$('restoreFileTop').click()">♻️ שחזור אדמין מלא JSON</button>
+    <input id="restoreFileTop" type="file" accept="application/json" class="hidden" onchange="restoreJSON(event)">
+  </div>
+  <div id="backupMsgTop"></div>
+</div>
+
+<div class="card">
+  <div class="cal-head"><h2>⚡ תבניות התקנה מוכנות</h2><button class="btn-light" onclick="loadTemplatesAdmin()">רענן תבניות</button></div>
+  <p>צור תבנית כמו “התקנת אינטרנט בלבד”, ואז במסך התקנה העובד יבחר אותה והמערכת תסמן לבד את הפריטים.</p>
+  <div class="grid2">
+    <input id="tplNameTop" placeholder="שם תבנית">
+    <button class="btn-green" onclick="openTemplateBuilderTop()">בנה תבנית חדשה</button>
+  </div>
+  <div id="templateBuilderTop" class="card panel hidden" style="box-shadow:none">
+    <h3>בניית תבנית</h3>
+    <div id="templateItemsTop"></div>
+    <button class="btn-green" onclick="saveTemplateTop()">שמור תבנית</button>
+  </div>
+  <div id="templatesAdminTop"></div>
+  <div id="templateMsgTop"></div>
+</div>
+
+<div class="card"><h2>לוח מנהל</h2><p>ניהול עובדים, מחירון, הגדרות מנהל וצפייה בדוחות.</p></div>
+
+
+<div class="card">
+  <h2>🧾 הגדרות מנויים וניסיון</h2>
+  <p>כל עובד שנרשם לבד מהמסך הראשי יקבל אוטומטית תקופת ניסיון לפי ההגדרה כאן.</p>
+  <div class="grid2">
+    <input id="trialDaysInput" type="number" placeholder="ימי ניסיון לנרשמים חדשים">
+    <button class="btn-green" onclick="saveTrialSettings()">שמור ימי ניסיון</button>
+  </div>
+  <div id="trialSettingsMsg"></div>
+</div>
+
+
+<div class="card">
+  <div class="cal-head"><h2>💳 מעקב תשלומים ומנויים</h2><button class="btn-light" onclick="loadPaymentRequests()">רענן תשלומים</button></div>
+  <p>כאן תראה מי בחר מסלול, כמה הוא אמור לשלם, מתי הוא לחץ לתשלום, ומה סטטוס הבקשה. עד שנחבר סליקה אוטומטית, אפשר לאשר תשלום ידנית, לבטל בקשה או למחוק אותה לגמרי.</p>
+  <div id="paymentRequestsAdmin"></div>
+</div>
+
+<div id="subscriptionEditPanel" class="card panel hidden">
+  <div class="cal-head"><h2>ניהול מנוי לעובד</h2><button class="btn-light" onclick="hide('subscriptionEditPanel')">סגור</button></div>
+  <input id="subWorkerId" type="hidden">
+  <div class="grid3">
+    <input id="subWorkerName" disabled placeholder="עובד">
+    <input id="subUntilDate" type="date" placeholder="תוקף מנוי עד" onchange="updateSubscriptionStatusHint()">
+    <select id="subStatus" onchange="updateSubscriptionStatusHint()">
+      <option value="trial">ניסיון</option>
+      <option value="active">מנוי פעיל</option>
+      <option value="blocked">חסום</option>
+      <option value="expired">פג תוקף</option>
+    </select>
+  </div>
+  <p id="subscriptionStatusHint" class="muted"></p>
+  <div class="actions">
+    <button class="btn-green" onclick="saveSubscriptionEdit()">שמור מנוי</button>
+    <button class="btn-yellow" onclick="extendSubscriptionDays(30)">הוסף 30 יום</button>
+    <button class="btn-yellow" onclick="extendSubscriptionDays(90)">הוסף 90 יום</button>
+  </div>
+  <div id="subscriptionMsg"></div>
+</div>
+
+<div class="card hidden">
+  <div class="cal-head"><h2>📦 ייצוא, גיבוי ושחזור</h2></div>
+  <p>ייצוא אדמין מלא לאקסל, גיבוי מלא ל־JSON ושחזור מלא. לפני שחזור המערכת תחייב יצירת Auto Backup.</p>
+  <div class="actions">
+    <button class="btn-green" onclick="exportEntriesCSV()">ייצוא אדמין מלא לאקסל</button>
+    <button onclick="backupJSON()">גיבוי אדמין מלא JSON</button>
+    <button class="btn-yellow" onclick="$('restoreFile').click()">שחזור אדמין מלא JSON</button>
+    <input id="restoreFile" type="file" accept="application/json" class="hidden" onchange="restoreJSON(event)">
+  </div>
+  <div id="backupMsg"></div>
+</div>
+
+<div class="card hidden">
+  <div class="cal-head"><h2>⚡ תבניות התקנה</h2></div>
+  <p>כאן אפשר לשמור סט פעולות קבוע. לדוגמה: “התקנת אינטרנט בלבד” תסמן אוטומטית את הפריטים הרלוונטיים.</p>
+  <div class="grid3">
+    <input id="tplName" placeholder="שם תבנית">
+    <button class="btn-green" onclick="openTemplateBuilder()">בנה תבנית חדשה</button>
+    <button class="btn-light" onclick="loadTemplatesAdmin()">רענן תבניות</button>
+  </div>
+  <div id="templateBuilder" class="card panel hidden" style="box-shadow:none">
+    <h3>בניית תבנית</h3>
+    <div id="templateItems"></div>
+    <button class="btn-green" onclick="saveTemplate()">שמור תבנית</button>
+  </div>
+  <div id="templatesAdmin"></div>
+  <div id="templateMsg"></div>
+</div>
+
+<div class="card">
+<h2>🔐 הגדרות מנהל</h2>
+<div class="grid3"><input id="adminSetUsername" placeholder="שם משתמש מנהל"><input id="adminSetPassword" type="password" placeholder="סיסמה חדשה - השאר ריק כדי לא לשנות"><button class="btn-green" onclick="saveAdminSettings()">שמור הגדרות מנהל</button></div>
+<div id="adminSettingsMsg"></div>
+</div>
+
+<div class="card"><h2>➕ יצירת עובד</h2>
+<div class="grid3"><input id="wName" placeholder="שם עובד"><input id="wUser" placeholder="שם משתמש לעובד"><input id="wPass" type="password" placeholder="סיסמה"></div>
+<div class="grid2"><input id="wEmail" type="email" placeholder="אימייל לשחזור / Firebase Auth - לא חובה"><div class="muted" style="padding:13px 4px">הכניסה נשארת עם שם משתמש וסיסמה. האימייל מיועד לשחזור/אבטחה.</div></div>
+<div class="grid2"><input id="wGoal" type="number" placeholder="יעד חודשי למשל 20000"><button id="createWorkerBtn" class="btn-green" onclick="createWorker()">צור עובד</button></div><div id="workerMsg"></div></div>
+
+<div id="editWorkerPanel" class="card panel hidden">
+<div class="cal-head"><h2>עריכת עובד</h2><button class="btn-light" onclick="hide('editWorkerPanel')">סגור</button></div>
+<input id="editWorkerId" type="hidden">
+<div class="grid3"><input id="editWorkerName" placeholder="שם עובד"><input id="editWorkerUsername" placeholder="שם משתמש"><input id="editWorkerPassword" type="password" placeholder="סיסמה חדשה - ריק לא משנה"></div>
+<div class="grid2"><input id="editWorkerRecoveryEmail" type="email" placeholder="אימייל לשחזור - לא חובה"><input id="editWorkerAuthEmail" disabled placeholder="אימייל Auth בפועל - לקריאה בלבד"></div>
+<div class="grid2"><input id="editWorkerGoal" type="number" placeholder="יעד חודשי"><select id="editWorkerActive"><option value="true">פעיל</option><option value="false">לא פעיל</option></select></div>
+<div class="actions"><button class="btn-green" onclick="saveWorkerEdit()">שמור עובד</button><button class="btn-light" onclick="hide('editWorkerPanel')">ביטול</button></div><div id="editWorkerMsg"></div>
+</div>
+
+<div class="card">
+<h2>☎️ מחיר קריאת שירות</h2><p>המחיר הזה ישמש כל קריאת שירות חדשה. עבודות שכבר נשמרו לא ישתנו.</p>
+<div class="grid2"><input id="servicePriceInput" type="number" placeholder="מחיר קריאת שירות"><button class="btn-green" onclick="saveServicePrice()">שמור מחיר קריאת שירות</button></div><div id="servicePriceMsg"></div>
+</div>
+
+<div class="card">
+<div class="cal-head"><h2>🧾 מחירון התקנות</h2><div class="actions"><button class="btn-light" onclick="loadPriceListAdmin()">רענן</button><button class="btn-yellow" onclick="cleanupAndReloadPriceList()">נקה כפילויות</button></div></div>
+<p>אפשר להוסיף פריטים, לערוך שם/מחיר/סוג בחירה, או להסיר פריט מהרשימה. פריט שהוסר נשאר במסד הנתונים אבל לא מוצג יותר.</p>
+<div class="grid3"><input id="pName" placeholder="שם פעולה"><input id="pPrice" type="number" placeholder="מחיר ₪"><select id="pMode"><option value="qty">כמות מספרית</option><option value="check">סימון כן/לא</option></select></div>
+<button class="btn-green" onclick="addPriceItem()">הוסף פריט</button>
+<div id="priceAdmin"></div><div id="priceMsg"></div>
+</div>
+
+<div id="editPricePanel" class="card panel hidden">
+<div class="cal-head"><h2>עריכת פריט מחירון</h2><button class="btn-light" onclick="hide('editPricePanel')">סגור</button></div>
+<input id="editPriceId" type="hidden">
+<div class="grid3"><input id="editPriceName" placeholder="שם פעולה"><input id="editPriceValue" type="number" placeholder="מחיר"><select id="editPriceMode"><option value="qty">כמות מספרית</option><option value="check">סימון כן/לא</option></select></div>
+<div class="grid2"><select id="editPriceActive"><option value="true">פעיל ברשימה</option><option value="false">לא פעיל / מוסר מהרשימה</option></select><button class="btn-green" onclick="savePriceEdit()">שמור פריט</button></div>
+<div id="editPriceMsg"></div>
+</div>
+
+<div class="card"><div class="cal-head"><h2>👷 עובדים</h2><button class="btn-light" onclick="loadWorkers()">רענן</button></div><div id="workersList"></div></div>
+<div class="card"><div class="cal-head"><h2>לוג מערכת</h2><div class="actions"><button class="btn-light" onclick="loadDebugLogs()">רענן לוג</button><button class="btn-green" onclick="copyDebugLog()">העתק לוג</button><button class="btn-yellow" onclick="runAuthDiagnostics()">בדיקת Auth</button></div></div><div id="debugLog" class="debug">אין לוגים עדיין</div></div>
+</section>
+
+<section id="workerView" class="hidden">
+<div class="card worker-tabs-shell-v420">
+  <div class="worker-tabs-head-v420">
+    <div>
+      <h2 id="helloTitle">שלום</h2>
+      <div id="monthSub" class="muted"></div>
+    </div>
+  </div>
+  <div class="worker-tabs-nav-v420" role="tablist" aria-label="אזורי עובד">
+    <button type="button" class="worker-tab-btn-v420 active" data-worker-tab="overview" onclick="openWorkerTabV420('overview')">🏠 תצוגה כללית</button>
+    <button type="button" class="worker-tab-btn-v420" data-worker-tab="tools" onclick="openWorkerTabV420('tools')">📦 הכלים שלי</button>
+    <button type="button" class="worker-tab-btn-v420" data-worker-tab="settings" onclick="openWorkerTabV420('settings')">⚙️ הגדרות אישיות</button>
+    <button type="button" class="worker-tab-btn-v420" data-worker-tab="dashboard" onclick="openWorkerTabV420('dashboard')">🧠 דשבורד חכם</button>
+    <button type="button" class="worker-tab-btn-v420" data-worker-tab="client" onclick="openWorkerTabV420('client')">👤 היסטוריית לקוח</button>
+    <button type="button" class="worker-tab-btn-v420" data-worker-tab="search" onclick="openWorkerTabV420('search')">🔎 חיפוש וסיכומים</button>
+  </div>
+
+  <div class="worker-tab-pane-v420 active" data-worker-pane="overview">
+    <div class="grid4"><div class="stat"><div class="label">סה״כ החודש</div><div id="monthTotal" class="value">₪0</div></div><div class="stat"><div class="label">היום הנבחר</div><div id="dayTotal" class="value">₪0</div></div><div class="stat"><div class="label">יעד חודשי</div><div id="goalTotal" class="value">₪0</div></div><div class="stat"><div class="label">חסר ליעד</div><div id="leftTotal" class="value">₪0</div></div></div><div class="progress"><div id="goalBar" class="bar"></div></div><p id="paceLine"></p>
+  </div>
+
+  <div class="worker-tab-pane-v420" data-worker-pane="tools">
+    <h2>📦 הכלים שלי</h2>
+    <div id="workerToolsPanel">
+      <p>ייצוא, גיבוי ושחזור לנתונים האישיים שלך בלבד.</p>
+      <div class="actions">
+        <button class="btn-green" onclick="exportMyEntriesCSV()">📊 ייצוא לאקסל</button>
+        <button class="btn-green" type="button" onclick="exportMonthlyPdfReportV558()">📄 סיכום חודש PDF</button>
+        <button onclick="backupMyJSON()">💾 גיבוי JSON</button>
+        <button class="btn-yellow" onclick="$('restoreMyFile').click()">♻️ שחזור JSON</button>
+        <input id="restoreMyFile" type="file" accept="application/json" class="hidden" onchange="restoreMyJSON(event)">
+      </div>
+
+      <!-- v5.47: דוח התחשבנות חודשי נשמר ב-Firestore לפי עובד וחודש, בלי לפגוע בגיבוי/ייצוא הקיימים. -->
+      <div id="monthlySettlementPanelV547" class="settlement-v547">
+        <h3>📄 דוח התחשבנות חודשי</h3>
+        <p class="muted">בחר חודש, המערכת תחשב עבודות שבוצעו בלבד ותאפשר להשוות מול ההתחשבנות שקיבלת בפועל. כל הסכומים שאתה מזין הם לפני מע״מ.</p>
+        <div class="settlement-grid-v547">
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementMonthV547">חודש הדוח</label>
+            <div class="settlement-field-help-v552">החודש שעליו משווים מערכת מול התחשבנות בפועל.</div>
+            <input id="settlementMonthV547" type="month" onchange="loadMonthlySettlementV547()">
+          </div>
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementIncomeRfV549">יצרנות RF לפני מע״מ</label>
+            <div class="settlement-field-help-v552">הסכום שקיבלת בפועל על RF.</div>
+            <input id="settlementIncomeRfV549" type="number" step="0.01" oninput="renderSettlementReportV547()">
+          </div>
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementIncomeFiberV549">יצרנות סיבים לפני מע״מ</label>
+            <div class="settlement-field-help-v552">הסכום שקיבלת בפועל על סיבים.</div>
+            <input id="settlementIncomeFiberV549" type="number" step="0.01" oninput="renderSettlementReportV547()">
+          </div>
+        </div>
+        <div class="settlement-grid-v547">
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementIncomeSalesV549">מכירות לפני מע״מ</label>
+            <div class="settlement-field-help-v552">סכום מכירות שהופיע בהתחשבנות.</div>
+            <input id="settlementIncomeSalesV549" type="number" step="0.01" oninput="renderSettlementReportV547()">
+          </div>
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementIncomeGeneralV549">הכנסה כללית לפני מע״מ</label>
+            <div class="settlement-field-help-v552">כל הכנסה נוספת שלא נכנסת ל־RF/סיבים/מכירות.</div>
+            <input id="settlementIncomeGeneralV549" type="number" step="0.01" oninput="renderSettlementReportV547()">
+          </div>
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementFineV547">קנסות בפועל לפני מע״מ</label>
+            <div class="settlement-field-help-v552">קנס שנוכה בפועל מההתחשבנות.</div>
+            <input id="settlementFineV547" type="number" step="0.01" oninput="renderSettlementReportV547()">
+          </div>
+        </div>
+        <div class="settlement-grid-v547">
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementEquipmentV547">ציוד שחור</label>
+            <div class="settlement-field-help-v552">סכום ציוד/ציוד שחור שקוזז בפועל.</div>
+            <input id="settlementEquipmentV547" type="number" step="0.01" oninput="renderSettlementReportV547()">
+          </div>
+          <div class="settlement-field-v552">
+            <label class="settlement-field-label-v552" for="settlementNotesV547">הערות לדוח</label>
+            <div class="settlement-field-help-v552">טקסט חופשי לעצמך על הדוח.</div>
+            <input id="settlementNotesV547" oninput="renderSettlementReportV547()">
+          </div>
+        </div>
+        <div class="settlement-deductions-v547">
+          <h3 style="font-size:16px;margin-top:10px">הוצאות נוספות</h3>
+          <div id="settlementDeductionsV547"></div>
+          <button type="button" class="btn-light" onclick="addSettlementDeductionRowV547()">➕ הוסף הוצאה</button>
+        </div>
+        <div id="settlementReportV547"></div>
+        <div class="settlement-actions-v547">
+          <button type="button" class="btn-green" onclick="saveMonthlySettlementV547()">שמור דוח</button>
+          <button type="button" class="btn-light" onclick="loadMonthlySettlementV547()">טען מחדש</button>
+        </div>
+        <div id="settlementMsgV547"></div>
+      </div>
+
+      <div id="workerToolsMsg"></div>
+    </div>
+  </div>
+
+  <div class="worker-tab-pane-v420" data-worker-pane="settings">
+    <h2>⚙️ הגדרות אישיות</h2>
+    <div id="workerSettingsPanel">
+      <p>כאן אפשר לשנות סיסמה ויעד חודשי.</p>
+      <div class="grid2">
+        <div>
+          <div class="muted" style="font-size:12px;font-weight:900;margin:0 4px 2px">יעד חודשי לחודש הנבחר</div>
+          <input id="selfMonthlyGoal" type="number" placeholder="לדוגמה 35000">
+        </div>
+        <div>
+          <div class="muted" style="font-size:12px;font-weight:900;margin:0 4px 2px">בחר חודש לשמירת היעד</div>
+          <input id="selfGoalMonth" type="month">
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <div class="muted" style="font-size:12px;font-weight:900;margin:0 4px 2px">סיסמה חדשה - לא חובה</div>
+          <input id="selfNewPassword" type="password" placeholder="השאר ריק אם לא משנים סיסמה">
+        </div>
+        <div class="muted" style="padding:14px 4px;font-size:12px;line-height:1.45">היעד נשמר לפי חודש בתוך העובד. אם אין יעד לחודש מסוים, המערכת משתמשת ביעד הכללי הישן.</div>
+      </div>
+      <button class="btn-green" onclick="saveWorkerSelfSettings()">שמור הגדרות אישיות</button>
+      <div id="selfSettingsMsg"></div>
+    </div>
+  </div>
+
+  <div class="worker-tab-pane-v420" data-worker-pane="dashboard">
+    <div class="cal-head"><h2>🧠 דשבורד חכם</h2><button class="btn-light" onclick="renderSmartDashboard()">רענן דשבורד</button></div>
+    <div id="smartDashboard">
+      <p class="muted">הדשבורד יתעדכן אוטומטית אחרי טעינת החודש.</p>
+    </div>
+  </div>
+
+  <div class="worker-tab-pane-v420" data-worker-pane="client">
+    <h2>👤 היסטוריית לקוח</h2>
+    <div id="clientHistoryPanel">
+      <p>הכנס מספר לקוח כדי לראות את כל ההיסטוריה שלו במערכת.</p>
+      <div class="grid2"><input id="clientHistoryNumber" inputmode="numeric" placeholder="מספר לקוח"><button class="btn-green" onclick="loadClientHistory()">חפש לקוח</button></div>
+      <div id="clientHistoryResults"></div>
+    </div>
+  </div>
+
+  <div class="worker-tab-pane-v420" data-worker-pane="search">
+    <h2>🔎 חיפוש וסיכומים</h2>
+    <div id="searchPanel">
+      <p>אפשר לחפש לפי מספר לקוח, כתובת, יום, חודש או סוג עבודה. הסיכום מתעדכן לפי התוצאות.</p>
+      <div class="grid3">
+        <input id="searchCustomer" placeholder="חיפוש לפי מספר לקוח">
+        <input id="searchAddress" placeholder="חיפוש לפי כתובת">
+        <select id="searchType" onchange="window.onWorkerSearchTypeChangeV22 && window.onWorkerSearchTypeChangeV22()"><option value="">כל סוגי העבודה</option><option value="service">קריאות שירות</option><option value="install">התקנות</option></select>
+      </div>
+      <div class="grid2">
+        <!-- v5.09: שדה יום ספציפי הוסתר מה-UI בלבד. הפונקציונליות נשמרת דרך שדות מתאריך/עד תאריך: אם ממלאים רק אחד מהם, החיפוש הוא לאותו יום. -->
+        <input id="searchDate" type="date" class="hidden" aria-hidden="true" tabindex="-1">
+        <div class="search-date-field-v508">
+          <label for="searchDateFromV507">מתאריך / יום בודד</label>
+          <input id="searchDateFromV507" type="date" placeholder="בחר תאריך התחלה או יום יחיד">
+          <div class="field-help-v508">אם זה השדה היחיד שמלא — החיפוש יהיה רק ביום הזה.</div>
+        </div>
+        <div class="search-date-field-v508">
+          <label for="searchDateToV507">עד תאריך / יום בודד</label>
+          <input id="searchDateToV507" type="date" placeholder="בחר תאריך סיום או יום יחיד">
+          <div class="field-help-v508">אם שני התאריכים מלאים — החיפוש יהיה לפי כל הטווח.</div>
+        </div>
+        <div class="search-date-field-v508">
+          <label for="searchMonth">חודש נבחר</label>
+          <input id="searchMonth" type="month" placeholder="בחר חודש שלם">
+          <div class="field-help-v508">בחירת חודש מנקה אוטומטית את טווח התאריכים.</div>
+        </div>
+      </div>
+      <div class="search-date-note-v508">כלל עבודה: תאריך אחד = יום בודד, שני תאריכים = טווח, חודש נבחר = חודש שלם. חודש וטווח לא נשארים פעילים ביחד.</div>
+      <div id="workerPriceSearchBoxV22" class="worker-price-search-v22 hidden">
+        <div class="price-search-head-v22">
+          <div>
+            <div class="price-search-title-v22">סינון לפי פריטי מחירון התקנה</div>
+            <div id="priceSearchNoteV22" class="price-search-note-v22">בחר סוג עבודה: התקנות כדי לפתוח את הצ׳קליסט</div>
+          </div>
+          <button type="button" class="btn-light" onclick="window.clearWorkerPriceSearchV22 && window.clearWorkerPriceSearchV22()">נקה פריטי מחירון</button>
+        </div>
+        <div id="priceSearchListV22" class="price-search-list-v22"></div>
+      </div>
+      <div class="actions search-actions-v22"><button class="btn-green" onclick="runSearch()">חפש וסכם</button><button class="btn-light" onclick="clearSearch()">נקה חיפוש</button><button class="btn-yellow" onclick="renderFullSummary()">סיכום חודש מלא</button></div>
+      <div id="summaryResults"></div>
+      <div id="searchResults"></div>
+    </div>
+  </div>
+</div>
+
+
+<div id="lastLoginPanelV523" class="card last-login-panel-v523 hidden">
+  <div class="last-login-title-v523">🕒 התחברות אחרונה</div>
+  <div id="lastLoginTextV523" class="last-login-text-v523">בודק נתון...</div>
+</div>
+
+<div class="calendar-work-shell-v420">
+  <div class="calendar-work-title-v420">📅 לוח שנה ועבודות</div>
+<div class="card calendar-card-v544"><div class="cal-head month-nav-v540 month-nav-v544"><button class="btn-light month-nav-btn-v540 month-nav-btn-v544" type="button" onclick="changeMonth(-1)" aria-label="חודש קודם"><span class="month-nav-arrow-v540 month-nav-arrow-v544">‹</span></button><div class="month-title-wrap-v540 month-title-wrap-v544"><h2 id="calTitle"></h2></div><button class="btn-light month-nav-btn-v540 month-nav-btn-v544" type="button" onclick="changeMonth(1)" aria-label="חודש הבא"><span class="month-nav-arrow-v540 month-nav-arrow-v544">›</span></button></div><div id="calendar" class="cal"></div></div>
+<div id="dayPanel" class="card hidden"><h2 id="dateTitle">בחר יום</h2><p id="shabbatMsg" class="danger hidden">שבת חסומה לעבודה.</p>
+<div id="entryForm"><div class="grid2"><div id="serviceBtn" class="type-card" onclick="setType('service')">קריאת שירות<br><span id="servicePriceLabel" class="muted">₪65 קבוע</span></div><div id="installBtn" class="type-card" onclick="setType('install')">התקנה<br><span class="muted">לפי מחירון</span></div></div>
+<div id="serviceForm" class="hidden" style="margin-top:14px"><h3>קריאת שירות</h3><input id="sCustomer" inputmode="numeric" pattern="[0-9]*" placeholder="מספר לקוח - ספרות בלבד" onblur="checkRecentCustomer('sCustomer','sCustomerHistory')"><div id="sCustomerHistory" class="muted"></div><div class="grid2"><input id="sAddress" placeholder="כתובת"><button class="btn-light" onclick="fillAddressFromLocation('sAddress')">📍 מיקום</button></div><label style="display:flex;align-items:center;gap:8px;font-weight:900;margin:10px 0"><input id="sReturnCall" type="checkbox" onchange="updateServicePreview()" style="width:24px;height:24px;margin:0"> קריאת שירות חוזרת / ללא תשלום</label><textarea id="sNotes" placeholder="הערות"></textarea><div id="servicePreview" class="total-preview">סה״כ: ₪65</div><button class="btn-green" onclick="addService()">שמור קריאת שירות</button></div>
+<div id="installForm" class="hidden" style="margin-top:14px"><h3>התקנה</h3><input id="iCustomer" inputmode="numeric" pattern="[0-9]*" placeholder="מספר לקוח - ספרות בלבד" onblur="checkRecentCustomer('iCustomer','iCustomerHistory')"><div id="iCustomerHistory" class="muted"></div><div class="grid2"><input id="iAddress" placeholder="כתובת"><button class="btn-light" onclick="fillAddressFromLocation('iAddress')">📍 מיקום</button></div><div class="grid2"><select id="installTemplateSelect" onchange="applyTemplateFromSelect()"><option value="">בחר תבנית התקנה מוכנה</option></select><button class="btn-light" onclick="clearInstallSelection()">🧹 נקה בחירה</button></div><div id="installItems"></div><div id="installPreview" class="total-preview">סה״כ התקנה: ₪0</div><textarea id="iNotes" placeholder="הערות"></textarea><button class="btn-green" onclick="addInstall()">שמור התקנה</button></div><div id="entryMsg"></div></div>
+<h3>עבודות ביום הזה</h3><div id="dayEntries"></div></div>
+<div id="editEntryPanel" class="card panel hidden">
+  <div class="cal-head"><h2>✏️ עריכת עבודה</h2><button class="btn-light" onclick="hide('editEntryPanel')">סגור</button></div>
+  <input id="editEntryId" type="hidden">
+  <input id="editEntryCustomer" inputmode="numeric" placeholder="מספר לקוח">
+  <input id="editEntryAddress" placeholder="כתובת">
+  <textarea id="editEntryNotes" placeholder="הערות"></textarea>
+  <input id="editEntryAmount" type="number" placeholder="סכום">
+  <div id="editInstallItemsBox" class="hidden">
+    <h3>עריכת פריטי התקנה</h3>
+    <p class="muted">אם זו התקנה, אפשר לערוך כאן את הסימונים והכמויות לפי המחירון. הסכום יחושב מחדש אוטומטית.</p>
+    <div id="editInstallItems" class="edit-install-items-scroll-v540"></div>
+    <div id="editInstallPreview" class="total-preview">סה״כ התקנה: ₪0</div>
+  </div>
+  <div class="actions"><button class="btn-green" onclick="saveEntryEdit()">שמור עבודה</button><button class="btn-light" onclick="hide('editEntryPanel')">ביטול</button></div>
+  <div id="editEntryMsg"></div>
+</div>
+
+<div id="selectDayHint" class="card"><div class="hint-card">בחר יום בלוח השנה כדי להוסיף קריאת שירות או התקנה</div></div>
+</div>
+</section>
+<div class="app-version-footer">Work App • v<span data-app-version></span></div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="./functions.js"></script>
+</body>
+
+
+
+
+
+
+
+
+
+
+
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
