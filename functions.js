@@ -3,7 +3,7 @@ Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
 */
-const APP_VERSION = "5.62";
+const APP_VERSION = "5.63";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -18,6 +18,13 @@ window.addEventListener("load", setAppVersionUI);
 
 /*
 ===============================================================================
+
+CHANGELOG 5.63 - PDF חודשי מקצועי מלא
+1. APP_VERSION עודכן ל-"5.63".
+2. דוח ה-PDF החודשי שודרג לדוח מקצועי: עמוד פתיחה, ביצועים, גרפים, פירוט יומי מלא ועמוד התחשבנות נקסטקום.
+3. הדוח טוען לפי החודש הנבחר: עבודות, יעד חודשי, ימי חופש, לא בוצעו ונתוני התחשבנות שמורים.
+4. נוסף פירוט לפני מע״מ, מע״מ, כולל מע״מ, נטו אחרי קיזוזים והפרש מול סכום המערכת.
+5. לא שונו שמירת עבודות, דשבורד, חיפוש, לוגין, Security Rules או מבנה שלושת הקבצים.
 
 CHANGELOG 5.54 - תיקון טעינת ימי חופש לפי חודש בלוח ובדשבורד
 1. APP_VERSION עודכן ל-"5.54" כמקור גרסה יחיד.
@@ -12751,7 +12758,7 @@ CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
   setInterval(function(){try{updateVersionUiV538();}catch(e){}},2500);
 })();
 ;
-/* ===== v5.60: סיכום חודש PDF עם בחירת חודש וטעינת התחשבנות עצמאית ===== */
+/* ===== v5.63: PDF חודשי מקצועי מלא - טעינה עצמאית לפי חודש ===== */
 (function(){
   'use strict';
 
@@ -12761,131 +12768,174 @@ CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
     return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
   }
   function moneyPdf(v){
-    try{ if(typeof money === 'function') return money(Number(v||0)); }catch(e){}
-    return '₪'+Number(v||0).toLocaleString('he-IL',{maximumFractionDigits:0});
+    var n=Number(v||0);
+    try{ return '₪'+n.toLocaleString('he-IL',{maximumFractionDigits:0}); }catch(e){ return '₪'+Math.round(n); }
+  }
+  function pctPdf(v){
+    var n=Number(v||0);
+    if(!isFinite(n)) n=0;
+    return n.toLocaleString('he-IL',{maximumFractionDigits:1})+'%';
   }
   function datePdf(v){
     try{ if(typeof heDate === 'function') return heDate(v); }catch(e){}
     return String(v||'');
   }
-  function monthLabelV558(month){
+  function monthLabelV563(month){
     var names=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
     var p=String(month||'').split('-');
     var y=Number(p[0]||0), m=Number(p[1]||0);
     return (m>=1&&m<=12?names[m-1]+' ':'')+(y||String(month||''));
   }
-  function currentReportMonthV558(){
+  function currentReportMonthV563(){
     var settlementMonth=q('settlementMonthV547');
     if(settlementMonth && settlementMonth.value) return settlementMonth.value;
     try{ if(typeof settlementDefaultMonthV547 === 'function') return settlementDefaultMonthV547(); }catch(e){}
     try{ return calendarDate.getFullYear()+'-'+String(calendarDate.getMonth()+1).padStart(2,'0'); }catch(e){}
     return new Date().toISOString().slice(0,7);
   }
-  function entryStatusV558(e){ return String((e&&(e.entryStatus||e.status))||'done').toLowerCase(); }
-  function isDoneForPdfV558(e){
-    var st=entryStatusV558(e);
+  function monthRangeV563(month){
+    var p=String(month||'').split('-');
+    var y=Number(p[0]), m=Number(p[1]);
+    if(!y||!m){ var now=new Date(); y=now.getFullYear(); m=now.getMonth()+1; }
+    var last=new Date(y,m,0).getDate();
+    return {y:y,m:m,start:y+'-'+String(m).padStart(2,'0')+'-01',end:y+'-'+String(m).padStart(2,'0')+'-'+String(last).padStart(2,'0'),last:last};
+  }
+  function entryStatusV563(e){ return String((e&&(e.entryStatus||e.status))||'done').toLowerCase(); }
+  function isPlannedForPdfV563(e){
+    var st=entryStatusV563(e);
+    if(st==='planned') return true;
+    try{ if(typeof window.isPlannedV49==='function' && window.isPlannedV49(e)) return true; }catch(err){}
+    return !!(e && (e.planned===true || e.isPlanned===true));
+  }
+  function isDoneForPdfV563(e){
+    var st=entryStatusV563(e);
     if(st==='planned'||st==='not_done'||st==='cancelled') return false;
-    try{ if(typeof window.isPlannedV49==='function' && window.isPlannedV49(e)) return false; }catch(err){}
+    if(isPlannedForPdfV563(e)) return false;
     return true;
   }
-  async function entriesForMonthV558(month){
-    try{ if(typeof loadSettlementEntriesV547 === 'function') return await loadSettlementEntriesV547(month); }catch(e){}
+  function isNotDoneV563(e){ return entryStatusV563(e)==='not_done'; }
+  async function allEntriesForMonthV563(month){
     try{
       if(!viewedWorker || !viewedWorker.id) return [];
-      var parts=String(month||'').split('-');
-      var y=Number(parts[0]), m=Number(parts[1]);
-      if(!y||!m) return [];
-      var last=new Date(y,m,0).getDate();
-      var start=y+'-'+String(m).padStart(2,'0')+'-01';
-      var end=y+'-'+String(m).padStart(2,'0')+'-'+String(last).padStart(2,'0');
+      var r=monthRangeV563(month);
       var snap=await db.collection('workEntries').where('workerId','==',viewedWorker.id).get();
-      return snap.docs.map(function(d){return Object.assign({id:d.id},d.data());}).filter(function(e){return String(e.date||'')>=start && String(e.date||'')<=end && isDoneForPdfV558(e);});
+      return snap.docs.map(function(d){return Object.assign({id:d.id},d.data());}).filter(function(e){return String(e.date||'')>=r.start && String(e.date||'')<=r.end;});
     }catch(err){ console.error('PDF report entries load failed',err); return []; }
   }
-  function totalsV558(entries){
-    try{ if(typeof settlementTotalsV547==='function') return settlementTotalsV547(entries); }catch(e){}
-    var expected=entries.reduce(function(s,e){return s+Number(e.amount||0);},0);
-    return {
-      expected:expected,
-      vat:expected*0.18,
-      gross:expected*1.18,
-      services:entries.filter(function(e){return e.workType==='service';}).length,
-      installs:entries.filter(function(e){return e.workType==='install';}).length,
-      pekaCN:entries.filter(function(e){return String(e.pekaType||'').toUpperCase()==='CN';}).length,
-      pekaCH:entries.filter(function(e){return String(e.pekaType||'').toUpperCase()==='CH';}).length,
-      count:entries.length
-    };
+  async function vacationDaysForMonthV563(month){
+    try{
+      if(!viewedWorker || !viewedWorker.id) return [];
+      var r=monthRangeV563(month);
+      var snap=await db.collection('workerDaysOff').where('workerId','==',viewedWorker.id).get();
+      var arr=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());}).filter(function(x){
+        return x && x.active!==false && String(x.date||'')>=r.start && String(x.date||'')<=r.end;
+      }).map(function(x){return String(x.date||'');});
+      return Array.from(new Set(arr)).sort();
+    }catch(e){ console.warn('PDF vacation days load skipped', e && (e.code||e.message) ? (e.code||e.message) : e); return []; }
   }
-  function incomeV558(){
-    // v5.60: PDF reads the chosen month settlement data directly, not only the visible form.
-    var data=window.__pdfSettlementDataV560 || null;
-    if(data){
-      var b=(data.actualIncomeBreakdown && typeof data.actualIncomeBreakdown==='object') ? data.actualIncomeBreakdown : {};
-      var legacy=Number(data.actualIncomeBeforeVat||0);
-      var rf=Number(b.rf||0), fiber=Number(b.fiber||0), sales=Number(b.sales||0);
-      var general=Number(b.general!==undefined?b.general:legacy||0);
-      return {rf:rf,fiber:fiber,sales:sales,general:general,total:rf+fiber+sales+general};
-    }
-    try{ if(typeof settlementIncomeBreakdownV549==='function') return settlementIncomeBreakdownV549(); }catch(e){}
-    function n(id){ var el=q(id); return Number((el&&el.value)||0); }
-    var rf=n('settlementIncomeRfV549'), fiber=n('settlementIncomeFiberV549'), sales=n('settlementIncomeSalesV549'), general=n('settlementIncomeGeneralV549');
+  async function readPdfSettlementDataV563(month){
+    try{
+      if(typeof readSavedSettlementV548 === 'function'){
+        var saved=await readSavedSettlementV548(month);
+        return (saved && saved.exists) ? (saved.data||{}) : {};
+      }
+      if(typeof settlementRefV548 === 'function'){
+        var ref=settlementRefV548(month);
+        if(ref){ var doc=await ref.get(); return doc.exists ? (doc.data()||{}) : {}; }
+      }
+      if(viewedWorker && viewedWorker.id){
+        var doc2=await db.collection('workers').doc(viewedWorker.id).collection('monthlySettlements').doc(String(month||'')).get();
+        return doc2.exists ? (doc2.data()||{}) : {};
+      }
+    }catch(e){ console.warn('PDF settlement data load skipped', e && (e.code||e.message) ? (e.code||e.message) : e); }
+    return {};
+  }
+  function goalForMonthV563(month){
+    try{ if(typeof getWorkerGoalForMonthV556==='function') return Number(getWorkerGoalForMonthV556(month)||0); }catch(e){}
+    var w=viewedWorker||{};
+    var map=(w && typeof w.monthlyGoalsByMonth==='object' && w.monthlyGoalsByMonth) ? w.monthlyGoalsByMonth : {};
+    if(map && map[month]!==undefined) return Number(map[month]||0);
+    return Number(w.monthlyGoal||0);
+  }
+  function settlementIncomeV563(data){
+    data=data||{};
+    var b=(data.actualIncomeBreakdown && typeof data.actualIncomeBreakdown==='object') ? data.actualIncomeBreakdown : {};
+    var legacy=Number(data.actualIncomeBeforeVat||0);
+    var rf=Number(b.rf||0), fiber=Number(b.fiber||0), sales=Number(b.sales||0);
+    var general=Number(b.general!==undefined?b.general:(legacy && !(rf||fiber||sales) ? legacy : 0));
     return {rf:rf,fiber:fiber,sales:sales,general:general,total:rf+fiber+sales+general};
   }
-  function deductionsV558(){
-    // v5.60: use saved monthly settlement deductions when exporting a chosen month.
-    var data=window.__pdfSettlementDataV560 || null;
-    if(data){
-      var equipment=Number(data.equipmentDeduction||0);
-      var fine=Number(data.fineDeduction!==undefined?data.fineDeduction:(data.fineAmount||0));
-      var rows=Array.isArray(data.deductions)?data.deductions:[];
-      var extra=rows.reduce(function(s,x){return s+Number(x.amount||0);},0);
-      return {equipment:equipment,fine:fine,rows:rows,extra:extra,total:equipment+fine+extra};
-    }
-    var equipment=Number((q('settlementEquipmentV547')||{}).value||0);
-    var fine=Number((q('settlementFineV547')||{}).value||0);
-    var rows=[];
-    try{ if(typeof getSettlementDeductionsV547==='function') rows=getSettlementDeductionsV547(); }catch(e){ rows=[]; }
+  function settlementDeductionsV563(data){
+    data=data||{};
+    var equipment=Number(data.equipmentDeduction||0);
+    var fine=Number(data.fineDeduction!==undefined?data.fineDeduction:(data.fineAmount||0));
+    var rows=Array.isArray(data.deductions)?data.deductions:[];
     var extra=rows.reduce(function(s,x){return s+Number(x.amount||0);},0);
     return {equipment:equipment,fine:fine,rows:rows,extra:extra,total:equipment+fine+extra};
   }
-  function goalForMonthV558(month){
-    try{ if(typeof getWorkerGoalForMonthV556==='function') return Number(getWorkerGoalForMonthV556(month)||0); }catch(e){}
-    return Number((viewedWorker&&viewedWorker.monthlyGoal)||0);
+  function totalsV563(doneEntries){
+    var expected=doneEntries.reduce(function(s,e){return s+Number(e.amount||0);},0);
+    return {
+      expected:expected,
+      expectedVat:expected*0.18,
+      expectedGross:expected*1.18,
+      services:doneEntries.filter(function(e){return e.workType==='service';}).length,
+      installs:doneEntries.filter(function(e){return e.workType==='install';}).length,
+      returnCalls:doneEntries.filter(function(e){return e.workType==='service' && e.isReturnCall;}).length,
+      pekaCN:doneEntries.filter(function(e){return String(e.pekaType||'').toUpperCase()==='CN';}).length,
+      pekaCH:doneEntries.filter(function(e){return String(e.pekaType||'').toUpperCase()==='CH';}).length,
+      count:doneEntries.length
+    };
   }
-  function groupByDayV558(entries){
+  function groupByDayV563(entries, vacationDays){
     var map={};
     entries.forEach(function(e){
       var d=e.date||'ללא תאריך';
-      if(!map[d]) map[d]={date:d,entries:[],total:0,services:0,installs:0,cn:0,ch:0};
+      if(!map[d]) map[d]={date:d,entries:[],done:[],planned:[],notDone:[],total:0,services:0,installs:0,cn:0,ch:0,vacation:false};
       map[d].entries.push(e);
+      if(isNotDoneV563(e)){ map[d].notDone.push(e); return; }
+      if(isPlannedForPdfV563(e)){ map[d].planned.push(e); return; }
+      map[d].done.push(e);
       map[d].total+=Number(e.amount||0);
       if(e.workType==='service') map[d].services++;
       if(e.workType==='install') map[d].installs++;
       if(String(e.pekaType||'').toUpperCase()==='CN') map[d].cn++;
       if(String(e.pekaType||'').toUpperCase()==='CH') map[d].ch++;
     });
+    (vacationDays||[]).forEach(function(d){
+      if(!map[d]) map[d]={date:d,entries:[],done:[],planned:[],notDone:[],total:0,services:0,installs:0,cn:0,ch:0,vacation:true};
+      map[d].vacation=true;
+    });
     return Object.keys(map).sort().map(function(k){return map[k];});
   }
-  function itemsHtmlV558(e){
+  function itemsHtmlV563(e){
     if(e.workType!=='install' || !Array.isArray(e.items) || !e.items.length){
       return e.isReturnCall ? 'קריאת שירות חוזרת / ללא תשלום' : 'קריאת שירות';
     }
     return e.items.map(function(i){return safe(i.name||'')+' × '+safe(i.quantity||0)+' = '+moneyPdf(i.total||0);}).join('<br>');
   }
-  function barHtmlV558(label,value,max,cls){
+  function barHtmlV563(label,value,max,cls){
     var pct=max>0?Math.max(3,Math.min(100,Math.round(Number(value||0)/max*100))):0;
-    return '<div class="bar-row"><div class="bar-label">'+safe(label)+'</div><div class="bar-track"><div class="bar-fill '+(cls||'')+'" style="width:'+pct+'%"></div></div><div class="bar-value">'+moneyPdf(value)+'</div></div>';
+    return '<div class="wm-pdf-bar-row"><div class="wm-pdf-bar-label">'+safe(label)+'</div><div class="wm-pdf-bar-track"><div class="wm-pdf-bar-fill '+(cls||'')+'" style="width:'+pct+'%"></div></div><div class="wm-pdf-bar-value">'+moneyPdf(value)+'</div></div>';
   }
-  function buildReportHtmlV558(month,entries){
-    var t=totalsV558(entries);
-    var inc=incomeV558();
-    var ded=deductionsV558();
-    var goal=goalForMonthV558(month);
-    var net=inc.total-ded.total;
-    var vatAfter=net*0.18;
-    var grossAfter=net+vatAfter;
+  function kpiV563(label,value,cls){ return '<div class="wm-pdf-kpi"><div>'+safe(label)+'</div><b class="'+(cls||'')+'">'+value+'</b></div>'; }
+  function miniV563(label,value,cls){ return '<div><span>'+safe(label)+'</span><b class="'+(cls||'')+'">'+value+'</b></div>'; }
+  function buildReportHtmlV563(ctx){
+    var month=ctx.month, allEntries=ctx.allEntries||[], vacationDays=ctx.vacationDays||[], settlement=ctx.settlement||{};
+    var done=allEntries.filter(isDoneForPdfV563);
+    var notDone=allEntries.filter(isNotDoneV563);
+    var planned=allEntries.filter(function(e){return isPlannedForPdfV563(e) && !isNotDoneV563(e);});
+    var t=totalsV563(done);
+    var inc=settlementIncomeV563(settlement);
+    var ded=settlementDeductionsV563(settlement);
+    var goal=goalForMonthV563(month);
+    var netBeforeVat=inc.total-ded.total;
+    var vatAfter=netBeforeVat*0.18;
+    var grossAfter=netBeforeVat+vatAfter;
     var diff=inc.total-t.expected;
-    var days=groupByDayV558(entries);
+    var goalPct=goal>0 ? (t.expected/goal*100) : 0;
+    var days=groupByDayV563(allEntries, vacationDays);
+    var workDaysWithDone=days.filter(function(d){return d.done&&d.done.length;}).length;
     var maxDay=days.reduce(function(m,d){return Math.max(m,d.total);},0);
     var cat=[
       {label:'RF',value:inc.rf,cls:'green'},
@@ -12897,81 +12947,64 @@ CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
       {label:'הוצאות נוספות',value:ded.extra,cls:'red'}
     ];
     var maxCat=cat.reduce(function(m,x){return Math.max(m,Number(x.value||0));},0);
-    var notes=(window.__pdfSettlementDataV560 && window.__pdfSettlementDataV560.notes) ? window.__pdfSettlementDataV560.notes : ((q('settlementNotesV547')||{}).value||'');
     var workerName=(viewedWorker&&viewedWorker.name)||'';
     var now=new Date().toLocaleString('he-IL',{timeZone:'Asia/Jerusalem'});
-    var dailyRows=days.map(function(d){return '<tr><td>'+datePdf(d.date)+'</td><td>'+d.entries.length+'</td><td>'+d.services+'</td><td>'+d.installs+'</td><td>'+d.cn+' / '+d.ch+'</td><td>'+moneyPdf(d.total)+'</td></tr>';}).join('');
-    var dayPages=days.map(function(day,idx){
-      var rows=day.entries.sort(function(a,b){return String(a.createdAt&&a.createdAt.seconds||'').localeCompare(String(b.createdAt&&b.createdAt.seconds||''));}).map(function(e){
-        var peka=String(e.pekaType||'').toUpperCase();
-        return '<div class="job-card"><div class="job-head"><b>'+safe(e.description||(e.workType==='install'?'התקנה':'קריאת שירות'))+'</b><span>'+moneyPdf(e.amount||0)+'</span></div>'+
-          '<div class="job-meta">לקוח: '+safe(e.customerNumber||'')+' · כתובת: '+safe(e.address||'')+(peka?' · פק״ע: '+safe(peka):'')+'</div>'+
-          '<div class="job-details">'+itemsHtmlV558(e)+'</div>'+
-          (e.notes?'<div class="job-notes">הערות: '+safe(e.notes)+'</div>':'')+'</div>';
-      }).join('');
-      return '<section class="day-page '+(idx?'page-break':'')+'"><h2>פירוט יום '+datePdf(day.date)+'</h2><div class="day-total">סה״כ יום: '+moneyPdf(day.total)+' · עבודות: '+day.entries.length+'</div>'+rows+'</section>';
+    var notes=settlement.notes||'';
+    var dailyRows=days.map(function(d){
+      return '<tr class="'+(d.vacation?'vac-row':'')+'"><td>'+datePdf(d.date)+'</td><td>'+(d.vacation?'יום חופש':'')+'</td><td>'+((d.done||[]).length)+'</td><td>'+d.services+'</td><td>'+d.installs+'</td><td>'+d.cn+' / '+d.ch+'</td><td>'+((d.notDone||[]).length)+'</td><td>'+moneyPdf(d.total)+'</td></tr>';
     }).join('');
-    var extraRows=ded.rows.filter(function(x){return x.name||x.amount;}).map(function(x){return '<tr><td>'+safe(x.name||'הוצאה נוספת')+'</td><td class="red-text">'+moneyPdf(x.amount||0)+'</td><td class="red-text">'+moneyPdf(Number(x.amount||0)*1.18)+'</td></tr>';}).join('') || '<tr><td colspan="3">אין הוצאות נוספות</td></tr>';
-    function vatRowV559(label,amount,type){
-      var cls=type==='expense'?'red-text':(type==='income'?'green-text':'');
-      return '<tr><td>'+safe(label)+'</td><td class="'+cls+'">'+moneyPdf(amount)+'</td><td class="'+cls+'">'+moneyPdf(Number(amount||0)*1.18)+'</td></tr>';
-    }
-    function plainRowV559(label,amount,cls){
-      return '<tr><td>'+safe(label)+'</td><td class="'+(cls||'')+'">'+moneyPdf(amount)+'</td></tr>';
-    }
-    var nextcomExpectedBeforeVat=t.expected;
-    var nextcomExpectedWithVat=t.gross;
-    var nextcomActualBeforeVat=inc.total;
-    var nextcomActualWithVat=inc.total*1.18;
-    var nextcomDiffBeforeVat=nextcomActualBeforeVat-nextcomExpectedBeforeVat;
-    var nextcomDiffWithVat=nextcomActualWithVat-nextcomExpectedWithVat;
-    var netBeforeVat=net;
-    var netWithVat=grossAfter;
-    var diffText=diff<0?'חסר '+moneyPdf(Math.abs(diff)):(diff>0?'עודף '+moneyPdf(diff):'מאוזן');
+    var notDoneReasons={};
+    notDone.forEach(function(e){ var r=e.notDoneReason||e.cancelReason||e.reason||'ללא סיבה'; notDoneReasons[r]=(notDoneReasons[r]||0)+1; });
+    var notDoneHtml=Object.keys(notDoneReasons).length ? Object.keys(notDoneReasons).map(function(k){return '<span class="wm-pdf-pill red">'+safe(k)+': '+notDoneReasons[k]+'</span>';}).join('') : '<span class="wm-pdf-pill muted">אין פק״עות לא בוצעו</span>';
+    var dayPages=days.filter(function(day){return (day.done&&day.done.length)||(day.notDone&&day.notDone.length)||day.vacation;}).map(function(day){
+      var jobs=(day.done||[]).sort(function(a,b){return String((a.createdAt&&a.createdAt.seconds)||'').localeCompare(String((b.createdAt&&b.createdAt.seconds)||''));}).map(function(e){
+        var peka=String(e.pekaType||'').toUpperCase();
+        return '<div class="wm-pdf-job"><div class="wm-pdf-job-head"><b>'+safe(e.description||((e.workType==='install')?'התקנה':'קריאת שירות'))+'</b><span>'+moneyPdf(e.amount||0)+'</span></div>'+ 
+          '<div class="wm-pdf-job-meta">לקוח: '+safe(e.customerNumber||'')+' · כתובת: '+safe(e.address||'')+(peka?' · פק״ע: '+safe(peka):'')+'</div>'+ 
+          '<div class="wm-pdf-job-details">'+itemsHtmlV563(e)+'</div>'+ 
+          (e.notes?'<div class="wm-pdf-job-notes">'+safe(e.notes)+'</div>':'')+'</div>';
+      }).join('');
+      var nd=(day.notDone||[]).map(function(e){
+        return '<div class="wm-pdf-job wm-pdf-job-red"><div class="wm-pdf-job-head"><b>לא בוצע</b><span>₪0</span></div><div class="wm-pdf-job-meta">לקוח: '+safe(e.customerNumber||'')+' · כתובת: '+safe(e.address||'')+'</div><div class="wm-pdf-job-details">סיבה: '+safe(e.notDoneReason||e.cancelReason||e.reason||'')+'<br>'+safe(e.notDoneNote||e.notes||'')+'</div></div>';
+      }).join('');
+      return '<section class="wm-pdf-day"><h2>'+datePdf(day.date)+(day.vacation?' · יום חופש':'')+'</h2><div class="wm-pdf-day-total">סה״כ יום: '+moneyPdf(day.total)+' · עבודות שבוצעו: '+((day.done||[]).length)+' · לא בוצעו: '+((day.notDone||[]).length)+'</div>'+(jobs||'')+(nd||'')+(!jobs&&!nd&&day.vacation?'<div class="wm-pdf-vacation-box">🏖️ יום חופש — לא קיימות עבודות ביום הזה.</div>':'')+'</section>';
+    }).join('');
     var diffCls=diff<0?'red-text':(diff>0?'green-text':'muted-text');
-
-    return '<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="UTF-8"><title>סיכום חודש PDF '+safe(month)+'</title><style>'+cssV558()+'</style></head><body>'+
-      '<section class="cover"><div class="logo">₪</div><h1>סיכום חודש עבודה</h1><h2>'+safe(monthLabelV558(month))+'</h2><p>עובד: <b>'+safe(workerName)+'</b> · הופק: '+safe(now)+'</p><p class="muted-text">הדוח כולל עבודות שבוצעו בלבד. מתוזמנות ופק״ע לא בוצעה אינן נספרות כהכנסה.</p></section>'+
-      '<section class="page"><h2>תמונה חודשית</h2><div class="cards">'+
-      cardV558('יעד חודשי',moneyPdf(goal),'')+cardV558('הכנסה לפי מערכת לפני מע״מ',moneyPdf(t.expected),'green-text')+cardV558('הכנסה בפועל לפני מע״מ',moneyPdf(inc.total),'green-text')+cardV558('הפרש מול מערכת',diffText,diffCls)+
-      cardV558('סה״כ קיזוזים',moneyPdf(ded.total),'red-text')+cardV558('נטו לפני מע״מ',moneyPdf(net),'green-text')+cardV558('מע״מ אחרי קיזוזים',moneyPdf(vatAfter),'')+cardV558('סכום סופי כולל מע״מ',moneyPdf(grossAfter),'green-text')+'</div>'+
-      '<div class="mini-grid"><div>עבודות: <b>'+t.count+'</b></div><div>קריאות: <b>'+t.services+'</b></div><div>התקנות: <b>'+t.installs+'</b></div><div>פק״ע CN/CH: <b>'+t.pekaCN+' / '+t.pekaCH+'</b></div></div></section>'+
-      '<section class="page"><h2>סיכום לפי ימים</h2><table><thead><tr><th>תאריך</th><th>עבודות</th><th>קריאות</th><th>התקנות</th><th>CN/CH</th><th>הכנסה</th></tr></thead><tbody>'+(dailyRows||'<tr><td colspan="6">אין עבודות בחודש זה</td></tr>')+'</tbody></table></section>'+
-      '<section class="page"><h2>גרף הכנסות יומי</h2>'+(days.map(function(d){return barHtmlV558(datePdf(d.date),d.total,maxDay,'green');}).join('')||'<p>אין נתונים להצגה.</p>')+'</section>'+
-      '<section class="page"><h2>דוח התחשבנות: הכנסות, קיזוזים ומע״מ</h2><div class="split"><div><h3>פירוט הכנסות</h3>'+cat.slice(0,4).map(function(x){return barHtmlV558(x.label,x.value,maxCat,x.cls);}).join('')+'</div><div><h3>פירוט קיזוזים</h3>'+cat.slice(4).map(function(x){return barHtmlV558(x.label,x.value,maxCat,x.cls);}).join('')+'</div></div>'+
-      '<table><tbody><tr><td>מגיע לפי המערכת לפני מע״מ</td><td>'+moneyPdf(t.expected)+'</td></tr><tr><td>מע״מ 18% לפי המערכת</td><td>'+moneyPdf(t.vat)+'</td></tr><tr><td>ברוטו לפי המערכת</td><td>'+moneyPdf(t.gross)+'</td></tr><tr><td>נטו לפני מע״מ אחרי קיזוזים</td><td>'+moneyPdf(net)+'</td></tr><tr><td>סכום סופי כולל מע״מ אחרי קיזוזים</td><td>'+moneyPdf(grossAfter)+'</td></tr></tbody></table><h3>הוצאות נוספות</h3><table><thead><tr><th>שם</th><th>לפני מע״מ</th><th>כולל מע״מ</th></tr></thead><tbody>'+extraRows+'</tbody></table>'+(notes?'<div class="note-box"><b>הערות:</b><br>'+safe(notes)+'</div>':'')+'</section>'+
-      '<section class="page final-page"><h2>עמוד אחרון — דוח התחשבנות נקסטקום סופי</h2><p class="muted-text">עמוד זה מרכז את הנתונים שאתה מזין במסך ההתחשבנות: מה המערכת אומרת שמגיע, מה נקסטקום שילמה בפועל, הכנסות, קיזוזים, לפני מע״מ וכולל מע״מ.</p>'+
-      '<div class="cards">'+cardV558('אמור לקבל לפי המערכת לפני מע״מ',moneyPdf(nextcomExpectedBeforeVat),'green-text')+cardV558('אמור לקבל לפי המערכת כולל מע״מ',moneyPdf(nextcomExpectedWithVat),'green-text')+cardV558('נקסטקום בפועל לפני מע״מ',moneyPdf(nextcomActualBeforeVat),'green-text')+cardV558('נקסטקום בפועל כולל מע״מ',moneyPdf(nextcomActualWithVat),'green-text')+cardV558('הפרש לפני מע״מ',nextcomDiffBeforeVat<0?'חסר '+moneyPdf(Math.abs(nextcomDiffBeforeVat)):(nextcomDiffBeforeVat>0?'עודף '+moneyPdf(nextcomDiffBeforeVat):'מאוזן'),nextcomDiffBeforeVat<0?'red-text':(nextcomDiffBeforeVat>0?'green-text':'muted-text'))+cardV558('סה״כ קיזוזים לפני מע״מ',moneyPdf(ded.total),'red-text')+cardV558('סה״כ נטו לפני מע״מ',moneyPdf(netBeforeVat),'green-text')+cardV558('סה״כ סופי כולל מע״מ',moneyPdf(netWithVat),'green-text')+'</div>'+
-      '<h3>הכנסות נקסטקום / התחשבנות בפועל</h3><table><thead><tr><th>סעיף</th><th>לפני מע״מ</th><th>כולל מע״מ</th></tr></thead><tbody>'+vatRowV559('יצרנות RF',inc.rf,'income')+vatRowV559('יצרנות סיבים',inc.fiber,'income')+vatRowV559('מכירות',inc.sales,'income')+vatRowV559('הכנסה כללית',inc.general,'income')+vatRowV559('סה״כ הכנסות בפועל',inc.total,'income')+'</tbody></table>'+
-      '<h3>קיזוזים והוצאות</h3><table><thead><tr><th>סעיף</th><th>לפני מע״מ</th><th>כולל מע״מ</th></tr></thead><tbody>'+vatRowV559('ציוד שחור',ded.equipment,'expense')+vatRowV559('קנסות',ded.fine,'expense')+vatRowV559('הוצאות נוספות',ded.extra,'expense')+vatRowV559('סה״כ קיזוזים',ded.total,'expense')+'</tbody></table>'+
-      '<h3>פירוט הוצאות נוספות</h3><table><thead><tr><th>שם הוצאה</th><th>לפני מע״מ</th><th>כולל מע״מ</th></tr></thead><tbody>'+extraRows+'</tbody></table>'+
-      '<h3>שורת סיכום סופית</h3><table><tbody>'+plainRowV559('סה״כ לפני מע״מ — אחרי כל הקיזוזים',netBeforeVat,'green-text')+plainRowV559('מע״מ 18% על הנטו',vatAfter,'')+plainRowV559('סה״כ כולל מע״מ — אחרי כל הקיזוזים',netWithVat,'green-text')+plainRowV559('הפרש נקסטקום מול מערכת לפני מע״מ',nextcomDiffBeforeVat,nextcomDiffBeforeVat<0?'red-text':(nextcomDiffBeforeVat>0?'green-text':'muted-text'))+plainRowV559('הפרש נקסטקום מול מערכת כולל מע״מ',nextcomDiffWithVat,nextcomDiffWithVat<0?'red-text':(nextcomDiffWithVat>0?'green-text':'muted-text'))+'</tbody></table>'+(notes?'<div class="note-box"><b>הערות התחשבנות:</b><br>'+safe(notes)+'</div>':'')+'</section>'+
-      dayPages+'</body></html>';
+    var diffTxt=diff<0?'חסר '+moneyPdf(Math.abs(diff)):(diff>0?'עודף '+moneyPdf(diff):'מאוזן');
+    var deductionRows=(ded.rows||[]).map(function(r){return '<tr><td>'+safe(r.name||r.label||'הוצאה')+'</td><td class="red-text">'+moneyPdf(r.amount||0)+'</td></tr>';}).join('');
+    return '<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>דוח חודשי '+safe(month)+'</title><style>'+cssV563()+'</style></head><body>'+ 
+      '<section class="wm-pdf-cover"><div class="wm-pdf-logo">₪</div><h1>דוח חודשי מקצועי</h1><h2>'+safe(monthLabelV563(month))+'</h2><p>עובד: <b>'+safe(workerName)+'</b> · הופק: '+safe(now)+' · גרסה '+safe(window.APP_VERSION||APP_VERSION||'')+'</p>'+ 
+      '<div class="wm-pdf-kpis">'+
+        kpiV563('סכום מערכת לפני מע״מ',moneyPdf(t.expected),'green-text')+
+        kpiV563('יעד חודשי',moneyPdf(goal),'')+
+        kpiV563('עמידה ביעד',pctPdf(goalPct),goalPct>=100?'green-text':'red-text')+
+        kpiV563('נטו נקסטקום לפני מע״מ',moneyPdf(netBeforeVat),netBeforeVat>=0?'green-text':'red-text')+
+      '</div></section>'+ 
+      '<section class="wm-pdf-page"><h2>תקציר כספי</h2><div class="wm-pdf-kpis">'+
+        kpiV563('RF לפני מע״מ',moneyPdf(inc.rf),'green-text')+
+        kpiV563('סיבים לפני מע״מ',moneyPdf(inc.fiber),'green-text')+
+        kpiV563('מכירות לפני מע״מ',moneyPdf(inc.sales),'green-text')+
+        kpiV563('סה״כ הכנסות נקסטקום',moneyPdf(inc.total),'green-text')+
+        kpiV563('סה״כ קיזוזים',moneyPdf(ded.total),'red-text')+
+        kpiV563('נטו לפני מע״מ',moneyPdf(netBeforeVat),netBeforeVat>=0?'green-text':'red-text')+
+        kpiV563('מע״מ 18%',moneyPdf(vatAfter),'')+
+        kpiV563('סכום סופי כולל מע״מ',moneyPdf(grossAfter),grossAfter>=0?'green-text':'red-text')+
+      '</div><div class="wm-pdf-note"><b>הפרש מול סכום המערכת:</b> <span class="'+diffCls+'">'+diffTxt+'</span></div></section>'+ 
+      '<section class="wm-pdf-page"><h2>ביצועים חודשיים</h2><div class="wm-pdf-mini-grid">'+
+        miniV563('עבודות שבוצעו',t.count,'')+miniV563('קריאות שירות',t.services,'')+miniV563('התקנות',t.installs,'')+miniV563('קריאות חוזרות',t.returnCalls,'')+
+        miniV563('פק״ע CN',t.pekaCN,'')+miniV563('פק״ע CH',t.pekaCH,'')+miniV563('לא בוצעו',notDone.length,'red-text')+miniV563('ימי חופש',vacationDays.length,'')+miniV563('ימי עבודה בפועל',workDaysWithDone,'')+miniV563('מתוזמנות בחודש',planned.length,'')+
+      '</div><h3>לא בוצעו לפי סיבה</h3><div class="wm-pdf-pills">'+notDoneHtml+'</div></section>'+ 
+      '<section class="wm-pdf-page"><h2>גרפים</h2><div class="wm-pdf-split"><div><h3>הכנסה לפי יום</h3>'+days.filter(function(d){return d.total>0;}).map(function(d){return barHtmlV563(datePdf(d.date),d.total,maxDay,'green');}).join('')+'</div><div><h3>התחשבנות נקסטקום</h3>'+cat.map(function(x){return barHtmlV563(x.label,x.value,maxCat,x.cls);}).join('')+'</div></div></section>'+ 
+      '<section class="wm-pdf-page"><h2>סיכום לפי ימים</h2><table><thead><tr><th>תאריך</th><th>סטטוס</th><th>בוצעו</th><th>שירות</th><th>התקנות</th><th>CN/CH</th><th>לא בוצעו</th><th>סה״כ</th></tr></thead><tbody>'+dailyRows+'</tbody></table></section>'+ 
+      dayPages+
+      '<section class="wm-pdf-page"><h2>התחשבנות נקסטקום מלאה</h2><div class="wm-pdf-split"><div><h3>הכנסות לפני מע״מ</h3><table><tbody><tr><td>RF</td><td class="green-text">'+moneyPdf(inc.rf)+'</td></tr><tr><td>סיבים</td><td class="green-text">'+moneyPdf(inc.fiber)+'</td></tr><tr><td>מכירות</td><td class="green-text">'+moneyPdf(inc.sales)+'</td></tr><tr><td>הכנסה כללית</td><td class="green-text">'+moneyPdf(inc.general)+'</td></tr><tr><th>סה״כ הכנסות</th><th class="green-text">'+moneyPdf(inc.total)+'</th></tr></tbody></table></div><div><h3>קיזוזים / הוצאות לפני מע״מ</h3><table><tbody><tr><td>ציוד שחור</td><td class="red-text">'+moneyPdf(ded.equipment)+'</td></tr><tr><td>קנסות</td><td class="red-text">'+moneyPdf(ded.fine)+'</td></tr>'+deductionRows+'<tr><th>סה״כ קיזוזים</th><th class="red-text">'+moneyPdf(ded.total)+'</th></tr></tbody></table></div></div>'+ 
+      '<div class="wm-pdf-kpis wm-pdf-final-kpis">'+kpiV563('נטו לפני מע״מ',moneyPdf(netBeforeVat),netBeforeVat>=0?'green-text':'red-text')+kpiV563('מע״מ 18%',moneyPdf(vatAfter),'')+kpiV563('סה״כ כולל מע״מ',moneyPdf(grossAfter),grossAfter>=0?'green-text':'red-text')+kpiV563('מול סכום המערכת',diffTxt,diffCls)+'</div>'+(notes?'<div class="wm-pdf-note"><b>הערות:</b><br>'+safe(notes)+'</div>':'')+'</section></body></html>';
   }
-  function cardV558(label,value,cls){ return '<div class="card"><div>'+safe(label)+'</div><b class="'+(cls||'')+'">'+value+'</b></div>'; }
-  function cssV558(){
-    return 'body{font-family:Arial,"Noto Sans Hebrew",sans-serif;margin:0;padding:24px;color:#0f172a;background:#f8fafc} .cover,.page,.day-page{background:white;border:1px solid #e2e8f0;border-radius:18px;padding:22px;margin:0 0 18px;box-shadow:0 8px 20px rgba(15,23,42,.06)}.cover{text-align:center;padding:34px 22px}.logo{width:62px;height:62px;border-radius:22px;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;display:grid;place-items:center;font-size:30px;font-weight:900;margin:0 auto 12px}h1{font-size:30px;margin:6px 0}h2{font-size:22px;margin:0 0 14px}h3{font-size:16px;margin:12px 0 8px}.muted-text{color:#64748b}.green-text{color:#16a34a!important}.red-text{color:#dc2626!important}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.card{border:1px solid #e2e8f0;border-radius:16px;padding:13px;background:#fff}.card div{font-size:12px;color:#64748b;font-weight:900}.card b{display:block;font-size:20px;margin-top:5px}.mini-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.mini-grid div{background:#f1f5f9;border-radius:12px;padding:10px}table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border:1px solid #e2e8f0;padding:9px;text-align:right;font-size:13px}th{background:#eff6ff;color:#1d4ed8}.bar-row{display:grid;grid-template-columns:120px 1fr 90px;gap:10px;align-items:center;margin:9px 0}.bar-label{font-weight:900;font-size:13px}.bar-track{height:16px;background:#e2e8f0;border-radius:999px;overflow:hidden}.bar-fill{height:100%;background:#2563eb;border-radius:999px}.bar-fill.green{background:#16a34a}.bar-fill.red{background:#dc2626}.bar-value{font-weight:900;font-size:13px}.split{display:grid;grid-template-columns:1fr 1fr;gap:18px}.job-card{border:1px solid #e2e8f0;border-radius:14px;padding:12px;margin:9px 0;background:#fff}.job-head{display:flex;justify-content:space-between;gap:10px;font-size:15px}.job-head span{font-weight:900;color:#16a34a}.job-meta{color:#64748b;font-size:12px;font-weight:800;margin-top:5px}.job-details{font-size:13px;line-height:1.55;margin-top:8px}.job-notes{background:#f8fafc;border-radius:10px;padding:8px;margin-top:8px;color:#334155}.day-total{background:#ecfdf5;border:1px solid #bbf7d0;color:#166534;border-radius:12px;padding:10px;font-weight:900;margin-bottom:10px}.note-box{background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:12px;margin-top:10px}@media print{body{background:white;padding:0}.cover,.page,.day-page{box-shadow:none;border-radius:0;border:0;margin:0;page-break-after:always}.page-break{page-break-before:always}.job-card{page-break-inside:avoid}.cards{grid-template-columns:repeat(4,1fr)}}@media(max-width:760px){.cards,.mini-grid,.split{grid-template-columns:1fr}.bar-row{grid-template-columns:90px 1fr 80px}}';
+  function cssV563(){
+    return 'body{font-family:Arial,"Noto Sans Hebrew",sans-serif;margin:0;padding:24px;color:#0f172a;background:#f8fafc}.wm-pdf-cover,.wm-pdf-page,.wm-pdf-day{background:white;border:1px solid #e2e8f0;border-radius:20px;padding:24px;margin:0 0 18px;box-shadow:0 10px 26px rgba(15,23,42,.07)}.wm-pdf-cover{text-align:center;padding:38px 24px}.wm-pdf-logo{width:68px;height:68px;border-radius:24px;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;display:grid;place-items:center;font-size:34px;font-weight:900;margin:0 auto 14px}h1{font-size:32px;margin:8px 0}h2{font-size:23px;margin:0 0 14px}h3{font-size:16px;margin:14px 0 8px}.muted-text{color:#64748b!important}.green-text{color:#16a34a!important}.red-text{color:#dc2626!important}.wm-pdf-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}.wm-pdf-kpi{border:1px solid #e2e8f0;border-radius:16px;padding:13px;background:#fff}.wm-pdf-kpi div{font-size:12px;color:#64748b;font-weight:900}.wm-pdf-kpi b{display:block;font-size:20px;margin-top:5px;word-break:break-word}.wm-pdf-mini-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}.wm-pdf-mini-grid div{background:#f1f5f9;border-radius:12px;padding:10px}.wm-pdf-mini-grid span{display:block;font-size:12px;color:#64748b;font-weight:900}.wm-pdf-mini-grid b{font-size:18px}table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border:1px solid #e2e8f0;padding:9px;text-align:right;font-size:13px;vertical-align:top}th{background:#eff6ff;color:#1d4ed8}.vac-row td{background:#fffbeb}.wm-pdf-bar-row{display:grid;grid-template-columns:120px 1fr 90px;gap:10px;align-items:center;margin:9px 0}.wm-pdf-bar-label{font-weight:900;font-size:13px}.wm-pdf-bar-track{height:16px;background:#e2e8f0;border-radius:999px;overflow:hidden}.wm-pdf-bar-fill{height:100%;background:#2563eb;border-radius:999px}.wm-pdf-bar-fill.green{background:#16a34a}.wm-pdf-bar-fill.red{background:#dc2626}.wm-pdf-bar-value{font-weight:900;font-size:13px}.wm-pdf-split{display:grid;grid-template-columns:1fr 1fr;gap:18px}.wm-pdf-job{border:1px solid #e2e8f0;border-radius:14px;padding:12px;margin:9px 0;background:#fff;page-break-inside:avoid}.wm-pdf-job-red{border-color:#fecaca;background:#fff7f7}.wm-pdf-job-head{display:flex;justify-content:space-between;gap:10px;font-size:15px}.wm-pdf-job-head span{font-weight:900;color:#16a34a}.wm-pdf-job-red .wm-pdf-job-head span{color:#dc2626}.wm-pdf-job-meta{color:#64748b;font-size:12px;font-weight:800;margin-top:5px}.wm-pdf-job-details{font-size:13px;line-height:1.55;margin-top:8px}.wm-pdf-job-notes{background:#f8fafc;border-radius:10px;padding:8px;margin-top:8px;color:#334155}.wm-pdf-day-total{background:#ecfdf5;border:1px solid #bbf7d0;color:#166534;border-radius:12px;padding:10px;font-weight:900;margin-bottom:10px}.wm-pdf-vacation-box{background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:16px;font-weight:900}.wm-pdf-note{background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:12px;margin-top:12px;line-height:1.55}.wm-pdf-pills{display:flex;gap:8px;flex-wrap:wrap}.wm-pdf-pill{border-radius:999px;background:#f1f5f9;padding:8px 11px;font-size:12px;font-weight:900}.wm-pdf-pill.red{background:#fee2e2;color:#991b1b}.wm-pdf-final-kpis{margin-top:18px}@media print{body{background:white;padding:0}.wm-pdf-cover,.wm-pdf-page,.wm-pdf-day{box-shadow:none;border-radius:0;border:0;margin:0;page-break-after:always}.wm-pdf-job{page-break-inside:avoid}.wm-pdf-kpis{grid-template-columns:repeat(4,1fr)}}@media(max-width:760px){.wm-pdf-kpis,.wm-pdf-mini-grid,.wm-pdf-split{grid-template-columns:1fr}.wm-pdf-bar-row{grid-template-columns:90px 1fr 80px}}';
   }
-  async function openPrintV558(html,month){
-    var title='work_month_summary_'+String(month||'').replace(/[^0-9-]/g,'_');
-    var win=window.open('','_blank');
-    if(!win){
-      var blob=new Blob([html],{type:'text/html;charset=utf-8'});
-      var url=URL.createObjectURL(blob);
-      var a=document.createElement('a');
-      a.href=url; a.download=title+'.html'; document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(function(){URL.revokeObjectURL(url);},1500);
-      alert('הדפדפן חסם חלון חדש. ירד קובץ HTML — פתח אותו ובחר הדפסה / שמירה כ-PDF.');
-      return;
-    }
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    setTimeout(function(){ try{ win.print(); }catch(e){} },700);
-  }
-  function choosePdfMonthV560(){
-    var def=currentReportMonthV558();
+  function choosePdfMonthV563(){
+    var def=currentReportMonthV563();
     return new Promise(function(resolve){
       try{
         var existing=document.getElementById('pdfMonthSelectorOverlayV561');
@@ -12980,23 +13013,10 @@ CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
         overlay.id='pdfMonthSelectorOverlayV561';
         overlay.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl;';
         var box=document.createElement('div');
-        box.style.cssText='width:min(420px,100%);background:#fff;border-radius:24px;padding:20px;box-shadow:0 24px 70px rgba(15,23,42,.28);border:1px solid #e2e8f0;font-family:Arial,"Noto Sans Hebrew",sans-serif;color:#0f172a;';
-        var title=document.createElement('h2');
-        title.textContent='בחר חודש לדוח PDF';
-        title.style.cssText='margin:0 0 8px;font-size:22px;font-weight:900;';
-        var sub=document.createElement('div');
-        sub.textContent='הדוח יטען אוטומטית עבודות, יעד והתחשבנות לפי החודש שתבחר.';
-        sub.style.cssText='font-size:12px;color:#64748b;font-weight:800;line-height:1.45;margin-bottom:12px;';
-        var sel=document.createElement('select');
-        sel.id='pdfMonthSelectorV561';
-        sel.style.cssText='width:100%;border:1px solid #cbd5e1;border-radius:16px;padding:13px 14px;font-size:16px;font-weight:900;background:#fff;margin:8px 0 14px;';
-        function addOpt(v,label){
-          var o=document.createElement('option');
-          o.value=v;
-          o.textContent=label||v;
-          if(v===def) o.selected=true;
-          sel.appendChild(o);
-        }
+        box.style.cssText='width:min(440px,100%);background:#fff;border-radius:24px;padding:20px;box-shadow:0 24px 70px rgba(15,23,42,.28);border:1px solid #e2e8f0;font-family:Arial,"Noto Sans Hebrew",sans-serif;color:#0f172a;';
+        var title=document.createElement('h2'); title.textContent='בחר חודש לדוח PDF'; title.style.cssText='margin:0 0 8px;font-size:22px;font-weight:900;';
+        var sub=document.createElement('div'); sub.textContent='הדוח יטען עבודות, יעד, ימי חופש והתחשבנות לפי החודש שתבחר.'; sub.style.cssText='font-size:12px;color:#64748b;font-weight:800;line-height:1.45;margin-bottom:12px;';
+        var sel=document.createElement('select'); sel.id='pdfMonthSelectorV561'; sel.style.cssText='width:100%;border:1px solid #cbd5e1;border-radius:16px;padding:13px 14px;font-size:16px;font-weight:900;background:#fff;margin:8px 0 14px;';
         var baseParts=String(def||'').split('-');
         var baseYear=Number(baseParts[0])||new Date().getFullYear();
         var baseMonth=(Number(baseParts[1])||new Date().getMonth()+1)-1;
@@ -13004,76 +13024,42 @@ CHANGE 5.36 - חזרה למסך בחירת סוג עבודה אחרי שמירה
         for(var i=-12;i<=6;i++){
           var d=new Date(baseYear,baseMonth+i,1);
           var v=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-          addOpt(v,heMonths[d.getMonth()]+' '+d.getFullYear()+' ('+v+')');
+          var o=document.createElement('option'); o.value=v; o.textContent=heMonths[d.getMonth()]+' '+d.getFullYear()+' ('+v+')'; if(v===def) o.selected=true; sel.appendChild(o);
         }
-        var actions=document.createElement('div');
-        actions.style.cssText='display:flex;gap:8px;justify-content:flex-start;flex-wrap:wrap;margin-top:4px;';
-        var ok=document.createElement('button');
-        ok.type='button';
-        ok.textContent='הפק דוח לחודש שנבחר';
-        ok.style.cssText='border:0;border-radius:16px;padding:12px 16px;background:linear-gradient(135deg,#16a34a,#22c55e);color:white;font-weight:900;cursor:pointer;font-family:inherit;';
-        var cancel=document.createElement('button');
-        cancel.type='button';
-        cancel.textContent='ביטול';
-        cancel.style.cssText='border:1px solid #e2e8f0;border-radius:16px;padding:12px 16px;background:#f8fafc;color:#0f172a;font-weight:900;cursor:pointer;font-family:inherit;';
-        actions.appendChild(ok); actions.appendChild(cancel);
-        box.appendChild(title); box.appendChild(sub); box.appendChild(sel); box.appendChild(actions);
-        overlay.appendChild(box);
-        document.body.appendChild(overlay);
+        var actions=document.createElement('div'); actions.style.cssText='display:flex;gap:8px;justify-content:flex-start;flex-wrap:wrap;margin-top:4px;';
+        var ok=document.createElement('button'); ok.type='button'; ok.textContent='הפק דוח מקצועי'; ok.style.cssText='border:0;border-radius:16px;padding:12px 16px;background:linear-gradient(135deg,#16a34a,#22c55e);color:white;font-weight:900;cursor:pointer;font-family:inherit;';
+        var cancel=document.createElement('button'); cancel.type='button'; cancel.textContent='ביטול'; cancel.style.cssText='border:1px solid #e2e8f0;border-radius:16px;padding:12px 16px;background:#f8fafc;color:#0f172a;font-weight:900;cursor:pointer;font-family:inherit;';
+        actions.appendChild(ok); actions.appendChild(cancel); box.appendChild(title); box.appendChild(sub); box.appendChild(sel); box.appendChild(actions); overlay.appendChild(box); document.body.appendChild(overlay);
         function close(v){ try{overlay.remove();}catch(e){} resolve(v||null); }
-        ok.onclick=function(){ close(sel.value); };
-        cancel.onclick=function(){ close(null); };
-        overlay.addEventListener('click',function(ev){ if(ev.target===overlay) close(null); });
-        document.addEventListener('keydown',function escHandler(ev){
-          if(ev.key==='Escape'){
-            document.removeEventListener('keydown',escHandler);
-            close(null);
-          }
-        });
-        setTimeout(function(){ try{sel.focus();}catch(e){} },50);
-      }catch(e){
-        console.warn('month selector failed, fallback to current month', e);
-        resolve(def);
-      }
+        ok.onclick=function(){ close(sel.value); }; cancel.onclick=function(){ close(null); }; overlay.addEventListener('click',function(ev){ if(ev.target===overlay) close(null); }); setTimeout(function(){ try{sel.focus();}catch(e){} },50);
+      }catch(e){ console.warn('month selector failed', e); resolve(def); }
     });
   }
-  async function readPdfSettlementDataV560(month){
-    try{
-      if(typeof readSavedSettlementV548 === 'function'){
-        var saved=await readSavedSettlementV548(month);
-        return (saved && saved.exists) ? (saved.data||{}) : {};
-      }
-      if(typeof settlementRefV548 === 'function'){
-        var ref=settlementRefV548(month);
-        if(ref){ var doc=await ref.get(); return doc.exists ? (doc.data()||{}) : {}; }
-      }
-    }catch(e){
-      console.warn('PDF settlement data load skipped', e && (e.code||e.message) ? (e.code||e.message) : e);
+  async function openPrintV563(html,month){
+    var title='work_month_professional_report_'+String(month||'').replace(/[^0-9-]/g,'_');
+    var win=window.open('','_blank');
+    if(!win){
+      var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+      var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download=title+'.html'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(url);},1500);
+      alert('הדפדפן חסם חלון חדש. ירד קובץ HTML — פתח אותו ובחר הדפסה / שמירה כ-PDF.'); return;
     }
-    return {};
+    win.document.open(); win.document.write(html); win.document.close(); win.focus(); setTimeout(function(){ try{ win.print(); }catch(e){} },700);
   }
   window.exportMonthlyPdfReportV558 = async function(){
     if(!viewedWorker){ alert('לא זוהה עובד פעיל ליצירת הדוח.'); return; }
-    var month=await choosePdfMonthV560();
-    if(!month) return;
-    var btn=null;
-    try{ btn=[].slice.call(document.querySelectorAll('button')).find(function(b){return String(b.textContent||'').indexOf('סיכום חודש PDF')!==-1;}); }catch(e){}
+    var month=await choosePdfMonthV563(); if(!month) return;
+    var btn=null; try{ btn=[].slice.call(document.querySelectorAll('button')).find(function(b){return String(b.textContent||'').indexOf('סיכום חודש PDF')!==-1;}); }catch(e){}
     if(btn) btn.disabled=true;
     try{
-      var msg=q('workerToolsMsg')||q('settlementMsgV547');
-      if(msg) msg.innerHTML='<div class="notice">מכין דוח PDF חודשי לחודש '+safe(month)+'...</div>';
-      window.__pdfSettlementDataV560=await readPdfSettlementDataV560(month);
-      var entries=await entriesForMonthV558(month);
-      var html=buildReportHtmlV558(month,entries);
-      await openPrintV558(html,month);
-      if(msg) msg.innerHTML='<div class="notice">הדוח לחודש '+safe(month)+' נפתח להדפסה ✅ בחר שמירה כ-PDF.</div>';
-    }catch(e){
-      console.error('exportMonthlyPdfReportV558 failed',e);
-      alert('שגיאה ביצירת דוח PDF: '+(e.message||e));
-    }finally{
-      window.__pdfSettlementDataV560=null;
-      if(btn) btn.disabled=false;
-    }
+      var msg=q('workerToolsMsg')||q('settlementMsgV547'); if(msg) msg.innerHTML='<div class="notice">מכין דוח PDF מקצועי לחודש '+safe(month)+'...</div>';
+      var allEntries=await allEntriesForMonthV563(month);
+      var settlement=await readPdfSettlementDataV563(month);
+      var vacationDays=await vacationDaysForMonthV563(month);
+      var html=buildReportHtmlV563({month:month,allEntries:allEntries,settlement:settlement,vacationDays:vacationDays});
+      await openPrintV563(html,month);
+      if(msg) msg.innerHTML='<div class="notice">הדוח המקצועי לחודש '+safe(month)+' נפתח להדפסה ✅ בחר שמירה כ-PDF.</div>';
+    }catch(e){ console.error('exportMonthlyPdfReportV563 failed',e); alert('שגיאה ביצירת דוח PDF: '+(e.message||e)); }
+    finally{ if(btn) btn.disabled=false; }
   };
 })();
 ;
@@ -13830,6 +13816,15 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"5.63", title:"PDF חודשי מקצועי מלא", items:["דוח ה-PDF החודשי שודרג לדוח מקצועי עם עמוד פתיחה, תקציר כספי, ביצועים, גרפים, פירוט יומי מלא ועמוד התחשבנות נקסטקום.","הדוח טוען עצמאית לפי החודש הנבחר: עבודות, יעד חודשי, ימי חופש, לא בוצעו ונתוני התחשבנות שמורים.","נוסף פירוט לפני מע״מ, מע״מ, כולל מע״מ, נטו אחרי קיזוזים והפרש מול סכום המערכת.","לא שונו שמירת עבודות, דשבורד, חיפוש, לוגין, Security Rules או מבנה שלושת הקבצים."], date:d},
+      {version:"5.62", title:"חיפוש כללי בכל ההיסטוריה כשאין סינון תאריכים", items:["חיפוש לפי מספר לקוח, כתובת או פילטר ללא תאריך רץ עכשיו על כל היסטוריית העובד ולא רק על החודש שמוצג בלוח.","סיכום חודש מלא נשאר לפי החודש שמוצג בלוח.","אם נבחר חודש, יום או טווח תאריכים — החיפוש נשאר מוגבל לתאריכים שנבחרו.","לא שונו שמירת עבודות, דשבורד, PDF, התחשבנות, ימי חופש או לוגין."], date:d},
+      {version:"5.61", title:"בחירת חודש לדוח PDF מתוך סלקטור", items:["ייצוא PDF חודשי כבר לא מבקש הקלדת חודש ידנית.","נוסף סלקטור חודשים מסודר כדי למנוע שגיאות פורמט.","ברירת המחדל היא החודש שמוצג בלוח / בדוח ההתחשבנות.","ה-PDF מופק לפי החודש שנבחר בסלקטור."], date:d},
+      {version:"5.60", title:"PDF חודשי עם בחירת חודש וטעינה עצמאית", items:["בלחיצה על סיכום חודש PDF נפתחת בחירת חודש לדוח.","הדוח טוען לבד עבודות ונתוני התחשבנות של החודש שנבחר, בלי תלות בלחיצה קודמת על טען דוח.","הדוח כולל נתוני נקסטקום, קיזוזים, לפני מע״מ, מע״מ וכולל מע״מ.","לא שונו שמירת עבודות, דשבורד, ימי חופש, לוגין או Security Rules."], date:d},
+      {version:"5.59", title:"עמוד התחשבנות נקסטקום בדוח PDF", items:["נוסף לדוח ה-PDF עמוד התחשבנות אחרון עם נתוני נקסטקום בפועל.","העמוד כולל RF, סיבים, מכירות, הכנסה כללית, ציוד שחור, קנסות והוצאות נוספות.","נוספו חישובי לפני מע״מ, מע״מ וכולל מע״מ בדוח הסופי.","לא שונו שמירת עבודות, דשבורד, חיפוש או לוגין."], date:d},
+      {version:"5.58", title:"ייצוא סיכום חודש ל-PDF", items:["נוסף כפתור סיכום חודש PDF באזור הכלים של העובד.","נוצר דוח חודשי ראשוני לפתיחה בחלון הדפסה ושמירה כ-PDF.","הדוח כולל סיכום חודש, סיכום לפי ימים ופירוט עבודות.","לא שונו שמירת עבודות, דשבורד, התחשבנות או לוגין."], date:d},
+      {version:"5.57", title:"יעד חודשי נקרא לפי החודש בדשבורד", items:["הדשבורד והכרטיסים קוראים יעד לפי החודש שמוצג בלוח מתוך monthlyGoalsByMonth.","אם אין יעד שמור לחודש, יש fallback ליעד monthlyGoal הכללי.","שינוי יעד לחודש אחד לא משנה את הצגת היעד בחודש אחר.","לא שונו Security Rules או שמירת עבודות."], date:d},
+      {version:"5.56", title:"בחירת חודש יעד עם שדה חודש אמיתי", items:["בחירת חודש ליעד חודשי הוחלפה לשדה חודש אמיתי כדי שלא להישאר רק עם חודש נוכחי.","המשתמש יכול לבחור חודש ולשמור יעד ספציפי לאותו חודש.","השמירה נשארת בתוך מסמך העובד תחת monthlyGoalsByMonth.","לא שונו Security Rules או שמירת עבודות."], date:d},
+      {version:"5.55", title:"שמירת יעד חודשי לפי חודש בתוך העובד", items:["נוסף מנגנון monthlyGoalsByMonth בתוך מסמך העובד לשמירת יעד לכל חודש.","בהגדרות העובד נוספה אפשרות לשייך יעד לחודש נבחר.","היעד הכללי monthlyGoal נשמר כתאימות לאחור לעובדים וחודשים ישנים.","לא נדרש שינוי Security Rules כי הנתון נשמר בתוך מסמך העובד הקיים."], date:d},
       {version:"5.54", title:"ימי חופש לפי חודש בלוח ובדשבורד", items:["טעינת החודש הפעילה טוענת עכשיו את ימי החופש של החודש הנבחר לפני רינדור הלוח והדשבורד.","מעבר לחודש קודם או חודש הבא מציג מיד את סימוני החופש של אותו חודש, בלי צורך לסמן מחדש יום חופש.","הדשבורד החכם מחשב את מספר ימי החופש לפי החודש שמוצג בלוח ולא לפי נתון ישן שנשאר בזיכרון.","לא שונו שמירת יום חופש, ביטול יום חופש, עבודות, פק״ע, לא בוצע, דוח התחשבנות, גיבוי, אקסל או לוגין."], date:d},
       {version:"5.53", title:"דוח התחשבנות: צבעים וטקסטים קצרים", items:["שורת ההפרש מול המערכת קוצרה לשתי שורות כדי שלא תגלוש מחוץ לכרטיס במובייל.","חסר מול המערכת מוצג באדום, עודף מול המערכת מוצג בירוק, ומצב מאוזן מוצג באפור.","הכנסות, נטו וסכום סופי מוצגים בירוק; קנסות, ציוד שחור, הוצאות נוספות וסה״כ קיזוזים מוצגים באדום.","קוצרו טקסטים בדוח: ציוד שחור, הוצאות נוספות, נטו לפני מע״מ, סכום סופי כולל מע״מ.","לא שונו חישובי הדוח או שמירת הדוחות, ולא נגעו בעבודות, פק״ע, לא בוצע, גיבוי, אקסל או לוגין."], date:d},
       {version:"5.52", title:"דוח התחשבנות: הסברים קטנים וברוטו אחרי קיזוזים", items:["נוספו הסברונים קטנים מעל שדות דוח ההתחשבנות כדי שיהיה ברור מה מזינים בכל מספר גם אחרי שהשדה מלא.","תוקן חישוב הברוטו בפועל כך שמע״מ 18% מחושב על הנטו אחרי קיזוזים ולא על ההכנסה לפני קיזוזים.","שורת הפער מול המערכת מציגה עכשיו חסר / יותר / תואם במקום מספר שלילי מבלבל.","נשמרו כל שדות הדוח והמסמך הקיים תחת העובד, בלי לשנות שמירת עבודות, פק״ע, לא בוצע, גיבוי או אקסל."], date:d},
