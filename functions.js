@@ -1,9 +1,10 @@
+/* File version: 5.66 | Modified: active edit CN/CH load/save + changelog rows */
 /* 
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
 */
-const APP_VERSION = "5.65";
+const APP_VERSION = "5.66";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -15,9 +16,18 @@ function setAppVersionUI(){
 setAppVersionUI();
 window.addEventListener("DOMContentLoaded", setAppVersionUI);
 window.addEventListener("load", setAppVersionUI);
+window.addEventListener("load", function(){try{ensureRequiredChangelogRowsV566();}catch(e){}});
 
 /*
 ===============================================================================
+
+CHANGELOG 5.66 - תיקון סופי לעריכת פק״ע CN/CH ומה חדש
+1. APP_VERSION עודכן ל-"5.66".
+2. תוקנה פונקציית העריכה הפעילה בפועל כך שסוג פק״ע CN/CH נטען מהערך השמור.
+3. שינוי CN/CH בעריכת התקנה רגילה או מתוזמנת נשמר בחזרה לשדה pekaType.
+4. עודכנו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66.
+5. נשמר תיקון בחירת היום הנוכחי כברירת מחדל.
+6. נוספו הערות גרסה בראש כל אחד משלושת הקבצים לפי כלל שלושת הקבצים.
 
 CHANGELOG 5.65 - יום נוכחי ופק״ע בעריכת התקנה
 1. APP_VERSION עודכן ל-"5.65".
@@ -1831,7 +1841,103 @@ function selectedEditPekaTypeV565(){
   }catch(e){ return ""; }
 }
 
+
+/* ===== v5.66: Active edit CN/CH helpers + missing changelog rows ===== */
+function normalizePekaEditV566(v){
+  const s=String(v||"").trim().toUpperCase();
+  return (s==="CN" || s==="CH") ? s : "";
+}
+function getEntryPekaForEditV566(entry){
+  try{
+    if(!entry) return "";
+    const candidates=[
+      entry.pekaType, entry.pekaTypeV527, entry.installPekaType, entry.peka,
+      entry.pekaKind, entry.cnch, entry.workOrderType, entry.orderType,
+      entry.typePeka, entry.peka_type,
+      entry.meta && entry.meta.pekaType,
+      entry.data && entry.data.pekaType
+    ];
+    for(const raw of candidates){
+      const v=normalizePekaEditV566(raw);
+      if(v) return v;
+    }
+    const txt=[entry.description,entry.notes,entry.title,entry.itemText].map(function(x){return String(x||"").toUpperCase();}).join(" ");
+    if(/\bCN\b/.test(txt)) return "CN";
+    if(/\bCH\b/.test(txt)) return "CH";
+  }catch(e){}
+  return "";
+}
+function editPekaSelectV566(){
+  return $("editPekaTypeV566") || $("editPekaTypeV565") || $("editPekaTypeV564");
+}
+function editPekaWrapV566(){
+  return $("editPekaTypeWrapV566") || $("editPekaTypeWrapV565") || $("editPekaTypeWrapV564");
+}
+function setEditPekaTypeV566(entry){
+  try{
+    const wrap=editPekaWrapV566();
+    const sel=editPekaSelectV566();
+    const isInstall=!!(entry && (entry.workType==="install" || entry.type==="install" || (entry.items && entry.items.length)));
+    const value=getEntryPekaForEditV566(entry);
+    if(wrap) wrap.classList.toggle("hidden", !isInstall);
+    if(sel){
+      sel.value=value || "";
+      setTimeout(function(){try{const again=editPekaSelectV566(); if(again) again.value=value || "";}catch(e){}},0);
+      setTimeout(function(){try{const again=editPekaSelectV566(); if(again) again.value=value || "";}catch(e){}},50);
+    }
+  }catch(e){}
+}
+function selectedEditPekaTypeV566(){
+  try{
+    const sel=editPekaSelectV566();
+    return normalizePekaEditV566(sel && sel.value);
+  }catch(e){ return ""; }
+}
+function clearEntryDraftFieldsV566(){
+  try{
+    ["sCustomer","sAddress","sNotes","iCustomer","iAddress","iNotes"].forEach(function(id){
+      const el=$(id); if(el) el.value="";
+    });
+    ["sCustomerHistory","iCustomerHistory","entryMsg","servicePreview","installPreview"].forEach(function(id){
+      const el=$(id); if(el) el.innerHTML="";
+    });
+    const ret=$("sReturnCall"); if(ret) ret.checked=false;
+    const tpl=$("installTemplateSelect"); if(tpl) tpl.value="";
+    const peka=$("pekaTypeV527") || $("pekaTypeSelectV527") || $("iPekaType") || $("installPekaType") || $("pekaType");
+    if(peka) peka.value="";
+    try{ if(typeof resetPekaTypeV527==="function") resetPekaTypeV527(); }catch(e){}
+    try{ if(typeof resetPekaTypeV535==="function") resetPekaTypeV535(); }catch(e){}
+    try{ if(typeof clearInstallSelection==="function") clearInstallSelection(); }catch(e){}
+    try{ if(typeof updateServicePreview==="function") updateServicePreview(); }catch(e){}
+    try{ if(typeof updateInstallPreview==="function") updateInstallPreview(); }catch(e){}
+  }catch(e){}
+}
+function ensureRequiredChangelogRowsV566(){
+  try{
+    const rows=[
+      {version:"5.64",title:"יום נוכחי כברירת מחדל ואיפוס טפסים",items:["היום הנוכחי נבחר אוטומטית בכניסת עובד.","בחירת קריאת שירות או התקנה מנקה טופס והודעות קודמות.","התחלת תיקון שדה פק״ע בעריכת התקנה."]},
+      {version:"5.65",title:"פק״ע בעריכת התקנה",items:["נוסף שדה CN/CH לעריכת התקנה רגילה או מתוזמנת.","העריכה יודעת לשמור שינוי בשדה pekaType.","נשמר מבנה שלושת הקבצים."]},
+      {version:"5.66",title:"תיקון סופי לעריכת פק״ע ומה חדש",items:["שדה CN/CH בעריכה נטען מהערך השמור בפועל.","עודכנו רשומות מה חדש החסרות 5.64–5.66.","נוספו הערות גרסה בראש כל קובץ."]}
+    ];
+    if(Array.isArray(window.requiredChangelogRows)){
+      rows.forEach(function(r){
+        if(!window.requiredChangelogRows.some(function(x){return String(x.version)===String(r.version);})){
+          window.requiredChangelogRows.push(r);
+        }
+      });
+    }
+    if(Array.isArray(requiredChangelogRows)){
+      rows.forEach(function(r){
+        if(!requiredChangelogRows.some(function(x){return String(x.version)===String(r.version);})){
+          requiredChangelogRows.push(r);
+        }
+      });
+    }
+  }catch(e){}
+}
+
 function setType(type,clear=true){
+  if(clear && (type==="service" || type==="install")) clearEntryDraftFieldsV566();
   if(clear && (type==="service" || type==="install")){
     clearEntryDraftFieldsV565();
   }
@@ -1960,8 +2066,10 @@ function openEntryEdit(id){
   $("editEntryAmount").value=Number(e.amount||0);
   $("editEntryMsg").innerHTML="";
   renderEditInstallItems(e);
+  setEditPekaTypeV566(e);
   setEditPekaTypeV565(e);
   setTimeout(function(){try{setEditPekaTypeV565(e);}catch(_e){}},0);
+  setTimeout(function(){try{setEditPekaTypeV566(e);}catch(_e){}},0);
   window.scrollTo({top:$("editEntryPanel").offsetTop-20,behavior:"smooth"});
 }
 async function saveEntryEdit(){
@@ -1972,6 +2080,7 @@ async function saveEntryEdit(){
   const original=monthEntries.find(x=>x.id===id);
   const update={customerNumber,address,notes,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
   if(original&&original.workType==="install"){
+    update.pekaType=selectedEditPekaTypeV566();
     update.pekaType=selectedEditPekaTypeV565();
     const edited=getEditedInstallItems();
     if(!edited.items.length)return $("editEntryMsg").innerHTML="<p class='danger'>חובה לבחור לפחות פריט התקנה אחד.</p>";
@@ -2471,10 +2580,12 @@ function renderEditInstallItems(entry){
   if(!box||!wrap)return;
   if(entry.workType!=="install"){
     wrap.classList.add("hidden");
+    setEditPekaTypeV566(null);
     setEditPekaTypeV565(null);
     return;
   }
   wrap.classList.remove("hidden");
+  setEditPekaTypeV566(entry);
   setEditPekaTypeV565(entry);
   box.innerHTML="";
   const oldItems={};
@@ -14998,3 +15109,5 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   document.addEventListener('DOMContentLoaded',updateVersionUiV539);
   setInterval(updateVersionUiV539,2200);
 })();
+
+try{ensureRequiredChangelogRowsV566();}catch(e){}
