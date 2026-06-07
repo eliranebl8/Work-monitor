@@ -2,8 +2,9 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
+File version: 5.65 - edit CN/CH fix.
 */
-const APP_VERSION = "5.64";
+const APP_VERSION = "5.65";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -14971,4 +14972,174 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   window.addEventListener('load',updateVersionUiV539);
   document.addEventListener('DOMContentLoaded',updateVersionUiV539);
   setInterval(updateVersionUiV539,2200);
+})();
+
+
+/*
+===============================================================================
+CHANGELOG 5.65 - תיקון אמיתי לעריכת פק״ע CN/CH
+-------------------------------------------------------------------------------
+1. תיקון ממוקד בלבד לפונקציות openEntryEdit/saveEntryEdit שנדרסו בהמשך הקובץ על ידי גרסאות ישנות.
+2. חלון עריכת עבודה משתמש ב-monthEntries המקומי כמקור אמת, לכן הוא מוצא גם פק״ע רגילה וגם פק״ע מתוזמנת בחודש הנבחר.
+3. אם העבודה היא התקנה, שדה סוג פק״ע מוצג בחלון העריכה ונטען מהערך השמור הקיים.
+4. בשמירה נשמר pekaType לערכים CN/CH בלבד; אם השדה ריק או לא תקין הוא נמחק מהרשומה כדי לא להשאיר מידע שגוי.
+5. נשמרה הלוגיקה הקיימת של פריטי התקנה, סכום, סוג סיב/RF, סטטוס מתוזמן/לא בוצע, רענון החודש והודעת שמירה.
+===============================================================================
+*/
+(function(){
+  try{ window.APP_VERSION = APP_VERSION; }catch(e){}
+
+  function byIdV565(id){ return document.getElementById(id); }
+  function safeEscV565(s){
+    try{ return esc(s); }catch(e){
+      return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];});
+    }
+  }
+  function normalizePekaV565(v){
+    v=String(v||'').trim().toUpperCase();
+    return (v==='CN'||v==='CH') ? v : '';
+  }
+  function entryPekaV565(entry){
+    if(!entry) return '';
+    return normalizePekaV565(entry.pekaType || entry.pekaTypeV527 || entry.installPekaType || entry.peka || entry.pekaKind || entry.cnch || '');
+  }
+  function setEditPekaV565(entry){
+    var wrap=byIdV565('editPekaTypeWrapV564');
+    var sel=byIdV565('editPekaTypeV564');
+    var isInstall=!!(entry && entry.workType==='install');
+    if(wrap) wrap.classList.toggle('hidden', !isInstall);
+    if(sel) sel.value=isInstall ? entryPekaV565(entry) : '';
+  }
+  function selectedPekaV565(){
+    var sel=byIdV565('editPekaTypeV564');
+    return normalizePekaV565(sel && sel.value);
+  }
+  function currentEntriesV565(){
+    try{ if(Array.isArray(monthEntries)) return monthEntries; }catch(e){}
+    try{ if(Array.isArray(window.monthEntries)) return window.monthEntries; }catch(e){}
+    return [];
+  }
+  function findEntryV565(id){
+    return currentEntriesV565().find(function(x){ return x && String(x.id)===String(id); });
+  }
+  function getEditedInstallV565(){
+    try{ if(typeof window.getEditedInstallItemsV415==='function') return window.getEditedInstallItemsV415(); }catch(e){}
+    try{ if(typeof window.getEditedInstallItems==='function') return window.getEditedInstallItems(); }catch(e){}
+    try{ if(typeof getEditedInstallItems==='function') return getEditedInstallItems(); }catch(e){}
+    return null;
+  }
+  function kindLabelForV565(kind){
+    try{ if(typeof kindLabelV415==='function') return kindLabelV415(kind); }catch(e){}
+    return String(kind||'').toLowerCase()==='rf' ? 'RF' : 'סיב';
+  }
+  function renderEditItemsV565(entry){
+    try{
+      if(typeof window.renderEditInstallItemsV415==='function') return window.renderEditInstallItemsV415(entry,false);
+    }catch(e){}
+    try{
+      if(typeof window.renderEditInstallItems==='function') return window.renderEditInstallItems(entry);
+    }catch(e){}
+    try{
+      if(typeof renderEditInstallItems==='function') return renderEditInstallItems(entry);
+    }catch(e){}
+  }
+  function showAfterEditV565(){
+    try{ if(typeof showSavedNoticeAfterEditV417==='function') return showSavedNoticeAfterEditV417(); }catch(e){}
+    var msg=byIdV565('entryMsg');
+    if(msg) msg.innerHTML='<div class="notice">העבודה נשמרה בהצלחה ✅</div>';
+  }
+
+  window.openEntryEdit=function(id){
+    var e=findEntryV565(id);
+    if(!e) return;
+    var panel=byIdV565('editEntryPanel');
+    if(panel) panel.classList.remove('hidden'); else if(typeof show==='function') show('editEntryPanel');
+    if(byIdV565('editEntryId')) byIdV565('editEntryId').value=id;
+    if(byIdV565('editEntryCustomer')) byIdV565('editEntryCustomer').value=e.customerNumber||'';
+    if(byIdV565('editEntryAddress')) byIdV565('editEntryAddress').value=e.address||'';
+    if(byIdV565('editEntryNotes')) byIdV565('editEntryNotes').value=e.notes||'';
+    if(byIdV565('editEntryAmount')) byIdV565('editEntryAmount').value=Number(e.amount||0);
+    if(byIdV565('editEntryMsg')) byIdV565('editEntryMsg').innerHTML='';
+    renderEditItemsV565(e);
+    setEditPekaV565(e);
+    try{ window.scrollTo({top:byIdV565('editEntryPanel').offsetTop-20,behavior:'smooth'}); }catch(err){}
+  };
+
+  window.saveEntryEdit=async function(){
+    var id=(typeof val==='function') ? val('editEntryId') : (byIdV565('editEntryId')||{}).value;
+    var customerNumber=(typeof val==='function') ? val('editEntryCustomer') : (byIdV565('editEntryCustomer')||{}).value;
+    var address=(typeof val==='function') ? val('editEntryAddress') : (byIdV565('editEntryAddress')||{}).value;
+    var notes=(typeof val==='function') ? val('editEntryNotes') : (byIdV565('editEntryNotes')||{}).value;
+    var amount=Number(((typeof val==='function') ? val('editEntryAmount') : (byIdV565('editEntryAmount')||{}).value) || 0);
+    var editMsg=byIdV565('editEntryMsg');
+
+    if(!customerNumber || !/^\d+$/.test(String(customerNumber))){ if(editMsg) editMsg.innerHTML='<p class="danger">מספר לקוח חייב להיות ספרות בלבד.</p>'; return; }
+    if(!address){ if(editMsg) editMsg.innerHTML='<p class="danger">חובה למלא כתובת.</p>'; return; }
+
+    var original=findEntryV565(id);
+    var update={customerNumber:customerNumber,address:address,notes:notes,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+
+    if(original && original.workType==='install'){
+      var edited=getEditedInstallV565();
+      if(!edited || !Array.isArray(edited.items) || !edited.items.length){
+        if(editMsg) editMsg.innerHTML='<p class="danger">חובה לבחור לפחות פריט התקנה אחד.</p>';
+        return;
+      }
+      update.items=edited.items.map(function(i){
+        var q=Number(i.quantity||0), price=Number(i.price||0), kind=i.installKind||i.priceType||edited.kind||original.installKind||original.priceType||'';
+        return {
+          id:i.id||'', name:i.name||'', price:price, quantity:q, inputMode:i.inputMode||'qty',
+          installKind:kind, priceType:kind,
+          total:Number(i.total!==undefined ? i.total : (q*price))
+        };
+      });
+      update.amount=Number(edited.total || update.items.reduce(function(sum,i){return sum+Number(i.total||0);},0));
+      if(edited.kind){
+        update.installKind=edited.kind;
+        update.priceType=edited.kind;
+        update.description='התקנת '+kindLabelForV565(edited.kind);
+      }else if(original.description){
+        update.description=original.description;
+      }
+
+      var peka=selectedPekaV565();
+      if(peka) update.pekaType=peka;
+      else update.pekaType=firebase.firestore.FieldValue.delete();
+    }else{
+      if(Number.isNaN(amount)||amount<0){ if(editMsg) editMsg.innerHTML='<p class="danger">סכום לא תקין.</p>'; return; }
+      update.amount=amount;
+    }
+
+    try{
+      if(editMsg) editMsg.innerHTML='<div class="notice">שומר...</div>';
+      await db.collection('workEntries').doc(id).update(update);
+      try{ if(typeof hide==='function') hide('editEntryPanel'); else byIdV565('editEntryPanel').classList.add('hidden'); }catch(e){}
+      if(typeof loadMonth==='function') await loadMonth();
+      showAfterEditV565();
+      try{ if(typeof cleanVisibleSlashN==='function') cleanVisibleSlashN(); }catch(e){}
+    }catch(e){
+      if(editMsg) editMsg.innerHTML='<p class="danger">שגיאה בשמירה: '+safeEscV565(e && (e.message||e.code) ? (e.message||e.code) : e)+'</p>';
+    }
+  };
+
+  try{
+    var oldRows=window.requiredChangelogRows || (typeof requiredChangelogRows==='function' ? requiredChangelogRows : null);
+    if(typeof oldRows==='function' && !oldRows.__v565Wrapped){
+      var wrappedRows=function(){
+        var rows=[]; try{ rows=oldRows.apply(this,arguments)||[]; }catch(e){ rows=[]; }
+        var exists=rows.some(function(r){ return String(r.version||r.id||'')==='5.65'; });
+        if(!exists){ rows.unshift({version:'5.65', title:'תיקון עריכת פק״ע CN/CH', createdAt:'2026-06-08', items:[
+          'תוקנה העריכה של פק״ע רגילה ומתוזמנת כך ששדה CN/CH נטען בחלון העריכה.',
+          'שמירת עריכה שומרת pekaType תקין לערכים CN או CH בלבד.',
+          'התיקון בוצע מעל פונקציות העריכה שנדרסו בגרסאות ישנות, בלי לשנות לוגין, לוח שנה, גיבוי, אקסל או דוחות.'
+        ]}); }
+        return rows;
+      };
+      wrappedRows.__v565Wrapped=true;
+      window.requiredChangelogRows=wrappedRows;
+      try{ requiredChangelogRows=wrappedRows; }catch(e){}
+    }
+  }catch(e){}
+
+  try{ if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
 })();
