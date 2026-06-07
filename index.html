@@ -1,3 +1,4 @@
+<!-- File version: 5.66 | Modified: edit install CN/CH field structure -->
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -494,11 +495,10 @@
   <textarea id="editEntryNotes" placeholder="הערות"></textarea>
   <input id="editEntryAmount" type="number" placeholder="סכום">
   <div id="editInstallItemsBox" class="hidden">
-    <!-- v5.64: עריכת סוג פק״ע בהתקנות קיימות/מתוזמנות -->
-    <div id="editPekaTypeWrapV564" class="peka-row-v527">
+    <div id="editPekaTypeWrapV565" class="peka-row-v527 hidden">
       <span class="peka-label-v527">סוג פק״ע</span>
-      <select id="editPekaTypeV564" class="peka-select-v527" title="סוג פק״ע">
-        <option value="">—</option>
+      <select id="editPekaTypeV565" class="peka-select-v527">
+        <option value="">ללא</option>
         <option value="CN">CN</option>
         <option value="CH">CH</option>
       </select>
