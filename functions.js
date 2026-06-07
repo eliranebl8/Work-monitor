@@ -1,10 +1,10 @@
-/* File version: 5.66 | Modified: active edit CN/CH load/save + changelog rows */
+/* File version: 5.65 | Modified: load saved CN/CH in edit form only */
 /* 
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
 */
-const APP_VERSION = "5.66";
+const APP_VERSION = "5.65";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -16,26 +16,24 @@ function setAppVersionUI(){
 setAppVersionUI();
 window.addEventListener("DOMContentLoaded", setAppVersionUI);
 window.addEventListener("load", setAppVersionUI);
-window.addEventListener("load", function(){try{ensureRequiredChangelogRowsV566();}catch(e){}});
 
 /*
 ===============================================================================
 
-CHANGELOG 5.66 - תיקון סופי לעריכת פק״ע CN/CH ומה חדש
-1. APP_VERSION עודכן ל-"5.66".
-2. תוקנה פונקציית העריכה הפעילה בפועל כך שסוג פק״ע CN/CH נטען מהערך השמור.
-3. שינוי CN/CH בעריכת התקנה רגילה או מתוזמנת נשמר בחזרה לשדה pekaType.
-4. עודכנו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66.
-5. נשמר תיקון בחירת היום הנוכחי כברירת מחדל.
-6. נוספו הערות גרסה בראש כל אחד משלושת הקבצים לפי כלל שלושת הקבצים.
 
-CHANGELOG 5.65 - יום נוכחי ופק״ע בעריכת התקנה
+CHANGELOG 5.65 - טעינת CN/CH קיים בעריכת התקנה
 1. APP_VERSION עודכן ל-"5.65".
-2. בכניסת עובד החודש הנוכחי בוחר אוטומטית את היום הנוכחי בלוח.
-3. בחירת קריאת שירות או התקנה מאפסת את הטופס והודעות בדיקת לקוח כדי שלא יישארו נתונים מטופס קודם.
-4. בעריכת התקנה רגילה או מתוזמנת נוסף שדה פק״ע CN/CH.
-5. שדה הפק״ע בעריכה נטען מהערך השמור בפועל, כולל תאימות לשדות ישנים, ואפשר לשנות ולשמור אותו.
-6. השינוי נעשה במבנה שלושת הקבצים היציב: index.html, styles.css, functions.js.
+2. מבוסס על 5.64 הראשון שבו היום הנוכחי נבחר אוטומטית ושדה CN/CH כבר מופיע בעריכה.
+3. תוקן רק דבר אחד: בעריכת התקנה רגילה או מתוזמנת שדה CN/CH נטען מהערך השמור בפועל.
+4. שמירת שינוי CN/CH בעריכה ממשיכה לשמור ל-pekaType.
+5. לא שונו לוח שנה, בחירת היום הנוכחי, איפוס טפסים, CSS, מבנה HTML, דשבורד, PDF או התחשבנות.
+
+CHANGELOG 5.64 - יום נוכחי כברירת מחדל ותיקון פק״ע בעריכת התקנה
+1. APP_VERSION עודכן ל-"5.64".
+2. בכניסה לעובד, היום הנוכחי נבחר אוטומטית בלוח השנה ונפתח מסך היום.
+3. לחיצה על קריאת שירות או התקנה פותחת טופס נקי ומאפסת מספר לקוח, כתובת, הערות, הודעות בדיקת לקוח, קריאה חוזרת, תבנית וסוג פק״ע.
+4. בעריכת התקנה נוסף שדה סוג פק״ע CN/CH, כולל טעינת הערך הקיים ושמירת הערך החדש.
+5. השינוי נעשה רק במקומות המקוריים הרלוונטיים: index.html למבנה שדה העריכה ו-functions.js ללוגיקה.
 
 CHANGELOG 5.63 - PDF חודשי מקצועי מלא
 1. APP_VERSION עודכן ל-"5.63".
@@ -1755,199 +1753,54 @@ async function extendSubscriptionDays(days){
   await saveSubscriptionEdit();
 }
 
-async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();const worker={id:doc.id,...doc.data()};if(session&&session.role==="worker"&&isSubscriptionExpired(worker)){localStorage.removeItem("workSession");session=null;showExpiredView(worker);return;}await showWorker(worker)}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=new Date();selectedDate=null;selectedType=null;selectTodayByDefaultV565();bindGoalMonthInputV556();if($("selfGoalMonth"))$("selfGoalMonth").value=currentCalendarMonthKeyV556();if($("selfGoalMonth"))$("selfGoalMonth").value=currentCalendarMonthKeyV556();if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=getWorkerGoalForMonthV556();if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth();try{initMonthlySettlementV547();}catch(e){console.warn("v5.47 settlement init failed",e)}}
-async function loadMonth(){await loadPriceList();await loadTemplates();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);monthEntries=[];if(!selectedDate) selectTodayByDefaultV565();renderCalendar();renderDay();renderStats();const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();monthEntries=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats();renderSmartDashboard();if($('searchPanel')&&!$('searchPanel').classList.contains('hidden'))renderFullSummary()}
+async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();const worker={id:doc.id,...doc.data()};if(session&&session.role==="worker"&&isSubscriptionExpired(worker)){localStorage.removeItem("workSession");session=null;showExpiredView(worker);return;}await showWorker(worker)}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=new Date();selectedDate=null;selectedType=null;selectTodayOnCurrentMonthV564();bindGoalMonthInputV556();if($("selfGoalMonth"))$("selfGoalMonth").value=currentCalendarMonthKeyV556();if($("selfGoalMonth"))$("selfGoalMonth").value=currentCalendarMonthKeyV556();if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=getWorkerGoalForMonthV556();if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth();try{initMonthlySettlementV547();}catch(e){console.warn("v5.47 settlement init failed",e)}}
+async function loadMonth(){await loadPriceList();await loadTemplates();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);monthEntries=[];renderCalendar();renderDay();renderStats();const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();monthEntries=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats();renderSmartDashboard();if($('searchPanel')&&!$('searchPanel').classList.contains('hidden'))renderFullSummary()}
 function renderCalendar(){const cal=$("calendar");cal.innerHTML="";weekdays.forEach(w=>{const d=document.createElement("div");d.className="weekday";d.textContent=w;cal.appendChild(d)});const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0).getDate(),today=formatDate(new Date());for(let i=0;i<first.getDay();i++){const e=document.createElement("div");e.className="day empty";cal.appendChild(e)}for(let d=1;d<=last;d++){const ds=`${y}-${pad(m+1)}-${pad(d)}`,dt=new Date(y,m,d),sh=dt.getDay()===6,entries=monthEntries.filter(e=>e.date===ds),total=entries.reduce((s,e)=>s+Number(e.amount||0),0),div=document.createElement("div");div.className="day";if(sh)div.classList.add("shabbat");if(ds===today)div.classList.add("today");if(ds===selectedDate)div.classList.add("selected");div.innerHTML=`<div class="day-num">${d}</div>${total?`<div class="day-total">${money(total)}</div>`:""}${entries.length?`<div class="day-count">${entries.length} עבודות</div>`:""}`;if(!sh)div.onclick=()=>selectDay(ds);cal.appendChild(div)}}
 function selectDay(ds){selectedDate=ds;selectedType=null;renderCalendar();renderDay();renderStats();renderSmartDashboard();cleanVisibleSlashN()}function renderDay(){if(!selectedDate){hide("dayPanel");show("selectDayHint");return}show("dayPanel");hide("selectDayHint");text("dateTitle",`יום ${heDate(selectedDate)}`);renderInstallItems();setType(selectedType,false);updateServicePriceLabels();const entries=monthEntries.filter(e=>e.date===selectedDate).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)),box=$("dayEntries");box.innerHTML=entries.length?"":"<p class='muted'>אין עבודות ביום הזה עדיין.</p>";entries.forEach(e=>{const details=e.workType==="service"?`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n${e.notes||""}`:`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("<br>")+`\n${e.notes||""}`,row=document.createElement("div");row.className="item";const iconClass=e.workType==="install"?"install":(e.isReturnCall?"return":"service");const icon=e.workType==="install"?"🛠️":(e.isReturnCall?"🔁":"☎️");row.innerHTML=`<div class="work-row-main"><div class="work-icon ${iconClass}">${icon}</div><div><div class="item-title">${esc(e.description)}</div><div class="item-sub">${nl2br(details)}</div></div></div><div><div class="money">${money(e.amount)}</div><div class="actions" style="margin-top:8px"><button class="btn-yellow" onclick="openEntryEdit('${e.id}')">ערוך</button>${e.workType==="install"?`<button class="btn-light" onclick="saveEntryAsTemplate('${e.id}')">שמור כתבנית</button>`:""}<button class="btn-red" onclick="deleteEntry('${e.id}')">מחק</button></div></div>`;box.appendChild(row)})}
 function renderStats(){const monthTotal=monthEntries.reduce((s,e)=>s+Number(e.amount||0),0),dayTotal=selectedDate?monthEntries.filter(e=>e.date===selectedDate).reduce((s,e)=>s+Number(e.amount||0),0):0,goal=getWorkerGoalForMonthV556(),left=Math.max(goal-monthTotal,0);$("monthTotal").textContent=money(monthTotal);$("dayTotal").textContent=money(dayTotal);$("goalTotal").textContent=money(goal);$("leftTotal").textContent=money(left);$("goalBar").style.width=goal?Math.min(monthTotal/goal*100,100)+"%":"0%";text("paceLine",goal?(left<=0?"מעולה — היעד הושג.":`חסר ליעד: ${money(left)}.`):"לא הוגדר יעד חודשי לחודש הזה.");syncGoalSettingsMonthV556();}
 
-/* ===== v5.65: בחירת יום נוכחי, איפוס טפסים ופק״ע בעריכת התקנה ===== */
-function selectTodayByDefaultV565(){
+/* ===== v5.64: בחירת היום הנוכחי ואיפוס טפסים נקי ===== */
+function currentTodayDateV564(){
+  try{ return typeof todayStr === "function" ? todayStr() : formatDate(new Date()); }catch(e){ return formatDate(new Date()); }
+}
+function selectTodayOnCurrentMonthV564(){
   try{
-    const today = (typeof todayStr === "function") ? todayStr() : formatDate(new Date());
-    const d = (typeof parseDate === "function") ? parseDate(today) : new Date(today);
-    if(calendarDate && calendarDate.getFullYear() === d.getFullYear() && calendarDate.getMonth() === d.getMonth()){
-      selectedDate = today;
-      selectedType = null;
+    const t=currentTodayDateV564();
+    const d=parseDate ? parseDate(t) : new Date(t);
+    if(calendarDate && calendarDate.getFullYear()===d.getFullYear() && calendarDate.getMonth()===d.getMonth()){
+      selectedDate=t;
+      selectedType=null;
       return true;
     }
   }catch(e){}
   return false;
 }
-function clearEntryDraftFieldsV565(){
+function clearEntryDraftFieldsV564(){
   try{
-    ["sCustomer","sAddress","sNotes","iCustomer","iAddress","iNotes"].forEach(function(id){
-      const el=$(id);
-      if(el) el.value="";
-    });
-    ["sCustomerHistory","iCustomerHistory","entryMsg","servicePreview","installPreview"].forEach(function(id){
-      const el=$(id);
-      if(el) el.innerHTML="";
-    });
-    const ret=$("sReturnCall");
-    if(ret) ret.checked=false;
-    const tpl=$("installTemplateSelect");
-    if(tpl) tpl.value="";
-    const peka=$("pekaTypeV527") || $("pekaTypeSelectV527") || $("iPekaType") || $("installPekaType") || $("pekaType");
-    if(peka) peka.value="";
-    try{ if(typeof resetPekaTypeV527==="function") resetPekaTypeV527(); }catch(e){}
-    try{ if(typeof resetPekaTypeV535==="function") resetPekaTypeV535(); }catch(e){}
-    try{ if(typeof clearInstallSelection==="function") clearInstallSelection(); }catch(e){}
-    try{ if(typeof updateServicePreview==="function") updateServicePreview(); }catch(e){}
-    try{ if(typeof updateInstallPreview==="function") updateInstallPreview(); }catch(e){}
-  }catch(e){}
-}
-function normalizePekaEditV565(v){
-  const s=String(v||"").trim().toUpperCase();
-  return (s==="CN" || s==="CH") ? s : "";
-}
-function getEntryPekaForEditV565(entry){
-  try{
-    if(!entry) return "";
-    const candidates=[
-      entry.pekaType, entry.pekaTypeV527, entry.installPekaType, entry.peka,
-      entry.pekaKind, entry.cnch, entry.workOrderType, entry.orderType,
-      entry.typePeka, entry.peka_type,
-      entry.meta && entry.meta.pekaType,
-      entry.data && entry.data.pekaType
-    ];
-    for(const raw of candidates){
-      const v=normalizePekaEditV565(raw);
-      if(v) return v;
-    }
-    const txt=[entry.description,entry.notes,entry.title,entry.itemText].map(function(x){return String(x||"").toUpperCase();}).join(" ");
-    if(/\bCN\b/.test(txt)) return "CN";
-    if(/\bCH\b/.test(txt)) return "CH";
-  }catch(e){}
-  return "";
-}
-function setEditPekaTypeV565(entry){
-  try{
-    const wrap=$("editPekaTypeWrapV565");
-    const sel=$("editPekaTypeV565");
-    const isInstall=!!(entry && (entry.workType==="install" || entry.type==="install" || (entry.items && entry.items.length)));
-    const value=getEntryPekaForEditV565(entry);
-    if(wrap) wrap.classList.toggle("hidden", !isInstall);
-    if(sel){
-      sel.value=value || "";
-      setTimeout(function(){ try{ const again=$("editPekaTypeV565"); if(again) again.value=value || ""; }catch(e){} },0);
-    }
-  }catch(e){}
-}
-function selectedEditPekaTypeV565(){
-  try{
-    const sel=$("editPekaTypeV565");
-    return normalizePekaEditV565(sel && sel.value);
-  }catch(e){ return ""; }
-}
-
-
-/* ===== v5.66: Active edit CN/CH helpers + missing changelog rows ===== */
-function normalizePekaEditV566(v){
-  const s=String(v||"").trim().toUpperCase();
-  return (s==="CN" || s==="CH") ? s : "";
-}
-function getEntryPekaForEditV566(entry){
-  try{
-    if(!entry) return "";
-    const candidates=[
-      entry.pekaType, entry.pekaTypeV527, entry.installPekaType, entry.peka,
-      entry.pekaKind, entry.cnch, entry.workOrderType, entry.orderType,
-      entry.typePeka, entry.peka_type,
-      entry.meta && entry.meta.pekaType,
-      entry.data && entry.data.pekaType
-    ];
-    for(const raw of candidates){
-      const v=normalizePekaEditV566(raw);
-      if(v) return v;
-    }
-    const txt=[entry.description,entry.notes,entry.title,entry.itemText].map(function(x){return String(x||"").toUpperCase();}).join(" ");
-    if(/\bCN\b/.test(txt)) return "CN";
-    if(/\bCH\b/.test(txt)) return "CH";
-  }catch(e){}
-  return "";
-}
-function editPekaSelectV566(){
-  return $("editPekaTypeV566") || $("editPekaTypeV565") || $("editPekaTypeV564");
-}
-function editPekaWrapV566(){
-  return $("editPekaTypeWrapV566") || $("editPekaTypeWrapV565") || $("editPekaTypeWrapV564");
-}
-function setEditPekaTypeV566(entry){
-  try{
-    const wrap=editPekaWrapV566();
-    const sel=editPekaSelectV566();
-    const isInstall=!!(entry && (entry.workType==="install" || entry.type==="install" || (entry.items && entry.items.length)));
-    const value=getEntryPekaForEditV566(entry);
-    if(wrap) wrap.classList.toggle("hidden", !isInstall);
-    if(sel){
-      sel.value=value || "";
-      setTimeout(function(){try{const again=editPekaSelectV566(); if(again) again.value=value || "";}catch(e){}},0);
-      setTimeout(function(){try{const again=editPekaSelectV566(); if(again) again.value=value || "";}catch(e){}},50);
-    }
-  }catch(e){}
-}
-function selectedEditPekaTypeV566(){
-  try{
-    const sel=editPekaSelectV566();
-    return normalizePekaEditV566(sel && sel.value);
-  }catch(e){ return ""; }
-}
-function clearEntryDraftFieldsV566(){
-  try{
-    ["sCustomer","sAddress","sNotes","iCustomer","iAddress","iNotes"].forEach(function(id){
-      const el=$(id); if(el) el.value="";
-    });
-    ["sCustomerHistory","iCustomerHistory","entryMsg","servicePreview","installPreview"].forEach(function(id){
-      const el=$(id); if(el) el.innerHTML="";
-    });
+    ["sCustomer","sAddress","sNotes","iCustomer","iAddress","iNotes"].forEach(function(id){ const el=$(id); if(el) el.value=""; });
+    ["sCustomerHistory","iCustomerHistory","entryMsg","servicePreview","installPreview"].forEach(function(id){ const el=$(id); if(el) el.innerHTML=""; });
     const ret=$("sReturnCall"); if(ret) ret.checked=false;
     const tpl=$("installTemplateSelect"); if(tpl) tpl.value="";
-    const peka=$("pekaTypeV527") || $("pekaTypeSelectV527") || $("iPekaType") || $("installPekaType") || $("pekaType");
-    if(peka) peka.value="";
-    try{ if(typeof resetPekaTypeV527==="function") resetPekaTypeV527(); }catch(e){}
-    try{ if(typeof resetPekaTypeV535==="function") resetPekaTypeV535(); }catch(e){}
-    try{ if(typeof clearInstallSelection==="function") clearInstallSelection(); }catch(e){}
+    const peka=document.getElementById("pekaTypeV527"); if(peka) peka.value="";
+    try{ if(Array.isArray(priceList)){ priceList.forEach(function(p){ const el=$("qty_"+p.id); if(!el) return; if(String(p.inputMode||"qty")==="check") el.checked=false; else el.value=""; }); } }catch(e){}
     try{ if(typeof updateServicePreview==="function") updateServicePreview(); }catch(e){}
     try{ if(typeof updateInstallPreview==="function") updateInstallPreview(); }catch(e){}
   }catch(e){}
 }
-function ensureRequiredChangelogRowsV566(){
+function normalizePekaTypeV564(v){
+  v=String(v||"").trim().toUpperCase();
+  return (v==="CN"||v==="CH") ? v : "";
+}
+function setEditPekaTypeV564(entry){
   try{
-    const rows=[
-      {version:"5.64",title:"יום נוכחי כברירת מחדל ואיפוס טפסים",items:["היום הנוכחי נבחר אוטומטית בכניסת עובד.","בחירת קריאת שירות או התקנה מנקה טופס והודעות קודמות.","התחלת תיקון שדה פק״ע בעריכת התקנה."]},
-      {version:"5.65",title:"פק״ע בעריכת התקנה",items:["נוסף שדה CN/CH לעריכת התקנה רגילה או מתוזמנת.","העריכה יודעת לשמור שינוי בשדה pekaType.","נשמר מבנה שלושת הקבצים."]},
-      {version:"5.66",title:"תיקון סופי לעריכת פק״ע ומה חדש",items:["שדה CN/CH בעריכה נטען מהערך השמור בפועל.","עודכנו רשומות מה חדש החסרות 5.64–5.66.","נוספו הערות גרסה בראש כל קובץ."]}
-    ];
-    if(Array.isArray(window.requiredChangelogRows)){
-      rows.forEach(function(r){
-        if(!window.requiredChangelogRows.some(function(x){return String(x.version)===String(r.version);})){
-          window.requiredChangelogRows.push(r);
-        }
-      });
-    }
-    if(Array.isArray(requiredChangelogRows)){
-      rows.forEach(function(r){
-        if(!requiredChangelogRows.some(function(x){return String(x.version)===String(r.version);})){
-          requiredChangelogRows.push(r);
-        }
-      });
-    }
+    const sel=document.getElementById("editPekaTypeV564");
+    if(sel) sel.value=normalizePekaTypeV564(entry && entry.pekaType);
   }catch(e){}
 }
-
-function setType(type,clear=true){
-  if(clear && (type==="service" || type==="install")) clearEntryDraftFieldsV566();
-  if(clear && (type==="service" || type==="install")){
-    clearEntryDraftFieldsV565();
-  }
-  selectedType=type;
-  $("serviceForm").classList.toggle("hidden",type!=="service");
-  $("installForm").classList.toggle("hidden",type!=="install");
-  $("serviceBtn").classList.toggle("active",type==="service");
-  $("installBtn").classList.toggle("active",type==="install");
-  if(clear)$("entryMsg").innerHTML="";
+function selectedEditPekaTypeV564(){
+  try{ const sel=document.getElementById("editPekaTypeV564"); return normalizePekaTypeV564(sel && sel.value); }catch(e){ return ""; }
 }
+function setType(type,clear=true){if(clear&&(type==="service"||type==="install"))clearEntryDraftFieldsV564();selectedType=type;$("serviceForm").classList.toggle("hidden",type!=="service");$("installForm").classList.toggle("hidden",type!=="install");$("serviceBtn").classList.toggle("active",type==="service");$("installBtn").classList.toggle("active",type==="install");if(clear)$("entryMsg").innerHTML=""}
 function renderInstallItems(){const box=$("installItems");box.innerHTML="";priceList.forEach(item=>{const row=document.createElement("div");row.className="item";const mode=item.inputMode||"qty",control=mode==="check"?`<label style="display:flex;align-items:center;gap:8px;font-weight:900"><input id="qty_${item.id}" type="checkbox" onchange="updateInstallPreview()" style="width:24px;height:24px;margin:0"> בוצע</label>`:`<input class="qty" id="qty_${item.id}" type="number" min="0" placeholder="כמות" oninput="updateInstallPreview()">`;row.innerHTML=`<div><div class="item-title">${esc(item.name)}</div><div class="item-sub">מחיר: ${money(item.price)} · ${mode==="check"?"סימון כן/לא":"כמות מספרית"}</div></div>${control}`;box.appendChild(row)});updateInstallPreview()}function updateInstallPreview(){let total=0;priceList.forEach(p=>{const el=$("qty_"+p.id);let q=0;if(el)q=(p.inputMode||"qty")==="check"?(el.checked?1:0):Number(el.value||0);if(q>0)total+=q*Number(p.price||0)});$("installPreview").textContent="סה״כ התקנה: "+money(total)}
 async function addService(){const customerNumber=val("sCustomer"),address=val("sAddress"),notes=val("sNotes"),isReturnCall=$("sReturnCall")&&$("sReturnCall").checked;const amount=isReturnCall?0:SERVICE_PRICE;if(!customerNumber||!/^\d+$/.test(customerNumber))return $("entryMsg").innerHTML="<p class='danger'>חובה למלא מספר לקוח בספרות בלבד.</p>";if(!address)return $("entryMsg").innerHTML="<p class='danger'>חובה למלא כתובת.</p>";await db.collection("workEntries").add({workerId:viewedWorker.id,workerName:viewedWorker.name,authUid:viewedWorker.authUid||currentAuthUid(),date:selectedDate,workType:"service",description:isReturnCall?"קריאת שירות חוזרת":"קריאת שירות",customerNumber,address,notes,isReturnCall,amount,createdAt:firebase.firestore.FieldValue.serverTimestamp()});$("sCustomer").value="";$("sAddress").value="";$("sNotes").value="";if($("sReturnCall"))$("sReturnCall").checked=false;updateServicePreview();showEntryFeedbackV41("service", amount);await loadMonth()}
 async function addInstall(){const customerNumber=val("iCustomer"),address=val("iAddress"),notes=val("iNotes");if(!customerNumber||!/^\d+$/.test(customerNumber))return $("entryMsg").innerHTML="<p class='danger'>חובה למלא מספר לקוח בספרות בלבד.</p>";if(!address)return $("entryMsg").innerHTML="<p class='danger'>חובה למלא כתובת.</p>";let items=[],total=0;priceList.forEach(p=>{const el=$("qty_"+p.id);let q=0;if(el)q=(p.inputMode||"qty")==="check"?(el.checked?1:0):Number(el.value||0);if(q>0){items.push({id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||"qty",total:q*Number(p.price||0)});total+=q*Number(p.price||0)}});if(!items.length)return $("entryMsg").innerHTML="<p class='danger'>חובה לבחור לפחות פריט אחד.</p>";await db.collection("workEntries").add({workerId:viewedWorker.id,workerName:viewedWorker.name,authUid:viewedWorker.authUid||currentAuthUid(),date:selectedDate,workType:"install",description:"התקנה",customerNumber,address,notes,items,amount:total,createdAt:firebase.firestore.FieldValue.serverTimestamp()});$("iCustomer").value="";$("iAddress").value="";$("iNotes").value="";if($("iCustomerHistory"))$("iCustomerHistory").innerHTML="";showEntryFeedbackV41("install", total);await loadMonth()}
@@ -2039,6 +1892,7 @@ function clearInstallSelection(){
   });
   const sel=$("installTemplateSelect");
   if(sel) sel.value="";
+  try{ const peka=document.getElementById("pekaTypeV527"); if(peka) peka.value=""; }catch(e){}
   updateInstallPreview();
 }
 
@@ -2055,6 +1909,69 @@ function applyTemplateFromSelect(){
   });
   updateInstallPreview();
 }
+
+/* ===== v5.65 minimal fix from first 5.64: load saved CN/CH in edit select ===== */
+function getSavedEditPekaValueV565(entry){
+  try{
+    if(!entry) return "";
+    const normalize=function(v){
+      const s=String(v||"").trim().toUpperCase();
+      return (s==="CN" || s==="CH") ? s : "";
+    };
+    const candidates=[
+      entry.pekaType,
+      entry.pekaTypeV527,
+      entry.installPekaType,
+      entry.peka,
+      entry.pekaKind,
+      entry.cnch,
+      entry.workOrderType,
+      entry.orderType,
+      entry.typePeka,
+      entry.peka_type,
+      entry.meta && entry.meta.pekaType,
+      entry.data && entry.data.pekaType
+    ];
+    for(const raw of candidates){
+      const v=normalize(raw);
+      if(v) return v;
+    }
+    const text=[entry.description,entry.notes,entry.title,entry.itemText]
+      .map(function(x){return String(x||"").toUpperCase();})
+      .join(" ");
+    if(/\bCN\b/.test(text)) return "CN";
+    if(/\bCH\b/.test(text)) return "CH";
+  }catch(e){}
+  return "";
+}
+function applySavedEditPekaValueV565(entry){
+  try{
+    const value=getSavedEditPekaValueV565(entry);
+    const sel=document.getElementById("editPekaTypeV564") || document.getElementById("editPekaTypeV565") || document.getElementById("editPekaTypeV527");
+    const wrap=document.getElementById("editPekaWrapV564") || document.getElementById("editPekaTypeWrapV564") || document.getElementById("editPekaTypeWrapV565");
+    const isInstall=!!(entry && (entry.workType==="install" || entry.type==="install" || (entry.items && entry.items.length)));
+    if(wrap) wrap.classList.toggle("hidden", !isInstall);
+    if(sel){
+      sel.value=value || "";
+      setTimeout(function(){try{
+        const again=document.getElementById("editPekaTypeV564") || document.getElementById("editPekaTypeV565") || document.getElementById("editPekaTypeV527");
+        if(again) again.value=value || "";
+      }catch(e){}},0);
+      setTimeout(function(){try{
+        const again=document.getElementById("editPekaTypeV564") || document.getElementById("editPekaTypeV565") || document.getElementById("editPekaTypeV527");
+        if(again) again.value=value || "";
+      }catch(e){}},80);
+    }
+  }catch(e){}
+}
+function selectedSavedEditPekaValueV565(){
+  try{
+    const sel=document.getElementById("editPekaTypeV564") || document.getElementById("editPekaTypeV565") || document.getElementById("editPekaTypeV527");
+    const s=String(sel && sel.value || "").trim().toUpperCase();
+    return (s==="CN" || s==="CH") ? s : "";
+  }catch(e){ return ""; }
+}
+
 function openEntryEdit(id){
   const e=monthEntries.find(x=>x.id===id);
   if(!e)return;
@@ -2066,10 +1983,9 @@ function openEntryEdit(id){
   $("editEntryAmount").value=Number(e.amount||0);
   $("editEntryMsg").innerHTML="";
   renderEditInstallItems(e);
-  setEditPekaTypeV566(e);
-  setEditPekaTypeV565(e);
-  setTimeout(function(){try{setEditPekaTypeV565(e);}catch(_e){}},0);
-  setTimeout(function(){try{setEditPekaTypeV566(e);}catch(_e){}},0);
+  setEditPekaTypeV564(e);
+  applySavedEditPekaValueV565(e);
+  setTimeout(function(){try{applySavedEditPekaValueV565(e);}catch(_e){}},80);
   window.scrollTo({top:$("editEntryPanel").offsetTop-20,behavior:"smooth"});
 }
 async function saveEntryEdit(){
@@ -2080,12 +1996,12 @@ async function saveEntryEdit(){
   const original=monthEntries.find(x=>x.id===id);
   const update={customerNumber,address,notes,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
   if(original&&original.workType==="install"){
-    update.pekaType=selectedEditPekaTypeV566();
-    update.pekaType=selectedEditPekaTypeV565();
+    update.pekaType=selectedSavedEditPekaValueV565();
     const edited=getEditedInstallItems();
     if(!edited.items.length)return $("editEntryMsg").innerHTML="<p class='danger'>חובה לבחור לפחות פריט התקנה אחד.</p>";
     update.items=edited.items;
     update.amount=edited.total;
+    update.pekaType=selectedEditPekaTypeV564();
   }else{
     if(Number.isNaN(amount)||amount<0)return $("editEntryMsg").innerHTML="<p class='danger'>סכום לא תקין.</p>";
     update.amount=amount;
@@ -2580,13 +2496,11 @@ function renderEditInstallItems(entry){
   if(!box||!wrap)return;
   if(entry.workType!=="install"){
     wrap.classList.add("hidden");
-    setEditPekaTypeV566(null);
-    setEditPekaTypeV565(null);
+    setEditPekaTypeV564(null);
     return;
   }
   wrap.classList.remove("hidden");
-  setEditPekaTypeV566(entry);
-  setEditPekaTypeV565(entry);
+  setEditPekaTypeV564(entry);
   box.innerHTML="";
   const oldItems={};
   (entry.items||[]).forEach(i=>oldItems[i.id]=i);
@@ -2605,6 +2519,8 @@ function renderEditInstallItems(entry){
     box.appendChild(row);
   });
   updateEditInstallPreview();
+
+  applySavedEditPekaValueV565(entry);
 }
 function getEditedInstallItems(){
   const items=[];
@@ -15109,5 +15025,3 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   document.addEventListener('DOMContentLoaded',updateVersionUiV539);
   setInterval(updateVersionUiV539,2200);
 })();
-
-try{ensureRequiredChangelogRowsV566();}catch(e){}
