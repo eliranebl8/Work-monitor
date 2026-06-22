@@ -2,7 +2,7 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.65 - edit CN/CH fix.
+File version: 5.66 - planned-save validation fix.
 */
 const APP_VERSION = "5.66";
 window.APP_VERSION = APP_VERSION;
@@ -20,6 +20,14 @@ window.addEventListener("load", setAppVersionUI);
 /*
 ===============================================================================
 
+
+
+CHANGELOG 5.66 - תיקון ולידציה בשמירה מתוזמנת
+1. APP_VERSION עודכן ל-"5.66".
+2. תוקנה שמירת קריאת שירות/התקנה מתוזמנת כאשר חסרים מספר לקוח או כתובת.
+3. במקרה של שדה חסר הטופס נשאר פתוח, מוצגת הודעה אדומה והסמן עובר לשדה החסר.
+4. החזרה למסך בחירת סוג עבודה מתבצעת רק אחרי שמירה מוצלחת, ולא אחרי כשל ולידציה.
+5. התיקון בוצע ב-functions.js בלבד, בלי שינוי HTML/CSS, Firebase, דוחות, דשבורד או לוגין.
 
 CHANGELOG 5.64 - יום נוכחי כברירת מחדל ותיקון פק״ע בעריכת התקנה
 1. APP_VERSION עודכן ל-"5.64".
@@ -15145,68 +15153,208 @@ CHANGELOG 5.65 - תיקון אמיתי לעריכת פק״ע CN/CH
 })();
 
 
-/* Version 5.66 - validation keeps form open and focuses missing field */
+/*
+===============================================================================
+CHANGELOG 5.66 - תיקון שמירה מתוזמנת שלא תאפס טופס בכשל ולידציה
+-------------------------------------------------------------------------------
+תיקון נקודתי לפונקציות השמירה הפעילות בפועל.
+בגרסאות קודמות עטיפת 5.36 החזירה למסך בחירת סוג עבודה גם כאשר פונקציית השמירה
+החזירה שגיאת ולידציה. כאן מחליפים בסוף הקובץ את פונקציות השמירה הגלובליות כך
+שהחזרה למסך תקרה רק אחרי קריאה אמיתית ל-wmAfterLocalEntrySaveV516, כלומר אחרי
+שהולידציה עברה והעבודה נכתבה מקומית/ל-Firestore.
+===============================================================================
+*/
 (function(){
-  function validationFail(msg, fieldId){
-    var box=document.getElementById('entryMsg');
-    if(box) box.innerHTML='<p class="danger">'+msg+'</p>';
-    var el=document.getElementById(fieldId);
-    if(el){ try{ el.focus(); }catch(e){} }
+  'use strict';
+
+  function qV566(id){ return document.getElementById(id); }
+  function valueV566(id){
+    try{ if(typeof val==='function') return val(id); }catch(e){}
+    var el=qV566(id); return el ? String(el.value||'').trim() : '';
+  }
+  function escV566(s){
+    try{ return esc(s); }catch(e){ return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];}); }
+  }
+  function showValidationV566(msg, fieldId){
+    var box=qV566('entryMsg');
+    if(box) box.innerHTML='<p class="danger">'+escV566(msg)+'</p>';
+    var el=qV566(fieldId);
+    if(el){
+      try{ el.focus({preventScroll:false}); }catch(e){ try{ el.focus(); }catch(err){} }
+      try{ el.scrollIntoView({behavior:'smooth', block:'center'}); }catch(e){}
+    }
+    return false;
+  }
+  function beginSaveV566(){
+    try{ if(typeof window.wmBeginEntrySaveV516==='function') return window.wmBeginEntrySaveV516(); }catch(e){}
     return true;
   }
+  function saveNoticeV566(label, amount, status, plannedNote){
+    try{ if(typeof window.wmOfflineSaveNoticeV516==='function') return window.wmOfflineSaveNoticeV516(label, amount, status, plannedNote); }catch(e){}
+    return '<div class="notice">'+escV566(label||'העבודה')+' נשמרה ✅</div>';
+  }
+  function afterSaveV566(msg){
+    try{ if(typeof window.wmAfterLocalEntrySaveV516==='function') return window.wmAfterLocalEntrySaveV516(msg); }catch(e){}
+    var box=qV566('entryMsg'); if(box) box.innerHTML=msg || '<div class="notice">העבודה נשמרה ✅</div>';
+  }
+  function handleErrorV566(err){
+    try{ if(typeof window.wmHandleEntrySaveErrorV516==='function') return window.wmHandleEntrySaveErrorV516(err); }catch(e){}
+    var box=qV566('entryMsg'); if(box) box.innerHTML='<p class="danger">שגיאה בשמירה: '+escV566((err&&(err.message||err.code))||(String(err)))+'</p>';
+  }
+  function selectedPekaV566(){
+    var el=qV566('pekaTypeV527');
+    var v=String((el&&el.value)||'').trim().toUpperCase();
+    return (v==='CN'||v==='CH') ? v : '';
+  }
+  function selectedKindV566(){
+    try{ if(typeof selectedKindV411==='function') return selectedKindV411(); }catch(e){}
+    try{ if(typeof window.selectedInstallKindV411==='function') return window.selectedInstallKindV411(); }catch(e){}
+    var rf=qV566('installKindRfV411'); if(rf && rf.checked) return 'rf';
+    return 'fiber';
+  }
+  function kindLabelV566(kind){
+    try{ if(typeof kindLabelV411==='function') return kindLabelV411(kind); }catch(e){}
+    return String(kind||'').toLowerCase()==='rf' ? 'RF' : 'סיב';
+  }
+  function currentAuthUidV566(){
+    try{ if(typeof currentAuthUid==='function') return currentAuthUid(); }catch(e){}
+    return '';
+  }
+  function servicePriceV566(){
+    try{ return Number(SERVICE_PRICE||0); }catch(e){ return 65; }
+  }
 
-  window.addService = async function(){
-    const customerNumber=val('sCustomer'), address=val('sAddress'), notes=val('sNotes'), isReturnCall=$('sReturnCall')&&$('sReturnCall').checked;
-    const amount=isReturnCall?0:SERVICE_PRICE;
+  // v5.66: פונקציית שירות אחת לכל המסלולים. כשל ולידציה מחזיר לפני כל איפוס/חזרה למסך.
+  function addServiceWithStatusV566(status){
+    var customerNumber=valueV566('sCustomer');
+    var address=valueV566('sAddress');
+    var notes=valueV566('sNotes');
+    var returnCb=qV566('sReturnCall');
+    var isReturnCall=!!(returnCb&&returnCb.checked);
+    var amount=isReturnCall?0:servicePriceV566();
 
-    if(!customerNumber||!/^\d+$/.test(customerNumber)) return validationFail('חובה למלא מספר לקוח בספרות בלבד.','sCustomer');
-    if(!address) return validationFail('חובה למלא כתובת.','sAddress');
+    if(!customerNumber || !/^\d+$/.test(String(customerNumber))) return showValidationV566('חובה למלא מספר לקוח בספרות בלבד.','sCustomer');
+    if(!address) return showValidationV566('חובה למלא כתובת.','sAddress');
+    if(!viewedWorker || !viewedWorker.id || !selectedDate) return showValidationV566('חסר עובד או יום נבחר. רענן את המסך ונסה שוב.','sCustomer');
+    if(!beginSaveV566()) return false;
 
-    await db.collection('workEntries').add({
-      workerId:viewedWorker.id,workerName:viewedWorker.name,authUid:viewedWorker.authUid||currentAuthUid(),
-      date:selectedDate,workType:'service',
-      description:isReturnCall?'קריאת שירות חוזרת':'קריאת שירות',
-      customerNumber,address,notes,isReturnCall,amount,
-      createdAt:firebase.firestore.FieldValue.serverTimestamp()
-    });
+    var successMsg=saveNoticeV566('קריאת השירות', status==='planned'?null:amount, status, 'היא לא נכנסה להתחשבנות עד שתלחץ בוצע.');
+    try{
+      var writePromise=db.collection('workEntries').add({
+        workerId:viewedWorker.id,
+        workerName:viewedWorker.name,
+        authUid:viewedWorker.authUid||currentAuthUidV566(),
+        date:selectedDate,
+        workType:'service',
+        entryStatus:status,
+        description:isReturnCall?'קריאת שירות חוזרת':'קריאת שירות',
+        customerNumber:customerNumber,
+        address:address,
+        notes:notes,
+        isReturnCall:isReturnCall,
+        amount:amount,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      writePromise.then(function(){ try{ if(typeof loadMonth==='function') loadMonth(); }catch(e){} }).catch(handleErrorV566);
+      afterSaveV566(successMsg);
+      return true;
+    }catch(err){ handleErrorV566(err); return false; }
+  }
 
-    resetEntryFormsAfterSaveV42();
-    showEntryFeedbackV41('service', amount);
-    await loadMonth();
-  };
+  // v5.66: התקנה רגילה/מתוזמנת עם שמירת סוג סיב/RF ופק״ע CN/CH, בלי איפוס בכשל ולידציה.
+  function addInstallWithStatusV566(status){
+    var customerNumber=valueV566('iCustomer');
+    var address=valueV566('iAddress');
+    var notes=valueV566('iNotes');
 
-  window.addInstall = async function(){
-    const customerNumber=val('iCustomer'), address=val('iAddress'), notes=val('iNotes');
+    if(!customerNumber || !/^\d+$/.test(String(customerNumber))) return showValidationV566('חובה למלא מספר לקוח בספרות בלבד.','iCustomer');
+    if(!address) return showValidationV566('חובה למלא כתובת.','iAddress');
+    if(!viewedWorker || !viewedWorker.id || !selectedDate) return showValidationV566('חסר עובד או יום נבחר. רענן את המסך ונסה שוב.','iCustomer');
 
-    if(!customerNumber||!/^\d+$/.test(customerNumber)) return validationFail('חובה למלא מספר לקוח בספרות בלבד.','iCustomer');
-    if(!address) return validationFail('חובה למלא כתובת.','iAddress');
+    var items=[];
+    var total=0;
+    var kind=selectedKindV566();
+    var peka=selectedPekaV566();
+    try{
+      (priceList||[]).forEach(function(p){
+        var el=qV566('qty_'+p.id);
+        var qty=0;
+        if(el) qty=(p.inputMode||'qty')==='check' ? (el.checked?1:0) : Number(el.value||0);
+        if(qty>0){
+          var price=Number(p.price||0);
+          items.push({
+            id:p.id,
+            name:p.name,
+            price:price,
+            quantity:qty,
+            inputMode:p.inputMode||'qty',
+            priceType:kind,
+            installKind:kind,
+            pekaType:peka || '',
+            total:qty*price
+          });
+          total+=qty*price;
+        }
+      });
+    }catch(e){}
 
-    let items=[], total=0;
-    priceList.forEach(function(p){
-      const el=$('qty_'+p.id);
-      let q=0;
-      if(el) q=(p.inputMode||'qty')==='check'?(el.checked?1:0):Number(el.value||0);
-      if(q>0){
-        items.push({id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||'qty',total:q*Number(p.price||0)});
-        total+=q*Number(p.price||0);
-      }
-    });
+    if(!items.length) return showValidationV566('חובה לבחור לפחות פריט אחד.','iCustomer');
+    if(!beginSaveV566()) return false;
 
-    if(!items.length){
-      var box=document.getElementById('entryMsg');
-      if(box) box.innerHTML='<p class="danger">חובה לבחור לפחות פריט אחד.</p>';
-      return;
+    var label='התקנת '+kindLabelV566(kind);
+    var successMsg=saveNoticeV566(label, status==='planned'?null:total, status, 'היא לא נכנסה להתחשבנות עד שתלחץ בוצע.');
+    try{
+      var data={
+        workerId:viewedWorker.id,
+        workerName:viewedWorker.name,
+        authUid:viewedWorker.authUid||currentAuthUidV566(),
+        date:selectedDate,
+        workType:'install',
+        installKind:kind,
+        priceType:kind,
+        entryStatus:status,
+        description:label,
+        customerNumber:customerNumber,
+        address:address,
+        notes:notes,
+        items:items,
+        amount:total,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp()
+      };
+      if(peka) data.pekaType=peka;
+      var writePromise=db.collection('workEntries').add(data);
+      writePromise.then(function(){ try{ if(typeof loadMonth==='function') loadMonth(); }catch(e){} }).catch(handleErrorV566);
+      afterSaveV566(successMsg);
+      return true;
+    }catch(err){ handleErrorV566(err); return false; }
+  }
+
+  window.addService=function(){ return addServiceWithStatusV566('done'); };
+  window.addInstall=function(){ return addInstallWithStatusV566('done'); };
+  window.addServicePlannedV49=function(){ return addServiceWithStatusV566('planned'); };
+  window.addInstallPlannedV49=function(){ return addInstallWithStatusV566('planned'); };
+  window.addServiceWithStatusV566=addServiceWithStatusV566;
+  window.addInstallWithStatusV566=addInstallWithStatusV566;
+
+  try{
+    var oldRows=window.requiredChangelogRows || (typeof requiredChangelogRows==='function' ? requiredChangelogRows : null);
+    if(typeof oldRows==='function' && !oldRows.__v566Wrapped){
+      var wrappedRows=function(){
+        var rows=[]; try{ rows=oldRows.apply(this,arguments)||[]; }catch(e){ rows=[]; }
+        var exists=rows.some(function(r){ return String(r.version||r.id||'')==='5.66'; });
+        if(!exists){ rows.unshift({version:'5.66', title:'תיקון שמירה מתוזמנת בלי איפוס בכשל', createdAt:'2026-06-22', items:[
+          'אם חסר מספר לקוח או כתובת בשמור מתוזמן, הטופס נשאר פתוח ומציג הודעה אדומה.',
+          'הסמן עובר לשדה החסר כדי להשלים אותו בלי להזין את כל הטופס מחדש.',
+          'החזרה למסך בחירת סוג עבודה מתבצעת רק אחרי שמירה מוצלחת.',
+          'התיקון חל על קריאת שירות, התקנה, קריאת שירות מתוזמנת והתקנה מתוזמנת.'
+        ]}); }
+        return rows;
+      };
+      wrappedRows.__v566Wrapped=true;
+      window.requiredChangelogRows=wrappedRows;
+      try{ requiredChangelogRows=wrappedRows; }catch(e){}
     }
+  }catch(e){}
 
-    await db.collection('workEntries').add({
-      workerId:viewedWorker.id,workerName:viewedWorker.name,authUid:viewedWorker.authUid||currentAuthUid(),
-      date:selectedDate,workType:'install',description:'התקנה',
-      customerNumber,address,notes,items,amount:total,
-      createdAt:firebase.firestore.FieldValue.serverTimestamp()
-    });
-
-    resetEntryFormsAfterSaveV42();
-    showEntryFeedbackV41('install', total);
-    await loadMonth();
-  };
+  try{ if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
 })();
