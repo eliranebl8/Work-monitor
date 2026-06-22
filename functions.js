@@ -2,9 +2,15 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.66 - planned-save validation fix.
+File version: 5.67 - Smart Dashboard fiber-modem CN/CH split.
+
+CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות סיב עם מודם
+1. כרטיס "התקנות סיב" בדשבורד החכם מציג עכשיו פירוט פנימי של כמה מתוך ההתקנות הן פק״ע CN וכמה הן פק״ע CH.
+2. הספירה נשארת מחויבת לפריט "התקנת שקע סיב חדש - כולל מודם" ולא סופרת פק״עות CN/CH שלא כוללות את הפריט הזה.
+3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
+4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.66";
+const APP_VERSION = "5.67";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -10712,6 +10718,10 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
     // RF נספר לפי סוג התקנה/מחירון RF. כל התקנת סיב אחרת נספרת כפקודת Change.
     var rfInstalls500=installs.filter(isRfInstall500);
     var fiberInstalls500=installs.filter(function(e){ return !isRfInstall500(e) && isNewFiberModemInstall500(e); });
+    // v5.67: פירוט CN/CH נספר רק מתוך התקנות סיב שמכילות את הפריט המחייב "התקנת שקע סיב חדש - כולל מודם".
+    // כך פק״עות CN/CH מסוג Change או פריטים אחרים לא מנפחות את מדד התקנות הסיב.
+    var fiberCnInstalls567=fiberInstalls500.filter(function(e){ return String(e.pekaType||'').trim().toUpperCase()==='CN'; });
+    var fiberChInstalls567=fiberInstalls500.filter(function(e){ return String(e.pekaType||'').trim().toUpperCase()==='CH'; });
     var changeOrders500=installs.filter(function(e){ return !isRfInstall500(e) && !isNewFiberModemInstall500(e); });
 
     var insights=[];
@@ -10730,7 +10740,7 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
     if(bestWeekday) insights.push('<li class="info">📈 יום '+esc436(bestWeekday)+' הוא היום החזק ביותר לפי דפוס החודש.</li>');
     if(topClient && byClient[topClient].count>1) insights.push('<li class="warn">👤 לקוח חוזר אמיתי: '+esc436(topClient)+' עם '+byClient[topClient].count+' ביקורים שונים החודש. המרות ממתוזמן לבוצע לא נספרות כאן כפעמיים.</li>');
     if(returnCalls.length) insights.push('<li class="danger">🔁 '+returnCalls.length+' קריאות חוזרות ללא תשלום. זה מדד שצריך לעקוב אחריו כי הוא אוכל זמן ולא מוסיף הכנסה.</li>');
-    if(installs.length) insights.push('<li class="info">🧾 פירוט התקנות: '+fiberInstalls500.length+' התקנות סיב, '+rfInstalls500.length+' התקנות RF, '+changeOrders500.length+' פקודות Change.</li>');
+    if(installs.length) insights.push('<li class="info">🧾 פירוט התקנות: '+fiberInstalls500.length+' התקנות סיב (CN '+fiberCnInstalls567.length+' / CH '+fiberChInstalls567.length+'), '+rfInstalls500.length+' התקנות RF, '+changeOrders500.length+' פקודות Change.</li>');
     if(installs.length && paidServices.length && installAvg>serviceAvg*1.6) insights.push('<li class="good">🛠️ התקנה ממוצעת שווה הרבה יותר מקריאת שירות. שווה לתת עדיפות להתקנות כשאפשר.</li>');
     if(!done.length) insights.push('<li class="info">עדיין אין עבודות שבוצעו בחודש הזה. הדשבורד יתמלא אחרי שמירת עבודות.</li>');
 
@@ -10757,7 +10767,7 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
         <div class="smart-mini-v423">קריאות חוזרות<b>${returnCalls.length}</b></div>
       </div>
       <div class="smart-quick-v423">
-        <div class="smart-mini-v423">התקנות סיב<b>${fiberInstalls500.length}</b><span class="smart-small-note-v436">רק עם התקנת שקע סיב חדש כולל מודם</span></div>
+        <div class="smart-mini-v423">התקנות סיב<b>${fiberInstalls500.length}</b><span class="smart-small-note-v436">רק עם התקנת שקע סיב חדש כולל מודם<br>מתוכן CN: ${fiberCnInstalls567.length} · CH: ${fiberChInstalls567.length}</span></div>
         <div class="smart-mini-v423">התקנות RF<b>${rfInstalls500.length}</b><span class="smart-small-note-v436">לפי מחירון / סוג RF</span></div>
         <div class="smart-mini-v423">פקודות Change<b>${changeOrders500.length}</b><span class="smart-small-note-v436">סיב ללא פריט התקנת מודם</span></div>
       </div>
@@ -13903,6 +13913,10 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"5.67", title:"דשבורד חכם: פירוט CN/CH בהתקנות סיב", items:["כרטיס התקנות סיב מציג עכשיו כמה מתוך התקנות הסיב עם מודם הן פק״ע CN וכמה הן פק״ע CH.","הפירוט נספר רק כאשר בעבודה מסומן הפריט התקנת שקע סיב חדש - כולל מודם.","פק״עות CN/CH שלא כוללות את הפריט הזה לא נספרות בתוך התקנות הסיב כדי לשמור על מדד נקי.","לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, HTML או CSS."], date:d},
+      {version:"5.66", title:"ולידציה בשמירת פק״ע מתוזמנת", items:["שמירת קריאת שירות או התקנה מתוזמנת עם מספר לקוח חסר או כתובת חסרה כבר לא מאפסת את הטופס.","במקרה של שדה חובה חסר מוצגת הודעה אדומה והסמן עובר לשדה שצריך להשלים.","האיפוס והחזרה למסך הראשוני קורים רק אחרי שמירה מוצלחת בפועל.","התיקון בוצע ב-functions.js בלבד ללא שינוי HTML/CSS או מבנה נתונים."], date:d},
+      {version:"5.65", title:"עריכת פק״ע CN/CH", items:["עריכת פק״ע קיימת או מתוזמנת טוענת את ערך CN/CH הקיים לתוך חלון העריכה.","שמירת העריכה מעדכנת את pekaType לערכים תקינים CN או CH בלבד.","אם סוג הפק״ע ריק או לא תקין הוא נמחק מהרשומה כדי לא להשאיר מידע שגוי.","לא שונו שמירת עבודות רגילה, מחירונים, דשבורד או Security Rules."], date:d},
+      {version:"5.64", title:"בסיס יציב לפני תיקוני עריכה", items:["נשמר מבנה שלושת הקבצים היציב: index.html, styles.css ו-functions.js.","הגרסה שימשה בסיס לתיקוני CN/CH ולבדיקות שמירת פק״עות מתוזמנות.","לא בוצע שינוי עיצובי או שינוי מבנה Firebase במסגרת רשומת השלמה זו."], date:d},
       {version:"5.63", title:"PDF חודשי מקצועי מלא", items:["דוח ה-PDF החודשי שודרג לדוח מקצועי עם עמוד פתיחה, תקציר כספי, ביצועים, גרפים, פירוט יומי מלא ועמוד התחשבנות נקסטקום.","הדוח טוען עצמאית לפי החודש הנבחר: עבודות, יעד חודשי, ימי חופש, לא בוצעו ונתוני התחשבנות שמורים.","נוסף פירוט לפני מע״מ, מע״מ, כולל מע״מ, נטו אחרי קיזוזים והפרש מול סכום המערכת.","לא שונו שמירת עבודות, דשבורד, חיפוש, לוגין, Security Rules או מבנה שלושת הקבצים."], date:d},
       {version:"5.62", title:"חיפוש כללי בכל ההיסטוריה כשאין סינון תאריכים", items:["חיפוש לפי מספר לקוח, כתובת או פילטר ללא תאריך רץ עכשיו על כל היסטוריית העובד ולא רק על החודש שמוצג בלוח.","סיכום חודש מלא נשאר לפי החודש שמוצג בלוח.","אם נבחר חודש, יום או טווח תאריכים — החיפוש נשאר מוגבל לתאריכים שנבחרו.","לא שונו שמירת עבודות, דשבורד, PDF, התחשבנות, ימי חופש או לוגין."], date:d},
       {version:"5.61", title:"בחירת חודש לדוח PDF מתוך סלקטור", items:["ייצוא PDF חודשי כבר לא מבקש הקלדת חודש ידנית.","נוסף סלקטור חודשים מסודר כדי למנוע שגיאות פורמט.","ברירת המחדל היא החודש שמוצג בלוח / בדוח ההתחשבנות.","ה-PDF מופק לפי החודש שנבחר בסלקטור."], date:d},
