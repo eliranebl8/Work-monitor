@@ -4,7 +4,7 @@ Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
 File version: 5.65 - edit CN/CH fix.
 */
-const APP_VERSION = "5.65";
+const APP_VERSION = "5.66";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -15142,4 +15142,71 @@ CHANGELOG 5.65 - תיקון אמיתי לעריכת פק״ע CN/CH
   }catch(e){}
 
   try{ if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
+})();
+
+
+/* Version 5.66 - validation keeps form open and focuses missing field */
+(function(){
+  function validationFail(msg, fieldId){
+    var box=document.getElementById('entryMsg');
+    if(box) box.innerHTML='<p class="danger">'+msg+'</p>';
+    var el=document.getElementById(fieldId);
+    if(el){ try{ el.focus(); }catch(e){} }
+    return true;
+  }
+
+  window.addService = async function(){
+    const customerNumber=val('sCustomer'), address=val('sAddress'), notes=val('sNotes'), isReturnCall=$('sReturnCall')&&$('sReturnCall').checked;
+    const amount=isReturnCall?0:SERVICE_PRICE;
+
+    if(!customerNumber||!/^\d+$/.test(customerNumber)) return validationFail('חובה למלא מספר לקוח בספרות בלבד.','sCustomer');
+    if(!address) return validationFail('חובה למלא כתובת.','sAddress');
+
+    await db.collection('workEntries').add({
+      workerId:viewedWorker.id,workerName:viewedWorker.name,authUid:viewedWorker.authUid||currentAuthUid(),
+      date:selectedDate,workType:'service',
+      description:isReturnCall?'קריאת שירות חוזרת':'קריאת שירות',
+      customerNumber,address,notes,isReturnCall,amount,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    resetEntryFormsAfterSaveV42();
+    showEntryFeedbackV41('service', amount);
+    await loadMonth();
+  };
+
+  window.addInstall = async function(){
+    const customerNumber=val('iCustomer'), address=val('iAddress'), notes=val('iNotes');
+
+    if(!customerNumber||!/^\d+$/.test(customerNumber)) return validationFail('חובה למלא מספר לקוח בספרות בלבד.','iCustomer');
+    if(!address) return validationFail('חובה למלא כתובת.','iAddress');
+
+    let items=[], total=0;
+    priceList.forEach(function(p){
+      const el=$('qty_'+p.id);
+      let q=0;
+      if(el) q=(p.inputMode||'qty')==='check'?(el.checked?1:0):Number(el.value||0);
+      if(q>0){
+        items.push({id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||'qty',total:q*Number(p.price||0)});
+        total+=q*Number(p.price||0);
+      }
+    });
+
+    if(!items.length){
+      var box=document.getElementById('entryMsg');
+      if(box) box.innerHTML='<p class="danger">חובה לבחור לפחות פריט אחד.</p>';
+      return;
+    }
+
+    await db.collection('workEntries').add({
+      workerId:viewedWorker.id,workerName:viewedWorker.name,authUid:viewedWorker.authUid||currentAuthUid(),
+      date:selectedDate,workType:'install',description:'התקנה',
+      customerNumber,address,notes,items,amount:total,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    resetEntryFormsAfterSaveV42();
+    showEntryFeedbackV41('install', total);
+    await loadMonth();
+  };
 })();
