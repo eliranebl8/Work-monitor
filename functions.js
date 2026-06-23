@@ -2,7 +2,14 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.67 - Smart Dashboard fiber-modem CN/CH split.
+File version: 5.68 - Required CN/CH selection for every install save.
+
+CHANGELOG 5.68 - חיוב בחירת סוג פק״ע בכל התקנה
+1. בכל שמירת התקנה רגילה או מתוזמנת חובה לבחור סוג פק״ע CN או CH.
+2. בחירה ריקה אינה נחשבת "רגיל" ואינה מאפשרת שמירה.
+3. אם סוג הפק״ע חסר, הטופס נשאר פתוח, מוצגת הודעה אדומה והסמן עובר לשדה סוג הפק״ע.
+4. התיקון חל על כל התקנת RF או סיב, בלי קשר לפריט ההתקנה שנבחר.
+5. עודכנו APP_VERSION ו"מה חדש" לפי כללי הפרויקט.
 
 CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות סיב עם מודם
 1. כרטיס "התקנות סיב" בדשבורד החכם מציג עכשיו פירוט פנימי של כמה מתוך ההתקנות הן פק״ע CN וכמה הן פק״ע CH.
@@ -10,7 +17,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.67";
+const APP_VERSION = "5.68";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -13913,6 +13920,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"5.68", title:"חיוב בחירת פק״ע בכל התקנה", items:["בכל שמירת התקנה רגילה או מתוזמנת חובה לבחור סוג פק״ע CN או CH.","בחירה ריקה אינה נחשבת רגילה ולא מאפשרת שמירה.","אם סוג הפק״ע חסר, הטופס נשאר פתוח, מוצגת הודעה אדומה והסמן עובר לשדה סוג הפק״ע.","החובה חלה על כל התקנת RF או סיב, בלי קשר לפריט ההתקנה שנבחר."], date:d},
       {version:"5.67", title:"דשבורד חכם: פירוט CN/CH בהתקנות סיב", items:["כרטיס התקנות סיב מציג עכשיו כמה מתוך התקנות הסיב עם מודם הן פק״ע CN וכמה הן פק״ע CH.","הפירוט נספר רק כאשר בעבודה מסומן הפריט התקנת שקע סיב חדש - כולל מודם.","פק״עות CN/CH שלא כוללות את הפריט הזה לא נספרות בתוך התקנות הסיב כדי לשמור על מדד נקי.","לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, HTML או CSS."], date:d},
       {version:"5.66", title:"ולידציה בשמירת פק״ע מתוזמנת", items:["שמירת קריאת שירות או התקנה מתוזמנת עם מספר לקוח חסר או כתובת חסרה כבר לא מאפסת את הטופס.","במקרה של שדה חובה חסר מוצגת הודעה אדומה והסמן עובר לשדה שצריך להשלים.","האיפוס והחזרה למסך הראשוני קורים רק אחרי שמירה מוצלחת בפועל.","התיקון בוצע ב-functions.js בלבד ללא שינוי HTML/CSS או מבנה נתונים."], date:d},
       {version:"5.65", title:"עריכת פק״ע CN/CH", items:["עריכת פק״ע קיימת או מתוזמנת טוענת את ערך CN/CH הקיים לתוך חלון העריכה.","שמירת העריכה מעדכנת את pekaType לערכים תקינים CN או CH בלבד.","אם סוג הפק״ע ריק או לא תקין הוא נמחק מהרשומה כדי לא להשאיר מידע שגוי.","לא שונו שמירת עבודות רגילה, מחירונים, דשבורד או Security Rules."], date:d},
@@ -15124,9 +15132,15 @@ CHANGELOG 5.65 - תיקון אמיתי לעריכת פק״ע CN/CH
         update.description=original.description;
       }
 
+      // v5.68: בכל עריכת התקנה חובה לבחור פק״ע CN או CH; ריק אינו נחשב סוג רגיל.
       var peka=selectedPekaV565();
-      if(peka) update.pekaType=peka;
-      else update.pekaType=firebase.firestore.FieldValue.delete();
+      if(!peka){
+        if(editMsg) editMsg.innerHTML='<p class="danger">חובה לבחור סוג פק״ע: CN או CH.</p>';
+        var pekaSel=byIdV565('editPekaTypeV564');
+        if(pekaSel){ try{ pekaSel.focus({preventScroll:false}); }catch(_e){ try{ pekaSel.focus(); }catch(_err){} } try{ pekaSel.scrollIntoView({behavior:'smooth',block:'center'}); }catch(_e2){} }
+        return;
+      }
+      update.pekaType=peka;
     }else{
       if(Number.isNaN(amount)||amount<0){ if(editMsg) editMsg.innerHTML='<p class="danger">סכום לא תקין.</p>'; return; }
       update.amount=amount;
@@ -15289,6 +15303,10 @@ CHANGELOG 5.66 - תיקון שמירה מתוזמנת שלא תאפס טופס �
     var total=0;
     var kind=selectedKindV566();
     var peka=selectedPekaV566();
+
+    // v5.68: כל התקנה, RF או סיב, חייבת סוג פק״ע CN/CH לפני שמירה רגילה או מתוזמנת.
+    if(!peka) return showValidationV566('חובה לבחור סוג פק״ע: CN או CH.','pekaTypeV527');
+
     try{
       (priceList||[]).forEach(function(p){
         var el=qV566('qty_'+p.id);
@@ -15365,6 +15383,44 @@ CHANGELOG 5.66 - תיקון שמירה מתוזמנת שלא תאפס טופס �
         return rows;
       };
       wrappedRows.__v566Wrapped=true;
+      window.requiredChangelogRows=wrappedRows;
+      try{ requiredChangelogRows=wrappedRows; }catch(e){}
+    }
+  }catch(e){}
+
+  try{ if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
+})();
+
+
+/*
+===============================================================================
+CHANGELOG 5.68 - חיוב בחירת סוג פק״ע בכל התקנה
+-------------------------------------------------------------------------------
+1. תיקון ממוקד ב-functions.js בלבד.
+2. כל שמירת התקנה רגילה או מתוזמנת מחייבת pekaType בערך CN או CH.
+3. בחירה ריקה נעצרת בוולידציה, מציגה הודעה אדומה ומשאירה את הטופס פתוח.
+4. גם עריכת התקנה קיימת/מתוזמנת מחייבת CN/CH ולא מוחקת pekaType לריק.
+===============================================================================
+*/
+(function(){
+  try{ window.APP_VERSION = APP_VERSION; }catch(e){}
+
+  // v5.68: גיבוי לעדכון מה חדש במקרה שמקור הרשומות כבר נעטף על ידי גרסאות קודמות.
+  try{
+    var oldRows=window.requiredChangelogRows || (typeof requiredChangelogRows==='function' ? requiredChangelogRows : null);
+    if(typeof oldRows==='function' && !oldRows.__v568Wrapped){
+      var wrappedRows=function(){
+        var rows=[]; try{ rows=oldRows.apply(this,arguments)||[]; }catch(e){ rows=[]; }
+        var exists=rows.some(function(r){ return String(r.version||r.id||'')==='5.68'; });
+        if(!exists){ rows.unshift({version:'5.68', title:'חיוב בחירת פק״ע בכל התקנה', createdAt:'2026-06-23', items:[
+          'בכל שמירת התקנה רגילה או מתוזמנת חובה לבחור סוג פק״ע CN או CH.',
+          'בחירה ריקה אינה נחשבת רגילה ולא מאפשרת שמירה.',
+          'אם סוג הפק״ע חסר, הטופס נשאר פתוח, מוצגת הודעה אדומה והסמן עובר לשדה סוג הפק״ע.',
+          'החובה חלה על כל התקנת RF או סיב, בלי קשר לפריט ההתקנה שנבחר.'
+        ]}); }
+        return rows;
+      };
+      wrappedRows.__v568Wrapped=true;
       window.requiredChangelogRows=wrappedRows;
       try{ requiredChangelogRows=wrappedRows; }catch(e){}
     }
