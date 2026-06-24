@@ -2,7 +2,13 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.68 - Required CN/CH selection for every install save.
+File version: 5.70 - Final customer lookup override shows not-done planned reason.
+
+CHANGELOG 5.69 - בדיקת לקוח: הצגת פק״ע שלא בוצעה
+1. בבדיקת לקוח חוזר, רשומה מתוזמנת שסומנה כלא בוצעה כבר לא מוצגת כעבודה רגילה עם ₪0.
+2. אם נמצאה פק״ע לא בוצעה לאותו מספר לקוח, מוצגת הערה ברורה עם התאריך, סוג העבודה, הסיבה והפירוט אם קיים.
+3. מילוי הכתובת האוטומטי נשאר כמו שהיה וממשיך להשתמש גם ברשומות שלא בוצעו אם יש בהן כתובת.
+4. לא שונו שמירת עבודות, מתוזמנות, עריכה, דשבורד, HTML או CSS.
 
 CHANGELOG 5.68 - חיוב בחירת סוג פק״ע בכל התקנה
 1. בכל שמירת התקנה רגילה או מתוזמנת חובה לבחור סוג פק״ע CN או CH.
@@ -17,7 +23,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.68";
+const APP_VERSION = "5.70";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1004,12 +1010,17 @@ async function checkRecentCustomer(inputId, resultId){
       .filter(e=>e.workerId===viewedWorker.id)
       .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
 
+    // v5.69: מפרידים רשומות not_done כדי שלא יוצגו כעבודה רגילה עם ₪0 בבדיקת לקוח חוזר.
+    const notDoneMatches=all
+      .filter(e=>String(e.entryStatus||e.status||"")==="not_done")
+      .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+
     const doneMatches=all
-      .filter(e=>(!window.isPlannedV49 || !window.isPlannedV49(e)) && (e.entryStatus||"done")!=="planned" && e.date>=fromStr)
+      .filter(e=>String(e.entryStatus||e.status||"done")!=="not_done" && (!window.isPlannedV49 || !window.isPlannedV49(e)) && (e.entryStatus||"done")!=="planned" && e.date>=fromStr)
       .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
 
     const plannedMatches=all
-      .filter(e=>((window.isPlannedV49 && window.isPlannedV49(e)) || e.entryStatus==="planned") && String(e.date||"")>=today)
+      .filter(e=>String(e.entryStatus||e.status||"")!=="not_done" && ((window.isPlannedV49 && window.isPlannedV49(e)) || e.entryStatus==="planned") && String(e.date||"")>=today)
       .sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
 
     // v5.43: מילוי כתובת אוטומטי ללקוח חוזר.
@@ -1021,8 +1032,8 @@ async function checkRecentCustomer(inputId, resultId){
       addressTarget.value = addressSource.address;
     }
 
-    if(!doneMatches.length && !plannedMatches.length){
-      box.innerHTML="<div class='recent-ok'>לא נמצאה עבודה שבוצעה ב־30 הימים האחרונים, ואין סידור מתוזמן ללקוח הזה ✅</div>";
+    if(!doneMatches.length && !plannedMatches.length && !notDoneMatches.length){
+      box.innerHTML="<div class='recent-ok'>לא נמצאה עבודה שבוצעה ב־30 הימים האחרונים, אין סידור מתוזמן ואין פק״ע שלא בוצעה ללקוח הזה ✅</div>";
       return;
     }
 
@@ -1035,8 +1046,14 @@ async function checkRecentCustomer(inputId, resultId){
       const next=plannedMatches[0];
       parts.push(`📋 קיימת קריאה/התקנה מתוזמנת ללקוח זה.<br>מועד קרוב: ${heDate(next.date)} · ${esc(next.description||"סידור מתוזמן")} · צפי ${money(next.amount||0)}<br>כתובת: ${esc(next.address||"")}`);
     }
+    if(notDoneMatches.length){
+      const nd=notDoneMatches[0];
+      const ndReason=nd.notDoneReason ? ` · סיבה: ${esc(nd.notDoneReason)}` : "";
+      const ndNote=nd.notDoneNote ? `<br>פירוט: ${esc(nd.notDoneNote)}` : "";
+      parts.push(`🚫 קיימת פק״ע מתוזמנת שלא בוצעה ללקוח זה.<br>תאריך: ${heDate(nd.date)} · ${esc(nd.description||"פק״ע מתוזמנת")}${ndReason}<br>כתובת: ${esc(nd.address||"")}${ndNote}`);
+    }
 
-    const cls=doneMatches.length ? "recent-box" : "recent-ok";
+    const cls=(doneMatches.length || notDoneMatches.length) ? "recent-box" : "recent-ok";
     box.innerHTML=`<div class="${cls}">${parts.join("<br><br>")}</div>`;
   }catch(e){
     const msg=e && (e.code==="permission-denied" || String(e.message||"").includes("permissions"))
@@ -13920,6 +13937,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"5.69", title:"בדיקת לקוח: הצגת פק״ע שלא בוצעה", items:["בדיקת לקוח חוזר מציגה עכשיו פק״ע מתוזמנת שסומנה כלא בוצעה כהערה ברורה ולא כעבודה רגילה עם ₪0.","ההערה כוללת תאריך, סוג עבודה, סיבה ופירוט אם קיים.","מילוי הכתובת האוטומטי נשאר כמו שהיה וממשיך לעבוד גם לפי רשומות שלא בוצעו.","לא שונו שמירת עבודות, מתוזמנות, עריכה, דשבורד, HTML או CSS."], date:d},
       {version:"5.68", title:"חיוב בחירת פק״ע בכל התקנה", items:["בכל שמירת התקנה רגילה או מתוזמנת חובה לבחור סוג פק״ע CN או CH.","בחירה ריקה אינה נחשבת רגילה ולא מאפשרת שמירה.","אם סוג הפק״ע חסר, הטופס נשאר פתוח, מוצגת הודעה אדומה והסמן עובר לשדה סוג הפק״ע.","החובה חלה על כל התקנת RF או סיב, בלי קשר לפריט ההתקנה שנבחר."], date:d},
       {version:"5.67", title:"דשבורד חכם: פירוט CN/CH בהתקנות סיב", items:["כרטיס התקנות סיב מציג עכשיו כמה מתוך התקנות הסיב עם מודם הן פק״ע CN וכמה הן פק״ע CH.","הפירוט נספר רק כאשר בעבודה מסומן הפריט התקנת שקע סיב חדש - כולל מודם.","פק״עות CN/CH שלא כוללות את הפריט הזה לא נספרות בתוך התקנות הסיב כדי לשמור על מדד נקי.","לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, HTML או CSS."], date:d},
       {version:"5.66", title:"ולידציה בשמירת פק״ע מתוזמנת", items:["שמירת קריאת שירות או התקנה מתוזמנת עם מספר לקוח חסר או כתובת חסרה כבר לא מאפסת את הטופס.","במקרה של שדה חובה חסר מוצגת הודעה אדומה והסמן עובר לשדה שצריך להשלים.","האיפוס והחזרה למסך הראשוני קורים רק אחרי שמירה מוצלחת בפועל.","התיקון בוצע ב-functions.js בלבד ללא שינוי HTML/CSS או מבנה נתונים."], date:d},
@@ -15426,5 +15444,149 @@ CHANGELOG 5.68 - חיוב בחירת סוג פק״ע בכל התקנה
     }
   }catch(e){}
 
+  try{ if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
+})();
+
+
+/*
+===============================================================================
+CHANGELOG 5.69 - בדיקת לקוח: הצגת פק״ע שלא בוצעה
+-------------------------------------------------------------------------------
+1. תיקון ממוקד ב-functions.js בלבד.
+2. בדיקת לקוח חוזר מפרידה entryStatus=not_done מעבודות שבוצעו ומתוזמנות.
+3. פק״ע שלא בוצעה מוצגת כהערה עם סיבה ופירוט, ולא כעבודה רגילה בסכום ₪0.
+===============================================================================
+*/
+(function(){
+  try{ window.APP_VERSION = APP_VERSION; }catch(e){}
+
+  // v5.69: גיבוי לעדכון מה חדש במקרה שמקור הרשומות כבר נעטף על ידי גרסאות קודמות.
+  try{
+    var oldRows=window.requiredChangelogRows || (typeof requiredChangelogRows==='function' ? requiredChangelogRows : null);
+    if(typeof oldRows==='function' && !oldRows.__v569Wrapped){
+      var wrappedRows=function(){
+        var rows=[]; try{ rows=oldRows.apply(this,arguments)||[]; }catch(e){ rows=[]; }
+        var exists=rows.some(function(r){ return String(r.version||r.id||'')==='5.69'; });
+        if(!exists){ rows.unshift({version:'5.69', title:'בדיקת לקוח: הצגת פק״ע שלא בוצעה', createdAt:'2026-06-24', items:[
+          'בדיקת לקוח חוזר מציגה פק״ע מתוזמנת שסומנה כלא בוצעה כהערה ברורה ולא כעבודה רגילה עם ₪0.',
+          'ההערה כוללת תאריך, סוג עבודה, סיבה ופירוט אם קיים.',
+          'מילוי הכתובת האוטומטי נשאר כמו שהיה וממשיך לעבוד גם לפי רשומות שלא בוצעו.',
+          'לא שונו שמירת עבודות, מתוזמנות, עריכה, דשבורד, HTML או CSS.'
+        ]}); }
+        return rows;
+      };
+      wrappedRows.__v569Wrapped=true;
+      window.requiredChangelogRows=wrappedRows;
+      try{ requiredChangelogRows=wrappedRows; }catch(e){}
+    }
+  }catch(e){}
+
+  try{ if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
+})();
+
+
+/*
+===============================================================================
+CHANGELOG 5.70 - תיקון סופי להצגת פק״ע שלא בוצעה בבדיקת לקוח
+-------------------------------------------------------------------------------
+1. תיקון ממוקד ב-functions.js בלבד.
+2. הוגדר override סופי ל-checkRecentCustomer בסוף הקובץ, אחרי כל עטיפות הגרסאות הישנות.
+3. רשומות entryStatus/status=not_done אינן מוצגות עוד כעבודה רגילה עם ₪0.
+4. הרשומה מוצגת כהערת "לא בוצע" עם תאריך, סוג עבודה, סיבה ופירוט אם קיים.
+5. מילוי כתובת אוטומטי נשאר פעיל גם לפי רשומות שלא בוצעו.
+===============================================================================
+*/
+(function(){
+  // v5.70: override סופי חייב להופיע בסוף הקובץ כי קיימת עטיפת v4.16 מאוחרת שדרסה את תיקון v5.69.
+  function qV570(id){ try{return document.getElementById(id);}catch(e){return null;} }
+  function valV570(id){ var el=qV570(id); return el ? String(el.value||'').trim() : ''; }
+  function escV570(s){ try{ if(typeof esc==='function') return esc(s); }catch(e){} return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];}); }
+  function moneyV570(n){ try{ if(typeof money==='function') return money(n); }catch(e){} return '₪'+Number(n||0).toLocaleString('he-IL',{maximumFractionDigits:0}); }
+  function dateV570(s){ try{ if(typeof heDate==='function') return heDate(s); }catch(e){} return escV570(s||''); }
+  function todayV570(){ try{ if(typeof todayStr==='function') return todayStr(); }catch(e){} try{ if(typeof formatDate==='function') return formatDate(new Date()); }catch(e){} var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function fmtDateV570(d){ try{ if(typeof formatDate==='function') return formatDate(d); }catch(e){} return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function statusV570(e){ return String((e && (e.entryStatus || e.status)) || 'done'); }
+  function isPlannedV570(e){ var st=statusV570(e); if(st==='planned') return true; try{ if(window.isPlannedV49 && window.isPlannedV49(e)) return true; }catch(_e){} return false; }
+  function isNotDoneV570(e){ return statusV570(e)==='not_done'; }
+  function safeWorkerIdV570(){ try{ return viewedWorker && viewedWorker.id ? viewedWorker.id : ''; }catch(e){ return ''; } }
+
+  window.checkRecentCustomer = async function(inputId, resultId){
+    var num=valV570(inputId);
+    var box=qV570(resultId);
+    if(!box) return;
+    box.innerHTML='';
+    if(!num) return;
+    if(!/^\d+$/.test(num)){ box.innerHTML='<div class="danger">מספר לקוח חייב להיות ספרות בלבד</div>'; return; }
+    var workerId=safeWorkerIdV570();
+    if(!workerId){ box.innerHTML='<div class="danger">לא זוהה עובד פעיל לבדיקה.</div>'; return; }
+    box.innerHTML='<div class="muted">בודק עבודות שבוצעו, מתוזמנות ופק״עות שלא בוצעו אצל העובד הנוכחי...</div>';
+    try{
+      var from=new Date(Date.now()-30*24*60*60*1000);
+      var fromStr=fmtDateV570(from);
+      var today=todayV570();
+      var snap=await db.collection('workEntries').where('workerId','==',workerId).where('customerNumber','==',num).get();
+      var all=snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); }).filter(function(e){ return e && e.workerId===workerId && String(e.customerNumber||'')===num; });
+      all.sort(function(a,b){ return String(b.date||'').localeCompare(String(a.date||'')); });
+
+      // v5.70: הפרדה מחייבת — not_done יוצא גם מ"בוצע" וגם מ"מתוזמן" כדי שלא יוצג כעבודה רגילה עם ₪0.
+      var notDoneMatches=all.filter(isNotDoneV570).sort(function(a,b){ return String(b.date||'').localeCompare(String(a.date||'')); });
+      var doneMatches=all.filter(function(e){ return !isNotDoneV570(e) && !isPlannedV570(e) && String(e.date||'')>=fromStr; }).sort(function(a,b){ return String(b.date||'').localeCompare(String(a.date||'')); });
+      var plannedMatches=all.filter(function(e){ return !isNotDoneV570(e) && isPlannedV570(e) && String(e.date||'')>=today; }).sort(function(a,b){ return String(a.date||'').localeCompare(String(b.date||'')); });
+
+      var addressTargetId = inputId === 'sCustomer' ? 'sAddress' : (inputId === 'iCustomer' ? 'iAddress' : '');
+      var addressTarget = addressTargetId ? qV570(addressTargetId) : null;
+      var addressSource = doneMatches.find(function(e){return String(e.address||'').trim();}) || plannedMatches.find(function(e){return String(e.address||'').trim();}) || notDoneMatches.find(function(e){return String(e.address||'').trim();}) || all.find(function(e){return String(e.address||'').trim();});
+      if(addressTarget && !String(addressTarget.value||'').trim() && addressSource && String(addressSource.address||'').trim()){
+        addressTarget.value=String(addressSource.address||'').trim();
+        try{ addressTarget.dispatchEvent(new Event('input',{bubbles:true})); }catch(_e){}
+        try{ addressTarget.dispatchEvent(new Event('change',{bubbles:true})); }catch(_e){}
+      }
+
+      if(!doneMatches.length && !plannedMatches.length && !notDoneMatches.length){
+        box.innerHTML='<div class="recent-ok">לא נמצאה עבודה שבוצעה ב־30 הימים האחרונים, אין סידור מתוזמן ואין פק״ע שלא בוצעה ללקוח הזה ✅</div>';
+        return;
+      }
+      var parts=[];
+      if(doneMatches.length){
+        var last=doneMatches[0];
+        parts.push('✅ היית אצל לקוח זה ב־30 הימים האחרונים.<br>פעם אחרונה: '+dateV570(last.date)+' · '+escV570(last.description||'עבודה')+' · '+moneyV570(last.amount||0)+'<br>כתובת: '+escV570(last.address||''));
+      }
+      if(plannedMatches.length){
+        var next=plannedMatches[0];
+        parts.push('📋 קיימת קריאה/התקנה מתוזמנת ללקוח זה.<br>מועד קרוב: '+dateV570(next.date)+' · '+escV570(next.description||'סידור מתוזמן')+' · צפי '+moneyV570(next.amount||0)+'<br>כתובת: '+escV570(next.address||''));
+      }
+      if(notDoneMatches.length){
+        var nd=notDoneMatches[0];
+        var ndReason=nd.notDoneReason || nd.cancelReason || nd.reason || 'לא צוינה סיבה';
+        var ndNote=nd.notDoneNote || '';
+        parts.push('🚫 פק״ע מתוזמנת שלא בוצעה ללקוח זה.<br>תאריך: '+dateV570(nd.date)+' · '+escV570(nd.description||'פק״ע מתוזמנת')+'<br>סיבה: '+escV570(ndReason)+'<br>כתובת: '+escV570(nd.address||'')+(ndNote?'<br>פירוט: '+escV570(ndNote):''));
+      }
+      box.innerHTML='<div class="recent-box">'+parts.join('<br><br>')+'</div>';
+    }catch(e){
+      var msg=(e && (e.code==='permission-denied' || String(e.message||'').indexOf('permissions')>-1)) ? 'אין הרשאה לבדוק היסטוריית לקוח. השאילתה כבר מוגבלת לעובד הנוכחי, לכן אם זה חוזר צריך לעדכן Rules שיאפשרו לעובד לקרוא workEntries שלו לפי workerId.' : 'שגיאה בבדיקת לקוח: '+(e && e.message ? e.message : e);
+      box.innerHTML='<div class="danger">'+escV570(msg)+'</div>';
+    }
+  };
+
+  // v5.70: עדכון מה חדש דרך אותו מנגנון קיים בלי לשנות HTML/CSS.
+  try{
+    var oldRows=window.requiredChangelogRows || (typeof requiredChangelogRows==='function' ? requiredChangelogRows : null);
+    if(typeof oldRows==='function' && !oldRows.__v570Wrapped){
+      var wrappedRows=function(){
+        var rows=[]; try{ rows=oldRows.apply(this,arguments)||[]; }catch(e){ rows=[]; }
+        var exists=rows.some(function(r){ return String(r.version||r.id||'')==='5.70'; });
+        if(!exists){ rows.unshift({version:'5.70', title:'תיקון סופי להצגת פק״ע שלא בוצעה בבדיקת לקוח', createdAt:'2026-06-24', items:[
+          'בדיקת לקוח חוזר הועברה ל-override סופי בסוף הקובץ כדי שלא תידרס על ידי עטיפות ישנות.',
+          'פק״ע שלא בוצעה מוצגת כהערה עם תאריך, סוג עבודה, סיבה ופירוט ולא כעבודה רגילה עם ₪0.',
+          'רשומות לא בוצע לא נספרות כעבודה שבוצעה או כסידור מתוזמן בבדיקת הלקוח.',
+          'מילוי כתובת אוטומטי נשאר פעיל גם לפי פק״עות שלא בוצעו.'
+        ]}); }
+        return rows;
+      };
+      wrappedRows.__v570Wrapped=true;
+      window.requiredChangelogRows=wrappedRows;
+      try{ requiredChangelogRows=wrappedRows; }catch(e){}
+    }
+  }catch(e){}
   try{ if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
 })();
