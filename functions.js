@@ -2,7 +2,20 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.70 - Final customer lookup override shows not-done planned reason.
+File version: 5.72 - Worker JSON backup click/error fix.
+
+CHANGELOG 5.72 - תיקון כפתור גיבוי JSON אישי
+1. גיבוי JSON אישי עטוף עכשיו ב-try/catch מלא כדי ששגיאת הרשאות/קריאה תוצג לעובד במקום שהכפתור ייראה כאילו לא עושה כלום.
+2. נוסף סטטוס מיידי בזמן הכנת הגיבוי, ועוד פירוט אילו מקטעים דולגו אם Firestore חסם קריאה לאוסף מסוים.
+3. הגיבוי ממשיך להוריד קובץ גם אם מקטעים לא קריטיים כמו תבניות/מחירון/בקשות תשלום לא נגישים בהרשאות העובד.
+4. לא שונו שמירת עבודות, שחזור JSON, דוח התחשבנות, ימי חופש, לוגין או אדמין.
+
+CHANGELOG 5.71 - גיבוי ושחזור JSON מלא לעובד אחד לאחד
+1. גיבוי JSON אישי כולל עכשיו גם פרופיל עסקי של העובד: יעד חודשי רגיל, יעדים לפי חודש monthlyGoalsByMonth ונתוני עובד עסקיים שאינם פרטי התחברות.
+2. גיבוי JSON אישי כולל עבודות, ימי חופש, דוחות התחשבנות חודשיים, תבניות אישיות, מחירון ובקשות תשלום של העובד אם קיימות.
+3. שחזור JSON לעובד אחר ממפה את כל הרשומות לעובד היעד ולא דורס את מסמכי העובד המקורי באותו Firebase.
+4. שחזור ימי חופש ודוחות התחשבנות נשמרים לפי workerId וחודש/תאריך של עובד היעד כדי לקבל שכפול שימושי אחד לאחד.
+5. פרטי התחברות רגישים כמו username, passwordHash, authUid ו-authEmail לא מועתקים לעובד היעד כדי לא לשבור כניסה קיימת.
 
 CHANGELOG 5.69 - בדיקת לקוח: הצגת פק״ע שלא בוצעה
 1. בבדיקת לקוח חוזר, רשומה מתוזמנת שסומנה כלא בוצעה כבר לא מוצגת כעבודה רגילה עם ₪0.
@@ -23,7 +36,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.70";
+const APP_VERSION = "5.72";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -2566,84 +2579,175 @@ async function exportMyEntriesCSV(){
 }
 
 async function backupMyJSON(){
-  if(!viewedWorker)return;
-  // v5.47: גיבוי עובד כולל עכשיו גם ימי חופש של אותו עובד בלבד.
-  const data={
-    version: APP_VERSION,
-    appVersion: APP_VERSION,
-    type:"worker-backup-v413",
-    workerId:viewedWorker.id,
-    workerName:viewedWorker.name||"",
-    exportedAt:new Date().toISOString(),
-    collections:{workEntries:[],installTemplates:[],priceList:[],workerDaysOff:[],monthlySettlements:[]}
-  };
-  const entriesSnap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
-  data.collections.workEntries=entriesSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
-  const tplSnap=await db.collection("installTemplates").get();
-  data.collections.installTemplates=tplSnap.docs.map(d=>({id:d.id,...d.data()})).filter(t=>t.ownerWorkerId===viewedWorker.id).map(t=>({id:t.id,data:serializeFirestore(t)}));
-  const priceSnap=await db.collection("priceList").get();
-  data.collections.priceList=priceSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
-  const daysOffSnap=await db.collection("workerDaysOff").where("workerId","==",viewedWorker.id).get();
-  data.collections.workerDaysOff=daysOffSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
-  // v5.48: גיבוי אישי כולל גם דוחות התחשבנות חודשיים שנשמרים כתת-אוסף של העובד.
-  try{
-    const settlementsSnap=await db.collection("workers").doc(viewedWorker.id).collection("monthlySettlements").get();
-    data.collections.monthlySettlements=settlementsSnap.docs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
-  }catch(e){
-    console.warn("monthlySettlements backup skipped", e && (e.code||e.message) ? (e.code||e.message) : e);
+  // v5.72: תיקון כפתור גיבוי JSON אישי — מציג סטטוס מידי ותופס שגיאות Firestore במקום שהלחיצה תיראה כאילו לא עושה כלום.
+  if(!viewedWorker){
+    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<p class='danger'>לא נמצא עובד מחובר לגיבוי.</p>";
+    return;
   }
-  downloadFile(`my_backup_v${APP_VERSION.replaceAll(".","_")}_${viewedWorker.username||viewedWorker.name||"worker"}.json`,JSON.stringify(data,null,2),"application/json");
-  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>גיבוי אישי ירד למכשיר ✅<br>כולל עבודות, תבניות אישיות, מחירון סיב/RF, ימי חופש ודוחות התחשבנות.</div>";
+  const skipped=[];
+  try{
+    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>מכין גיבוי JSON אישי מלא...</div>";
+
+    async function safeGetDocs(label, readFn){
+      // v5.72: אוסף לא קריטי שלא נקרא בגלל הרשאות לא עוצר את כל הגיבוי; נשמרת הערה בקובץ ובמסך.
+      try{
+        const snap=await readFn();
+        return snap && snap.docs ? snap.docs : [];
+      }catch(e){
+        console.warn("worker backup section skipped:", label, e && (e.code||e.message) ? (e.code||e.message) : e);
+        skipped.push({section:label, code:e&&e.code?e.code:"", message:e&&e.message?e.message:String(e)});
+        return [];
+      }
+    }
+
+    const workerSnap=await db.collection("workers").doc(viewedWorker.id).get();
+    const workerProfile=workerSnap.exists?serializeFirestore(workerSnap.data()):serializeFirestore(viewedWorker||{});
+    const data={
+      version: APP_VERSION,
+      appVersion: APP_VERSION,
+      type:"worker-full-clone-v572",
+      backupSchema:"work-monitor-worker-full-clone-v572",
+      workerId:viewedWorker.id,
+      workerName:viewedWorker.name||"",
+      exportedAt:new Date().toISOString(),
+      notes:"Worker full clone backup. Restore maps records to the target worker and intentionally does not copy login/auth secrets.",
+      workerProfile,
+      skippedSections:skipped,
+      collections:{workEntries:[],installTemplates:[],priceList:[],workerDaysOff:[],monthlySettlements:[],paymentRequests:[]}
+    };
+
+    const entriesDocs=await safeGetDocs("workEntries",()=>db.collection("workEntries").where("workerId","==",viewedWorker.id).get());
+    data.collections.workEntries=entriesDocs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+
+    const tplDocs=await safeGetDocs("installTemplates",()=>db.collection("installTemplates").get());
+    data.collections.installTemplates=tplDocs
+      .map(d=>({id:d.id,...serializeFirestore(d.data())}))
+      .filter(t=>t.ownerWorkerId===viewedWorker.id)
+      .map(t=>({id:t.id,data:t}));
+
+    const priceDocs=await safeGetDocs("priceList",()=>db.collection("priceList").get());
+    data.collections.priceList=priceDocs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+
+    const daysOffDocs=await safeGetDocs("workerDaysOff",()=>db.collection("workerDaysOff").where("workerId","==",viewedWorker.id).get());
+    data.collections.workerDaysOff=daysOffDocs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+
+    const settlementDocs=await safeGetDocs("monthlySettlements",()=>db.collection("workers").doc(viewedWorker.id).collection("monthlySettlements").get());
+    data.collections.monthlySettlements=settlementDocs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+
+    const paymentDocs=await safeGetDocs("paymentRequests",()=>db.collection("paymentRequests").where("workerId","==",viewedWorker.id).get());
+    data.collections.paymentRequests=paymentDocs.map(d=>({id:d.id,data:serializeFirestore(d.data())}));
+
+    // v5.72: מעדכנים את ההערה אחרי הקריאות כדי שגם בקובץ עצמו יופיע אם מקטע מסוים דולג.
+    data.skippedSections=skipped;
+
+    downloadFile(`my_full_backup_v${APP_VERSION.replaceAll(".","_")}_${viewedWorker.username||viewedWorker.name||"worker"}.json`,JSON.stringify(data,null,2),"application/json;charset=utf-8");
+    const skippedHtml=skipped.length?`<br><span class='muted'>שים לב: ${skipped.length} מקטעים לא נקראו בגלל הרשאות/שגיאה, אבל הגיבוי ירד עם כל מה שנגיש.</span>`:"";
+    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML=`<div class='notice'>גיבוי אישי מלא ירד למכשיר ✅<br>כולל ${data.collections.workEntries.length} עבודות, ${data.collections.workerDaysOff.length} ימי חופש, ${data.collections.monthlySettlements.length} דוחות התחשבנות, ${data.collections.installTemplates.length} תבניות ו-${data.collections.paymentRequests.length} בקשות תשלום.${skippedHtml}</div>`;
+  }catch(err){
+    console.error("backupMyJSON failed",err);
+    const msg=esc(err && err.message ? err.message : String(err));
+    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<p class='danger'>שגיאה בגיבוי JSON אישי: "+msg+"</p>";
+    alert("שגיאה בגיבוי JSON אישי: "+(err&&err.message?err.message:String(err)));
+  }
+}
+
+function safeRestoreDocIdV571(targetWorkerId, sourceId, prefix){
+  // v5.71: מזהה חדש וקבוע לעובד היעד כדי לא לדרוס מסמך של עובד המקור באותו Firebase.
+  const cleanTarget=String(targetWorkerId||"worker").replace(/[^A-Za-z0-9_\-]/g,"_");
+  const cleanSource=String(sourceId||Date.now()).replace(/[^A-Za-z0-9_\-]/g,"_");
+  const cleanPrefix=String(prefix||"restore").replace(/[^A-Za-z0-9_\-]/g,"_");
+  return `${cleanTarget}__${cleanPrefix}__${cleanSource}`.slice(0,140);
+}
+
+function businessWorkerProfileForRestoreV571(profile){
+  // v5.71: מעתיקים נתוני עבודה ויעדים בלבד; לא מעתיקים פרטי התחברות/אימות כדי לא לשבור את העובד שאליו משחזרים.
+  const src=profile||{};
+  const blocked={id:1,username:1,usernameKey:1,passwordHash:1,authUid:1,authEmail:1,authReady:1,authNote:1,recoveryEmail:1,createdAt:1,updatedAt:1,movedTo:1,name:1};
+  const out={};
+  Object.keys(src).forEach(k=>{ if(!blocked[k]) out[k]=src[k]; });
+  if(src.monthlyGoal!==undefined) out.monthlyGoal=Number(src.monthlyGoal||0);
+  if(src.monthlyGoalsByMonth && typeof src.monthlyGoalsByMonth==="object") out.monthlyGoalsByMonth=src.monthlyGoalsByMonth;
+  out.restoredWorkerProfileAt=new Date().toISOString();
+  out.updatedAt=firebase.firestore.FieldValue.serverTimestamp();
+  return out;
 }
 async function restoreMyJSON(event){
   const file=event.target.files[0];
   if(!file||!viewedWorker)return;
-  if(!confirm("שחזור אישי יוסיף/יעדכן עבודות, תבניות וימי חופש לחשבון שלך בלבד. להמשיך?"))return;
-  const text=await file.text();
-  const data=JSON.parse(text);
-  const cols=data.collections||{};
-  const entries=cols.workEntries||[];
-  const templatesData=cols.installTemplates||[];
-  const daysOffData=cols.workerDaysOff||[];
-  const settlementsData=cols.monthlySettlements||[];
-  const priceData=[...(cols.priceList||[]),...(cols.priceListFiber||[]).map((x,i)=>({id:(x.id||`fiber_${i}`),data:{...(x.data||x),priceType:"fiber",installKind:"fiber",category:"fiber"}})),...(cols.priceListRF||[]).map((x,i)=>({id:(x.id||`rf_${i}`),data:{...(x.data||x),priceType:"rf",installKind:"rf",category:"rf"}}))];
-  for(const doc of priceData){
-    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
-    await db.collection("priceList").doc(nd.id).set(nd.data,{merge:true});
+  if(!confirm("שחזור אישי מלא יעתיק את נתוני הגיבוי לעובד הנוכחי בלבד.\n\nפרטי התחברות לא יועתקו, אבל עבודות, יעדים, ימי חופש ודוחות כן. להמשיך?"))return;
+  try{
+    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>מבצע שחזור אישי מלא...</div>";
+    const text=await file.text();
+    const data=JSON.parse(text);
+    const cols=data.collections||{};
+    const sourceWorkerId=String(data.workerId || (data.workerProfile&&data.workerProfile.id) || "");
+    const targetWorkerId=String(viewedWorker.id||"");
+    const restoringToDifferentWorker=sourceWorkerId && sourceWorkerId!==targetWorkerId;
+    const entries=cols.workEntries||[];
+    const templatesData=cols.installTemplates||[];
+    const daysOffData=cols.workerDaysOff||[];
+    const settlementsData=cols.monthlySettlements||[];
+    const paymentRequestsData=cols.paymentRequests||[];
+    const priceData=[...(cols.priceList||[]),...(cols.priceListFiber||[]).map((x,i)=>({id:(x.id||`fiber_${i}`),data:{...(x.data||x),priceType:"fiber",installKind:"fiber",category:"fiber"}})),...(cols.priceListRF||[]).map((x,i)=>({id:(x.id||`rf_${i}`),data:{...(x.data||x),priceType:"rf",installKind:"rf",category:"rf"}}))];
+
+    // v5.71: שחזור פרופיל עסקי של העובד כולל יעדים חודשיים לפי חודש, בלי פרטי התחברות ואימות.
+    if(data.workerProfile){
+      await db.collection("workers").doc(targetWorkerId).set(businessWorkerProfileForRestoreV571(data.workerProfile),{merge:true});
+    }
+
+    for(const doc of priceData){
+      const nd=normalizeBackupDocV413(doc); if(!nd)continue;
+      await db.collection("priceList").doc(nd.id).set(nd.data,{merge:true});
+    }
+    for(const doc of entries){
+      const nd=normalizeBackupDocV413(doc); if(!nd)continue;
+      const targetDocId=restoringToDifferentWorker?safeRestoreDocIdV571(targetWorkerId,nd.id,"work"):nd.id;
+      const payload={...(nd.data||{}),workerId:targetWorkerId,workerName:viewedWorker.name,restoredAt:new Date().toISOString(),restoredFromWorkerId:sourceWorkerId||null,restoredFromDocId:nd.id,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+      await db.collection("workEntries").doc(targetDocId).set(payload,{merge:true});
+    }
+    for(const doc of templatesData){
+      const nd=normalizeBackupDocV413(doc); if(!nd)continue;
+      const targetDocId=restoringToDifferentWorker?safeRestoreDocIdV571(targetWorkerId,nd.id,"tpl"):nd.id;
+      const payload={...(nd.data||{}),ownerWorkerId:targetWorkerId,ownerWorkerName:viewedWorker.name,restoredAt:new Date().toISOString(),restoredFromWorkerId:sourceWorkerId||null,restoredFromDocId:nd.id,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+      await db.collection("installTemplates").doc(targetDocId).set(payload,{merge:true});
+    }
+    // v5.71: ימי חופש משוחזרים לפי workerId+date של עובד היעד, לכן הם לא דורסים את עובד המקור.
+    for(const doc of daysOffData){
+      const nd=normalizeBackupDocV413(doc); if(!nd)continue;
+      const original=nd.data||{};
+      const date=String(original.date||"").trim();
+      if(!date) continue;
+      const docId=(typeof docIdDayOff==='function') ? docIdDayOff(targetWorkerId,date) : (targetWorkerId+'_'+date);
+      const payload={...original,workerId:targetWorkerId,workerName:viewedWorker.name,date,restoredAt:new Date().toISOString(),restoredFromWorkerId:sourceWorkerId||null,restoredFromDocId:nd.id,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+      await db.collection("workerDaysOff").doc(docId).set(payload,{merge:true});
+    }
+    // v5.71: דוחות התחשבנות נשמרים תחת תת-אוסף של עובד היעד לפי חודש.
+    for(const doc of settlementsData){
+      const nd=normalizeBackupDocV413(doc); if(!nd)continue;
+      const original=nd.data||{};
+      const month=String(original.month||nd.id||"").slice(0,7);
+      if(!/^\d{4}-\d{2}$/.test(month)) continue;
+      const payload={...original,workerId:targetWorkerId,workerName:viewedWorker.name,month,restoredAt:new Date().toISOString(),restoredFromWorkerId:sourceWorkerId||null,restoredFromDocId:nd.id,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+      await db.collection("workers").doc(targetWorkerId).collection("monthlySettlements").doc(month).set(payload,{merge:true});
+    }
+    // v5.71: בקשות תשלום אם קיימות משויכות מחדש לעובד היעד בלי לדרוס בקשות מקור.
+    for(const doc of paymentRequestsData){
+      const nd=normalizeBackupDocV413(doc); if(!nd)continue;
+      const targetDocId=restoringToDifferentWorker?safeRestoreDocIdV571(targetWorkerId,nd.id,"pay"):nd.id;
+      const payload={...(nd.data||{}),workerId:targetWorkerId,workerName:viewedWorker.name,restoredAt:new Date().toISOString(),restoredFromWorkerId:sourceWorkerId||null,restoredFromDocId:nd.id,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+      await db.collection("paymentRequests").doc(targetDocId).set(payload,{merge:true});
+    }
+    event.target.value="";
+    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML=`<div class='notice'>השחזור האישי המלא הסתיים ✅<br>שוחזרו ${entries.length} עבודות, ${daysOffData.length} ימי חופש, ${settlementsData.length} דוחות התחשבנות, ${templatesData.length} תבניות ו-${paymentRequestsData.length} בקשות תשלום.</div>`;
+    await showWorkerById(targetWorkerId);
+  }catch(err){
+    console.error(err);
+    event.target.value="";
+    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<p class='danger'>שגיאה בשחזור אישי מלא: "+esc(err.message||String(err))+"</p>";
+    alert("שגיאה בשחזור אישי מלא");
   }
-  for(const doc of entries){
-    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
-    const payload={...(nd.data||{}),workerId:viewedWorker.id,workerName:viewedWorker.name,restoredAt:new Date().toISOString()};
-    await db.collection("workEntries").doc(nd.id).set(payload,{merge:true});
-  }
-  for(const doc of templatesData){
-    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
-    const payload={...(nd.data||{}),ownerWorkerId:viewedWorker.id,ownerWorkerName:viewedWorker.name,restoredAt:new Date().toISOString()};
-    await db.collection("installTemplates").doc(nd.id).set(payload,{merge:true});
-  }
-  // v5.47: שחזור ימי חופש תמיד משויך לעובד המחובר בלבד כדי לא לשחזר ימים של עובד אחר.
-  for(const doc of daysOffData){
-    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
-    const original=nd.data||{};
-    const date=String(original.date||"").trim();
-    if(!date) continue;
-    const docId=(typeof docIdDayOff==='function') ? docIdDayOff(viewedWorker.id,date) : (viewedWorker.id+'_'+date);
-    const payload={...original,workerId:viewedWorker.id,workerName:viewedWorker.name,date,restoredAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-    await db.collection("workerDaysOff").doc(docId).set(payload,{merge:true});
-  }
-  // v5.48: שחזור דוחות התחשבנות נשמר תמיד בתת-אוסף של העובד המחובר בלבד.
-  for(const doc of settlementsData){
-    const nd=normalizeBackupDocV413(doc); if(!nd)continue;
-    const original=nd.data||{};
-    const month=String(original.month||nd.id||"").slice(0,7);
-    if(!/^\d{4}-\d{2}$/.test(month)) continue;
-    const payload={...original,workerId:viewedWorker.id,workerName:viewedWorker.name,month,restoredAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-    await db.collection("workers").doc(viewedWorker.id).collection("monthlySettlements").doc(month).set(payload,{merge:true});
-  }
-  event.target.value="";
-  if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>השחזור האישי הסתיים ✅<br>כולל עבודות, תבניות, ימי חופש, דוחות התחשבנות ותמיכה במחירוני סיב/RF.</div>";
-  await loadMonth();
 }
+
 
 
 /* ===== v5.52: דוח התחשבנות חודשי דינמי לעובד =====
@@ -13937,6 +14041,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"5.71", title:"גיבוי ושחזור JSON מלא לעובד", items:["גיבוי JSON אישי כולל עכשיו פרופיל עסקי של העובד, יעד חודשי, יעדים לפי חודש, עבודות, ימי חופש, דוחות התחשבנות, תבניות, מחירון ובקשות תשלום אם קיימות.","שחזור JSON לעובד אחר ממפה את הרשומות לעובד היעד כדי לא לדרוס את העובד המקורי באותו Firebase.","ימי חופש ודוחות התחשבנות נשמרים לפי עובד היעד והתאריך/החודש המקוריים.","פרטי התחברות רגישים כמו username, passwordHash, authUid ו-authEmail לא מועתקים כדי לא לשבור כניסה קיימת."], date:d},
       {version:"5.69", title:"בדיקת לקוח: הצגת פק״ע שלא בוצעה", items:["בדיקת לקוח חוזר מציגה עכשיו פק״ע מתוזמנת שסומנה כלא בוצעה כהערה ברורה ולא כעבודה רגילה עם ₪0.","ההערה כוללת תאריך, סוג עבודה, סיבה ופירוט אם קיים.","מילוי הכתובת האוטומטי נשאר כמו שהיה וממשיך לעבוד גם לפי רשומות שלא בוצעו.","לא שונו שמירת עבודות, מתוזמנות, עריכה, דשבורד, HTML או CSS."], date:d},
       {version:"5.68", title:"חיוב בחירת פק״ע בכל התקנה", items:["בכל שמירת התקנה רגילה או מתוזמנת חובה לבחור סוג פק״ע CN או CH.","בחירה ריקה אינה נחשבת רגילה ולא מאפשרת שמירה.","אם סוג הפק״ע חסר, הטופס נשאר פתוח, מוצגת הודעה אדומה והסמן עובר לשדה סוג הפק״ע.","החובה חלה על כל התקנת RF או סיב, בלי קשר לפריט ההתקנה שנבחר."], date:d},
       {version:"5.67", title:"דשבורד חכם: פירוט CN/CH בהתקנות סיב", items:["כרטיס התקנות סיב מציג עכשיו כמה מתוך התקנות הסיב עם מודם הן פק״ע CN וכמה הן פק״ע CH.","הפירוט נספר רק כאשר בעבודה מסומן הפריט התקנת שקע סיב חדש - כולל מודם.","פק״עות CN/CH שלא כוללות את הפריט הזה לא נספרות בתוך התקנות הסיב כדי לשמור על מדד נקי.","לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, HTML או CSS."], date:d},
