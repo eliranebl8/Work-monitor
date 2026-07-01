@@ -2,7 +2,14 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.72 - Worker JSON backup click/error fix.
+File version: 5.73 - Worker full Excel export by sheets.
+
+CHANGELOG 5.73 - ייצוא עובד מלא לאקסל לפי כרטיסיות
+1. ייצוא העובד לאקסל הורחב מגליון עבודות בסיסי לקובץ XLSX מלא ומסודר.
+2. הקובץ כולל כרטיסיות: סיכום, עבודות לפי חודשים, כל העבודות, יעדים, ימי חופש, דוחות התחשבנות, תבניות, מחירון ובקשות תשלום אם קיימות.
+3. העבודות ממוינות לפי חודש ותאריך, וכל חודש מקבל כרטיסייה נפרדת כדי שיהיה קל לבדוק היסטוריה.
+4. נוספו סטטוסים והודעות שגיאה לייצוא כדי שכשל הרשאות במקטע אחד לא יפיל את כל האקסל.
+5. לא שונו גיבוי JSON, שחזור JSON, שמירת עבודות, לוגין או דוח התחשבנות.
 
 CHANGELOG 5.72 - תיקון כפתור גיבוי JSON אישי
 1. גיבוי JSON אישי עטוף עכשיו ב-try/catch מלא כדי ששגיאת הרשאות/קריאה תוצג לעובד במקום שהכפתור ייראה כאילו לא עושה כלום.
@@ -36,7 +43,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.72";
+const APP_VERSION = "5.73";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -2546,35 +2553,159 @@ function toggleWorkerTools(){
   const p=$("workerToolsPanel");
   if(p)p.classList.toggle("hidden");
 }
+function excelEntryStatusV573(e){
+  // v5.73: תרגום סטטוס עבודה לשפה ברורה באקסל בלי לשנות את הנתון המקורי ב-Firestore.
+  const raw=String(e.entryStatus||e.status||"").toLowerCase();
+  if(raw==="planned")return "מתוכנן";
+  if(raw==="not_done"||raw==="cancelled")return "לא בוצע";
+  if(typeof window.isPlannedV49==="function" && window.isPlannedV49(e))return "מתוכנן";
+  return "בוצע";
+}
+function excelWorkTypeV573(e){
+  if(e.workType==="service")return "קריאת שירות";
+  if(e.workType==="install")return "התקנה";
+  return e.workType||"";
+}
+function excelMonthKeyV573(date){
+  const s=String(date||"");
+  return /^\d{4}-\d{2}/.test(s)?s.slice(0,7):"ללא חודש";
+}
+function excelItemsTextV573(items){
+  return (Array.isArray(items)?items:[]).map(i=>`${i.name||""} x ${i.quantity||""} = ${i.total??""}`).filter(Boolean).join(" | ");
+}
+function excelExpenseTextV573(expenses){
+  return (Array.isArray(expenses)?expenses:[]).map(x=>`${x.name||x.label||"הוצאה"}: ${x.amount??0}${x.recurring?" (קבועה)":""}`).join(" | ");
+}
+function excelMonthlyGoalForV573(profile,month){
+  // v5.73: יעד חודשי נלקח קודם ממפת monthlyGoalsByMonth, ואם אין יעד לחודש - מהיעד הכללי של העובד.
+  const goals=(profile&&profile.monthlyGoalsByMonth&&typeof profile.monthlyGoalsByMonth==="object")?profile.monthlyGoalsByMonth:{};
+  const val=goals[month];
+  if(val!==undefined && val!==null && val!=="")return Number(val||0);
+  return Number(profile&&profile.monthlyGoal?profile.monthlyGoal:0);
+}
+function excelWorkRowV573(e,viewedWorker){
+  return {
+    "מזהה":e.id||"",
+    "חודש":excelMonthKeyV573(e.date),
+    "תאריך":e.date||"",
+    "שם עובד":e.workerName||viewedWorker.name||"",
+    "סטטוס":excelEntryStatusV573(e),
+    "סוג עבודה":excelWorkTypeV573(e),
+    "תיאור":e.description||"",
+    "פק״ע":e.peka||e.orderNumber||e.workOrder||"",
+    "CN/CH":e.installAction||e.cnch||e.orderAction||"",
+    "מספר לקוח":e.customerNumber||"",
+    "כתובת":e.address||"",
+    "סכום":e.amount??"",
+    "קריאה חוזרת":e.isReturnCall?"כן":"",
+    "סיבת לא בוצע":e.notDoneReason||e.cancelReason||e.reason||"",
+    "הערת לא בוצע":e.notDoneNote||"",
+    "הערות":e.notes||"",
+    "פריטים":excelItemsTextV573(e.items),
+    "נוצר":e.createdAt||"",
+    "עודכן":e.updatedAt||"",
+    "שוחזר מ-worker":e.restoredFromWorkerId||"",
+    "שוחזר ממסמך":e.restoredFromDocId||""
+  };
+}
+function excelSettlementRowV573(doc){
+  const d=doc.data||doc||{};
+  return {
+    "חודש":d.month||doc.id||"",
+    "הכנסות RF לפני מע״מ":d.rfIncome??d.rfBeforeVat??"",
+    "הכנסות סיב לפני מע״מ":d.fiberIncome??d.fiberBeforeVat??"",
+    "מכירות לפני מע״מ":d.salesIncome??d.salesBeforeVat??"",
+    "הכנסה כללית לפני מע״מ":d.generalIncome??d.generalBeforeVat??"",
+    "סה״כ הכנסות בפועל לפני מע״מ":d.actualIncomeBeforeVat??d.totalIncomeBeforeVat??d.totalActualBeforeVat??"",
+    "ציוד/קיזוז 6% בפועל":d.equipmentDeduction??d.deduction6Amount??"",
+    "קנסות בפועל":d.penaltyAmount??d.penalty??"",
+    "הוצאות נוספות":excelExpenseTextV573(d.expenses||d.dynamicExpenses),
+    "סה״כ קיזוזים":d.totalDeductions??"",
+    "נטו לפני מע״מ":d.netBeforeVat??"",
+    "כולל מע״מ":d.totalWithVat??d.finalWithVat??"",
+    "סכום מערכת":d.systemTotal??d.systemAmount??"",
+    "פער מול מערכת":d.diffFromSystem??d.difference??"",
+    "עודכן":d.updatedAt||"",
+    "נתונים מלאים":safeCellV505(d)
+  };
+}
 async function exportMyEntriesCSV(){
   if(!viewedWorker)return;
+  const skipped=[];
   try{
-    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>מכין ייצוא אישי לאקסל...</div>";
-    const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();
-    const rows=snap.docs.map(d=>({id:d.id,...serializeFirestore(d.data())})).sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
-    const exportRows=rows.map(e=>({
-      id:e.id,
-      date:e.date||"",
-      workerName:e.workerName||viewedWorker.name||"",
-      customerNumber:e.customerNumber||"",
-      address:e.address||"",
-      workType:e.workType==="service"?"קריאת שירות":(e.workType==="install"?"התקנה":(e.workType||"")),
-      description:e.description||"",
-      amount:e.amount??"",
-      notes:e.notes||"",
-      items:(e.items||[]).map(i=>`${i.name||""} x ${i.quantity||""} = ${i.total??""}`).join(" | "),
-      createdAt:e.createdAt||"",
-      updatedAt:e.updatedAt||""
-    }));
-    downloadExcelTsvV504(
-      `my_work_entries_${viewedWorker.username||viewedWorker.name||"worker"}_v${APP_VERSION.replaceAll(".","_")}.xls`,
-      exportRows,
-      ["id","date","workerName","customerNumber","address","workType","description","amount","notes","items","createdAt","updatedAt"]
-    );
-    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>הייצוא האישי לאקסל ירד למכשיר ✅<br>העמודות מופרדות בטאבים אמיתיים ושורות CRLF, כך שלא ייפתח כשורה אחת ארוכה.</div>";
+    // v5.73: ייצוא אקסל אישי מלא - לא רק עבודות, אלא כל הנתונים העסקיים של העובד בכרטיסיות מסודרות.
+    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<div class='notice'>מכין ייצוא אישי מלא לאקסל...</div>";
+    async function safeDocs(label, readFn){
+      try{const snap=await readFn();return snap&&snap.docs?snap.docs:[];}catch(e){skipped.push({"מקטע":label,"שגיאה":e&&e.code?e.code:"error","פירוט":e&&e.message?e.message:String(e)});return [];}
+    }
+    const workerSnap=await db.collection("workers").doc(viewedWorker.id).get().catch(()=>null);
+    const workerProfile=workerSnap&&workerSnap.exists?serializeFirestore(workerSnap.data()):serializeFirestore(viewedWorker||{});
+
+    const entriesDocs=await safeDocs("workEntries",()=>db.collection("workEntries").where("workerId","==",viewedWorker.id).get());
+    const entries=entriesDocs.map(d=>({id:d.id,...serializeFirestore(d.data())})).sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")) || String(a.createdAt||"").localeCompare(String(b.createdAt||"")));
+    const workRows=entries.map(e=>excelWorkRowV573(e,viewedWorker));
+
+    const daysDocs=await safeDocs("workerDaysOff",()=>db.collection("workerDaysOff").where("workerId","==",viewedWorker.id).get());
+    const daysRows=daysDocs.map(d=>({id:d.id,...serializeFirestore(d.data())})).sort((a,b)=>String(a.date||"").localeCompare(String(b.date||""))).map(d=>({"מזהה":d.id,"חודש":excelMonthKeyV573(d.date),"תאריך":d.date||"","עובד":d.workerName||viewedWorker.name||"","סיבה/הערה":d.reason||d.notes||"","נוצר":d.createdAt||"","עודכן":d.updatedAt||""}));
+
+    const settlementDocs=await safeDocs("monthlySettlements",()=>db.collection("workers").doc(viewedWorker.id).collection("monthlySettlements").get());
+    const settlementRows=settlementDocs.map(d=>({id:d.id,data:serializeFirestore(d.data())})).sort((a,b)=>String(a.id).localeCompare(String(b.id))).map(excelSettlementRowV573);
+
+    const tplDocs=await safeDocs("installTemplates",()=>db.collection("installTemplates").get());
+    const templateRows=tplDocs.map(d=>({id:d.id,...serializeFirestore(d.data())})).filter(t=>t.ownerWorkerId===viewedWorker.id || !t.ownerWorkerId).map(t=>({"מזהה":t.id,"שם תבנית":t.name||"","בעלים":t.ownerWorkerName||t.createdByName||"","עובד בעלים":t.ownerWorkerId||"כללי/מנהל","פעיל":t.active===false?"לא":"כן","פריטים":excelItemsTextV573(t.items),"נוצר":t.createdAt||"","עודכן":t.updatedAt||""}));
+
+    const priceDocs=await safeDocs("priceList",()=>db.collection("priceList").get());
+    const priceRows=priceDocs.map(d=>({id:d.id,...serializeFirestore(d.data())})).sort((a,b)=>String(a.category||a.priceType||"").localeCompare(String(b.category||b.priceType||"")) || String(a.name||"").localeCompare(String(b.name||""))).map(p=>({"מזהה":p.id,"שם":p.name||"","מחיר":p.price??"","סוג/קטגוריה":p.priceType||p.installKind||p.category||"","מצב קלט":p.inputMode||"","פעיל":p.active===false?"לא":"כן","נתונים מלאים":safeCellV505(p)}));
+
+    const payDocs=await safeDocs("paymentRequests",()=>db.collection("paymentRequests").where("workerId","==",viewedWorker.id).get());
+    const paymentRows=payDocs.map(d=>({id:d.id,...serializeFirestore(d.data())})).sort((a,b)=>String(a.date||a.createdAt||"").localeCompare(String(b.date||b.createdAt||""))).map(p=>({"מזהה":p.id,"חודש":excelMonthKeyV573(p.date||p.month),"תאריך":p.date||"","סכום":p.amount??"","סטטוס":p.status||"","הערות":p.notes||"","נוצר":p.createdAt||"","עודכן":p.updatedAt||"","נתונים מלאים":safeCellV505(p)}));
+
+    const months=Array.from(new Set([...entries.map(e=>excelMonthKeyV573(e.date)),...daysRows.map(d=>d["חודש"]),...settlementRows.map(s=>String(s["חודש"]||"").slice(0,7)).filter(Boolean)])).filter(Boolean).sort();
+    const summaryRows=months.map(month=>{
+      const monthEntries=entries.filter(e=>excelMonthKeyV573(e.date)===month);
+      const done=monthEntries.filter(e=>excelEntryStatusV573(e)==="בוצע");
+      const planned=monthEntries.filter(e=>excelEntryStatusV573(e)==="מתוכנן");
+      const notDone=monthEntries.filter(e=>excelEntryStatusV573(e)==="לא בוצע");
+      const services=monthEntries.filter(e=>e.workType==="service");
+      const installs=monthEntries.filter(e=>e.workType==="install");
+      const total=done.reduce((sum,e)=>sum+Number(e.amount||0),0);
+      const goal=excelMonthlyGoalForV573(workerProfile,month);
+      const daysOff=daysRows.filter(d=>d["חודש"]===month).length;
+      return {"חודש":month,"סה״כ עבודות":monthEntries.length,"בוצעו":done.length,"מתוכננות":planned.length,"לא בוצעו":notDone.length,"קריאות שירות":services.length,"התקנות":installs.length,"סכום עבודות שבוצעו":total,"יעד חודשי":goal,"פער ליעד":goal?total-goal:"","ימי חופש":daysOff};
+    });
+
+    const goalRows=[];
+    const goals=(workerProfile.monthlyGoalsByMonth&&typeof workerProfile.monthlyGoalsByMonth==="object")?workerProfile.monthlyGoalsByMonth:{};
+    Object.keys(goals).sort().forEach(month=>goalRows.push({"חודש":month,"יעד":goals[month],"מקור":"יעד לפי חודש"}));
+    if(workerProfile.monthlyGoal!==undefined)goalRows.unshift({"חודש":"ברירת מחדל","יעד":workerProfile.monthlyGoal,"מקור":"יעד כללי של העובד"});
+    if(!goalRows.length)goalRows.push({"חודש":"","יעד":"","מקור":"לא נמצאו יעדים"});
+
+    const profileRows=Object.keys(workerProfile||{}).sort().map(k=>({"שדה":k,"ערך":safeCellV505(workerProfile[k])}));
+    const sheets=[
+      {name:"סיכום",headers:["שדה","ערך"],rows:[{"שדה":"גרסה","ערך":APP_VERSION},{"שדה":"עובד","ערך":viewedWorker.name||""},{"שדה":"מזהה עובד","ערך":viewedWorker.id||""},{"שדה":"תאריך ייצוא","ערך":new Date().toISOString()},{"שדה":"מספר עבודות","ערך":entries.length},{"שדה":"מספר ימי חופש","ערך":daysRows.length},{"שדה":"מספר דוחות התחשבנות","ערך":settlementRows.length},{"שדה":"מספר תבניות","ערך":templateRows.length},{"שדה":"מקטעים שדולגו","ערך":skipped.length}]},
+      {name:"סיכום חודשים",rows:summaryRows.length?summaryRows:[{"מידע":"אין נתונים חודשיים"}]},
+      {name:"כל העבודות",rows:workRows.length?workRows:[{"מידע":"אין עבודות"}]},
+      {name:"יעדים",rows:goalRows},
+      {name:"ימי חופש",rows:daysRows.length?daysRows:[{"מידע":"אין ימי חופש"}]},
+      {name:"דוחות התחשבנות",rows:settlementRows.length?settlementRows:[{"מידע":"אין דוחות התחשבנות"}]},
+      {name:"תבניות",rows:templateRows.length?templateRows:[{"מידע":"אין תבניות"}]},
+      {name:"מחירון",rows:priceRows.length?priceRows:[{"מידע":"אין מחירון"}]},
+      {name:"בקשות תשלום",rows:paymentRows.length?paymentRows:[{"מידע":"אין בקשות תשלום"}]},
+      {name:"פרופיל עובד",rows:profileRows.length?profileRows:[{"מידע":"אין פרופיל עובד"}]}
+    ];
+    months.forEach(month=>{
+      const rows=workRows.filter(r=>r["חודש"]===month);
+      sheets.push({name:`עבודות ${month}`,rows:rows.length?rows:[{"מידע":"אין עבודות בחודש"}]});
+    });
+    if(skipped.length)sheets.push({name:"שגיאות ייצוא",rows:skipped});
+
+    downloadXlsxV505(`my_full_export_v${APP_VERSION.replaceAll(".","_")}_${viewedWorker.username||viewedWorker.name||"worker"}.xlsx`,sheets);
+    const skippedHtml=skipped.length?`<br><span class='muted'>שים לב: ${skipped.length} מקטעים דולגו בגלל הרשאות/שגיאה, אבל האקסל ירד עם כל מה שנגיש.</span>`:"";
+    if($("workerToolsMsg"))$("workerToolsMsg").innerHTML=`<div class='notice'>ייצוא אישי מלא לאקסל ירד למכשיר ✅<br>כולל ${entries.length} עבודות, ${daysRows.length} ימי חופש, ${settlementRows.length} דוחות התחשבנות, ${templateRows.length} תבניות, מחירון ויעדים בכרטיסיות נפרדות.${skippedHtml}</div>`;
   }catch(err){
-    console.error(err);
+    console.error("exportMyEntriesCSV full export failed",err);
     if($("workerToolsMsg"))$("workerToolsMsg").innerHTML="<p class='danger'>שגיאה בייצוא אישי לאקסל: "+esc(err.message||String(err))+"</p>";
+    alert("שגיאה בייצוא אישי לאקסל");
   }
 }
 
@@ -14057,6 +14188,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
       {version:"5.57", title:"יעד חודשי נקרא לפי החודש בדשבורד", items:["הדשבורד והכרטיסים קוראים יעד לפי החודש שמוצג בלוח מתוך monthlyGoalsByMonth.","אם אין יעד שמור לחודש, יש fallback ליעד monthlyGoal הכללי.","שינוי יעד לחודש אחד לא משנה את הצגת היעד בחודש אחר.","לא שונו Security Rules או שמירת עבודות."], date:d},
       {version:"5.56", title:"בחירת חודש יעד עם שדה חודש אמיתי", items:["בחירת חודש ליעד חודשי הוחלפה לשדה חודש אמיתי כדי שלא להישאר רק עם חודש נוכחי.","המשתמש יכול לבחור חודש ולשמור יעד ספציפי לאותו חודש.","השמירה נשארת בתוך מסמך העובד תחת monthlyGoalsByMonth.","לא שונו Security Rules או שמירת עבודות."], date:d},
       {version:"5.55", title:"שמירת יעד חודשי לפי חודש בתוך העובד", items:["נוסף מנגנון monthlyGoalsByMonth בתוך מסמך העובד לשמירת יעד לכל חודש.","בהגדרות העובד נוספה אפשרות לשייך יעד לחודש נבחר.","היעד הכללי monthlyGoal נשמר כתאימות לאחור לעובדים וחודשים ישנים.","לא נדרש שינוי Security Rules כי הנתון נשמר בתוך מסמך העובד הקיים."], date:d},
+      {version:"5.73", title:"ייצוא עובד מלא לאקסל לפי כרטיסיות", items:["ייצוא העובד לאקסל הורחב לקובץ XLSX מלא עם כרטיסיות נפרדות ולא רק גליון עבודות בסיסי.","נוספו כרטיסיות סיכום, סיכום חודשים, כל העבודות, יעדים, ימי חופש, דוחות התחשבנות, תבניות, מחירון ובקשות תשלום.","כל חודש מקבל כרטיסיית עבודות נפרדת, והנתונים ממוינים לפי חודש ותאריך כדי שיהיה נוח לבדיקה.","אם מקטע מסוים חסום בהרשאות, הייצוא ממשיך עם שאר הנתונים ומציג כרטיסיית שגיאות ייצוא."], date:d},
       {version:"5.54", title:"ימי חופש לפי חודש בלוח ובדשבורד", items:["טעינת החודש הפעילה טוענת עכשיו את ימי החופש של החודש הנבחר לפני רינדור הלוח והדשבורד.","מעבר לחודש קודם או חודש הבא מציג מיד את סימוני החופש של אותו חודש, בלי צורך לסמן מחדש יום חופש.","הדשבורד החכם מחשב את מספר ימי החופש לפי החודש שמוצג בלוח ולא לפי נתון ישן שנשאר בזיכרון.","לא שונו שמירת יום חופש, ביטול יום חופש, עבודות, פק״ע, לא בוצע, דוח התחשבנות, גיבוי, אקסל או לוגין."], date:d},
       {version:"5.53", title:"דוח התחשבנות: צבעים וטקסטים קצרים", items:["שורת ההפרש מול המערכת קוצרה לשתי שורות כדי שלא תגלוש מחוץ לכרטיס במובייל.","חסר מול המערכת מוצג באדום, עודף מול המערכת מוצג בירוק, ומצב מאוזן מוצג באפור.","הכנסות, נטו וסכום סופי מוצגים בירוק; קנסות, ציוד שחור, הוצאות נוספות וסה״כ קיזוזים מוצגים באדום.","קוצרו טקסטים בדוח: ציוד שחור, הוצאות נוספות, נטו לפני מע״מ, סכום סופי כולל מע״מ.","לא שונו חישובי הדוח או שמירת הדוחות, ולא נגעו בעבודות, פק״ע, לא בוצע, גיבוי, אקסל או לוגין."], date:d},
       {version:"5.52", title:"דוח התחשבנות: הסברים קטנים וברוטו אחרי קיזוזים", items:["נוספו הסברונים קטנים מעל שדות דוח ההתחשבנות כדי שיהיה ברור מה מזינים בכל מספר גם אחרי שהשדה מלא.","תוקן חישוב הברוטו בפועל כך שמע״מ 18% מחושב על הנטו אחרי קיזוזים ולא על ההכנסה לפני קיזוזים.","שורת הפער מול המערכת מציגה עכשיו חסר / יותר / תואם במקום מספר שלילי מבלבל.","נשמרו כל שדות הדוח והמסמך הקיים תחת העובד, בלי לשנות שמירת עבודות, פק״ע, לא בוצע, גיבוי או אקסל."], date:d},
