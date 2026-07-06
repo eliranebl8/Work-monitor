@@ -2,7 +2,13 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.73 - Worker full Excel export by sheets.
+File version: 5.75 - Smart Dashboard planned completed summary.
+
+CHANGELOG 5.75 - מתוזמנות שבוצעו בדשבורד החכם
+1. APP_VERSION עודכן ל-"5.75".
+2. נוסף לדשבורד החכם אזור חדש "מתוזמנות שבוצעו" מתחת לאזור "מתוזמנות שלא בוצעו".
+3. החישוב משתמש רק בשדה הקיים convertedFromPlanned=true וברשומות שבוצעו; לא נוסף שדה חדש ולא שונתה שמירת נתונים.
+4. האזור מציג כמות, סכום ורשימה מתומצתת עם גלילה לפי תאריך, לקוח, סוג עבודה, כתובת וסכום.
 
 CHANGELOG 5.73 - ייצוא עובד מלא לאקסל לפי כרטיסיות
 1. ייצוא העובד לאקסל הורחב מגליון עבודות בסיסי לקובץ XLSX מלא ומסודר.
@@ -43,7 +49,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.73";
+const APP_VERSION = "5.75";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -15826,4 +15832,98 @@ CHANGELOG 5.70 - תיקון סופי להצגת פק״ע שלא בוצעה בב�
     }
   }catch(e){}
   try{ if(typeof setAppVersionUI==='function') setAppVersionUI(); }catch(e){}
+})();
+
+
+(function(){
+  'use strict';
+  var APP_VERSION_V574 = (typeof APP_VERSION !== 'undefined' ? APP_VERSION : (window.APP_VERSION || '5.75'));
+
+  function byId(id){ return document.getElementById(id); }
+  function safe(v){ try{ if(typeof esc==='function') return esc(v); }catch(e){} return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function moneySafe(v){ try{ if(typeof money==='function') return money(v); }catch(e){} return '₪'+Number(v||0).toLocaleString('he-IL'); }
+  function dateSafe(v){ try{ if(typeof heDate==='function') return heDate(v); }catch(e){} return String(v||''); }
+  function statusOf(e){ return String((e && (e.entryStatus || e.status)) || 'done'); }
+  function labelOf(e){
+    try{ if(typeof entryTypeLabelV529==='function') return entryTypeLabelV529(e); }catch(err){}
+    if(!e) return '';
+    if(e.workType==='install') return 'התקנה';
+    if(e.isReturnCall) return 'קריאה חוזרת';
+    return 'קריאת שירות';
+  }
+  function updateVersionUiV574(){
+    try{ window.APP_VERSION=APP_VERSION_V574; }catch(e){}
+    try{ document.title='מעקב עבודה - גרסה '+APP_VERSION_V574; }catch(e){}
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent=APP_VERSION_V574; }); }catch(e){}
+    try{ document.querySelectorAll('.secret,#secretTap').forEach(function(el){ el.textContent='גרסה '+APP_VERSION_V574; }); }catch(e){}
+  }
+
+  function isCompletedFromPlannedV574(e){
+    // v5.75: לא ממציאים סימון חדש. משתמשים בסימון הקיים convertedFromPlanned=true שנשמר כאשר מתוזמנת סומנה כבוצעה.
+    return !!(e && e.convertedFromPlanned === true && statusOf(e)!=='planned' && statusOf(e)!=='not_done' && statusOf(e)!=='cancelled');
+  }
+
+  function appendCompletedPlannedSmartDashboardV574(){
+    try{
+      var host=byId('smartDashboard'); if(!host) return;
+      var old=byId('plannedDoneSmartPanelV574'); if(old) old.remove();
+      var entries=(Array.isArray(window.monthEntries)?window.monthEntries:(typeof monthEntries!=='undefined'&&Array.isArray(monthEntries)?monthEntries:[])).filter(isCompletedFromPlannedV574);
+      entries=entries.slice().sort(function(a,b){ return String(b.date||'').localeCompare(String(a.date||'')); });
+      var total=entries.reduce(function(s,e){ return s+Number(e.amount||0); },0);
+      var listHtml=entries.length ? entries.map(function(e){
+        return '<div class="item planned-done-card-v574"><div><div class="item-title">'+dateSafe(e.date)+' · '+safe(labelOf(e))+' · לקוח '+safe(e.customerNumber||'')+'</div><div class="item-sub">כתובת: '+safe(e.address||'')+(e.notes?'<br>הערה: '+safe(e.notes):'')+'</div></div><div><div class="planned-done-badge-v574">בוצע</div><div class="money">'+moneySafe(e.amount||0)+'</div></div></div>';
+      }).join('') : '<p class="muted">אין החודש מתוזמנות שסומנו כבוצעו.</p>';
+      var panel=document.createElement('div');
+      panel.id='plannedDoneSmartPanelV574';
+      panel.className='planned-done-panel-v574';
+      panel.innerHTML='<h3>✅ מתוזמנות שבוצעו</h3><p class="muted">סה״כ מתוזמנות שבוצעו החודש: <b>'+entries.length+'</b> · סכום: <b>'+moneySafe(total)+'</b></p><div class="planned-done-list-v574">'+listHtml+'</div>';
+      var notDonePanel=byId('notDoneSmartPanelV529');
+      if(notDonePanel && notDonePanel.parentNode===host) notDonePanel.insertAdjacentElement('afterend', panel);
+      else host.appendChild(panel);
+    }catch(e){ console.warn('appendCompletedPlannedSmartDashboardV574 failed', e); }
+  }
+  window.appendCompletedPlannedSmartDashboardV574=appendCompletedPlannedSmartDashboardV574;
+
+  function wrapDashboardV574(){
+    try{
+      if(window.__plannedDoneDashboardWrappedV574 || typeof window.renderSmartDashboard!=='function') return;
+      var oldSmart=window.renderSmartDashboard;
+      window.renderSmartDashboard=function(){
+        var r=oldSmart.apply(this,arguments);
+        try{ appendCompletedPlannedSmartDashboardV574(); }catch(e){}
+        return r;
+      };
+      window.__plannedDoneDashboardWrappedV574=true;
+    }catch(e){}
+  }
+
+  function bootV574(){
+    updateVersionUiV574();
+    wrapDashboardV574();
+    try{ appendCompletedPlannedSmartDashboardV574(); }catch(e){}
+  }
+
+  // v5.75: עדכון מקור ה"מה חדש" הקיים בלי לשנות מנגנון Changelog אחר.
+  try{
+    var oldRows=window.requiredChangelogRows || (typeof requiredChangelogRows==='function' ? requiredChangelogRows : null);
+    if(typeof oldRows==='function' && !oldRows.__v574Wrapped){
+      var wrappedRows=function(){
+        var rows=[]; try{ rows=oldRows.apply(this,arguments)||[]; }catch(e){ rows=[]; }
+        var exists=rows.some(function(r){ return String(r.version||r.id||'')==='5.75'; });
+        if(!exists){ rows.unshift({version:'5.75', title:'מתוזמנות שבוצעו בדשבורד החכם', createdAt:'2026-07-06', items:[
+          'נוסף אזור מתחת למתוזמנות שלא בוצעו שמציג מתוזמנות שבוצעו בהצלחה.',
+          'החישוב משתמש בסימון הקיים convertedFromPlanned=true ולא יוצר שדה חדש.',
+          'מוצגים כמות, סכום ורשימה בגלילה של תאריך, לקוח, סוג עבודה, כתובת וסכום.',
+          'לא שונו שמירה, סימון בוצע, סימון לא בוצע, גיבוי, שחזור, אקסל או PDF.'
+        ]}); }
+        return rows;
+      };
+      wrappedRows.__v574Wrapped=true;
+      window.requiredChangelogRows=wrappedRows;
+      try{ requiredChangelogRows=wrappedRows; }catch(e){}
+    }
+  }catch(e){}
+
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(bootV574,350); setTimeout(bootV574,1400); });
+  window.addEventListener('load',function(){ setTimeout(bootV574,450); setTimeout(bootV574,1700); });
 })();
