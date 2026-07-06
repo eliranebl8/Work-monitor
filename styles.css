@@ -1,4 +1,4 @@
-/* File version: 5.65 | Unchanged in 5.66 */
+/* File version: 5.74 - Smart Dashboard planned completed summary styles. */
 /* Work Monitor app - extracted CSS pilot */
 
 :root{
@@ -4117,4 +4117,41 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
   font-weight:800!important;
   line-height:1.45!important;
   margin-top:6px!important;
+}
+
+
+/* v5.74: עיצוב אזור מתוזמנות שבוצעו בדשבורד החכם בלי לשנות HTML קיים. */
+.planned-done-panel-v574{
+  margin-top:14px;
+  padding:16px;
+  border-radius:18px;
+  border:1px solid rgba(22,163,74,.22);
+  background:rgba(240,253,244,.9);
+  box-shadow:0 10px 24px rgba(15,23,42,.06);
+}
+.planned-done-panel-v574 h3{margin:0 0 8px;font-size:18px;color:#166534;}
+.planned-done-list-v574{
+  max-height:290px;
+  overflow:auto;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding-inline-end:3px;
+}
+.planned-done-card-v574{
+  border-color:rgba(22,163,74,.22);
+  background:rgba(255,255,255,.92);
+}
+.planned-done-badge-v574{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  padding:5px 9px;
+  font-size:12px;
+  font-weight:900;
+  color:#166534;
+  background:#dcfce7;
+  border:1px solid rgba(22,163,74,.25);
+  margin-bottom:6px;
 }
