@@ -2,10 +2,35 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.75 - Smart Dashboard planned completed summary.
+File version: 5.78 - quick search icons in work cards.
 
-CHANGELOG 5.75 - מתוזמנות שבוצעו בדשבורד החכם
+CHANGELOG 5.78 - קיצור חיפוש מכרטיסי פק״ע
+1. APP_VERSION עודכן ל-"5.78".
+2. נוסף אייקון חיפוש קטן ליד מספר לקוח וליד כתובת בכרטיסי פק״ע/עבודה.
+3. לחיצה על האייקון פותחת את כרטיסיית החיפוש הקיימת, ממלאת את הערך ומריצה חיפוש בכל ההיסטוריה ללא תאריך.
+4. השינוי משתמש במנגנון החיפוש הקיים בלבד ולא מוסיף שדות נתונים חדשים.
+
+CHANGELOG 5.77 - כיווץ רק בכרטיסיות העליונות של העובד
+1. APP_VERSION עודכן ל-"5.77".
+2. כפתור הכיווץ הוגבל לכרטיסיות העליונות של העובד: תצוגה כללית, הכלים שלי, הגדרות, דשבורד חכם, היסטוריית לקוח וחיפוש.
+3. לוח השנה, רשימת פק״עות, פאנל יום וכניסה/אדמין לא מקבלים יותר כפתור כיווץ.
+4. מצב הכיווץ נשמר ב-localStorage לכל כרטיסייה ומכשיר.
+5. "מה חדש" עודכן לגרסה 5.77.
+
+CHANGELOG 5.76 - כיווץ כרטיסים ושמירה מקומית
+1. APP_VERSION עודכן ל-"5.76".
+2. נוסף לכל כרטיס תוכן באפליקציה כפתור חץ בכותרת לפתיחה וכיווץ של התוכן.
+3. מצב הכיווץ נשמר ב-localStorage לכל מכשיר לפי מזהה הכרטיס, ולכן נשאר גם אחרי רענון או כניסה מחדש.
+4. כרטיס מכווץ משאיר רק את הכותרת כדי שהאזורים שמתחתיו, כולל הלוח, יעלו למעלה ויחסכו מקום במסך.
+5. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.70, 5.72, 5.74 ו-5.75.
+
+CHANGELOG 5.75 - ניקוי טקסט טכני מדשבורד חכם
 1. APP_VERSION עודכן ל-"5.75".
+2. הוסר מהכרטיס "מתוזמנות שבוצעו" הטקסט הטכני שהסביר על convertedFromPlanned.
+3. לא שונתה שום לוגיקה, חישוב או שמירת נתונים.
+
+CHANGELOG 5.74 - מתוזמנות שבוצעו בדשבורד החכם
+1. APP_VERSION עודכן ל-"5.74".
 2. נוסף לדשבורד החכם אזור חדש "מתוזמנות שבוצעו" מתחת לאזור "מתוזמנות שלא בוצעו".
 3. החישוב משתמש רק בשדה הקיים convertedFromPlanned=true וברשומות שבוצעו; לא נוסף שדה חדש ולא שונתה שמירת נתונים.
 4. האזור מציג כמות, סכום ורשימה מתומצתת עם גלילה לפי תאריך, לקוח, סוג עבודה, כתובת וסכום.
@@ -49,7 +74,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.75";
+const APP_VERSION = "5.78";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -14178,6 +14203,13 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"5.78", title:"קיצור חיפוש מכרטיסי פק״ע", items:["נוסף אייקון חיפוש קטן ליד מספר לקוח וליד כתובת בכרטיסי פק״ע/עבודה.","לחיצה על האייקון פותחת את כרטיסיית החיפוש הקיימת, ממלאת את מספר הלקוח או הכתובת ומריצה חיפוש בכל ההיסטוריה ללא הגבלת זמן.","השינוי משתמש במנגנון החיפוש הקיים בלבד ולא מוסיף שדות חדשים או משנה נתונים."], date:d},
+      {version:"5.77", title:"כיווץ רק בכרטיסיות העובד", items:["כפתור הכיווץ מופיע רק בכרטיסיות העליונות של העובד: תצוגה כללית, הכלים שלי, הגדרות אישיות, דשבורד חכם, היסטוריית לקוח והחיפוש וסיכומים.","לוח השנה, רשימת פק״עות ופאנלים של יום/עריכה לא מקבלים יותר כפתור כיווץ.","מצב הכיווץ נשמר מקומית ב-localStorage לכל כרטיסייה ומכשיר.","לא שונו חישובים, שמירת עבודות, גיבוי JSON, ייצוא אקסל או דוח התחשבנות."], date:d},
+      {version:"5.76", title:"כיווץ כרטיסים ושמירה מקומית", items:["נוסף לכל כרטיס תוכן כפתור חץ בכותרת לפתיחה וכיווץ.","כאשר כרטיס מכווץ נשארת רק הכותרת, והאזורים שמתחתיו עולים למעלה כדי לחסוך מקום במסך.","מצב הכיווץ נשמר ב-localStorage לפי המכשיר, ולכן נשאר גם אחרי רענון או כניסה מחדש.","הושלמו רשומות מה חדש החסרות לגרסאות 5.70, 5.72, 5.74 ו-5.75."], date:d},
+      {version:"5.75", title:"ניקוי טקסט טכני מדשבורד חכם", items:["הוסר מהכרטיס מתוזמנות שבוצעו הטקסט הטכני שהזכיר את convertedFromPlanned.","הכרטיס נשאר נקי עם כותרת, כמות, סכום ורשימת עבודות בלבד.","לא שונתה שום לוגיקה, חישוב או שמירת נתונים."], date:d},
+      {version:"5.74", title:"דשבורד חכם: מתוזמנות שבוצעו", items:["נוסף מתחת לאזור מתוזמנות שלא בוצעו אזור חדש מתוזמנות שבוצעו.","החישוב משתמש בשדה הקיים convertedFromPlanned=true יחד עם עבודות שבוצעו בפועל.","האזור מציג כמות, סכום כולל ורשימה מתומצתת בגלילה לפי תאריך, לקוח, סוג עבודה, כתובת וסכום.","לא נוסף שדה חדש ולא שונתה שמירת נתונים."], date:d},
+      {version:"5.72", title:"תיקון כפתור גיבוי JSON אישי", items:["גיבוי JSON אישי עטוף בטיפול שגיאות מלא כדי שכשל קריאה יוצג למשתמש במקום שקט מוחלט.","נוסף סטטוס בזמן הכנת הגיבוי ופירוט מקטעים שדולגו אם אין הרשאה.","הגיבוי ממשיך להוריד קובץ גם אם מקטע לא קריטי חסום בהרשאות.","לא שונו שמירת עבודות, שחזור JSON, דוח התחשבנות, ימי חופש, לוגין או אדמין."], date:d},
+      {version:"5.70", title:"בסיס לאיתור פק״עות שלא בוצעו", items:["נשמר בסיס יציב לפני הרחבת גיבוי ושחזור JSON מלאים לעובד.","כולל את מנגנון פק״עות לא בוצעו ובדיקת לקוח לפי הרשומות הקיימות.","הרשומה נוספה כדי להשלים רצף מה חדש בין 5.69 ל-5.71."], date:d},
       {version:"5.71", title:"גיבוי ושחזור JSON מלא לעובד", items:["גיבוי JSON אישי כולל עכשיו פרופיל עסקי של העובד, יעד חודשי, יעדים לפי חודש, עבודות, ימי חופש, דוחות התחשבנות, תבניות, מחירון ובקשות תשלום אם קיימות.","שחזור JSON לעובד אחר ממפה את הרשומות לעובד היעד כדי לא לדרוס את העובד המקורי באותו Firebase.","ימי חופש ודוחות התחשבנות נשמרים לפי עובד היעד והתאריך/החודש המקוריים.","פרטי התחברות רגישים כמו username, passwordHash, authUid ו-authEmail לא מועתקים כדי לא לשבור כניסה קיימת."], date:d},
       {version:"5.69", title:"בדיקת לקוח: הצגת פק״ע שלא בוצעה", items:["בדיקת לקוח חוזר מציגה עכשיו פק״ע מתוזמנת שסומנה כלא בוצעה כהערה ברורה ולא כעבודה רגילה עם ₪0.","ההערה כוללת תאריך, סוג עבודה, סיבה ופירוט אם קיים.","מילוי הכתובת האוטומטי נשאר כמו שהיה וממשיך לעבוד גם לפי רשומות שלא בוצעו.","לא שונו שמירת עבודות, מתוזמנות, עריכה, דשבורד, HTML או CSS."], date:d},
       {version:"5.68", title:"חיוב בחירת פק״ע בכל התקנה", items:["בכל שמירת התקנה רגילה או מתוזמנת חובה לבחור סוג פק״ע CN או CH.","בחירה ריקה אינה נחשבת רגילה ולא מאפשרת שמירה.","אם סוג הפק״ע חסר, הטופס נשאר פתוח, מוצגת הודעה אדומה והסמן עובר לשדה סוג הפק״ע.","החובה חלה על כל התקנת RF או סיב, בלי קשר לפריט ההתקנה שנבחר."], date:d},
@@ -15926,4 +15958,291 @@ CHANGELOG 5.70 - תיקון סופי להצגת פק״ע שלא בוצעה בב�
 
   document.addEventListener('DOMContentLoaded',function(){ setTimeout(bootV574,350); setTimeout(bootV574,1400); });
   window.addEventListener('load',function(){ setTimeout(bootV574,450); setTimeout(bootV574,1700); });
+})();
+
+
+/*
+===============================================================================
+CHANGE 5.77 - WORKER TAB COLLAPSIBLE AREAS ONLY
+-------------------------------------------------------------------------------
+מתקן את כיווץ 5.76 כך שהוא לא יופיע בלוח השנה או ברשימת פק״עות.
+הכיווץ נשאר רק בכרטיסיות העליונות של העובד, ושומר מצב מקומי לכל מכשיר.
+===============================================================================
+*/
+(function initWorkerTabCollapsibleV577(){
+  const STORAGE_PREFIX = "wm_worker_tab_collapsed_v577_";
+  const TARGET_PANES = new Set(["overview","tools","settings","dashboard","client","search"]);
+
+  function getPaneKey(pane){
+    return (pane && pane.getAttribute("data-worker-pane")) || "unknown";
+  }
+
+  function getPaneTitle(key){
+    const tab = document.querySelector('.worker-tab-btn-v420[data-worker-tab="' + key + '"]');
+    const raw = tab ? (tab.textContent || "").trim() : "";
+    return raw || "כרטיסייה";
+  }
+
+  function isTargetPane(pane){
+    if(!pane || pane.dataset.wmCollapseReadyV577 === "1") return false;
+    const key = getPaneKey(pane);
+    return TARGET_PANES.has(key);
+  }
+
+  function findHeader(pane){
+    return pane.querySelector(":scope > .cal-head, :scope > .wm-tab-collapse-header-v577, :scope > h1, :scope > h2, :scope > h3");
+  }
+
+  function ensureHeader(pane){
+    const key = getPaneKey(pane);
+    let header = findHeader(pane);
+    if(header && header.classList && header.classList.contains("cal-head")){
+      header.classList.add("wm-collapse-header-v576","wm-tab-collapse-header-v577");
+      return header;
+    }
+    if(header && header.classList && header.classList.contains("wm-tab-collapse-header-v577")) return header;
+
+    const wrap = document.createElement("div");
+    wrap.className = "wm-collapse-header-v576 wm-tab-collapse-header-v577";
+
+    if(header){
+      pane.insertBefore(wrap, header);
+      wrap.appendChild(header);
+    }else{
+      const title = document.createElement("h2");
+      title.textContent = getPaneTitle(key);
+      wrap.appendChild(title);
+      pane.insertBefore(wrap, pane.firstChild);
+    }
+    return wrap;
+  }
+
+  function ensureBody(pane, header){
+    let body = pane.querySelector(":scope > .wm-collapse-body-v576");
+    if(body) return body;
+    body = document.createElement("div");
+    body.className = "wm-collapse-body-v576";
+    let node = header.nextSibling;
+    const move=[];
+    while(node){
+      const next=node.nextSibling;
+      if(!(node.nodeType === 1 && node.classList.contains("wm-collapse-btn-v576"))) move.push(node);
+      node=next;
+    }
+    pane.appendChild(body);
+    move.forEach(n=>body.appendChild(n));
+    return body;
+  }
+
+  function setCollapsed(pane, collapsed){
+    const key = getPaneKey(pane);
+    pane.classList.toggle("wm-card-collapsed-v576", !!collapsed);
+    pane.classList.toggle("wm-tab-collapsed-v577", !!collapsed);
+    const btn = pane.querySelector(":scope > .wm-collapse-header-v576 .wm-collapse-btn-v576, :scope > .cal-head .wm-collapse-btn-v576");
+    if(btn){
+      btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      btn.title = collapsed ? "פתח כרטיסייה" : "כווץ כרטיסייה";
+      btn.textContent = collapsed ? "▾" : "▴";
+    }
+    try{ localStorage.setItem(STORAGE_PREFIX + key, collapsed ? "1" : "0"); }catch(e){}
+  }
+
+  function makeCollapsible(pane){
+    if(!isTargetPane(pane)) return;
+    const key = getPaneKey(pane);
+    const header = ensureHeader(pane);
+    if(!header) return;
+    const body = ensureBody(pane, header);
+    if(!body) return;
+    pane.dataset.wmCollapseReadyV577 = "1";
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "wm-collapse-btn-v576";
+    btn.setAttribute("aria-label", "פתח או כווץ כרטיסייה");
+    btn.onclick = function(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+      setCollapsed(pane, !pane.classList.contains("wm-card-collapsed-v576"));
+    };
+    header.appendChild(btn);
+
+    let saved = "0";
+    try{ saved = localStorage.getItem(STORAGE_PREFIX + key) || "0"; }catch(e){}
+    setCollapsed(pane, saved === "1");
+  }
+
+  function removeOldCardCollapseFromNonTargets(){
+    // מנקה רק את סימון הכיווץ הרחב של 5.76 מכרטיסים שלא אמורים להתכווץ, כדי שהלוח ופק״עות לא יושפעו.
+    document.querySelectorAll(".card[data-wm-collapse-ready='1']").forEach(function(card){
+      if(card.classList.contains("worker-tabs-shell-v420")) return;
+      card.classList.remove("wm-card-collapsed-v576");
+      const btn = card.querySelector(":scope > .wm-collapse-header-v576 .wm-collapse-btn-v576, :scope > .cal-head .wm-collapse-btn-v576");
+      if(btn) btn.remove();
+    });
+  }
+
+  function scan(){
+    try{
+      removeOldCardCollapseFromNonTargets();
+      document.querySelectorAll(".worker-tab-pane-v420[data-worker-pane]").forEach(makeCollapsible);
+    }catch(e){ console.warn("worker tab collapsible init failed", e); }
+  }
+
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", scan);
+  else scan();
+  window.addEventListener("load", scan);
+  try{
+    const mo = new MutationObserver(function(){ window.clearTimeout(window.__wmCollapseScanTimerV577); window.__wmCollapseScanTimerV577 = window.setTimeout(scan, 120); });
+    mo.observe(document.body, {childList:true, subtree:true});
+  }catch(e){}
+  window.initWorkerTabCollapsibleV577 = scan;
+})();
+
+
+/*
+CHANGE 5.78 - QUICK SEARCH ICONS IN WORK CARDS
+מטרה: להוסיף קיצור דרך קטן ליד מספר לקוח וליד כתובת בכל כרטיס עבודה/פק״ע.
+הקיצור משתמש במנגנון החיפוש הקיים: פותח את כרטיסיית החיפוש, מנקה תאריכים, ממלא מספר לקוח או כתובת ומריץ חיפוש גלובלי בכל ההיסטוריה.
+לא נוספו שדות Firestore חדשים ולא שונתה לוגיקת שמירת עבודות.
+*/
+(function(){
+  'use strict';
+  var VERSION='5.78';
+
+  function byId(id){ return document.getElementById(id); }
+  function escText(v){ return String(v==null?'':v); }
+  function cssEscapeSafe(v){
+    try{ if(window.CSS && typeof CSS.escape==='function') return CSS.escape(String(v)); }catch(e){}
+    return String(v||'').replace(/[^a-zA-Z0-9_-]/g,'\\$&');
+  }
+  function setInputValue(id,value){
+    var el=byId(id); if(!el) return;
+    el.value=String(value||'');
+    try{ el.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){}
+    try{ el.dispatchEvent(new Event('change',{bubbles:true})); }catch(e){}
+  }
+  function clearDateScopesForGlobalSearch(){
+    ['searchDate','searchDateFromV507','searchDateToV507','searchMonth'].forEach(function(id){ setInputValue(id,''); });
+  }
+  function openSearchTabExisting(){
+    try{ if(typeof window.openWorkerTabV420==='function'){ window.openWorkerTabV420('search'); return; } }catch(e){}
+    try{ if(typeof window.toggleSearchPanel==='function'){ window.toggleSearchPanel(); return; } }catch(e){}
+    try{
+      var panel=byId('searchPanel');
+      if(panel) panel.classList.remove('hidden');
+    }catch(e){}
+  }
+  window.quickSearchFromEntryV578 = async function(kind,value){
+    value=String(value||'').trim();
+    if(!value) return;
+    try{ openSearchTabExisting(); }catch(e){}
+    try{ window.searchBaseEntriesV507=null; }catch(e){}
+    try{ if(window.selectedWorkerPriceSearchItemsV38) window.selectedWorkerPriceSearchItemsV38=new Set(); }catch(e){}
+
+    // v5.78: אין הגבלת זמן - מנקים כל תאריך/חודש כדי שהחיפוש הקיים יעבור לכל ההיסטוריה כשיש פילטר פעיל.
+    clearDateScopesForGlobalSearch();
+    setInputValue('searchType','');
+    try{ var peka=byId('pekaSearchTypeV528'); if(peka){ peka.value=''; peka.dispatchEvent(new Event('change',{bubbles:true})); } }catch(e){}
+
+    if(kind==='customer'){
+      setInputValue('searchCustomer',value);
+      setInputValue('searchAddress','');
+    }else if(kind==='address'){
+      setInputValue('searchCustomer','');
+      setInputValue('searchAddress',value);
+    }
+
+    try{ if(typeof window.onWorkerSearchTypeChangeV22==='function') await window.onWorkerSearchTypeChangeV22(); }catch(e){}
+    setTimeout(function(){
+      try{ if(typeof window.runSearch==='function') window.runSearch(); else if(typeof runSearch==='function') runSearch(); }catch(err){ console.warn('quickSearchFromEntryV578 runSearch failed',err); }
+      try{ var box=byId('summaryResults') || byId('searchResults'); if(box) box.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){}
+    },120);
+  };
+
+  function iconHtml(kind,value,label){
+    value=String(value||'').trim();
+    if(!value) return '';
+    var safe=value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    var arg=value.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,' ');
+    return '<button type="button" class="quick-search-icon-v578" title="חפש '+label+' בכל ההיסטוריה" onclick="quickSearchFromEntryV578(\''+kind+'\',\''+arg+'\')">🔍</button>';
+  }
+
+  window.quickSearchLineV578=function(label,kind,value){
+    value=String(value||'').trim();
+    if(!value) return label+': ';
+    var safe=value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    return label+': <span class="quick-search-value-v578">'+safe+'</span>'+iconHtml(kind,value,label);
+  };
+
+  function enhanceRenderedCards(root){
+    root=root||document;
+    try{
+      root.querySelectorAll('.item-sub').forEach(function(el){
+        if(el.getAttribute('data-quick-search-v578')==='1') return;
+        var html=el.innerHTML;
+        // v5.78: משדרגים שורות קיימות שנבנו לפני הפונקציה החדשה, בלי לשנות את מקור הנתונים.
+        html=html.replace(/מספר לקוח:\s*([^<\n]+)(?:<br>|\\n|\n)/,function(m,val){
+          val=String(val||'').replace(/<[^>]*>/g,'').trim();
+          return window.quickSearchLineV578('מספר לקוח','customer',val)+'<br>';
+        });
+        html=html.replace(/כתובת:\s*([^<\n]+)(?:<br>|\\n|\n)/,function(m,val){
+          val=String(val||'').replace(/<[^>]*>/g,'').trim();
+          return window.quickSearchLineV578('כתובת','address',val)+'<br>';
+        });
+        el.innerHTML=html;
+        el.setAttribute('data-quick-search-v578','1');
+      });
+    }catch(e){ console.warn('enhanceRenderedCards v5.78 failed',e); }
+  }
+  window.enhanceQuickSearchCardsV578=enhanceRenderedCards;
+
+  // v5.78: עוטפים את renderDay ואת renderSummary כדי שכל רינדור מחדש יקבל את האייקונים.
+  try{
+    if(typeof window.renderDay==='function' && !window.renderDay.__quickSearchV578){
+      var oldRenderDay=window.renderDay;
+      window.renderDay=function(){
+        var res=oldRenderDay.apply(this,arguments);
+        setTimeout(function(){ enhanceRenderedCards(byId('dayEntries')||document); },30);
+        return res;
+      };
+      window.renderDay.__quickSearchV578=true;
+    }
+  }catch(e){}
+
+  try{
+    if(typeof window.renderSummary==='function' && !window.renderSummary.__quickSearchV578){
+      var oldRenderSummary=window.renderSummary;
+      window.renderSummary=function(){
+        var res=oldRenderSummary.apply(this,arguments);
+        setTimeout(function(){ enhanceRenderedCards(byId('searchResults')||document); },30);
+        return res;
+      };
+      window.renderSummary.__quickSearchV578=true;
+    }
+  }catch(e){}
+
+  function ensureCss(){
+    if(byId('quickSearchCssV578')) return;
+    var st=document.createElement('style');
+    st.id='quickSearchCssV578';
+    st.textContent='.quick-search-icon-v578{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-inline-start:6px;border:1px solid rgba(15,23,42,.18);border-radius:999px;background:#fff;font-size:12px;line-height:1;cursor:pointer;vertical-align:middle;box-shadow:0 1px 3px rgba(15,23,42,.08)}.quick-search-icon-v578:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(15,23,42,.16)}.quick-search-value-v578{font-weight:700}';
+    document.head.appendChild(st);
+  }
+
+  function updateVersionRows(){
+    try{ window.APP_VERSION=VERSION; }catch(e){}
+    try{ document.title='מעקב עבודה - גרסה '+VERSION; }catch(e){}
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent=VERSION; }); }catch(e){}
+    try{ document.querySelectorAll('.secret,#secretTap').forEach(function(el){ el.textContent='גרסה '+VERSION; }); }catch(e){}
+  }
+
+  function boot(){
+    ensureCss();
+    updateVersionRows();
+    enhanceRenderedCards(document);
+  }
+  document.addEventListener('DOMContentLoaded',function(){ setTimeout(boot,300); setTimeout(boot,1300); });
+  window.addEventListener('load',function(){ setTimeout(boot,500); setTimeout(boot,1600); });
+  setInterval(function(){ try{ ensureCss(); updateVersionRows(); enhanceRenderedCards(document); }catch(e){} },2500);
 })();
