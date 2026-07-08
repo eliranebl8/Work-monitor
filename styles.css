@@ -1,4 +1,4 @@
-/* File version: 5.77 - worker tab collapsible cards fix */
+/* File version: 5.80 - smaller quick-search icon and stable version-display styles */
 /* Work Monitor app - extracted CSS pilot */
 
 :root{
@@ -4213,4 +4213,34 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
 #selectDayHint .wm-collapse-btn-v576,
 #editEntryPanel .wm-collapse-btn-v576{
   display:none !important;
+}
+
+
+/* CHANGE 5.80 - הקטנת אייקון זכוכית המגדלת עוד יותר. */
+.quick-search-icon-v578{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:11px!important;
+  height:11px!important;
+  min-width:11px!important;
+  max-width:11px!important;
+  margin-inline-start:3px!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:999px!important;
+  background:transparent!important;
+  font-size:8px!important;
+  line-height:1!important;
+  cursor:pointer!important;
+  vertical-align:middle!important;
+  box-shadow:none!important;
+  transform:none!important;
+}
+.quick-search-icon-v578:hover{
+  box-shadow:none!important;
+  transform:none!important;
+}
+.worker-tab-pane-v420.wm-tab-collapsed-v577 > .wm-collapse-body-v576{
+  display:none!important;
 }
