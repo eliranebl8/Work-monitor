@@ -1,4 +1,4 @@
-/* File version: 5.80 - smaller quick-search icon and stable version-display styles */
+/* File version: 5.82 - clean inline icons + restored quick-search click support */
 /* Work Monitor app - extracted CSS pilot */
 
 :root{
@@ -4243,4 +4243,87 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
 }
 .worker-tab-pane-v420.wm-tab-collapsed-v577 > .wm-collapse-body-v576{
   display:none!important;
+}
+
+
+/* CHANGE 5.82 - אייקון חיפוש נשאר נקי וגם לחיץ.
+   שינוי עיצוב תומך: pointer-events/z-index לאייקון span כדי שהלחיצה תגיע אליו בכל דפדפן. */
+
+/* CHANGE 5.81 - אייקוני חיפוש וכיווץ נקיים בלי מסגרת.
+   שינוי עיצוב בלבד: הלוגיקה נשארת ב-functions.js כמו קודם. */
+.quick-search-icon-v578,
+.quick-search-link-v581{
+  display:inline !important;
+  width:auto !important;
+  height:auto !important;
+  min-width:0 !important;
+  min-height:0 !important;
+  max-width:none !important;
+  padding:0 !important;
+  margin-inline-start:4px !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  background-color:transparent !important;
+  box-shadow:none !important;
+  outline:0 !important;
+  font-size:13px !important;
+  line-height:1 !important;
+  cursor:pointer !important;
+  vertical-align:baseline !important;
+  appearance:none !important;
+  -webkit-appearance:none !important;
+  color:inherit !important;
+  pointer-events:auto !important;
+  position:relative !important;
+  z-index:2 !important;
+}
+.quick-search-icon-v578:hover,
+.quick-search-link-v581:hover{
+  opacity:.72 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  transform:none !important;
+}
+
+.wm-collapse-btn-v576,
+.wm-collapse-link-v581{
+  flex:0 0 auto !important;
+  display:inline !important;
+  width:auto !important;
+  height:auto !important;
+  min-width:0 !important;
+  min-height:0 !important;
+  padding:0 !important;
+  margin:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  background-color:transparent !important;
+  box-shadow:none !important;
+  outline:0 !important;
+  font-size:20px !important;
+  line-height:1 !important;
+  cursor:pointer !important;
+  color:inherit !important;
+  appearance:none !important;
+  -webkit-appearance:none !important;
+}
+.wm-collapse-btn-v576:hover,
+.wm-collapse-link-v581:hover{
+  opacity:.72 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+}
+.wm-collapse-btn-v576:active,
+.wm-collapse-link-v581:active{
+  transform:scale(.92) !important;
+}
+@media(max-width:640px){
+  .wm-collapse-btn-v576,
+  .wm-collapse-link-v581{
+    width:auto !important;
+    height:auto !important;
+    font-size:18px !important;
+  }
 }
