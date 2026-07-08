@@ -2,7 +2,12 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.81 - clean inline search and collapse icons without button frames.
+File version: 5.82 - restore quick-search click after clean inline icon change.
+
+CHANGELOG 5.82 - תיקון לחיצה על זכוכית מגדלת נקייה
+1. חיבור הלחיצה של זכוכית המגדלת הועבר ל-event delegation יציב כדי שהחיפוש יעבוד גם כשהאייקון הוא span נקי ללא כפתור.
+2. נוספו data attributes לאייקון החיפוש כדי להשתמש באותו מנגנון חיפוש קיים בלי לשנות לוגיקה.
+3. לא שונו חישובים, שמירת פק״עות, כיווץ כרטיסיות, גיבוי JSON או ייצוא אקסל.
 
 CHANGELOG 5.81 - ניקוי מסגרות אייקוני חיפוש וכיווץ
 1. APP_VERSION עודכן ל-"5.81" מתוך הקונסט הראשי בלבד.
@@ -92,7 +97,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.81";
+const APP_VERSION = "5.82";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -14221,6 +14226,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"5.82", title:"תיקון לחיצה על זכוכית מגדלת נקייה", items:["תוקנה הלחיצה על אייקון החיפוש הנקי ליד מספר לקוח וליד כתובת.","האייקון נשאר ללא מסגרת, רקע או ריבוע, אבל עכשיו מפעיל שוב את החיפוש הקיים בכל ההיסטוריה.","התיקון משתמש ב-event delegation יציב כדי שהלחיצה תעבוד גם אחרי רינדור מחדש של כרטיסי פק״ע.","לא שונו חישובים, שמירת פק״עות, כיווץ כרטיסיות, גיבוי JSON או ייצוא אקסל."], date:d},
       {version:"5.80", title:"תיקון יציבות גרסה והקטנת אייקון חיפוש", items:["תוקן מצב שבו תצוגת הגרסה התחלפה בין 5.78 ל-5.79 בגלל קוד פנימי ישן של קיצור החיפוש.","APP_VERSION נשאר מקור הגרסה היחיד להצגה בממשק.","זכוכית המגדלת ליד מספר לקוח וכתובת הוקטנה עוד יותר לאייקון קטן ועדין.","לא שונתה לוגיקת החיפוש, הכיווץ, שמירת פק״עות, גיבוי JSON או ייצוא אקסל."], date:d},
       {version:"5.79", title:"תיקון כיווץ בכרום והקטנת אייקון חיפוש", items:["זכוכית המגדלת ליד מספר לקוח וכתובת הוקטנה לאייקון קטן ועדין יותר.","כיווץ כרטיסיות העובד חוזק כך שהלחיצה תעבוד גם בכרום לאחר העלאה ל-GitHub.","מנגנון השמירה המקומית ב-localStorage נשאר ללא שינוי.","לא שונו חישובים, שמירת פק״עות, חיפוש, גיבוי JSON, אקסל או דוח התחשבנות."], date:d},
       {version:"5.78", title:"קיצור חיפוש מכרטיסי פק״ע", items:["נוסף אייקון חיפוש קטן ליד מספר לקוח וליד כתובת בכרטיסי פק״ע/עבודה.","לחיצה על האייקון פותחת את כרטיסיית החיפוש הקיימת, ממלאת את מספר הלקוח או הכתובת ומריצה חיפוש בכל ההיסטוריה ללא הגבלת זמן.","השינוי משתמש במנגנון החיפוש הקיים בלבד ולא מוסיף שדות חדשים או משנה נתונים."], date:d},
@@ -16194,7 +16200,9 @@ CHANGE 5.78 - QUICK SEARCH ICONS IN WORK CARDS
     if(!value) return '';
     var safe=value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     var arg=value.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,' ');
-    return '<span role="button" tabindex="0" class="quick-search-icon-v578 quick-search-link-v581" title="חפש '+label+' בכל ההיסטוריה" onclick="quickSearchFromEntryV578(\''+kind+'\',\''+arg+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();quickSearchFromEntryV578(\''+kind+'\',\''+arg+'\');}">🔍</span>';
+    // v5.82: שומרים span נקי בלי מסגרת, אבל מוסיפים data attributes כדי שחיבור הלחיצה יהיה יציב ולא תלוי בכפתור.
+    var dataValue=safe.replace(/&quot;/g,'&quot;');
+    return '<span role="button" tabindex="0" class="quick-search-icon-v578 quick-search-link-v581" data-quick-search-click-v582="1" data-quick-kind-v582="'+kind+'" data-quick-value-v582="'+safe+'" title="חפש '+label+' בכל ההיסטוריה" onclick="quickSearchFromEntryV578(\''+kind+'\',\''+arg+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();quickSearchFromEntryV578(\''+kind+'\',\''+arg+'\');}">🔍</span>';
   }
 
   window.quickSearchLineV578=function(label,kind,value){
@@ -16226,6 +16234,34 @@ CHANGE 5.78 - QUICK SEARCH ICONS IN WORK CARDS
   }
   window.enhanceQuickSearchCardsV578=enhanceRenderedCards;
 
+
+  // v5.82: חיבור לחיצה יציב לאייקון החיפוש הנקי.
+  // הסיבה: אחרי שהחלפנו button ל-span כדי להסיר מסגרת, חלק מהדפדפנים/רינדורים לא הפעילו את ה-onclick בצורה עקבית.
+  // הפתרון מפעיל את אותה פונקציית quickSearchFromEntryV578 הקיימת, בלי להוסיף חיפוש חדש ובלי לשנות נתונים.
+  function handleQuickSearchIconV582(ev){
+    try{
+      var target = ev.target && ev.target.closest ? ev.target.closest('[data-quick-search-click-v582="1"], .quick-search-icon-v578, .quick-search-link-v581') : null;
+      if(!target) return;
+      var kind = target.getAttribute('data-quick-kind-v582');
+      var value = target.getAttribute('data-quick-value-v582');
+      if(!kind || !value){
+        // fallback לרשומות ישנות שכבר נמצאות במסך ועדיין בנויות עם onclick בלבד.
+        var on = target.getAttribute('onclick') || '';
+        var m = on.match(/quickSearchFromEntryV578\('([^']+)'\s*,\s*'([^']*)'\)/);
+        if(m){ kind = m[1]; value = m[2].replace(/\\'/g,"'").replace(/\\\\/g,'\\'); }
+      }
+      if(!kind || !value) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      window.quickSearchFromEntryV578(kind, value);
+    }catch(e){ console.warn('quick search click v5.82 failed', e); }
+  }
+  if(!window.__quickSearchClickV582Bound){
+    document.addEventListener('click', handleQuickSearchIconV582, true);
+    document.addEventListener('touchend', handleQuickSearchIconV582, true);
+    window.__quickSearchClickV582Bound = true;
+  }
+
   // v5.78: עוטפים את renderDay ואת renderSummary כדי שכל רינדור מחדש יקבל את האייקונים.
   try{
     if(typeof window.renderDay==='function' && !window.renderDay.__quickSearchV578){
@@ -16255,7 +16291,7 @@ CHANGE 5.78 - QUICK SEARCH ICONS IN WORK CARDS
     if(byId('quickSearchCssV578')) return;
     var st=document.createElement('style');
     st.id='quickSearchCssV578';
-    st.textContent='.quick-search-icon-v578,.quick-search-link-v581{display:inline!important;width:auto!important;height:auto!important;min-width:0!important;max-width:none!important;margin-inline-start:4px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;background-color:transparent!important;font-size:13px!important;line-height:1!important;cursor:pointer!important;vertical-align:baseline!important;box-shadow:none!important;transform:none!important;appearance:none!important;-webkit-appearance:none!important;color:inherit!important}.quick-search-icon-v578:hover,.quick-search-link-v581:hover{opacity:.75!important;box-shadow:none!important;transform:none!important;background:transparent!important}.quick-search-value-v578{font-weight:700}.wm-collapse-btn-v576,.wm-collapse-link-v581{display:inline!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;background:transparent!important;background-color:transparent!important;box-shadow:none!important;outline:0!important;font-size:20px!important;line-height:1!important;cursor:pointer!important;color:inherit!important;appearance:none!important;-webkit-appearance:none!important}.wm-collapse-btn-v576:hover,.wm-collapse-link-v581:hover{opacity:.75!important;background:transparent!important;box-shadow:none!important}.wm-collapse-btn-v576:active,.wm-collapse-link-v581:active{transform:scale(.92)!important}';
+    st.textContent='.quick-search-icon-v578,.quick-search-link-v581{display:inline!important;width:auto!important;height:auto!important;min-width:0!important;max-width:none!important;margin-inline-start:4px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;background-color:transparent!important;font-size:13px!important;line-height:1!important;cursor:pointer!important;vertical-align:baseline!important;box-shadow:none!important;transform:none!important;appearance:none!important;-webkit-appearance:none!important;color:inherit!important;pointer-events:auto!important;position:relative!important;z-index:2!important}.quick-search-icon-v578:hover,.quick-search-link-v581:hover{opacity:.75!important;box-shadow:none!important;transform:none!important;background:transparent!important}.quick-search-value-v578{font-weight:700}.wm-collapse-btn-v576,.wm-collapse-link-v581{display:inline!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;background:transparent!important;background-color:transparent!important;box-shadow:none!important;outline:0!important;font-size:20px!important;line-height:1!important;cursor:pointer!important;color:inherit!important;appearance:none!important;-webkit-appearance:none!important}.wm-collapse-btn-v576:hover,.wm-collapse-link-v581:hover{opacity:.75!important;background:transparent!important;box-shadow:none!important}.wm-collapse-btn-v576:active,.wm-collapse-link-v581:active{transform:scale(.92)!important}';
     document.head.appendChild(st);
   }
 
