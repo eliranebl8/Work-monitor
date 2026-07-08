@@ -2,7 +2,13 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.82 - restore quick-search click after clean inline icon change.
+File version: 5.83 - quick search opens and expands search summary pane.
+
+CHANGELOG 5.83 - פתיחת חיפוש וסיכומים מלחיצה על זכוכית מגדלת
+1. לחיצה על זכוכית מגדלת ליד מספר לקוח או כתובת פותחת את כרטיסיית חיפוש וסיכומים.
+2. אם הכרטיסייה הייתה מכווצת, היא נפתחת אוטומטית כדי שהתוצאות יהיו גלויות.
+3. מצב הכיווץ נשמר מקומית כפתוח עבור חיפוש יזום, בלי לשנות את מנגנון החיפוש הקיים.
+4. לא שונו עבודות, חישובים, גיבויים, ייצוא אקסל או שמירת פק״עות.
 
 CHANGELOG 5.82 - תיקון לחיצה על זכוכית מגדלת נקייה
 1. חיבור הלחיצה של זכוכית המגדלת הועבר ל-event delegation יציב כדי שהחיפוש יעבוד גם כשהאייקון הוא span נקי ללא כפתור.
@@ -97,7 +103,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.82";
+const APP_VERSION = "5.83";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -14226,6 +14232,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"5.83", title:"חיפוש מהיר פותח תוצאות גם כשהכרטיסייה מכווצת", items:["לחיצה על זכוכית מגדלת ליד מספר לקוח או כתובת פותחת את כרטיסיית חיפוש וסיכומים.","אם הכרטיסייה הייתה מכווצת, היא נפתחת אוטומטית כדי שהתוצאות יוצגו מיד.","החיפוש עדיין משתמש במנגנון הקיים וללא הגבלת זמן, בלי ליצור חיפוש חדש.","לא שונו עבודות, חישובים, גיבוי JSON, ייצוא אקסל או שמירת פק״עות."], date:d},
       {version:"5.82", title:"תיקון לחיצה על זכוכית מגדלת נקייה", items:["תוקנה הלחיצה על אייקון החיפוש הנקי ליד מספר לקוח וליד כתובת.","האייקון נשאר ללא מסגרת, רקע או ריבוע, אבל עכשיו מפעיל שוב את החיפוש הקיים בכל ההיסטוריה.","התיקון משתמש ב-event delegation יציב כדי שהלחיצה תעבוד גם אחרי רינדור מחדש של כרטיסי פק״ע.","לא שונו חישובים, שמירת פק״עות, כיווץ כרטיסיות, גיבוי JSON או ייצוא אקסל."], date:d},
       {version:"5.80", title:"תיקון יציבות גרסה והקטנת אייקון חיפוש", items:["תוקן מצב שבו תצוגת הגרסה התחלפה בין 5.78 ל-5.79 בגלל קוד פנימי ישן של קיצור החיפוש.","APP_VERSION נשאר מקור הגרסה היחיד להצגה בממשק.","זכוכית המגדלת ליד מספר לקוח וכתובת הוקטנה עוד יותר לאייקון קטן ועדין.","לא שונתה לוגיקת החיפוש, הכיווץ, שמירת פק״עות, גיבוי JSON או ייצוא אקסל."], date:d},
       {version:"5.79", title:"תיקון כיווץ בכרום והקטנת אייקון חיפוש", items:["זכוכית המגדלת ליד מספר לקוח וכתובת הוקטנה לאייקון קטן ועדין יותר.","כיווץ כרטיסיות העובד חוזק כך שהלחיצה תעבוד גם בכרום לאחר העלאה ל-GitHub.","מנגנון השמירה המקומית ב-localStorage נשאר ללא שינוי.","לא שונו חישובים, שמירת פק״עות, חיפוש, גיבוי JSON, אקסל או דוח התחשבנות."], date:d},
@@ -16160,13 +16167,33 @@ CHANGE 5.78 - QUICK SEARCH ICONS IN WORK CARDS
   function clearDateScopesForGlobalSearch(){
     ['searchDate','searchDateFromV507','searchDateToV507','searchMonth'].forEach(function(id){ setInputValue(id,''); });
   }
-  function openSearchTabExisting(){
-    try{ if(typeof window.openWorkerTabV420==='function'){ window.openWorkerTabV420('search'); return; } }catch(e){}
-    try{ if(typeof window.toggleSearchPanel==='function'){ window.toggleSearchPanel(); return; } }catch(e){}
+  // v5.83: חיפוש מהיר חייב גם לפתוח וגם להרחיב את כרטיסיית "חיפוש וסיכומים",
+  // כדי שאם המשתמש כיווץ אותה קודם הוא עדיין יראה מיד את התוצאות.
+  function expandSearchSummaryPaneV583(){
     try{
-      var panel=byId('searchPanel');
-      if(panel) panel.classList.remove('hidden');
+      var pane = document.querySelector('.worker-tab-pane-v420[data-worker-pane="search"]');
+      if(!pane) return;
+      pane.classList.remove('wm-card-collapsed-v576','wm-tab-collapsed-v577');
+      var body = pane.querySelector(':scope > .wm-collapse-body-v576');
+      if(body){
+        body.hidden = false;
+        body.style.display = '';
+      }
+      var btn = pane.querySelector('.wm-collapse-btn-v576');
+      if(btn){
+        btn.setAttribute('aria-expanded','true');
+        btn.title = 'כווץ כרטיסייה';
+        btn.textContent = '▴';
+      }
+      try{ localStorage.setItem('wm_worker_tab_collapsed_v577_search','0'); }catch(e){}
     }catch(e){}
+  }
+  function openSearchTabExisting(){
+    try{ if(typeof window.openWorkerTabV420==='function'){ window.openWorkerTabV420('search'); } }catch(e){}
+    try{ var panel=byId('searchPanel'); if(panel) panel.classList.remove('hidden'); }catch(e){}
+    expandSearchSummaryPaneV583();
+    setTimeout(expandSearchSummaryPaneV583, 80);
+    setTimeout(expandSearchSummaryPaneV583, 250);
   }
   window.quickSearchFromEntryV578 = async function(kind,value){
     value=String(value||'').trim();
