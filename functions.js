@@ -2,7 +2,13 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.80 - stable APP_VERSION display and smaller quick-search icon.
+File version: 5.81 - clean inline search and collapse icons without button frames.
+
+CHANGELOG 5.81 - ניקוי מסגרות אייקוני חיפוש וכיווץ
+1. APP_VERSION עודכן ל-"5.81" מתוך הקונסט הראשי בלבד.
+2. זכוכית המגדלת ליד מספר לקוח וכתובת הוחלפה מאלמנט button לאלמנט span לחיץ כדי להסיר לחלוטין רקע, מסגרת וריבוע מובנה.
+3. חץ הכיווץ בכרטיסיות העובד הוחלף מאלמנט button לאלמנט span לחיץ כדי להשאיר רק חץ נקי בלי מסגרת.
+4. מנגנון החיפוש הקיים ומנגנון הכיווץ הקיים נשארו ללא שינוי לוגי; שונו רק מעטפת התצוגה וה-CSS.
 
 CHANGELOG 5.80 - תיקון מקור גרסה והקטנת אייקון חיפוש
 1. APP_VERSION עודכן ל-"5.80" כמקור יחיד להצגת הגרסה.
@@ -86,7 +92,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.80";
+const APP_VERSION = "5.81";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -16070,14 +16076,23 @@ CHANGE 5.77 - WORKER TAB COLLAPSIBLE AREAS ONLY
     if(!body) return;
     pane.dataset.wmCollapseReadyV577 = "1";
 
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "wm-collapse-btn-v576";
+    const btn = document.createElement("span");
+    btn.setAttribute("role", "button");
+    btn.setAttribute("tabindex", "0");
+    btn.className = "wm-collapse-btn-v576 wm-collapse-link-v581";
     btn.setAttribute("aria-label", "פתח או כווץ כרטיסייה");
     btn.onclick = function(ev){
       ev.preventDefault();
       ev.stopPropagation();
       setCollapsed(pane, !pane.classList.contains("wm-card-collapsed-v576"));
+    };
+    // v5.81: נשאר לחיץ גם במקלדת אחרי המעבר מ-button ל-span נקי, בלי לשנות את לוגיקת הכיווץ.
+    btn.onkeydown = function(ev){
+      if(ev.key === "Enter" || ev.key === " "){
+        ev.preventDefault();
+        ev.stopPropagation();
+        setCollapsed(pane, !pane.classList.contains("wm-card-collapsed-v576"));
+      }
     };
     header.appendChild(btn);
 
@@ -16179,7 +16194,7 @@ CHANGE 5.78 - QUICK SEARCH ICONS IN WORK CARDS
     if(!value) return '';
     var safe=value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     var arg=value.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,' ');
-    return '<button type="button" class="quick-search-icon-v578" title="חפש '+label+' בכל ההיסטוריה" onclick="quickSearchFromEntryV578(\''+kind+'\',\''+arg+'\')">🔍</button>';
+    return '<span role="button" tabindex="0" class="quick-search-icon-v578 quick-search-link-v581" title="חפש '+label+' בכל ההיסטוריה" onclick="quickSearchFromEntryV578(\''+kind+'\',\''+arg+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();quickSearchFromEntryV578(\''+kind+'\',\''+arg+'\');}">🔍</span>';
   }
 
   window.quickSearchLineV578=function(label,kind,value){
@@ -16240,7 +16255,7 @@ CHANGE 5.78 - QUICK SEARCH ICONS IN WORK CARDS
     if(byId('quickSearchCssV578')) return;
     var st=document.createElement('style');
     st.id='quickSearchCssV578';
-    st.textContent='.quick-search-icon-v578{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:11px!important;height:11px!important;min-width:11px!important;max-width:11px!important;margin-inline-start:3px!important;padding:0!important;border:0!important;border-radius:999px!important;background:transparent!important;font-size:8px!important;line-height:1!important;cursor:pointer!important;vertical-align:middle!important;box-shadow:none!important;transform:none!important}.quick-search-icon-v578:hover{transform:none!important;box-shadow:none!important}.quick-search-value-v578{font-weight:700}';
+    st.textContent='.quick-search-icon-v578,.quick-search-link-v581{display:inline!important;width:auto!important;height:auto!important;min-width:0!important;max-width:none!important;margin-inline-start:4px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;background-color:transparent!important;font-size:13px!important;line-height:1!important;cursor:pointer!important;vertical-align:baseline!important;box-shadow:none!important;transform:none!important;appearance:none!important;-webkit-appearance:none!important;color:inherit!important}.quick-search-icon-v578:hover,.quick-search-link-v581:hover{opacity:.75!important;box-shadow:none!important;transform:none!important;background:transparent!important}.quick-search-value-v578{font-weight:700}.wm-collapse-btn-v576,.wm-collapse-link-v581{display:inline!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;background:transparent!important;background-color:transparent!important;box-shadow:none!important;outline:0!important;font-size:20px!important;line-height:1!important;cursor:pointer!important;color:inherit!important;appearance:none!important;-webkit-appearance:none!important}.wm-collapse-btn-v576:hover,.wm-collapse-link-v581:hover{opacity:.75!important;background:transparent!important;box-shadow:none!important}.wm-collapse-btn-v576:active,.wm-collapse-link-v581:active{transform:scale(.92)!important}';
     document.head.appendChild(st);
   }
 
