@@ -2,7 +2,19 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.78 - quick search icons in work cards.
+File version: 5.80 - stable APP_VERSION display and smaller quick-search icon.
+
+CHANGELOG 5.80 - תיקון מקור גרסה והקטנת אייקון חיפוש
+1. APP_VERSION עודכן ל-"5.80" כמקור יחיד להצגת הגרסה.
+2. הוסר עדכון גרסה פנימי ישן של 5.78 שגרם לתצוגה להתחלף בין 5.78 ל-5.79.
+3. זכוכית המגדלת ליד מספר לקוח/כתובת הוקטנה עוד יותר לאייקון עדין.
+4. לא שונתה לוגיקת החיפוש, הכיווץ, שמירת הנתונים או Firebase.
+
+CHANGELOG 5.79 - תיקון כיווץ בכרום והקטנת זכוכית מגדלת
+1. APP_VERSION עודכן ל-"5.79".
+2. הוקטנה זכוכית המגדלת ליד מספר לקוח וכתובת כדי שתהיה אייקון עדין ולא כפתור גדול.
+3. חוזק מנגנון כיווץ הכרטיסיות בעובד עם event delegation ותמיכה יציבה יותר בכרום/GitHub.
+4. לא שונו חישובים, שמירת עבודות, חיפוש, גיבוי JSON, ייצוא אקסל או דוח התחשבנות.
 
 CHANGELOG 5.78 - קיצור חיפוש מכרטיסי פק״ע
 1. APP_VERSION עודכן ל-"5.78".
@@ -74,7 +86,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.78";
+const APP_VERSION = "5.80";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -14203,6 +14215,8 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"5.80", title:"תיקון יציבות גרסה והקטנת אייקון חיפוש", items:["תוקן מצב שבו תצוגת הגרסה התחלפה בין 5.78 ל-5.79 בגלל קוד פנימי ישן של קיצור החיפוש.","APP_VERSION נשאר מקור הגרסה היחיד להצגה בממשק.","זכוכית המגדלת ליד מספר לקוח וכתובת הוקטנה עוד יותר לאייקון קטן ועדין.","לא שונתה לוגיקת החיפוש, הכיווץ, שמירת פק״עות, גיבוי JSON או ייצוא אקסל."], date:d},
+      {version:"5.79", title:"תיקון כיווץ בכרום והקטנת אייקון חיפוש", items:["זכוכית המגדלת ליד מספר לקוח וכתובת הוקטנה לאייקון קטן ועדין יותר.","כיווץ כרטיסיות העובד חוזק כך שהלחיצה תעבוד גם בכרום לאחר העלאה ל-GitHub.","מנגנון השמירה המקומית ב-localStorage נשאר ללא שינוי.","לא שונו חישובים, שמירת פק״עות, חיפוש, גיבוי JSON, אקסל או דוח התחשבנות."], date:d},
       {version:"5.78", title:"קיצור חיפוש מכרטיסי פק״ע", items:["נוסף אייקון חיפוש קטן ליד מספר לקוח וליד כתובת בכרטיסי פק״ע/עבודה.","לחיצה על האייקון פותחת את כרטיסיית החיפוש הקיימת, ממלאת את מספר הלקוח או הכתובת ומריצה חיפוש בכל ההיסטוריה ללא הגבלת זמן.","השינוי משתמש במנגנון החיפוש הקיים בלבד ולא מוסיף שדות חדשים או משנה נתונים."], date:d},
       {version:"5.77", title:"כיווץ רק בכרטיסיות העובד", items:["כפתור הכיווץ מופיע רק בכרטיסיות העליונות של העובד: תצוגה כללית, הכלים שלי, הגדרות אישיות, דשבורד חכם, היסטוריית לקוח והחיפוש וסיכומים.","לוח השנה, רשימת פק״עות ופאנלים של יום/עריכה לא מקבלים יותר כפתור כיווץ.","מצב הכיווץ נשמר מקומית ב-localStorage לכל כרטיסייה ומכשיר.","לא שונו חישובים, שמירת עבודות, גיבוי JSON, ייצוא אקסל או דוח התחשבנות."], date:d},
       {version:"5.76", title:"כיווץ כרטיסים ושמירה מקומית", items:["נוסף לכל כרטיס תוכן כפתור חץ בכותרת לפתיחה וכיווץ.","כאשר כרטיס מכווץ נשארת רק הכותרת, והאזורים שמתחתיו עולים למעלה כדי לחסוך מקום במסך.","מצב הכיווץ נשמר ב-localStorage לפי המכשיר, ולכן נשאר גם אחרי רענון או כניסה מחדש.","הושלמו רשומות מה חדש החסרות לגרסאות 5.70, 5.72, 5.74 ו-5.75."], date:d},
@@ -16108,7 +16122,7 @@ CHANGE 5.78 - QUICK SEARCH ICONS IN WORK CARDS
 */
 (function(){
   'use strict';
-  var VERSION='5.78';
+  // v5.80: אין כאן גרסה מקומית. משתמשים רק ב-APP_VERSION כדי למנוע קפיצה בין גרסאות בממשק.
 
   function byId(id){ return document.getElementById(id); }
   function escText(v){ return String(v==null?'':v); }
@@ -16226,15 +16240,17 @@ CHANGE 5.78 - QUICK SEARCH ICONS IN WORK CARDS
     if(byId('quickSearchCssV578')) return;
     var st=document.createElement('style');
     st.id='quickSearchCssV578';
-    st.textContent='.quick-search-icon-v578{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-inline-start:6px;border:1px solid rgba(15,23,42,.18);border-radius:999px;background:#fff;font-size:12px;line-height:1;cursor:pointer;vertical-align:middle;box-shadow:0 1px 3px rgba(15,23,42,.08)}.quick-search-icon-v578:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(15,23,42,.16)}.quick-search-value-v578{font-weight:700}';
+    st.textContent='.quick-search-icon-v578{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:11px!important;height:11px!important;min-width:11px!important;max-width:11px!important;margin-inline-start:3px!important;padding:0!important;border:0!important;border-radius:999px!important;background:transparent!important;font-size:8px!important;line-height:1!important;cursor:pointer!important;vertical-align:middle!important;box-shadow:none!important;transform:none!important}.quick-search-icon-v578:hover{transform:none!important;box-shadow:none!important}.quick-search-value-v578{font-weight:700}';
     document.head.appendChild(st);
   }
 
   function updateVersionRows(){
-    try{ window.APP_VERSION=VERSION; }catch(e){}
-    try{ document.title='מעקב עבודה - גרסה '+VERSION; }catch(e){}
-    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent=VERSION; }); }catch(e){}
-    try{ document.querySelectorAll('.secret,#secretTap').forEach(function(el){ el.textContent='גרסה '+VERSION; }); }catch(e){}
+    // v5.80: תיקון חשוב - לא מעדכנים יותר לגרסת 5.78 מקומית. כל תצוגת גרסה נלקחת רק מ-APP_VERSION.
+    var currentVersion = String(window.APP_VERSION || (typeof APP_VERSION !== 'undefined' ? APP_VERSION : ''));
+    if(!currentVersion) return;
+    try{ document.title='מעקב עבודה - גרסה '+currentVersion; }catch(e){}
+    try{ document.querySelectorAll('[data-app-version],#appVersion,#versionLabel,.app-version-mini span,.app-version-footer span').forEach(function(el){ el.textContent=currentVersion; }); }catch(e){}
+    try{ document.querySelectorAll('.secret,#secretTap').forEach(function(el){ el.textContent='גרסה '+currentVersion; }); }catch(e){}
   }
 
   function boot(){
@@ -16245,4 +16261,76 @@ CHANGE 5.78 - QUICK SEARCH ICONS IN WORK CARDS
   document.addEventListener('DOMContentLoaded',function(){ setTimeout(boot,300); setTimeout(boot,1300); });
   window.addEventListener('load',function(){ setTimeout(boot,500); setTimeout(boot,1600); });
   setInterval(function(){ try{ ensureCss(); updateVersionRows(); enhanceRenderedCards(document); }catch(e){} },2500);
+})();
+
+
+/*
+CHANGE 5.79 - CHROME-SAFE COLLAPSE + SMALLER QUICK SEARCH ICON
+מטרה: לתקן מצב שבו בכרום אחרי העלאה ל-GitHub לחיצה על כיווץ כרטיסייה לא מגיבה,
+ולהקטין את זכוכית המגדלת ליד מספר לקוח/כתובת בלי לשנות את מנגנון החיפוש.
+*/
+(function initChromeSafeCollapseAndIconV579(){
+  'use strict';
+  var STORAGE_PREFIX = 'wm_worker_tab_collapsed_v577_';
+  var TARGET_PANES = {overview:1, tools:1, settings:1, dashboard:1, client:1, search:1};
+
+  function paneKey(pane){ return pane && pane.getAttribute('data-worker-pane') || 'unknown'; }
+  function findPaneFromButton(btn){
+    var node = btn;
+    while(node && node !== document){
+      if(node.classList && node.classList.contains('worker-tab-pane-v420') && node.getAttribute('data-worker-pane')) return node;
+      node = node.parentNode;
+    }
+    return null;
+  }
+  function applyCollapsed(pane, collapsed){
+    if(!pane) return;
+    var key = paneKey(pane);
+    pane.classList.toggle('wm-card-collapsed-v576', !!collapsed);
+    pane.classList.toggle('wm-tab-collapsed-v577', !!collapsed);
+    var btn = pane.querySelector('.wm-collapse-btn-v576');
+    if(btn){
+      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      btn.title = collapsed ? 'פתח כרטיסייה' : 'כווץ כרטיסייה';
+      btn.textContent = collapsed ? '▾' : '▴';
+    }
+    try{ localStorage.setItem(STORAGE_PREFIX + key, collapsed ? '1' : '0'); }catch(e){}
+  }
+  function makeSureBodyExists(pane){
+    if(!pane || pane.querySelector(':scope > .wm-collapse-body-v576')) return;
+    var header = pane.querySelector(':scope > .wm-tab-collapse-header-v577, :scope > .wm-collapse-header-v576');
+    if(!header) return;
+    var body = document.createElement('div');
+    body.className = 'wm-collapse-body-v576';
+    var node = header.nextSibling, move=[];
+    while(node){ var next=node.nextSibling; move.push(node); node=next; }
+    pane.appendChild(body);
+    move.forEach(function(n){ body.appendChild(n); });
+  }
+  function refreshButtons(){
+    document.querySelectorAll('.worker-tab-pane-v420[data-worker-pane]').forEach(function(pane){
+      var key = paneKey(pane);
+      if(!TARGET_PANES[key]) return;
+      makeSureBodyExists(pane);
+      var saved = '0';
+      try{ saved = localStorage.getItem(STORAGE_PREFIX + key) || '0'; }catch(e){}
+      applyCollapsed(pane, saved === '1');
+    });
+  }
+  document.addEventListener('click', function(ev){
+    var btn = ev.target && ev.target.closest ? ev.target.closest('.wm-collapse-btn-v576') : null;
+    if(!btn) return;
+    var pane = findPaneFromButton(btn);
+    if(!pane) return;
+    var key = paneKey(pane);
+    if(!TARGET_PANES[key]) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    makeSureBodyExists(pane);
+    applyCollapsed(pane, !pane.classList.contains('wm-card-collapsed-v576'));
+  }, true);
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(refreshButtons,150); setTimeout(refreshButtons,900); });
+  else { setTimeout(refreshButtons,150); setTimeout(refreshButtons,900); }
+  window.addEventListener('load', function(){ setTimeout(refreshButtons,250); setTimeout(refreshButtons,1200); });
+  window.fixWorkerTabCollapseV579 = refreshButtons;
 })();
