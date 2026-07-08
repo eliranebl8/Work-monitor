@@ -1,4 +1,4 @@
-/* File version: 5.74 - Smart Dashboard planned completed summary styles. */
+/* File version: 5.77 - worker tab collapsible cards fix */
 /* Work Monitor app - extracted CSS pilot */
 
 :root{
@@ -4154,4 +4154,63 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
   background:#dcfce7;
   border:1px solid rgba(22,163,74,.25);
   margin-bottom:6px;
+}
+
+
+/* CHANGE 5.76 - Collapsible card UI: כפתור חץ בכותרת וכיווץ תוכן הכרטיס בלבד. */
+.wm-collapse-header-v576{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.wm-collapse-header-v576 > h1,
+.wm-collapse-header-v576 > h2,
+.wm-collapse-header-v576 > h3{
+  margin:0;
+  flex:1;
+}
+.wm-collapse-btn-v576{
+  flex:0 0 auto;
+  width:34px;
+  height:34px;
+  border-radius:999px;
+  border:1px solid rgba(15,23,42,.16);
+  background:#fff;
+  box-shadow:0 2px 8px rgba(15,23,42,.08);
+  font-size:18px;
+  line-height:1;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.wm-collapse-btn-v576:active{ transform:scale(.96); }
+.wm-card-collapsed-v576 > .wm-collapse-body-v576{ display:none !important; }
+.wm-card-collapsed-v576{
+  padding-bottom:14px !important;
+  margin-bottom:10px !important;
+}
+@media(max-width:640px){
+  .wm-collapse-btn-v576{ width:30px; height:30px; font-size:16px; }
+  .wm-collapse-header-v576{ gap:8px; }
+}
+
+
+/* CHANGE 5.77 - הכיווץ מוגבל לכרטיסיות העובד בלבד ולא ללוח שנה/פק״עות. */
+.worker-tab-pane-v420 > .wm-tab-collapse-header-v577{
+  margin-bottom:12px;
+}
+.worker-tab-pane-v420.wm-tab-collapsed-v577{
+  padding-top:8px;
+  padding-bottom:8px;
+}
+.worker-tab-pane-v420.wm-tab-collapsed-v577 > .wm-collapse-body-v576{
+  display:none !important;
+}
+.calendar-card-v544 .wm-collapse-btn-v576,
+#dayPanel .wm-collapse-btn-v576,
+#selectDayHint .wm-collapse-btn-v576,
+#editEntryPanel .wm-collapse-btn-v576{
+  display:none !important;
 }
