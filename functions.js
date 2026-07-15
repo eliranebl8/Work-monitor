@@ -2,7 +2,13 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.83 - quick search opens and expands search summary pane.
+File version: 5.84 - smart dashboard rows navigate to the exact work entry.
+
+CHANGELOG 5.84 - ניווט מהדשבורד החכם לפק״ע המדויקת
+1. כל רשומה ברשימות "מתוזמנות שבוצעו" ו"מתוזמנות שלא בוצעו" הפכה ללחיצה על כל הכרטיס.
+2. לחיצה מעבירה ליום המדויק, פותחת את פאנל היום, גוללת לפק״ע לפי מזהה הרשומה ומדגישה אותה זמנית.
+3. הניווט משתמש ב-ID הקיים של הרשומה ולא במספר לקוח, ולכן מגיע לפק״ע הנכונה גם כשיש ביקורים חוזרים.
+4. לא נוסף שדה חדש ולא שונתה שמירת הנתונים, החיפוש, הגיבוי או החישובים.
 
 CHANGELOG 5.83 - פתיחת חיפוש וסיכומים מלחיצה על זכוכית מגדלת
 1. לחיצה על זכוכית מגדלת ליד מספר לקוח או כתובת פותחת את כרטיסיית חיפוש וסיכומים.
@@ -103,7 +109,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.83";
+const APP_VERSION = "5.84";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -12644,7 +12650,12 @@ selectedSearchPekaV528 is not defined
       panel.id='notDoneSmartPanelV529';
       panel.className='not-done-panel-v529';
       var reasonHtml=Object.keys(byReason).length ? Object.keys(byReason).sort(function(a,b){return byReason[b]-byReason[a]}).map(function(r){return '<div class="not-done-reason-card-v529">'+safeEsc(r)+'<b>'+byReason[r]+'</b></div>';}).join('') : '<p class="muted">אין עבודות שלא בוצעו החודש.</p>';
-      var listHtml=entries.length ? entries.slice().sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''));}).slice(0,12).map(function(e){return '<div class="item not-done-card-v529"><div><div class="item-title">'+safeHeDate(e.date)+' · '+safeEsc(entryTypeLabelV529(e))+' · '+safeEsc(e.customerNumber||'')+'</div><div class="item-sub">כתובת: '+safeEsc(e.address||'')+'<br>סיבה: '+safeEsc(e.notDoneReason||'')+(e.notDoneNote?'<br>פירוט: '+safeEsc(e.notDoneNote):'')+'</div></div><div class="not-done-badge-v529">לא בוצע</div></div>';}).join('') : '';
+      var listHtml=entries.length ? entries.slice().sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''));}).slice(0,12).map(function(e){
+        // v5.84: כל כרטיס בדשבורד לחיץ ומנווט לפי ה-ID והתאריך הקיימים של הרשומה.
+        var entryId=String(e.id||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        var entryDate=String(e.date||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        return '<div class="item not-done-card-v529 smart-entry-link-v584" role="button" tabindex="0" onclick="openSmartEntryV584(\''+entryId+'\',\''+entryDate+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openSmartEntryV584(\''+entryId+'\',\''+entryDate+'\')}"><div><div class="item-title">'+safeHeDate(e.date)+' · '+safeEsc(entryTypeLabelV529(e))+' · '+safeEsc(e.customerNumber||'')+'</div><div class="item-sub">כתובת: '+safeEsc(e.address||'')+'<br>סיבה: '+safeEsc(e.notDoneReason||'')+(e.notDoneNote?'<br>פירוט: '+safeEsc(e.notDoneNote):'')+'</div></div><div class="not-done-badge-v529">לא בוצע</div></div>';
+      }).join('') : '';
       panel.innerHTML='<h3>🚫 מתוזמנות שלא בוצעו</h3><p class="muted">סה״כ לא בוצעו החודש: <b>'+entries.length+'</b>. עבודות אלו לא נספרות כהכנסה ולא נשארות במתוזמנות.</p><div class="not-done-reason-grid-v529">'+reasonHtml+'</div>'+(listHtml?'<h3 style="margin-top:12px">פירוט אחרון</h3><div class="not-done-list-v529">'+listHtml+'</div>':'');
       host.appendChild(panel);
     }catch(e){ console.warn('appendNotDoneSmartDashboardV529 failed',e); }
@@ -14239,6 +14250,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
       {version:"5.78", title:"קיצור חיפוש מכרטיסי פק״ע", items:["נוסף אייקון חיפוש קטן ליד מספר לקוח וליד כתובת בכרטיסי פק״ע/עבודה.","לחיצה על האייקון פותחת את כרטיסיית החיפוש הקיימת, ממלאת את מספר הלקוח או הכתובת ומריצה חיפוש בכל ההיסטוריה ללא הגבלת זמן.","השינוי משתמש במנגנון החיפוש הקיים בלבד ולא מוסיף שדות חדשים או משנה נתונים."], date:d},
       {version:"5.77", title:"כיווץ רק בכרטיסיות העובד", items:["כפתור הכיווץ מופיע רק בכרטיסיות העליונות של העובד: תצוגה כללית, הכלים שלי, הגדרות אישיות, דשבורד חכם, היסטוריית לקוח והחיפוש וסיכומים.","לוח השנה, רשימת פק״עות ופאנלים של יום/עריכה לא מקבלים יותר כפתור כיווץ.","מצב הכיווץ נשמר מקומית ב-localStorage לכל כרטיסייה ומכשיר.","לא שונו חישובים, שמירת עבודות, גיבוי JSON, ייצוא אקסל או דוח התחשבנות."], date:d},
       {version:"5.76", title:"כיווץ כרטיסים ושמירה מקומית", items:["נוסף לכל כרטיס תוכן כפתור חץ בכותרת לפתיחה וכיווץ.","כאשר כרטיס מכווץ נשארת רק הכותרת, והאזורים שמתחתיו עולים למעלה כדי לחסוך מקום במסך.","מצב הכיווץ נשמר ב-localStorage לפי המכשיר, ולכן נשאר גם אחרי רענון או כניסה מחדש.","הושלמו רשומות מה חדש החסרות לגרסאות 5.70, 5.72, 5.74 ו-5.75."], date:d},
+      {version:"5.84", title:"ניווט מהדשבורד החכם לפק״ע המדויקת", items:["כל רשומה במתוזמנות שבוצעו ובמתוזמנות שלא בוצעו ניתנת ללחיצה על כל הכרטיס.","לחיצה עוברת ליום המדויק, פותחת את פאנל היום, גוללת לפק״ע לפי ID ומדגישה אותה זמנית.","הניווט אינו מבוסס על מספר לקוח ולא מוסיף שדות חדשים."], date:d},
       {version:"5.75", title:"ניקוי טקסט טכני מדשבורד חכם", items:["הוסר מהכרטיס מתוזמנות שבוצעו הטקסט הטכני שהזכיר את convertedFromPlanned.","הכרטיס נשאר נקי עם כותרת, כמות, סכום ורשימת עבודות בלבד.","לא שונתה שום לוגיקה, חישוב או שמירת נתונים."], date:d},
       {version:"5.74", title:"דשבורד חכם: מתוזמנות שבוצעו", items:["נוסף מתחת לאזור מתוזמנות שלא בוצעו אזור חדש מתוזמנות שבוצעו.","החישוב משתמש בשדה הקיים convertedFromPlanned=true יחד עם עבודות שבוצעו בפועל.","האזור מציג כמות, סכום כולל ורשימה מתומצתת בגלילה לפי תאריך, לקוח, סוג עבודה, כתובת וסכום.","לא נוסף שדה חדש ולא שונתה שמירת נתונים."], date:d},
       {version:"5.72", title:"תיקון כפתור גיבוי JSON אישי", items:["גיבוי JSON אישי עטוף בטיפול שגיאות מלא כדי שכשל קריאה יוצג למשתמש במקום שקט מוחלט.","נוסף סטטוס בזמן הכנת הגיבוי ופירוט מקטעים שדולגו אם אין הרשאה.","הגיבוי ממשיך להוריד קובץ גם אם מקטע לא קריטי חסום בהרשאות.","לא שונו שמירת עבודות, שחזור JSON, דוח התחשבנות, ימי חופש, לוגין או אדמין."], date:d},
@@ -14981,6 +14993,8 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
     var planned=isPlanned(e), notDone=isNotDone(e);
     var row=document.createElement('div');
     row.className='item'+(planned?' planned-card-v49':'')+(notDone?' not-done-card-v529':'');
+    // v5.84: מזהה הרשומה נשמר על כרטיס היום כדי לאפשר ניווט והדגשה מדויקים מהדשבורד החכם.
+    row.dataset.entryId=String(e.id||'');
     var iconClass=e.workType==='install'?'install':(e.isReturnCall?'return':'service');
     var icon=notDone?'🚫':(planned?'📋':(e.workType==='install'?'🛠️':(e.isReturnCall?'🔁':'☎️')));
     var badge=notDone?'<span class="not-done-badge-v529">לא בוצע</span>':(planned?'<span class="planned-badge-v49">מתוכנן</span>':'<span class="done-badge-v49">בוצע</span>');
@@ -15928,6 +15942,42 @@ CHANGELOG 5.70 - תיקון סופי להצגת פק״ע שלא בוצעה בב�
     return !!(e && e.convertedFromPlanned === true && statusOf(e)!=='planned' && statusOf(e)!=='not_done' && statusOf(e)!=='cancelled');
   }
 
+  // v5.84: ניווט מהדשבורד החכם לפק״ע המדויקת לפי ID, כולל גלילה והדגשה זמנית.
+  window.openSmartEntryV584=function(entryId,entryDate){
+    try{
+      if(!entryId || !entryDate) return;
+      try{ selectedDate=entryDate; }catch(e){ window.selectedDate=entryDate; }
+      try{ if(typeof renderCalendar==='function') renderCalendar(); }catch(e){}
+      try{ if(typeof renderDay==='function') renderDay(); }catch(e){}
+      try{ show('dayPanel'); hide('selectDayHint'); }catch(e){}
+
+      var attempts=0;
+      var focusExactEntry=function(){
+        attempts++;
+        var target=null;
+        try{
+          document.querySelectorAll('#dayEntries [data-entry-id]').forEach(function(el){
+            if(!target && String(el.dataset.entryId||'')===String(entryId)) target=el;
+          });
+        }catch(e){}
+        if(target){
+          try{ target.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){ try{ target.scrollIntoView(); }catch(_e){} }
+          target.classList.remove('smart-entry-highlight-v584');
+          void target.offsetWidth;
+          target.classList.add('smart-entry-highlight-v584');
+          setTimeout(function(){ try{ target.classList.remove('smart-entry-highlight-v584'); }catch(e){} },3200);
+          return;
+        }
+        if(attempts<8) setTimeout(focusExactEntry,120);
+        else{
+          var panel=document.getElementById('dayPanel');
+          if(panel){ try{ panel.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){} }
+        }
+      };
+      setTimeout(focusExactEntry,80);
+    }catch(e){ console.warn('openSmartEntryV584 failed',e); }
+  };
+
   function appendCompletedPlannedSmartDashboardV574(){
     try{
       var host=byId('smartDashboard'); if(!host) return;
@@ -15936,7 +15986,9 @@ CHANGELOG 5.70 - תיקון סופי להצגת פק״ע שלא בוצעה בב�
       entries=entries.slice().sort(function(a,b){ return String(b.date||'').localeCompare(String(a.date||'')); });
       var total=entries.reduce(function(s,e){ return s+Number(e.amount||0); },0);
       var listHtml=entries.length ? entries.map(function(e){
-        return '<div class="item planned-done-card-v574"><div><div class="item-title">'+dateSafe(e.date)+' · '+safe(labelOf(e))+' · לקוח '+safe(e.customerNumber||'')+'</div><div class="item-sub">כתובת: '+safe(e.address||'')+(e.notes?'<br>הערה: '+safe(e.notes):'')+'</div></div><div><div class="planned-done-badge-v574">בוצע</div><div class="money">'+moneySafe(e.amount||0)+'</div></div></div>';
+        var entryId=String(e.id||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        var entryDate=String(e.date||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        return '<div class="item planned-done-card-v574 smart-entry-link-v584" role="button" tabindex="0" onclick="openSmartEntryV584(\''+entryId+'\',\''+entryDate+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openSmartEntryV584(\''+entryId+'\',\''+entryDate+'\')}"><div><div class="item-title">'+dateSafe(e.date)+' · '+safe(labelOf(e))+' · לקוח '+safe(e.customerNumber||'')+'</div><div class="item-sub">כתובת: '+safe(e.address||'')+(e.notes?'<br>הערה: '+safe(e.notes):'')+'</div></div><div><div class="planned-done-badge-v574">בוצע</div><div class="money">'+moneySafe(e.amount||0)+'</div></div></div>';
       }).join('') : '<p class="muted">אין החודש מתוזמנות שסומנו כבוצעו.</p>';
       var panel=document.createElement('div');
       panel.id='plannedDoneSmartPanelV574';
