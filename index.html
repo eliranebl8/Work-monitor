@@ -1,6 +1,5 @@
 <!DOCTYPE html
-<!-- File version: 5.74 |
-woring version-->
+<!-- File version: 5.89 - Chrome-stable SVG password visibility icons -->
 
 <html lang="he" dir="rtl">
 <head>
@@ -65,7 +64,7 @@ woring version-->
 
 <section id="workerLoginView" class="card login-box hidden">
 <h1 class="big-title">כניסת עובד</h1><p style="text-align:center">הכנס שם משתמש וסיסמה שקיבלת מהמנהל.</p>
-<input id="workerUsername" placeholder="שם משתמש" autocomplete="off"><input id="workerPassword" type="password" placeholder="סיסמה" autocomplete="new-password">
+<input id="workerUsername" placeholder="שם משתמש" autocomplete="off"><div class="password-field-v585"><input id="workerPassword" type="password" placeholder="סיסמה" autocomplete="new-password"><button class="password-eye-v585" type="button" aria-label="הצג סיסמה" aria-pressed="false" title="הצג סיסמה" onclick="togglePasswordVisibilityV585('workerPassword',this)"><svg class="password-eye-svg-v589" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.75"></circle></svg></button></div>
 <label class="checkline"><input id="rememberMe" type="checkbox"> השאר אותי מחובר</label>
 <button class="btn-green" onclick="workerLogin()">כניסה</button>
 <button class="btn-light" onclick="showRegister()">הרשמה לעובד חדש</button>
@@ -126,7 +125,7 @@ woring version-->
 
 <section id="adminLoginView" class="card login-box hidden">
 <div class="cal-head"><h1>כניסת מנהל</h1><button class="btn-light" onclick="showWorkerLogin()">חזרה</button></div>
-<input id="adminUsername" placeholder="שם משתמש מנהל" autocomplete="off"><input id="adminPassword" type="password" placeholder="סיסמה" autocomplete="new-password">
+<input id="adminUsername" placeholder="שם משתמש מנהל" autocomplete="off"><div class="password-field-v585"><input id="adminPassword" type="password" placeholder="סיסמה" autocomplete="new-password"><button class="password-eye-v585" type="button" aria-label="הצג סיסמה" aria-pressed="false" title="הצג סיסמה" onclick="togglePasswordVisibilityV585('adminPassword',this)"><svg class="password-eye-svg-v589" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.75"></circle></svg></button></div>
 <button onclick="adminLogin()">כניסת מנהל</button><p id="adminLoginMsg" class="danger"></p>
 </section>
 
