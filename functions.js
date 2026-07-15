@@ -2,7 +2,13 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.89 - Chrome-stable SVG password visibility icons.
+File version: 5.90 DEBUG - persistent day-lock diagnostics.
+
+CHANGELOG 5.90 DEBUG - אבחון שמירת נעילת יום לאחר רענון
+1. נוסף חלון דיבאג צף עם לוג מלא של Firebase Auth, העובד הפעיל, שאילתת הנעילות, מסמכים שחזרו ותהליך השמירה והאימות.
+2. הלוג נשמר ב-localStorage ולכן נשאר גם אחרי רענון, כדי לראות בדיוק היכן התהליך נופל.
+3. נוספו כפתורי העתקה, ניקוי ומזעור; אין שינוי בלוגיקת העבודות או בנתונים הקיימים.
+4. זו גרסת אבחון זמנית שמטרתה לאתר את שורש התקלה בכרום.
 
 CHANGELOG 5.89 - אייקון עין יציב בכרום
 1. אייקון הצגת הסיסמה הוחלף מאימוג׳י ל-SVG פנימי ויציב שאינו תלוי בפונט של הדפדפן.
@@ -115,7 +121,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.89";
+const APP_VERSION = "5.90-debug";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -3165,7 +3171,9 @@ async function saveMonthlySettlementV547(){
     return;
   }
   try{
+    window.dayLockDebugV590&&window.dayLockDebugV590('PERSIST_PAYLOAD',payload);
     await ref.set(payload,{merge:true});
+    window.dayLockDebugV590&&window.dayLockDebugV590('PERSIST_SET_OK',{docId:safeDocId(workerId,date)});
     if($("settlementMsgV547"))$("settlementMsgV547").innerHTML="<div class='notice'>דוח ההתחשבנות נשמר ✅</div>";
   }catch(e){
     if($("settlementMsgV547")){
@@ -12286,6 +12294,7 @@ CHANGE 5.13 - OFFLINE SYNC SAFE LAYER
 
     try{
       var snap=await ref.get();
+    window.dayLockDebugV590&&window.dayLockDebugV590('PERSIST_EXISTING_DOC',snap.exists?{id:snap.id,data:snap.data()}: {exists:false});
       if(snap.exists){
         var data=snap.data() || {};
         previous=data.lastLoginAt || data.lastLoginClientAt || null;
@@ -16480,6 +16489,54 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
 4. יום נעול נשאר גלוי לקריאה, אך פעולות שמירה, עריכה, מחיקה, שינוי סטטוס, שינוי תאריך ויום חופש נחסמות גם בממשק וגם בפונקציות.
 5. טעינת ימי חופש עודכנה להתעלם ממסמכי נעילה בלבד, וייצוא Excel מסווג בנפרד יום חופש ויום נעול.
 =========================================================================== */
+/* v5.90 DEBUG: חלון אבחון זמני לנעילת יום. הלוג נשמר גם לאחר רענון. */
+(function initDayLockDebugV590(){
+  'use strict';
+  var KEY='wmDayLockDebugV590';
+  function now(){ try{return new Date().toISOString();}catch(e){return String(Date.now());} }
+  function safe(v){
+    try{
+      if(v instanceof Error) return {name:v.name,message:v.message,code:v.code||'',stack:v.stack||''};
+      if(v && typeof v==='object') return JSON.parse(JSON.stringify(v,function(k,val){
+        if(val && typeof val.toDate==='function'){try{return val.toDate().toISOString();}catch(e){return String(val);}}
+        return val;
+      }));
+      return v;
+    }catch(e){return String(v);}
+  }
+  function read(){try{return JSON.parse(localStorage.getItem(KEY)||'[]');}catch(e){return [];} }
+  function write(rows){try{localStorage.setItem(KEY,JSON.stringify(rows.slice(-400)));}catch(e){} }
+  function render(){
+    var pre=document.getElementById('dayLockDebugLogV590'); if(!pre)return;
+    var rows=read();
+    pre.textContent=rows.map(function(r){return '['+r.time+'] '+r.event+(r.data!==undefined?'\n'+JSON.stringify(r.data,null,2):'');}).join('\n\n')||'אין עדיין נתוני דיבאג';
+    pre.scrollTop=pre.scrollHeight;
+  }
+  window.dayLockDebugV590=function(event,data){
+    var rows=read(); rows.push({time:now(),event:String(event||''),data:safe(data)}); write(rows); render();
+    try{console.log('[DAY-LOCK DEBUG]',event,data);}catch(e){}
+  };
+  window.copyDayLockDebugV590=async function(){
+    var text=(document.getElementById('dayLockDebugLogV590')||{}).textContent||'';
+    try{await navigator.clipboard.writeText(text); alert('לוג הדיבאג הועתק.');}
+    catch(e){var ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();alert('לוג הדיבאג הועתק.');}
+  };
+  window.clearDayLockDebugV590=function(){try{localStorage.removeItem(KEY);}catch(e){} render();};
+  function build(){
+    if(document.getElementById('dayLockDebugPanelV590')){render();return;}
+    var box=document.createElement('section'); box.id='dayLockDebugPanelV590'; box.className='day-lock-debug-v590';
+    box.innerHTML='<div class="day-lock-debug-head-v590"><strong>🧪 דיבאג נעילת יום 5.90</strong><div><button type="button" onclick="copyDayLockDebugV590()">העתק</button><button type="button" onclick="clearDayLockDebugV590()">נקה</button><button type="button" onclick="this.closest(\'.day-lock-debug-v590\').classList.toggle(\'is-minimized\')">מזער</button></div></div><pre id="dayLockDebugLogV590"></pre>';
+    document.body.appendChild(box); render();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build);else build();
+  window.addEventListener('load',function(){build();
+    var authInfo={available:typeof auth!=='undefined'&&!!auth,currentUser:null};
+    try{authInfo.currentUser=auth&&auth.currentUser?{uid:auth.currentUser.uid,email:auth.currentUser.email||'',isAnonymous:auth.currentUser.isAnonymous}:null;}catch(e){authInfo.error=safe(e);}
+    window.dayLockDebugV590('PAGE_LOAD',{url:location.href,userAgent:navigator.userAgent,online:navigator.onLine,auth:authInfo});
+    try{if(typeof auth!=='undefined'&&auth&&auth.onAuthStateChanged)auth.onAuthStateChanged(function(u){window.dayLockDebugV590('AUTH_STATE_CHANGED',u?{uid:u.uid,email:u.email||'',isAnonymous:u.isAnonymous}:null);});}catch(e){window.dayLockDebugV590('AUTH_LISTENER_ERROR',e);}
+  });
+})();
+
 (function initPasswordAndDayLockV585(){
   'use strict';
   var VERSION=APP_VERSION;
@@ -16549,22 +16606,27 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
 
   async function loadLocks(){
     var workerId=currentWorkerId();
+    window.dayLockDebugV590&&window.dayLockDebugV590('LOAD_LOCKS_START',{workerId:workerId,viewedWorker:(typeof viewedWorker!=='undefined'&&viewedWorker)?{id:viewedWorker.id||'',name:viewedWorker.name||''}:null,session:(typeof session!=='undefined'&&session)?{workerId:session.workerId||'',username:session.username||''}:null,calendarDate:(typeof calendarDate!=='undefined'&&calendarDate)?String(calendarDate):null});
     // v5.88: בזמן שחזור התחברות viewedWorker/session עשויים עדיין לא להיות מוכנים.
     // לא מוחקים את המטמון בגלל מצב זמני כזה, אלא ממתינים לקריאה הבאה לאחר טעינת העובד.
-    if(!workerId) return lockedDays;
+    if(!workerId){ window.dayLockDebugV590&&window.dayLockDebugV590('LOAD_LOCKS_ABORT_NO_WORKER',{cached:Array.from(lockedDays)}); return lockedDays; }
     var range=monthRange(), next=new Set();
     try{
       // v5.88: לאחר רענון Firebase Auth משחזר את המשתמש באופן אסינכרוני.
       // המתנה קצרה מונעת קריאת Firestore מוקדמת שנכשלת ואז מציגה בטעות יום פתוח.
-      await waitForLockAuthV588(5500);
+      var authUser=await waitForLockAuthV588(5500);
+      window.dayLockDebugV590&&window.dayLockDebugV590('LOAD_LOCKS_AUTH_READY',authUser?{uid:authUser.uid,email:authUser.email||''}:null);
       var snap=await db.collection('workerDaysOff').where('workerId','==',workerId).get();
+      window.dayLockDebugV590&&window.dayLockDebugV590('LOAD_LOCKS_QUERY_RESULT',{workerId:workerId,size:snap.size,docs:snap.docs.map(function(d){var x=d.data()||{};return{id:d.id,date:x.date||'',locked:x.locked,active:x.active,type:x.type||'',workerId:x.workerId||'',authUid:x.authUid||''};})});
       snap.docs.forEach(function(doc){
         var data=doc.data()||{},date=String(data.date||'');
         if(data.locked===true && date>=range.start && date<=range.end) next.add(date);
       });
       lockedDays=next; loadedWorkerId=workerId;
+      window.dayLockDebugV590&&window.dayLockDebugV590('LOAD_LOCKS_SUCCESS',{workerId:workerId,range:range,lockedDays:Array.from(lockedDays)});
     }catch(err){
       console.error('v5.88 day lock load failed',err);
+      window.dayLockDebugV590&&window.dayLockDebugV590('LOAD_LOCKS_ERROR',err);
       // v5.88: אין לאפס נעילות שכבר נטענו בגלל כשל רשת/אימות זמני.
       // כך לא נוצר מצב מסוכן שבו יום נעול נראה פתוח רק בגלל רענון או Offline רגעי.
     }
@@ -16574,8 +16636,10 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
 
   async function persistLock(date,locked){
     var workerId=currentWorkerId();
+    window.dayLockDebugV590&&window.dayLockDebugV590('PERSIST_START',{date:date,locked:locked,workerId:workerId,docId:safeDocId(workerId,date)});
     if(!workerId||!date) throw new Error('לא זוהה עובד או תאריך');
-    await waitForLockAuthV588(5500);
+    var persistAuthUser=await waitForLockAuthV588(5500);
+    window.dayLockDebugV590&&window.dayLockDebugV590('PERSIST_AUTH_READY',persistAuthUser?{uid:persistAuthUser.uid,email:persistAuthUser.email||''}:null);
     var ref=db.collection('workerDaysOff').doc(safeDocId(workerId,date));
     var snap=await ref.get();
     var payload={
@@ -16594,9 +16658,12 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
       payload.active=false;
       payload.createdAt=firebase.firestore.FieldValue.serverTimestamp();
     }
+    window.dayLockDebugV590&&window.dayLockDebugV590('PERSIST_PAYLOAD',payload);
     await ref.set(payload,{merge:true});
+    window.dayLockDebugV590&&window.dayLockDebugV590('PERSIST_SET_OK',{docId:safeDocId(workerId,date)});
     // v5.88: מאמתים שהערך אכן נשמר בשרת/מטמון Firestore לפני עדכון הממשק.
     var verify=await ref.get();
+    window.dayLockDebugV590&&window.dayLockDebugV590('PERSIST_VERIFY',verify.exists?{id:verify.id,data:verify.data()}:{exists:false});
     if(!verify.exists || (verify.data()||{}).locked!==(locked===true)) throw new Error('מצב הנעילה לא אומת לאחר השמירה');
   }
 
@@ -16605,10 +16672,13 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
     var next=!isLocked(date);
     // v5.86: נעילה/פתיחה מתבצעת מיד ללא Message Box מיותר.
     try{
+      window.dayLockDebugV590&&window.dayLockDebugV590('TOGGLE_CLICK',{date:date,current:isLocked(date),next:next});
       await persistLock(date,next);
       if(next) lockedDays.add(date); else lockedDays.delete(date);
+      window.dayLockDebugV590&&window.dayLockDebugV590('TOGGLE_UI_UPDATED',{date:date,lockedDays:Array.from(lockedDays)});
       if(typeof renderDay==='function') renderDay();
     }catch(err){
+      window.dayLockDebugV590&&window.dayLockDebugV590('TOGGLE_ERROR',err);
       alert('לא הצלחתי לשמור את מצב נעילת היום ב-Firebase.\nשגיאה: '+((err&&err.message)||err));
     }
   };
