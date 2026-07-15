@@ -1,4 +1,4 @@
-/* File version: 5.82 - clean inline icons + restored quick-search click support */
+/* File version: 5.84 - clickable smart-dashboard rows and exact-entry highlight */
 /* Work Monitor app - extracted CSS pilot */
 
 :root{
@@ -4326,4 +4326,35 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
     height:auto !important;
     font-size:18px !important;
   }
+}
+
+
+/* ==========================================================================
+   v5.84 - Smart Dashboard exact-entry navigation
+   כל כרטיס ברשימות המתוזמנות לחיץ; היעד המדויק מודגש זמנית בפאנל היום.
+   ========================================================================== */
+.smart-entry-link-v584{
+  cursor:pointer;
+  transition:transform .14s ease, box-shadow .14s ease, filter .14s ease;
+}
+.smart-entry-link-v584:hover{
+  transform:translateY(-1px);
+  filter:brightness(.99);
+}
+.smart-entry-link-v584:focus-visible{
+  outline:2px solid currentColor;
+  outline-offset:2px;
+}
+.smart-entry-highlight-v584{
+  animation:smartEntryPulseV584 1.05s ease-in-out 3;
+  position:relative;
+  z-index:2;
+}
+@keyframes smartEntryPulseV584{
+  0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(245,158,11,0);}
+  50%{transform:scale(1.012);box-shadow:0 0 0 5px rgba(245,158,11,.32),0 10px 24px rgba(0,0,0,.12);}
+}
+@media (prefers-reduced-motion: reduce){
+  .smart-entry-link-v584,.smart-entry-highlight-v584{transition:none;animation:none;}
+  .smart-entry-highlight-v584{box-shadow:0 0 0 4px rgba(245,158,11,.35);}
 }
