@@ -1,4 +1,4 @@
-/* File version: 5.87 - compact worker password eye and repositioned calendar lock icon */
+/* File version: 5.89 - Chrome-stable SVG password visibility icons */
 /* Work Monitor app - extracted CSS pilot */
 
 :root{
@@ -4526,4 +4526,32 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
   opacity:.82 !important;
   pointer-events:none !important;
   z-index:3 !important;
+}
+
+
+/* ========================================================================== 
+   v5.89 - אייקון עין יציב בכרום
+   הוחלף האימוג׳י ב-SVG פנימי, כדי שהאייקון לא יהיה תלוי בפונט או במנוע
+   האימוג׳י של הדפדפן. אין שינוי בלוגיקת ההתחברות או בהצגת הסיסמה.
+   ========================================================================== */
+.password-eye-v585 .password-eye-svg-v589{
+  width:18px !important;
+  height:18px !important;
+  display:block !important;
+  overflow:visible;
+  fill:none;
+  stroke:#fff;
+  stroke-width:1.9;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  pointer-events:none;
+}
+.password-eye-v585 .password-eye-svg-v589 circle{
+  fill:#fff;
+  stroke:none;
+}
+.password-eye-v585 .password-eye-svg-v589 .eye-slash-v589{
+  fill:none;
+  stroke:#fff;
+  stroke-width:2.2;
 }
