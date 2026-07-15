@@ -2,7 +2,7 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.87 - compact worker password eye and repositioned calendar lock icon.
+File version: 5.88 - persistent day-lock reload fix after refresh.
 
 CHANGELOG 5.84 - ניווט מהדשבורד החכם לפק״ע המדויקת
 1. כל רשומה ברשימות "מתוזמנות שבוצעו" ו"מתוזמנות שלא בוצעו" הפכה ללחיצה על כל הכרטיס.
@@ -109,7 +109,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.87";
+const APP_VERSION = "5.88";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -16476,7 +16476,7 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
 =========================================================================== */
 (function initPasswordAndDayLockV585(){
   'use strict';
-  var VERSION='5.85';
+  var VERSION=APP_VERSION;
   var lockedDays=new Set();
   var loadedWorkerId='';
 
@@ -16516,11 +16516,38 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
     try{ input.focus({preventScroll:true}); }catch(e){ try{input.focus();}catch(_e){} }
   };
 
+  function waitForLockAuthV588(timeoutMs){
+    timeoutMs=Number(timeoutMs||5000);
+    return new Promise(function(resolve){
+      try{
+        if(typeof auth==='undefined'||!auth||typeof auth.onAuthStateChanged!=='function') return resolve(null);
+        if(auth.currentUser) return resolve(auth.currentUser);
+        var finished=false,unsub=null;
+        var timer=setTimeout(function(){
+          if(finished)return; finished=true;
+          try{if(unsub)unsub();}catch(e){}
+          resolve(auth.currentUser||null);
+        },timeoutMs);
+        unsub=auth.onAuthStateChanged(function(user){
+          if(finished||!user)return;
+          finished=true; clearTimeout(timer);
+          try{if(unsub)unsub();}catch(e){}
+          resolve(user);
+        });
+      }catch(e){resolve(null);}
+    });
+  }
+
   async function loadLocks(){
     var workerId=currentWorkerId();
-    if(!workerId){ lockedDays=new Set(); loadedWorkerId=''; return lockedDays; }
+    // v5.88: בזמן שחזור התחברות viewedWorker/session עשויים עדיין לא להיות מוכנים.
+    // לא מוחקים את המטמון בגלל מצב זמני כזה, אלא ממתינים לקריאה הבאה לאחר טעינת העובד.
+    if(!workerId) return lockedDays;
     var range=monthRange(), next=new Set();
     try{
+      // v5.88: לאחר רענון Firebase Auth משחזר את המשתמש באופן אסינכרוני.
+      // המתנה קצרה מונעת קריאת Firestore מוקדמת שנכשלת ואז מציגה בטעות יום פתוח.
+      await waitForLockAuthV588(5500);
       var snap=await db.collection('workerDaysOff').where('workerId','==',workerId).get();
       snap.docs.forEach(function(doc){
         var data=doc.data()||{},date=String(data.date||'');
@@ -16528,8 +16555,9 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
       });
       lockedDays=next; loadedWorkerId=workerId;
     }catch(err){
-      console.error('v5.85 day lock load failed',err);
-      lockedDays=new Set(); loadedWorkerId=workerId;
+      console.error('v5.88 day lock load failed',err);
+      // v5.88: אין לאפס נעילות שכבר נטענו בגלל כשל רשת/אימות זמני.
+      // כך לא נוצר מצב מסוכן שבו יום נעול נראה פתוח רק בגלל רענון או Offline רגעי.
     }
     return lockedDays;
   }
@@ -16538,11 +16566,13 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
   async function persistLock(date,locked){
     var workerId=currentWorkerId();
     if(!workerId||!date) throw new Error('לא זוהה עובד או תאריך');
+    await waitForLockAuthV588(5500);
     var ref=db.collection('workerDaysOff').doc(safeDocId(workerId,date));
     var snap=await ref.get();
     var payload={
       workerId:workerId,
       workerName:currentWorkerNameV585(),
+      authUid:(typeof auth!=='undefined'&&auth&&auth.currentUser)?auth.currentUser.uid:'',
       date:String(date),
       locked:locked===true,
       lockUpdatedAt:firebase.firestore.FieldValue.serverTimestamp(),
@@ -16556,6 +16586,9 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
       payload.createdAt=firebase.firestore.FieldValue.serverTimestamp();
     }
     await ref.set(payload,{merge:true});
+    // v5.88: מאמתים שהערך אכן נשמר בשרת/מטמון Firestore לפני עדכון הממשק.
+    var verify=await ref.get();
+    if(!verify.exists || (verify.data()||{}).locked!==(locked===true)) throw new Error('מצב הנעילה לא אומת לאחר השמירה');
   }
 
   window.toggleDayLockV585=async function(date){
@@ -16797,6 +16830,12 @@ CHANGELOG 5.86 - השלמת נעילת יום והקטנת אייקון העין
     if(typeof old!=='function'||old.__v586Wrapped) return;
     var wrapped=function(){
       var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='5.88';})) rows.unshift({version:'5.88',title:'תיקון שמירת נעילת יום לאחר רענון',createdAt:'2026-07-15',items:[
+        'טעינת נעילות היום ממתינה לשחזור Firebase Auth לאחר רענון לפני קריאת Firestore.',
+        'כשל זמני באימות או ברשת אינו מאפס עוד את רשימת הימים הנעולים ומציג אותם כפתוחים.',
+        'שמירת נעילה כוללת authUid ואימות קריאה חוזרת כדי לוודא שהמצב באמת נשמר.',
+        'לוגיקת החסימה, מיקום המנעול ועיצוב אייקון העין נשארו ללא שינוי.'
+      ]});
       if(!rows.some(function(r){return String(r.version||r.id||'')==='5.87';})) rows.unshift({version:'5.87',title:'תיקון אייקון העין ומיקום המנעול בלוח השנה',createdAt:'2026-07-15',items:[
         'אייקון העין בכניסת עובד הוקטן והותאם לגודל של אייקון העין בכניסת מנהל.',
         'אייקון המנעול בלוח השנה הוקטן והועבר לפינה השמאלית העליונה כדי שלא יסתיר את מספר היום.',
