@@ -2,7 +2,7 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.84 - smart dashboard rows navigate to the exact work entry.
+File version: 5.87 - compact worker password eye and repositioned calendar lock icon.
 
 CHANGELOG 5.84 - ניווט מהדשבורד החכם לפק״ע המדויקת
 1. כל רשומה ברשימות "מתוזמנות שבוצעו" ו"מתוזמנות שלא בוצעו" הפכה ללחיצה על כל הכרטיס.
@@ -109,7 +109,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.84";
+const APP_VERSION = "5.87";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -2712,7 +2712,7 @@ async function exportMyEntriesCSV(){
     const workRows=entries.map(e=>excelWorkRowV573(e,viewedWorker));
 
     const daysDocs=await safeDocs("workerDaysOff",()=>db.collection("workerDaysOff").where("workerId","==",viewedWorker.id).get());
-    const daysRows=daysDocs.map(d=>({id:d.id,...serializeFirestore(d.data())})).sort((a,b)=>String(a.date||"").localeCompare(String(b.date||""))).map(d=>({"מזהה":d.id,"חודש":excelMonthKeyV573(d.date),"תאריך":d.date||"","עובד":d.workerName||viewedWorker.name||"","סיבה/הערה":d.reason||d.notes||"","נוצר":d.createdAt||"","עודכן":d.updatedAt||""}));
+    const daysRows=daysDocs.map(d=>({id:d.id,...serializeFirestore(d.data())})).sort((a,b)=>String(a.date||"").localeCompare(String(b.date||""))).map(d=>({"מזהה":d.id,"חודש":excelMonthKeyV573(d.date),"תאריך":d.date||"","עובד":d.workerName||viewedWorker.name||"","סוג רשומה":((d.type==="vacation"||!d.type)&&d.active!==false)?"יום חופש":(d.locked===true?"יום נעול":"מצב יום"),"יום חופש פעיל":((d.type==="vacation"||!d.type)&&d.active!==false)?"כן":"לא","יום נעול":d.locked===true?"כן":"לא","סיבה/הערה":d.reason||d.notes||"","נוצר":d.createdAt||"","עודכן":d.updatedAt||""}));
 
     const settlementDocs=await safeDocs("monthlySettlements",()=>db.collection("workers").doc(viewedWorker.id).collection("monthlySettlements").get());
     const settlementRows=settlementDocs.map(d=>({id:d.id,data:serializeFirestore(d.data())})).sort((a,b)=>String(a.id).localeCompare(String(b.id))).map(excelSettlementRowV573);
@@ -2736,7 +2736,7 @@ async function exportMyEntriesCSV(){
       const installs=monthEntries.filter(e=>e.workType==="install");
       const total=done.reduce((sum,e)=>sum+Number(e.amount||0),0);
       const goal=excelMonthlyGoalForV573(workerProfile,month);
-      const daysOff=daysRows.filter(d=>d["חודש"]===month).length;
+      const daysOff=daysRows.filter(d=>d["חודש"]===month && d["יום חופש פעיל"]==="כן").length;
       return {"חודש":month,"סה״כ עבודות":monthEntries.length,"בוצעו":done.length,"מתוכננות":planned.length,"לא בוצעו":notDone.length,"קריאות שירות":services.length,"התקנות":installs.length,"סכום עבודות שבוצעו":total,"יעד חודשי":goal,"פער ליעד":goal?total-goal:"","ימי חופש":daysOff};
     });
 
@@ -11694,7 +11694,7 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
     snap.docs.forEach(function(doc){
       var d=doc.data()||{};
       var date=String(d.date||'');
-      if(d.active!==false && date && date>=start && date<=end) days.push(date);
+      if((d.type==='vacation' || !d.type) && d.active!==false && date && date>=start && date<=end) days.push(date);
     });
     return Array.from(new Set(days.filter(Boolean))).sort();
   }
@@ -16463,4 +16463,365 @@ CHANGE 5.79 - CHROME-SAFE COLLAPSE + SMALLER QUICK SEARCH ICON
   else { setTimeout(refreshButtons,150); setTimeout(refreshButtons,900); }
   window.addEventListener('load', function(){ setTimeout(refreshButtons,250); setTimeout(refreshButtons,1200); });
   window.fixWorkerTabCollapseV579 = refreshButtons;
+})();
+
+
+/* ==========================================================================
+CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
+1. נוסף אייקון עין במסכי כניסת עובד ומנהל להצגה/הסתרה של הסיסמה בלי שינוי בלוגיקת ההתחברות.
+2. נוסף מנעול ליד כלי היום; מצב locked נשמר במסמך היום הקיים ב-workerDaysOff, ללא Collection חדשה.
+3. אם locked אינו קיים או אינו true, היום פתוח כברירת מחדל כדי לשמור תאימות מלאה לכל הנתונים הישנים.
+4. יום נעול נשאר גלוי לקריאה, אך פעולות שמירה, עריכה, מחיקה, שינוי סטטוס, שינוי תאריך ויום חופש נחסמות גם בממשק וגם בפונקציות.
+5. טעינת ימי חופש עודכנה להתעלם ממסמכי נעילה בלבד, וייצוא Excel מסווג בנפרד יום חופש ויום נעול.
+=========================================================================== */
+(function initPasswordAndDayLockV585(){
+  'use strict';
+  var VERSION='5.85';
+  var lockedDays=new Set();
+  var loadedWorkerId='';
+
+  function byId(id){ return document.getElementById(id); }
+  function currentWorkerId(){
+    try{ if(typeof viewedWorker!=='undefined' && viewedWorker && viewedWorker.id) return String(viewedWorker.id); }catch(e){}
+    try{ if(typeof session!=='undefined' && session && session.workerId) return String(session.workerId); }catch(e){}
+    return '';
+  }
+  function currentWorkerNameV585(){
+    try{ if(typeof viewedWorker!=='undefined' && viewedWorker && viewedWorker.name) return String(viewedWorker.name); }catch(e){}
+    return '';
+  }
+  function safeDocId(workerId,date){
+    return String(workerId||'worker').replace(/[^a-zA-Z0-9_\-א-ת]/g,'_')+'_'+String(date||'date').replace(/[^0-9]/g,'_');
+  }
+  function monthRange(){
+    var d=(typeof calendarDate!=='undefined' && calendarDate) ? calendarDate : new Date();
+    var y=d.getFullYear(),m=d.getMonth(),last=new Date(y,m+1,0).getDate();
+    function p(n){return String(n).padStart(2,'0');}
+    return {start:y+'-'+p(m+1)+'-01',end:y+'-'+p(m+1)+'-'+p(last)};
+  }
+  function isLocked(date){ return !!date && lockedDays.has(String(date)); }
+  window.isDayLockedV585=isLocked;
+
+  // v5.85: הצגת/הסתרת הסיסמה משנה רק type של שדה הקלט ולא נוגעת באימות.
+  window.togglePasswordVisibilityV585=function(inputId,button){
+    var input=byId(inputId); if(!input) return;
+    var reveal=input.type==='password';
+    input.type=reveal?'text':'password';
+    if(button){
+      button.textContent=reveal?'🙈':'👁️';
+      button.setAttribute('aria-pressed',reveal?'true':'false');
+      button.setAttribute('aria-label',reveal?'הסתר סיסמה':'הצג סיסמה');
+      button.title=reveal?'הסתר סיסמה':'הצג סיסמה';
+    }
+    try{ input.focus({preventScroll:true}); }catch(e){ try{input.focus();}catch(_e){} }
+  };
+
+  async function loadLocks(){
+    var workerId=currentWorkerId();
+    if(!workerId){ lockedDays=new Set(); loadedWorkerId=''; return lockedDays; }
+    var range=monthRange(), next=new Set();
+    try{
+      var snap=await db.collection('workerDaysOff').where('workerId','==',workerId).get();
+      snap.docs.forEach(function(doc){
+        var data=doc.data()||{},date=String(data.date||'');
+        if(data.locked===true && date>=range.start && date<=range.end) next.add(date);
+      });
+      lockedDays=next; loadedWorkerId=workerId;
+    }catch(err){
+      console.error('v5.85 day lock load failed',err);
+      lockedDays=new Set(); loadedWorkerId=workerId;
+    }
+    return lockedDays;
+  }
+  window.loadDayLocksV585=loadLocks;
+
+  async function persistLock(date,locked){
+    var workerId=currentWorkerId();
+    if(!workerId||!date) throw new Error('לא זוהה עובד או תאריך');
+    var ref=db.collection('workerDaysOff').doc(safeDocId(workerId,date));
+    var snap=await ref.get();
+    var payload={
+      workerId:workerId,
+      workerName:currentWorkerNameV585(),
+      date:String(date),
+      locked:locked===true,
+      lockUpdatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+      appVersion:VERSION,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    };
+    // v5.85: במסמך חדש בלבד מסמנים שמדובר במצב נעילה, כדי שלא ייטען בטעות כיום חופש.
+    if(!snap.exists){
+      payload.type='dayLock';
+      payload.active=false;
+      payload.createdAt=firebase.firestore.FieldValue.serverTimestamp();
+    }
+    await ref.set(payload,{merge:true});
+  }
+
+  window.toggleDayLockV585=async function(date){
+    date=String(date||''); if(!date) return;
+    var next=!isLocked(date);
+    // v5.86: נעילה/פתיחה מתבצעת מיד ללא Message Box מיותר.
+    try{
+      await persistLock(date,next);
+      if(next) lockedDays.add(date); else lockedDays.delete(date);
+      if(typeof renderDay==='function') renderDay();
+    }catch(err){
+      alert('לא הצלחתי לשמור את מצב נעילת היום ב-Firebase.\nשגיאה: '+((err&&err.message)||err));
+    }
+  };
+
+  function lockButtonHtml(date,locked){
+    var safe=String(date).replace(/'/g,"\\'");
+    return '<button type="button" class="btn-light day-lock-btn-v585 '+(locked?'is-locked':'')+'" data-day-lock-control-v585="1" onclick="toggleDayLockV585(\''+safe+'\')" title="'+(locked?'בטל נעילת יום':'נעל את היום')+'">'+(locked?'🔒 יום נעול — פתח':'🔓 נעל יום')+'</button>';
+  }
+  function injectLockUi(){
+    if(typeof selectedDate==='undefined'||!selectedDate) return;
+    var title=byId('dateTitle'); if(!title) return;
+    var holder=byId('dayLockToolsV585');
+    if(!holder){
+      holder=document.createElement('div'); holder.id='dayLockToolsV585'; holder.className='day-lock-tools-v585';
+      if(title.parentNode) title.parentNode.insertBefore(holder,title.nextSibling);
+    }
+    var locked=isLocked(selectedDate);
+    holder.innerHTML=lockButtonHtml(selectedDate,locked);
+    var panel=byId('dayPanel'); if(panel) panel.classList.toggle('day-locked-v585',locked);
+    var oldNotice=byId('dayLockNoticeV585'); if(oldNotice) oldNotice.remove();
+    if(locked){
+      var notice=document.createElement('div'); notice.id='dayLockNoticeV585'; notice.className='day-lock-notice-v585';
+      notice.textContent='🔒 היום נעול. אפשר לצפות בכל המידע, אך כדי לבצע שינוי צריך לפתוח את הנעילה.';
+      holder.insertAdjacentElement('afterend',notice);
+      var edit=byId('editEntryPanel'); if(edit) edit.classList.add('hidden');
+    }
+    applyUiLock(locked);
+  }
+
+  function applyUiLock(locked){
+    var panel=byId('dayPanel'); if(!panel) return;
+    var controls=panel.querySelectorAll('#entryForm input,#entryForm select,#entryForm textarea,#entryForm button,#dayEntries button,#dayOffToolsV437 button');
+    controls.forEach(function(el){
+      if(el.hasAttribute('data-day-lock-control-v585')) return;
+      if(locked){
+        if(!el.hasAttribute('data-was-disabled-v585')) el.setAttribute('data-was-disabled-v585',el.disabled?'1':'0');
+        el.disabled=true; el.setAttribute('aria-disabled','true');
+      }else{
+        var was=el.getAttribute('data-was-disabled-v585');
+        if(was!==null){ el.disabled=was==='1'; el.removeAttribute('data-was-disabled-v585'); }
+        el.removeAttribute('aria-disabled');
+      }
+    });
+  }
+
+  function lockedMessage(){
+    var msg=byId('entryMsg');
+    if(msg) msg.innerHTML='<p class="danger">🔒 היום נעול. פתח את הנעילה כדי לבצע שינוי.</p>';
+    else alert('🔒 היום נעול. פתח את הנעילה כדי לבצע שינוי.');
+  }
+  function entryDateFromId(id){
+    try{
+      var list=(typeof monthEntries!=='undefined'&&Array.isArray(monthEntries))?monthEntries:[];
+      var entry=list.find(function(e){return e&&String(e.id)===String(id);});
+      return entry&&entry.date?String(entry.date):'';
+    }catch(e){return '';}
+  }
+  function guardDate(date){ if(date&&isLocked(date)){lockedMessage();return true;} return false; }
+
+  function wrap(name,dateResolver){
+    var original=window[name];
+    if(typeof original!=='function'||original.__dayLockV585) return;
+    var wrapped=function(){
+      var date=''; try{date=dateResolver?dateResolver.apply(this,arguments):(typeof selectedDate!=='undefined'?selectedDate:'');}catch(e){}
+      if(guardDate(date)) return false;
+      return original.apply(this,arguments);
+    };
+    wrapped.__dayLockV585=true; wrapped.__originalV585=original; window[name]=wrapped;
+  }
+  function installGuards(){
+    ['addService','addInstall','addServicePlannedV49','addInstallPlannedV49','setVacationDayV437','setVacationDayV439','setVacationDayV46','setVacationDayV47','setVacationDayV473','setVacationDayV486','setVacationDayV487','setVacationDayV489'].forEach(function(n){wrap(n,function(){return typeof selectedDate!=='undefined'?selectedDate:'';});});
+    ['deleteEntry','openEntryEdit','markEntryDoneV49','openNotDoneModalV529','restorePlannedV529','changeEntryDateV537'].forEach(function(n){wrap(n,function(id){return entryDateFromId(id);});});
+    wrap('saveEntryEdit',function(){var id=byId('editEntryId');return entryDateFromId(id&&id.value);});
+    // ביטול יום חופש הוא שינוי של אותו יום ולכן גם הוא דורש פתיחת נעילה.
+    ['cancelVacationDayV437','cancelVacationDayV439','cancelVacationDayV487','cancelVacationDayV489'].forEach(function(n){wrap(n,function(date){return String(date||'');});});
+  }
+
+  var originalRenderDay=window.renderDay;
+  if(typeof originalRenderDay==='function'&&!originalRenderDay.__dayLockV585){
+    window.renderDay=function(){
+      var result=originalRenderDay.apply(this,arguments);
+      try{injectLockUi();}catch(e){console.warn('v5.85 lock UI failed',e);}
+      return result;
+    };
+    window.renderDay.__dayLockV585=true;
+  }
+
+  var originalLoadMonth=window.loadMonth;
+  if(typeof originalLoadMonth==='function'&&!originalLoadMonth.__dayLockV585){
+    window.loadMonth=async function(){
+      var result=await originalLoadMonth.apply(this,arguments);
+      await loadLocks();
+      try{if(typeof renderCalendar==='function')renderCalendar();}catch(e){}
+      try{if(typeof renderDay==='function')renderDay();}catch(e){}
+      return result;
+    };
+    window.loadMonth.__dayLockV585=true;
+  }
+
+  function updateChangelog(){
+    var old=window.requiredChangelogRows || (typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof old!=='function'||old.__v585Wrapped) return;
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='5.85';})) rows.unshift({version:'5.85',title:'הצגת סיסמה ונעילת יום',createdAt:'2026-07-15',items:[
+        'נוסף אייקון עין במסכי כניסת עובד ומנהל להצגה או הסתרה של הסיסמה.',
+        'נוסף מנעול יום שנשמר ב-Firebase במסמך היום הקיים, ללא Collection חדשה.',
+        'יום ללא locked:true נשאר פתוח כברירת מחדל ותואם לכל הנתונים הישנים.',
+        'יום נעול נשאר גלוי לצפייה, אך פעולות שינוי נחסמות בממשק וברמת הפונקציות.',
+        'טעינת ימי חופש וייצוא Excel עודכנו כך שמסמך נעילה בלבד אינו נספר כיום חופש.'
+      ]});
+      return rows;
+    };
+    wrapped.__v585Wrapped=true; window.requiredChangelogRows=wrapped;
+  }
+
+  function boot(){
+    installGuards(); updateChangelog();
+    loadLocks().then(function(){try{if(typeof renderDay==='function')renderDay();}catch(e){}});
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){setTimeout(boot,450);});
+  else setTimeout(boot,100);
+  window.addEventListener('load',function(){setTimeout(boot,700);});
+})();
+
+
+/* ==========================================================================
+CHANGELOG 5.86 - השלמת נעילת יום והקטנת אייקון העין
+1. אייקון העין במסכי הכניסה הוקטן בלי לשנות את שדה הסיסמה או לוגיקת ההתחברות.
+2. הוסר חלון האישור בעת נעילת יום; הלחיצה נועלת או פותחת מיד ושומרת ב-Firestore.
+3. כרטיסי "קריאת שירות" ו"התקנה" נחסמים לחלוטין ביום נעול, גם משום שהם div עם onclick ולא כפתורי button רגילים.
+4. נוספה חסימת אירוע מרכזית שמונעת פתיחת טפסי עבודה ביום נעול גם אם קוד אחר מנסה להפעיל את הכרטיסים.
+5. נוסף אייקון מנעול קטן בתוך התא המתאים בלוח השנה לכל יום נעול.
+=========================================================================== */
+(function completeDayLockV586(){
+  'use strict';
+
+  function byIdV586(id){return document.getElementById(id);}
+  function selectedDateV586(){
+    try{return (typeof selectedDate!=='undefined'&&selectedDate)?String(selectedDate):'';}catch(e){return '';}
+  }
+  function isLockedV586(date){
+    try{return typeof window.isDayLockedV585==='function' && window.isDayLockedV585(String(date||''));}catch(e){return false;}
+  }
+
+  function applyTypeCardsLockV586(){
+    var panel=byIdV586('dayPanel');
+    if(!panel) return;
+    var locked=isLockedV586(selectedDateV586());
+    panel.classList.toggle('day-locked-v586',locked);
+    ['serviceBtn','installBtn'].forEach(function(id){
+      var card=byIdV586(id); if(!card) return;
+      card.setAttribute('aria-disabled',locked?'true':'false');
+      card.setAttribute('tabindex',locked?'-1':'0');
+      if(locked) card.setAttribute('data-day-lock-disabled-v586','1');
+      else card.removeAttribute('data-day-lock-disabled-v586');
+    });
+  }
+
+  function decorateCalendarLocksV586(){
+    var cal=byIdV586('calendar');
+    if(!cal) return;
+    var d;
+    try{d=(typeof calendarDate!=='undefined'&&calendarDate)?calendarDate:new Date();}catch(e){d=new Date();}
+    var y=d.getFullYear(),m=d.getMonth()+1;
+    Array.from(cal.querySelectorAll('.day:not(.empty)')).forEach(function(cell){
+      var numEl=cell.querySelector('.day-num');
+      var n=numEl?parseInt(numEl.textContent,10):NaN;
+      if(!Number.isFinite(n)) return;
+      var date=y+'-'+String(m).padStart(2,'0')+'-'+String(n).padStart(2,'0');
+      var locked=isLockedV586(date);
+      cell.classList.toggle('day-locked-calendar-v586',locked);
+      var icon=cell.querySelector('.day-lock-calendar-icon-v586');
+      if(locked&&!icon){
+        icon=document.createElement('span');
+        icon.className='day-lock-calendar-icon-v586';
+        icon.textContent='🔒';
+        icon.title='יום נעול';
+        icon.setAttribute('aria-label','יום נעול');
+        cell.appendChild(icon);
+      }else if(!locked&&icon){icon.remove();}
+    });
+  }
+
+  // חסימה אמיתית לפני onclick של כרטיסי סוג העבודה.
+  document.addEventListener('click',function(ev){
+    var card=ev.target&&ev.target.closest?ev.target.closest('#serviceBtn,#installBtn'):null;
+    if(!card) return;
+    if(!isLockedV586(selectedDateV586())) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    ev.stopPropagation();
+    applyTypeCardsLockV586();
+  },true);
+
+  var previousRenderDayV586=window.renderDay;
+  if(typeof previousRenderDayV586==='function'&&!previousRenderDayV586.__v586){
+    window.renderDay=function(){
+      var out=previousRenderDayV586.apply(this,arguments);
+      try{applyTypeCardsLockV586();}catch(e){}
+      return out;
+    };
+    window.renderDay.__v586=true;
+  }
+
+  var previousRenderCalendarV586=window.renderCalendar;
+  if(typeof previousRenderCalendarV586==='function'&&!previousRenderCalendarV586.__v586){
+    window.renderCalendar=function(){
+      var out=previousRenderCalendarV586.apply(this,arguments);
+      try{decorateCalendarLocksV586();}catch(e){}
+      return out;
+    };
+    window.renderCalendar.__v586=true;
+  }
+
+  var previousToggleV586=window.toggleDayLockV585;
+  if(typeof previousToggleV586==='function'&&!previousToggleV586.__v586){
+    window.toggleDayLockV585=async function(date){
+      var out=await previousToggleV586.apply(this,arguments);
+      try{applyTypeCardsLockV586();decorateCalendarLocksV586();}catch(e){}
+      return out;
+    };
+    window.toggleDayLockV585.__v586=true;
+  }
+
+  function updateChangelogV586(){
+    var old=window.requiredChangelogRows || (typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof old!=='function'||old.__v586Wrapped) return;
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='5.87';})) rows.unshift({version:'5.87',title:'תיקון אייקון העין ומיקום המנעול בלוח השנה',createdAt:'2026-07-15',items:[
+        'אייקון העין בכניסת עובד הוקטן והותאם לגודל של אייקון העין בכניסת מנהל.',
+        'אייקון המנעול בלוח השנה הוקטן והועבר לפינה השמאלית העליונה כדי שלא יסתיר את מספר היום.',
+        'לא בוצע שינוי בלוגיקת ההתחברות, נעילת היום או חסימת הפעולות.'
+      ]});
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='5.86';})) rows.unshift({version:'5.86',title:'השלמת נעילת יום והקטנת אייקון העין',createdAt:'2026-07-15',items:[
+        'אייקון העין במסכי הכניסה הוקטן.',
+        'חלון האישור בעת נעילת יום הוסר והפעולה מתבצעת מיד.',
+        'כרטיסי קריאת שירות והתקנה אינם פעילים ביום נעול.',
+        'נוספה חסימת לחיצה אמיתית לכרטיסי סוג העבודה.',
+        'נוסף אייקון מנעול בתא של יום נעול בלוח השנה.'
+      ]});
+      return rows;
+    };
+    wrapped.__v586Wrapped=true;
+    window.requiredChangelogRows=wrapped;
+  }
+
+  function bootV586(){
+    updateChangelogV586();
+    try{applyTypeCardsLockV586();decorateCalendarLocksV586();}catch(e){}
+    try{if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+    try{if(typeof enforceAppVersionUI==='function')enforceAppVersionUI();}catch(e){}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(bootV586,550);});
+  else setTimeout(bootV586,120);
+  window.addEventListener('load',function(){setTimeout(bootV586,850);});
 })();
