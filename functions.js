@@ -2,13 +2,13 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.90 DEBUG - persistent day-lock diagnostics.
+File version: 5.91 - persistent day-lock initialization fix; hidden diagnostics retained.
 
-CHANGELOG 5.90 DEBUG - אבחון שמירת נעילת יום לאחר רענון
-1. נוסף חלון דיבאג צף עם לוג מלא של Firebase Auth, העובד הפעיל, שאילתת הנעילות, מסמכים שחזרו ותהליך השמירה והאימות.
-2. הלוג נשמר ב-localStorage ולכן נשאר גם אחרי רענון, כדי לראות בדיוק היכן התהליך נופל.
-3. נוספו כפתורי העתקה, ניקוי ומזעור; אין שינוי בלוגיקת העבודות או בנתונים הקיימים.
-4. זו גרסת אבחון זמנית שמטרתה לאתר את שורש התקלה בכרום.
+CHANGELOG 5.91 - תיקון טעינת נעילת יום לאחר רענון והסתרת הדיבאג
+1. טעינת הנעילות ממתינה כעת בפועל עד שמזהה העובד זמין, ולא מסתיימת מוקדם כשה-session עדיין בבנייה.
+2. לאחר זיהוי העובד מתבצעת קריאת Firestore, ולאחריה רינדור מחודש של לוח השנה ושל היום שנבחר.
+3. חלון הדיבאג נשאר בקוד לשימוש עתידי אך מוסתר כברירת מחדל; ניתן להפעילו עם ?dayLockDebug=1.
+4. הוסרו שתי קריאות דיבאג שגויות שנכנסו בטעות לפונקציית שמירת דוח ההתחשבנות.
 
 CHANGELOG 5.89 - אייקון עין יציב בכרום
 1. אייקון הצגת הסיסמה הוחלף מאימוג׳י ל-SVG פנימי ויציב שאינו תלוי בפונט של הדפדפן.
@@ -121,7 +121,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.90-debug";
+const APP_VERSION = "5.91";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -3171,9 +3171,7 @@ async function saveMonthlySettlementV547(){
     return;
   }
   try{
-    window.dayLockDebugV590&&window.dayLockDebugV590('PERSIST_PAYLOAD',payload);
     await ref.set(payload,{merge:true});
-    window.dayLockDebugV590&&window.dayLockDebugV590('PERSIST_SET_OK',{docId:safeDocId(workerId,date)});
     if($("settlementMsgV547"))$("settlementMsgV547").innerHTML="<div class='notice'>דוח ההתחשבנות נשמר ✅</div>";
   }catch(e){
     if($("settlementMsgV547")){
@@ -16522,11 +16520,23 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
     catch(e){var ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();alert('לוג הדיבאג הועתק.');}
   };
   window.clearDayLockDebugV590=function(){try{localStorage.removeItem(KEY);}catch(e){} render();};
+  window.showDayLockDebugV591=function(){
+    try{localStorage.setItem('wmDayLockDebugVisibleV591','1');}catch(e){}
+    var box=document.getElementById('dayLockDebugPanelV590'); if(box) box.classList.add('is-visible-v591');
+  };
+  window.hideDayLockDebugV591=function(){
+    try{localStorage.removeItem('wmDayLockDebugVisibleV591');}catch(e){}
+    var box=document.getElementById('dayLockDebugPanelV590'); if(box) box.classList.remove('is-visible-v591');
+  };
   function build(){
     if(document.getElementById('dayLockDebugPanelV590')){render();return;}
     var box=document.createElement('section'); box.id='dayLockDebugPanelV590'; box.className='day-lock-debug-v590';
-    box.innerHTML='<div class="day-lock-debug-head-v590"><strong>🧪 דיבאג נעילת יום 5.90</strong><div><button type="button" onclick="copyDayLockDebugV590()">העתק</button><button type="button" onclick="clearDayLockDebugV590()">נקה</button><button type="button" onclick="this.closest(\'.day-lock-debug-v590\').classList.toggle(\'is-minimized\')">מזער</button></div></div><pre id="dayLockDebugLogV590"></pre>';
-    document.body.appendChild(box); render();
+    box.innerHTML='<div class="day-lock-debug-head-v590"><strong>🧪 דיבאג נעילת יום</strong><div><button type="button" onclick="copyDayLockDebugV590()">העתק</button><button type="button" onclick="clearDayLockDebugV590()">נקה</button><button type="button" onclick="this.closest(\'.day-lock-debug-v590\').classList.toggle(\'is-minimized\')">מזער</button><button type="button" onclick="hideDayLockDebugV591()">סגור</button></div></div><pre id="dayLockDebugLogV590"></pre>';
+    document.body.appendChild(box);
+    var enabled=false;
+    try{enabled=new URLSearchParams(location.search).get('dayLockDebug')==='1'||localStorage.getItem('wmDayLockDebugVisibleV591')==='1';}catch(e){}
+    if(enabled) box.classList.add('is-visible-v591');
+    render();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build);else build();
   window.addEventListener('load',function(){build();
@@ -16633,6 +16643,32 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
     return lockedDays;
   }
   window.loadDayLocksV585=loadLocks;
+
+  // v5.91: לאחר רענון Firebase Auth מוכן לפני viewedWorker/session.
+  // ממתינים למזהה העובד האמיתי ורק אז טוענים את הנעילות ומרנדרים מחדש.
+  var workerReadyLoadPromiseV591=null;
+  async function loadLocksWhenWorkerReadyV591(timeoutMs){
+    if(workerReadyLoadPromiseV591) return workerReadyLoadPromiseV591;
+    workerReadyLoadPromiseV591=(async function(){
+      var started=Date.now(),workerId='';
+      timeoutMs=Number(timeoutMs||12000);
+      while(!(workerId=currentWorkerId()) && Date.now()-started<timeoutMs){
+        await new Promise(function(resolve){setTimeout(resolve,120);});
+      }
+      if(!workerId){
+        window.dayLockDebugV590&&window.dayLockDebugV590('WORKER_READY_TIMEOUT',{timeoutMs:timeoutMs});
+        return false;
+      }
+      window.dayLockDebugV590&&window.dayLockDebugV590('WORKER_READY',{workerId:workerId});
+      await loadLocks();
+      try{if(typeof renderCalendar==='function')renderCalendar();}catch(e){}
+      try{if(typeof renderDay==='function')renderDay();}catch(e){}
+      return true;
+    })();
+    try{return await workerReadyLoadPromiseV591;}
+    finally{workerReadyLoadPromiseV591=null;}
+  }
+  window.loadLocksWhenWorkerReadyV591=loadLocksWhenWorkerReadyV591;
 
   async function persistLock(date,locked){
     var workerId=currentWorkerId();
@@ -16797,8 +16833,14 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
 
   function boot(){
     installGuards(); updateChangelog();
-    loadLocks().then(function(){try{if(typeof renderDay==='function')renderDay();}catch(e){}});
+    loadLocksWhenWorkerReadyV591(15000);
   }
+  // v5.91: כל שינוי במצב האימות מפעיל ניסיון טעינה נוסף; הפונקציה עצמה ממתינה ל-workerId.
+  try{
+    if(typeof auth!=='undefined'&&auth&&typeof auth.onAuthStateChanged==='function'){
+      auth.onAuthStateChanged(function(user){if(user)setTimeout(function(){loadLocksWhenWorkerReadyV591(15000);},0);});
+    }
+  }catch(e){}
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){setTimeout(boot,450);});
   else setTimeout(boot,100);
   window.addEventListener('load',function(){setTimeout(boot,700);});
@@ -16909,6 +16951,12 @@ CHANGELOG 5.86 - השלמת נעילת יום והקטנת אייקון העין
     if(typeof old!=='function'||old.__v586Wrapped) return;
     var wrapped=function(){
       var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='5.91';})) rows.unshift({version:'5.91',title:'תיקון טעינת נעילת יום לאחר רענון',createdAt:'2026-07-15',items:[
+        'המערכת ממתינה למזהה העובד לאחר שחזור ההתחברות ורק אז טוענת את הנעילות מ-Firestore.',
+        'לאחר טעינת הנעילות מתבצע רינדור מחודש של לוח השנה ושל היום הנבחר.',
+        'חלון הדיבאג נשאר זמין לשימוש עתידי אך מוסתר כברירת מחדל.',
+        'ניתן להפעיל את הדיבאג בעת הצורך באמצעות הוספת ?dayLockDebug=1 לכתובת.'
+      ]});
       if(!rows.some(function(r){return String(r.version||r.id||'')==='5.88';})) rows.unshift({version:'5.88',title:'תיקון שמירת נעילת יום לאחר רענון',createdAt:'2026-07-15',items:[
         'טעינת נעילות היום ממתינה לשחזור Firebase Auth לאחר רענון לפני קריאת Firestore.',
         'כשל זמני באימות או ברשת אינו מאפס עוד את רשימת הימים הנעולים ומציג אותם כפתוחים.',
