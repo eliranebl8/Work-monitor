@@ -2,7 +2,13 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.88 - persistent day-lock reload fix after refresh.
+File version: 5.89 - Chrome-stable SVG password visibility icons.
+
+CHANGELOG 5.89 - אייקון עין יציב בכרום
+1. אייקון הצגת הסיסמה הוחלף מאימוג׳י ל-SVG פנימי ויציב שאינו תלוי בפונט של הדפדפן.
+2. התיקון חל גם על כניסת עובד וגם על כניסת מנהל ושומר על אותו גודל ומיקום.
+3. מצב הצגה ומצב הסתרה מקבלים אייקון ברור, כולל קו אלכסוני כאשר הסיסמה גלויה.
+4. לא שונתה לוגיקת ההתחברות, Firebase, נעילת היום או שאר המערכת.
 
 CHANGELOG 5.84 - ניווט מהדשבורד החכם לפק״ע המדויקת
 1. כל רשומה ברשימות "מתוזמנות שבוצעו" ו"מתוזמנות שלא בוצעו" הפכה ללחיצה על כל הכרטיס.
@@ -109,7 +115,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.88";
+const APP_VERSION = "5.89";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -16508,7 +16514,10 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
     var reveal=input.type==='password';
     input.type=reveal?'text':'password';
     if(button){
-      button.textContent=reveal?'🙈':'👁️';
+      // v5.89: SVG פנימי במקום אימוג׳י, כדי שהעין תוצג באופן זהה גם בכרום.
+      button.innerHTML=reveal
+        ? '<svg class="password-eye-svg-v589" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3l18 18" class="eye-slash-v589"></path><path d="M10.6 6.2A10.9 10.9 0 0 1 12 6c6 0 9.5 6 9.5 6a17.3 17.3 0 0 1-3.1 3.7"></path><path d="M6.1 6.1C3.8 7.8 2.5 12 2.5 12s3.5 6 9.5 6a9.8 9.8 0 0 0 3-.5"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path></svg>'
+        : '<svg class="password-eye-svg-v589" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.75"></circle></svg>';
       button.setAttribute('aria-pressed',reveal?'true':'false');
       button.setAttribute('aria-label',reveal?'הסתר סיסמה':'הצג סיסמה');
       button.title=reveal?'הסתר סיסמה':'הצג סיסמה';
