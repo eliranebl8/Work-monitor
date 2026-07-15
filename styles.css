@@ -1,4 +1,4 @@
-/* File version: 5.89 - Chrome-stable SVG password visibility icons */
+/* File version: 5.91 - hidden day-lock diagnostics */
 /* Work Monitor app - extracted CSS pilot */
 
 :root{
@@ -4555,3 +4555,17 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
   stroke:#fff;
   stroke-width:2.2;
 }
+
+
+/* v5.90 DEBUG: חלון אבחון זמני לנעילת יום. */
+.day-lock-debug-v590{display:none;position:fixed;z-index:2147483000;left:8px;right:8px;bottom:8px;max-height:46vh;background:rgba(15,23,42,.97);color:#e2e8f0;border:2px solid #38bdf8;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.45);direction:rtl;font-family:Arial,sans-serif;overflow:hidden}
+.day-lock-debug-head-v590{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:#0f172a;border-bottom:1px solid #334155;font-size:14px}
+.day-lock-debug-head-v590 div{display:flex;gap:5px}
+.day-lock-debug-head-v590 button{appearance:none;border:1px solid #64748b;background:#1e293b;color:#fff;border-radius:7px;padding:5px 8px;font-size:12px;cursor:pointer}
+.day-lock-debug-v590 pre{margin:0;padding:10px;max-height:36vh;overflow:auto;direction:ltr;text-align:left;white-space:pre-wrap;word-break:break-word;font-size:11px;line-height:1.35;background:#020617;color:#dbeafe}
+.day-lock-debug-v590.is-minimized pre{display:none}
+.day-lock-debug-v590.is-minimized{max-height:none}
+@media(max-width:600px){.day-lock-debug-head-v590{font-size:12px}.day-lock-debug-head-v590 button{padding:4px 6px;font-size:11px}.day-lock-debug-v590 pre{font-size:10px;max-height:32vh}}
+
+/* v5.91: הדיבאג נשאר מותקן אך אינו נראה בשימוש רגיל. */
+.day-lock-debug-v590.is-visible-v591{display:block}
