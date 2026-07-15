@@ -1,4 +1,4 @@
-/* File version: 5.84 - clickable smart-dashboard rows and exact-entry highlight */
+/* File version: 5.87 - compact worker password eye and repositioned calendar lock icon */
 /* Work Monitor app - extracted CSS pilot */
 
 :root{
@@ -4357,4 +4357,173 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
 @media (prefers-reduced-motion: reduce){
   .smart-entry-link-v584,.smart-entry-highlight-v584{transition:none;animation:none;}
   .smart-entry-highlight-v584{box-shadow:0 0 0 4px rgba(245,158,11,.35);}
+}
+
+
+/* ==========================================================================
+   v5.85 - הצגת סיסמה + נעילת יום
+   שינויי תצוגה בלבד: העין אינה משנה את לוגיקת ההתחברות, ומצב הנעילה מוצג
+   באופן נקי תוך השארת כל נתוני היום גלויים לקריאה.
+   ========================================================================== */
+.password-field-v585{
+  position:relative;
+  display:flex;
+  align-items:center;
+  width:100%;
+}
+.password-field-v585 > input{
+  width:100%;
+  padding-inline-end:46px !important;
+  margin:0;
+}
+.password-eye-v585{
+  position:absolute !important;
+  inset-inline-end:10px;
+  top:50%;
+  transform:translateY(-50%);
+  width:24px !important;
+  height:24px !important;
+  min-width:24px !important;
+  min-height:24px !important;
+  padding:0 !important;
+  margin:0 !important;
+  border:0 !important;
+  border-radius:50% !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  outline:none;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  font-size:13px !important;
+  line-height:1 !important;
+  z-index:2;
+}
+.password-eye-v585:hover{background:rgba(15,23,42,.07) !important;}
+.password-eye-v585:focus-visible{outline:2px solid #2563eb;outline-offset:1px;}
+
+.day-lock-tools-v585{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin:8px 0 10px;
+}
+.day-lock-btn-v585{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:7px 11px !important;
+  min-height:36px;
+  border-radius:10px;
+  cursor:pointer;
+}
+.day-lock-btn-v585.is-locked{
+  background:#fff1f2 !important;
+  border-color:#fb7185 !important;
+  color:#9f1239 !important;
+}
+.day-lock-notice-v585{
+  margin:8px 0 12px;
+  padding:10px 12px;
+  border:1px solid #f59e0b;
+  border-radius:12px;
+  background:#fffbeb;
+  color:#92400e;
+  font-weight:800;
+}
+#dayPanel.day-locked-v585 .actions button:disabled,
+#dayPanel.day-locked-v585 #entryForm button:disabled,
+#dayPanel.day-locked-v585 #entryForm input:disabled,
+#dayPanel.day-locked-v585 #entryForm select:disabled,
+#dayPanel.day-locked-v585 #entryForm textarea:disabled{
+  opacity:.46 !important;
+  cursor:not-allowed !important;
+  filter:grayscale(.35);
+  pointer-events:none !important;
+}
+#dayPanel.day-locked-v585 .item{
+  background-image:linear-gradient(rgba(248,250,252,.30),rgba(248,250,252,.30));
+}
+
+
+/* ==========================================================================
+   v5.86 - השלמת נעילת יום והקטנת אייקון העין
+   ========================================================================== */
+#dayPanel.day-locked-v586 #serviceBtn,
+#dayPanel.day-locked-v586 #installBtn{
+  opacity:.42 !important;
+  cursor:not-allowed !important;
+  filter:grayscale(.55) !important;
+  pointer-events:none !important;
+  transform:none !important;
+  box-shadow:none !important;
+  user-select:none;
+}
+#dayPanel.day-locked-v586 #serviceBtn::after,
+#dayPanel.day-locked-v586 #installBtn::after{
+  content:"🔒";
+  display:inline-block;
+  margin-inline-start:6px;
+  font-size:13px;
+  vertical-align:middle;
+}
+.day.day-locked-calendar-v586{
+  position:relative;
+}
+.day-lock-calendar-icon-v586{
+  position:absolute;
+  inset-inline-end:5px;
+  top:4px;
+  font-size:12px;
+  line-height:1;
+  pointer-events:none;
+  filter:none;
+}
+
+
+/* ==========================================================================
+   v5.87 - תיקון ממוקד בלבד: אייקון העין בכניסת עובד + מיקום מנעול בלוח
+   אין שינוי בלוגיקת ההתחברות או הנעילה.
+   ========================================================================== */
+#workerLoginView .password-field-v585 .password-eye-v585,
+#adminLoginView .password-field-v585 .password-eye-v585{
+  position:absolute !important;
+  inset-inline-end:10px !important;
+  top:50% !important;
+  transform:translateY(-50%) !important;
+  width:34px !important;
+  height:34px !important;
+  min-width:34px !important;
+  min-height:34px !important;
+  max-width:34px !important;
+  max-height:34px !important;
+  padding:0 !important;
+  margin:0 !important;
+  border:0 !important;
+  border-radius:12px !important;
+  background:#2563eb !important;
+  box-shadow:none !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  flex:0 0 34px !important;
+  font-size:16px !important;
+  line-height:1 !important;
+  z-index:4 !important;
+}
+#workerLoginView .password-field-v585 > input,
+#adminLoginView .password-field-v585 > input{
+  padding-inline-end:54px !important;
+}
+#calendar .day-lock-calendar-icon-v586{
+  inset-inline-end:auto !important;
+  inset-inline-start:5px !important;
+  top:5px !important;
+  font-size:10px !important;
+  line-height:1 !important;
+  opacity:.82 !important;
+  pointer-events:none !important;
+  z-index:3 !important;
 }
