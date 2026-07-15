@@ -2,7 +2,13 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.91 - persistent day-lock initialization fix; hidden diagnostics retained.
+File version: 5.92 - debug panel hidden before first paint.
+
+CHANGELOG 5.92 - מניעת הבהוב חלון הדיבאג בזמן טעינה
+1. חלון דיבאג נעילת היום נוצר כשהוא מוסתר ברמת inline style עוד לפני הציור הראשון של הדפדפן.
+2. מפתח התצוגה הישן ב-localStorage מנוקה אוטומטית כדי שלא יציג את החלון בטעות לאחר רענון.
+3. הדיבאג נפתח רק כאשר מוסיפים ?dayLockDebug=1 לכתובת, ולא נשאר גלוי בהפעלה הבאה.
+4. לא שונתה לוגיקת נעילת היום, Firebase, לוח השנה או ההתחברות.
 
 CHANGELOG 5.91 - תיקון טעינת נעילת יום לאחר רענון והסתרת הדיבאג
 1. טעינת הנעילות ממתינה כעת בפועל עד שמזהה העובד זמין, ולא מסתיימת מוקדם כשה-session עדיין בבנייה.
@@ -121,7 +127,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.91";
+const APP_VERSION = "5.92";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -16522,20 +16528,31 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
   window.clearDayLockDebugV590=function(){try{localStorage.removeItem(KEY);}catch(e){} render();};
   window.showDayLockDebugV591=function(){
     try{localStorage.setItem('wmDayLockDebugVisibleV591','1');}catch(e){}
-    var box=document.getElementById('dayLockDebugPanelV590'); if(box) box.classList.add('is-visible-v591');
+    var box=document.getElementById('dayLockDebugPanelV590'); if(box){box.hidden=false;box.style.removeProperty('display');box.classList.add('is-visible-v591');}
   };
   window.hideDayLockDebugV591=function(){
     try{localStorage.removeItem('wmDayLockDebugVisibleV591');}catch(e){}
-    var box=document.getElementById('dayLockDebugPanelV590'); if(box) box.classList.remove('is-visible-v591');
+    var box=document.getElementById('dayLockDebugPanelV590'); if(box){box.classList.remove('is-visible-v591');box.hidden=true;box.style.setProperty('display','none','important');}
   };
   function build(){
     if(document.getElementById('dayLockDebugPanelV590')){render();return;}
     var box=document.createElement('section'); box.id='dayLockDebugPanelV590'; box.className='day-lock-debug-v590';
+    // v5.92: hide before insertion so Chrome/WebView cannot paint the panel for even one frame.
+    box.hidden=true;
+    box.style.setProperty('display','none','important');
     box.innerHTML='<div class="day-lock-debug-head-v590"><strong>🧪 דיבאג נעילת יום</strong><div><button type="button" onclick="copyDayLockDebugV590()">העתק</button><button type="button" onclick="clearDayLockDebugV590()">נקה</button><button type="button" onclick="this.closest(\'.day-lock-debug-v590\').classList.toggle(\'is-minimized\')">מזער</button><button type="button" onclick="hideDayLockDebugV591()">סגור</button></div></div><pre id="dayLockDebugLogV590"></pre>';
     document.body.appendChild(box);
     var enabled=false;
-    try{enabled=new URLSearchParams(location.search).get('dayLockDebug')==='1'||localStorage.getItem('wmDayLockDebugVisibleV591')==='1';}catch(e){}
-    if(enabled) box.classList.add('is-visible-v591');
+    try{
+      // v5.92: old persisted visibility caused a flash on startup; debug is now explicit per URL only.
+      localStorage.removeItem('wmDayLockDebugVisibleV591');
+      enabled=new URLSearchParams(location.search).get('dayLockDebug')==='1';
+    }catch(e){}
+    if(enabled){
+      box.hidden=false;
+      box.style.removeProperty('display');
+      box.classList.add('is-visible-v591');
+    }
     render();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build);else build();
@@ -16951,6 +16968,12 @@ CHANGELOG 5.86 - השלמת נעילת יום והקטנת אייקון העין
     if(typeof old!=='function'||old.__v586Wrapped) return;
     var wrapped=function(){
       var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='5.92';})) rows.unshift({version:'5.92',title:'מניעת הבהוב חלון הדיבאג בזמן טעינה',createdAt:'2026-07-15',items:[
+        'חלון דיבאג נעילת היום מוסתר לפני הכנסתו למסמך ולכן אינו מופיע לרגע בזמן טעינת האפליקציה.',
+        'מצב תצוגה ישן שנשמר בדפדפן מנוקה אוטומטית.',
+        'הדיבאג נפתח רק באמצעות ?dayLockDebug=1 ואינו נשאר פתוח לאחר רענון רגיל.',
+        'לוגיקת נעילת היום והטעינה מ-Firestore נשארה ללא שינוי.'
+      ]});
       if(!rows.some(function(r){return String(r.version||r.id||'')==='5.91';})) rows.unshift({version:'5.91',title:'תיקון טעינת נעילת יום לאחר רענון',createdAt:'2026-07-15',items:[
         'המערכת ממתינה למזהה העובד לאחר שחזור ההתחברות ורק אז טוענת את הנעילות מ-Firestore.',
         'לאחר טעינת הנעילות מתבצע רינדור מחודש של לוח השנה ושל היום הנבחר.',
