@@ -2,8 +2,15 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.94 - Saturday is never selected; startup moves to Sunday.
+File version: 5.96 - Cross-month search navigation loads the target month before opening the exact entry.
 
+
+CHANGELOG 5.96 - תיקון ניווט מתוצאות חיפוש לפק״ע בחודש אחר
+1. פונקציית הניווט מעדכנת כעת גם את חודש לוח השנה לפי תאריך הרשומה.
+2. כאשר התוצאה נמצאת בחודש אחר, המערכת ממתינה לסיום loadMonth ולטעינת הנתונים מ-Firestore.
+3. רק לאחר הטעינה נפתח היום, מתבצעת גלילה לפק״ע המדויקת והיא מודגשת זמנית.
+4. תוקן מצב שבו הכותרת הציגה את התאריך הנכון אך רשימת העבודות נשארה של החודש הקודם ולכן היום נראה ריק.
+5. לא שונו החיפוש, הסינונים, שמירת הנתונים, נעילת היום, שבת, דוחות, גיבוי או עיצוב כללי.
 
 CHANGELOG 5.94 - שבת לא לחיצה ופתיחה אוטומטית על יום ראשון
 1. כאשר האפליקציה נפתחת בשבת, התאריך הנבחר ולוח השנה עוברים אוטומטית ליום ראשון הקרוב.
@@ -165,7 +172,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.94";
+const APP_VERSION = "5.96";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1662,8 +1669,26 @@ function renderSummary(entries,title){
         ? e.items.map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("<br>")
         : (e.isReturnCall?"קריאה חוזרת ללא תשלום":"קריאת שירות");
       const div=document.createElement("div");
-      div.className="item";
-      div.innerHTML=`<div><div class="item-title">${esc(e.date||"")} · ${esc(e.description||"")}</div><div class="item-sub">לקוח: ${esc(e.customerNumber||"")}\\nכתובת: ${esc(e.address||"")}\\n${nl2br(details)}\\n${nl2br(e.notes||"")}</div></div><div class="money">${money(e.amount||0)}</div>`;
+      div.className="item smart-entry-link-v584";
+      div.innerHTML=`<div><div class="item-title">${esc(e.date||"")} · ${esc(e.description||"")}</div><div class="item-sub">לקוח: ${esc(e.customerNumber||"")}\nכתובת: ${esc(e.address||"")}\n${nl2br(details)}\n${nl2br(e.notes||"")}</div></div><div class="money">${money(e.amount||0)}</div>`;
+      // v5.95: רק כרטיסי "פירוט תוצאות" מנווטים לפק״ע המדויקת באמצעות מנגנון 5.84 הקיים.
+      const entryId=String(e.id||"");
+      const entryDate=String(e.date||"");
+      if(entryId && entryDate){
+        div.setAttribute("role","button");
+        div.setAttribute("tabindex","0");
+        div.setAttribute("aria-label",`פתח את הרשומה מתאריך ${entryDate}`);
+        const openExactSearchEntry=()=>{
+          if(typeof window.openSmartEntryV584==="function") window.openSmartEntryV584(entryId,entryDate);
+        };
+        div.addEventListener("click",openExactSearchEntry);
+        div.addEventListener("keydown",event=>{
+          if(event.key==="Enter" || event.key===" "){
+            event.preventDefault();
+            openExactSearchEntry();
+          }
+        });
+      }
       target.appendChild(div);
     });
   if(typeof cleanVisibleSlashN === "function") cleanVisibleSlashN();
@@ -14301,6 +14326,9 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"5.96", title:"תיקון פתיחת פק״ע מתוצאת חיפוש בחודש אחר", items:["לחיצה על תוצאת חיפוש מחודש אחר מעבירה תחילה את לוח השנה לחודש המתאים.","המערכת ממתינה לטעינת נתוני החודש מ-Firestore ורק לאחר מכן פותחת את היום.","הפק״ע המדויקת מוצגת, נגללת למרכז המסך ומודגשת זמנית.","תוקן מצב שבו הכותרת הציגה את התאריך הנכון אך היום נראה ריק בגלל שנתוני החודש הקודם נשארו בזיכרון."], date:d},
+      {version:"5.95", title:"ניווט מפירוט תוצאות החיפוש לפק״ע המדויקת", items:["כל כרטיס בחלק פירוט תוצאות של החיפוש ניתן ללחיצה.","לחיצה עוברת ליום של הרשומה, פותחת את פאנל היום, גוללת לפק״ע לפי ה-ID ומדגישה אותה זמנית.","הכרטיסים נגישים גם באמצעות Enter או רווח.","השינוי משתמש במנגנון הניווט הקיים ואינו משנה את החיפוש או שמירת הנתונים."], date:d},
+      {version:"5.94", title:"שבת לא לחיצה ופתיחה אוטומטית על יום ראשון", items:["תאי שבת בלוח השנה אינם לחיצים ואינם ניתנים לבחירה.","כאשר האפליקציה נפתחת בשבת, היא עוברת אוטומטית ליום ראשון הקרוב.","נוספה חסימת הגנה פנימית שמונעת פתיחת טפסים או שמירת עבודה בשבת דרך מסלול עקיף.","לא שונתה לוגיקת נעילת היום, הדוחות או הגיבוי."], date:d},
       {version:"5.93", title:"השלמת מה חדש עד גרסה 5.93", items:["הושלמו כל הרשומות החסרות מגרסה 5.85 ועד 5.93 במקור הקבוע שמזין את Firestore.","המנגנון מוסיף רק גרסאות חסרות ואינו דורס רשומות קיימות או עריכות קודמות.","APP_VERSION נשאר מקור הגרסה היחיד במערכת.","לא שונתה לוגיקת נעילת היום, העבודות, ההתחברות, הדוחות או הגיבוי."], date:d},
       {version:"5.92", title:"מניעת הבהוב חלון הדיבאג", items:["חלון דיבאג נעילת היום מוסתר כבר לפני הציור הראשון של הדפדפן.","מצב תצוגה ישן שנשמר בדפדפן מנוקה כדי למנוע הופעה רגעית לאחר רענון.","החלון נפתח רק בהפעלה מפורשת עם dayLockDebug=1.","לא שונתה לוגיקת נעילת היום או Firebase."], date:d},
       {version:"5.91", title:"טעינת נעילת יום לאחר רענון", items:["טעינת הנעילות ממתינה עד שמזהה העובד זמין.","לאחר זיהוי העובד מתבצעת קריאה מ-Firestore ורינדור מחדש של הלוח והיום הנבחר.","כלי הדיבאג נשאר בקוד אך מוסתר כברירת מחדל.","לא שונו עבודות או דוחות קיימים."], date:d},
@@ -16009,13 +16037,32 @@ CHANGELOG 5.70 - תיקון סופי להצגת פק״ע שלא בוצעה בב�
     return !!(e && e.convertedFromPlanned === true && statusOf(e)!=='planned' && statusOf(e)!=='not_done' && statusOf(e)!=='cancelled');
   }
 
-  // v5.84: ניווט מהדשבורד החכם לפק״ע המדויקת לפי ID, כולל גלילה והדגשה זמנית.
-  window.openSmartEntryV584=function(entryId,entryDate){
+  // v5.96: ניווט לפק״ע בחודש אחר חייב קודם לטעון את חודש היעד ורק אחר כך לצייר, לגלול ולהדגיש.
+  window.openSmartEntryV584=async function(entryId,entryDate){
     try{
       if(!entryId || !entryDate) return;
-      try{ selectedDate=entryDate; }catch(e){ window.selectedDate=entryDate; }
-      try{ if(typeof renderCalendar==='function') renderCalendar(); }catch(e){}
-      try{ if(typeof renderDay==='function') renderDay(); }catch(e){}
+      var parts=String(entryDate).split('-').map(Number);
+      if(parts.length!==3 || !parts[0] || !parts[1] || !parts[2]) return;
+
+      var targetMonth=new Date(parts[0],parts[1]-1,1);
+      var monthChanged=!(calendarDate instanceof Date)
+        || calendarDate.getFullYear()!==targetMonth.getFullYear()
+        || calendarDate.getMonth()!==targetMonth.getMonth();
+
+      // קודם מעדכנים את חודש התצוגה ואת היום הנבחר. loadMonth ישאיר את selectedDate ולא יחזיר להיום.
+      calendarDate=targetMonth;
+      selectedDate=entryDate;
+      selectedType=null;
+
+      // גם באותו חודש מבצעים ציור; בחודש אחר ממתינים לטעינה מלאה של הנתונים מ-Firestore.
+      if(monthChanged && typeof loadMonth==='function') await loadMonth();
+      else{
+        try{ if(typeof renderCalendar==='function') renderCalendar(); }catch(e){}
+        try{ if(typeof renderDay==='function') renderDay(); }catch(e){}
+        try{ if(typeof renderStats==='function') renderStats(); }catch(e){}
+        try{ if(typeof renderSmartDashboard==='function') renderSmartDashboard(); }catch(e){}
+      }
+
       try{ show('dayPanel'); hide('selectDayHint'); }catch(e){}
 
       var attempts=0;
@@ -16035,13 +16082,13 @@ CHANGELOG 5.70 - תיקון סופי להצגת פק״ע שלא בוצעה בב�
           setTimeout(function(){ try{ target.classList.remove('smart-entry-highlight-v584'); }catch(e){} },3200);
           return;
         }
-        if(attempts<8) setTimeout(focusExactEntry,120);
+        if(attempts<12) setTimeout(focusExactEntry,140);
         else{
           var panel=document.getElementById('dayPanel');
           if(panel){ try{ panel.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){} }
         }
       };
-      setTimeout(focusExactEntry,80);
+      setTimeout(focusExactEntry,100);
     }catch(e){ console.warn('openSmartEntryV584 failed',e); }
   };
 
