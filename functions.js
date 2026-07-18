@@ -2,7 +2,15 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.93 - completed in-app changelog through 5.93.
+File version: 5.94 - Saturday is never selected; startup moves to Sunday.
+
+
+CHANGELOG 5.94 - שבת לא לחיצה ופתיחה אוטומטית על יום ראשון
+1. כאשר האפליקציה נפתחת בשבת, התאריך הנבחר ולוח השנה עוברים אוטומטית ליום ראשון הקרוב.
+2. תאי שבת בלוח השנה נשארים ללא אירוע לחיצה ואינם ניתנים לבחירה.
+3. נוספה חסימת הגנה פנימית ל-selectDay, לכרטיסי קריאת שירות/התקנה ולפונקציות השמירה כדי שלא ניתן יהיה ליצור עבודה בשבת גם דרך מסלול עקיף.
+4. נוספה רשומת 5.94 למקור requiredChangelogRows כדי שתופיע ב“מה חדש” וב-Firestore.
+5. לא שונתה לוגיקת נעילת היום, טעינת הנעילות, הדיבאג, הדוחות או העיצוב.
 
 CHANGELOG 5.93 - השלמת “מה חדש” לגרסאות 5.85–5.93
 1. הושלמו במקור requiredChangelogRows כל הרשומות החסרות מגרסה 5.85 ועד גרסה 5.93.
@@ -157,7 +165,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.93";
+const APP_VERSION = "5.94";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1919,7 +1927,7 @@ async function extendSubscriptionDays(days){
   await saveSubscriptionEdit();
 }
 
-async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();const worker={id:doc.id,...doc.data()};if(session&&session.role==="worker"&&isSubscriptionExpired(worker)){localStorage.removeItem("workSession");session=null;showExpiredView(worker);return;}await showWorker(worker)}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=new Date();selectedDate=null;selectedType=null;bindGoalMonthInputV556();if($("selfGoalMonth"))$("selfGoalMonth").value=currentCalendarMonthKeyV556();if($("selfGoalMonth"))$("selfGoalMonth").value=currentCalendarMonthKeyV556();if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=getWorkerGoalForMonthV556();if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth();try{initMonthlySettlementV547();}catch(e){console.warn("v5.47 settlement init failed",e)}}
+async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();const worker={id:doc.id,...doc.data()};if(session&&session.role==="worker"&&isSubscriptionExpired(worker)){localStorage.removeItem("workSession");session=null;showExpiredView(worker);return;}await showWorker(worker)}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=initialCalendarDateV594();selectedDate=null;selectedType=null;bindGoalMonthInputV556();if($("selfGoalMonth"))$("selfGoalMonth").value=currentCalendarMonthKeyV556();if($("selfGoalMonth"))$("selfGoalMonth").value=currentCalendarMonthKeyV556();if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=getWorkerGoalForMonthV556();if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth();try{initMonthlySettlementV547();}catch(e){console.warn("v5.47 settlement init failed",e)}}
 async function loadMonth(){await loadPriceList();await loadTemplates();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);monthEntries=[];renderCalendar();renderDay();renderStats();const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();monthEntries=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats();renderSmartDashboard();if($('searchPanel')&&!$('searchPanel').classList.contains('hidden'))renderFullSummary()}
 function renderCalendar(){const cal=$("calendar");cal.innerHTML="";weekdays.forEach(w=>{const d=document.createElement("div");d.className="weekday";d.textContent=w;cal.appendChild(d)});const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0).getDate(),today=formatDate(new Date());for(let i=0;i<first.getDay();i++){const e=document.createElement("div");e.className="day empty";cal.appendChild(e)}for(let d=1;d<=last;d++){const ds=`${y}-${pad(m+1)}-${pad(d)}`,dt=new Date(y,m,d),sh=dt.getDay()===6,entries=monthEntries.filter(e=>e.date===ds),total=entries.reduce((s,e)=>s+Number(e.amount||0),0),div=document.createElement("div");div.className="day";if(sh)div.classList.add("shabbat");if(ds===today)div.classList.add("today");if(ds===selectedDate)div.classList.add("selected");div.innerHTML=`<div class="day-num">${d}</div>${total?`<div class="day-total">${money(total)}</div>`:""}${entries.length?`<div class="day-count">${entries.length} עבודות</div>`:""}`;if(!sh)div.onclick=()=>selectDay(ds);cal.appendChild(div)}}
 function selectDay(ds){selectedDate=ds;selectedType=null;renderCalendar();renderDay();renderStats();renderSmartDashboard();cleanVisibleSlashN()}function renderDay(){if(!selectedDate){hide("dayPanel");show("selectDayHint");return}show("dayPanel");hide("selectDayHint");text("dateTitle",`יום ${heDate(selectedDate)}`);renderInstallItems();setType(selectedType,false);updateServicePriceLabels();const entries=monthEntries.filter(e=>e.date===selectedDate).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)),box=$("dayEntries");box.innerHTML=entries.length?"":"<p class='muted'>אין עבודות ביום הזה עדיין.</p>";entries.forEach(e=>{const details=e.workType==="service"?`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n${e.notes||""}`:`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("<br>")+`\n${e.notes||""}`,row=document.createElement("div");row.className="item";const iconClass=e.workType==="install"?"install":(e.isReturnCall?"return":"service");const icon=e.workType==="install"?"🛠️":(e.isReturnCall?"🔁":"☎️");row.innerHTML=`<div class="work-row-main"><div class="work-icon ${iconClass}">${icon}</div><div><div class="item-title">${esc(e.description)}</div><div class="item-sub">${nl2br(details)}</div></div></div><div><div class="money">${money(e.amount)}</div><div class="actions" style="margin-top:8px"><button class="btn-yellow" onclick="openEntryEdit('${e.id}')">ערוך</button>${e.workType==="install"?`<button class="btn-light" onclick="saveEntryAsTemplate('${e.id}')">שמור כתבנית</button>`:""}<button class="btn-red" onclick="deleteEntry('${e.id}')">מחק</button></div></div>`;box.appendChild(row)})}
@@ -1938,8 +1946,9 @@ function isCalendarCurrentMonthV564(){
 }
 function selectTodayOnCurrentMonthV564(){
   try{
-    if(!isCalendarCurrentMonthV564()) return false;
-    selectedDate=currentTodayDateV564();
+    const target=initialCalendarDateV594();
+    if(!calendarDate || calendarDate.getFullYear()!==target.getFullYear() || calendarDate.getMonth()!==target.getMonth()) return false;
+    selectedDate=formatDate(target);
     selectedType=null;
     return true;
   }catch(e){ return false; }
@@ -5674,7 +5683,7 @@ async function showWorker(worker){
   
   text("userLine", `${worker.name} · ${session && session.role === "admin" ? "צפייה כמנהל" : "עובד"}`);
   text("helloTitle", `שלום ${worker.name}`);
-  calendarDate = new Date();
+  calendarDate = initialCalendarDateV594();
   selectedDate = null;
   selectedType = null;
   selectTodayOnCurrentMonthV564();
@@ -6130,7 +6139,7 @@ async function showWorker(worker, token){
   renderLastLoginTopV518(worker.lastLoginAt || worker.lastLoginClientAt || worker.lastAuthLoginAt || localWorkerLastLoginV519);
   if(session && session.role === "worker") recordWorkerLastLoginV518(worker.id);
   text("helloTitle", `שלום ${worker.name || ""}`);
-  calendarDate = new Date();
+  calendarDate = initialCalendarDateV594();
   selectedDate = null;
   selectedType = null;
   if($("selfGoalMonth")) $("selfGoalMonth").value = currentCalendarMonthKeyV556(); if($("selfMonthlyGoal")) $("selfMonthlyGoal").value = getWorkerGoalForMonthV556();
@@ -17052,4 +17061,71 @@ CHANGELOG 5.86 - השלמת נעילת יום והקטנת אייקון העין
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(bootV586,550);});
   else setTimeout(bootV586,120);
   window.addEventListener('load',function(){setTimeout(bootV586,850);});
+})();
+
+
+/* ===== v5.94: שבת אינה נבחרת; פתיחה בשבת עוברת ליום ראשון ===== */
+function initialCalendarDateV594(){
+  const d=new Date();
+  d.setHours(12,0,0,0);
+  if(d.getDay()===6) d.setDate(d.getDate()+1);
+  return d;
+}
+function isSaturdayDateV594(value){
+  try{
+    if(!value) return false;
+    const d=(typeof parseDate==='function')?parseDate(value):new Date(String(value)+'T12:00:00');
+    return d instanceof Date && !Number.isNaN(d.getTime()) && d.getDay()===6;
+  }catch(e){ return false; }
+}
+(function installSaturdayGuardsV594(){
+  // הגנה על בחירת יום: גם קריאה עקיפה אינה יכולה לבחור שבת.
+  const oldSelect=window.selectDay;
+  if(typeof oldSelect==='function' && !oldSelect.__v594){
+    window.selectDay=function(ds){
+      if(isSaturdayDateV594(ds)) return false;
+      return oldSelect.apply(this,arguments);
+    };
+    window.selectDay.__v594=true;
+    try{ selectDay=window.selectDay; }catch(e){}
+  }
+
+  // חסימת כרטיסי יצירה לפני כל onclick אחר.
+  document.addEventListener('click',function(ev){
+    const card=ev.target&&ev.target.closest?ev.target.closest('#serviceBtn,#installBtn'):null;
+    if(!card || !isSaturdayDateV594(selectedDate)) return;
+    ev.preventDefault(); ev.stopImmediatePropagation(); ev.stopPropagation();
+  },true);
+
+  // שכבת הגנה אחרונה לפני כתיבה ל-Firestore.
+  ['addService','addInstall'].forEach(function(name){
+    const old=window[name];
+    if(typeof old!=='function'||old.__v594) return;
+    window[name]=async function(){
+      if(isSaturdayDateV594(selectedDate)) return false;
+      return old.apply(this,arguments);
+    };
+    window[name].__v594=true;
+    try{ if(name==='addService') addService=window[name]; else addInstall=window[name]; }catch(e){}
+  });
+
+  // “מה חדש” 5.94 — הזרעה רק אם הרשומה חסרה.
+  const oldRows=window.requiredChangelogRows || (typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof oldRows==='function'&&!oldRows.__v594){
+    const wrapped=function(){
+      let rows=[]; try{ rows=oldRows.apply(this,arguments)||[]; }catch(e){}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='5.94';})){
+        rows.unshift({version:'5.94',title:'שבת לא לחיצה ופתיחה אוטומטית על יום ראשון',createdAt:'2026-07-18',items:[
+          'כאשר האפליקציה נפתחת בשבת, היא עוברת אוטומטית ליום ראשון הקרוב.',
+          'יום שבת בלוח השנה אינו לחיץ ואינו ניתן לבחירה.',
+          'נוספה חסימה פנימית שמונעת פתיחת קריאת שירות, התקנה או שמירה בשבת גם דרך מסלול עקיף.',
+          'לא שונתה לוגיקת נעילת היום או שאר המערכת.'
+        ]});
+      }
+      return rows;
+    };
+    wrapped.__v594=true;
+    window.requiredChangelogRows=wrapped;
+    try{ requiredChangelogRows=wrapped; }catch(e){}
+  }
 })();
