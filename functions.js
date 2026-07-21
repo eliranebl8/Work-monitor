@@ -2,8 +2,16 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.96 - Cross-month search navigation loads the target month before opening the exact entry.
+File version: 5.97 - Smart address search adds nearby street and city results beneath exact matches.
 
+
+CHANGELOG 5.97 - חיפוש כתובת חכם עם תוצאות קרובות לפי רחוב ועיר
+1. בחיפוש בשדה הכתובת, התוצאות המדויקות נשארות ראשונות ללא שינוי.
+2. מתחתיהן נוספו חלונות גלילה נפרדים לתוצאות קרובות לפי שם הרחוב ולפי שם העיר.
+3. מספרי בית, פסיקים ורווחים מיותרים מוסרים רק לצורך החיפוש הקרוב, ואינם משנים את החיפוש המדויק.
+4. כותרת כל חלון מציגה במפורש את המילה או הביטוי שנמצאו ואת מספר התוצאות.
+5. תוצאות קרובות אינן משוכפלות בין הקבוצות, וכל כרטיס ממשיך לנווט לחודש, ליום ולפק״ע המדויקת.
+6. לא נוספו שאילתות Firebase נוספות; החיפוש משתמש במאגר שכבר נטען לחיפוש.
 
 CHANGELOG 5.96 - תיקון ניווט מתוצאות חיפוש לפק״ע בחודש אחר
 1. פונקציית הניווט מעדכנת כעת גם את חודש לוח השנה לפי תאריך הרשומה.
@@ -172,7 +180,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.96";
+const APP_VERSION = "5.97";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1541,6 +1549,129 @@ async function getSearchBaseEntriesV507(scope){
     .filter(e=>String(e.date||"") >= scope.from && String(e.date||"") <= scope.to);
 }
 
+
+// v5.97: נרמול כתובת לצורך תוצאות קרובות בלבד. החיפוש המדויק ממשיך להשתמש בערך המקורי.
+function normalizeAddressSearchV597(value){
+  return String(value||"")
+    .toLowerCase()
+    .replace(/[\u05f3\u05f4'"`]/g," ")
+    .replace(/[.,;:()\[\]{}\\/|_-]+/g," ")
+    .replace(/\s+/g," ")
+    .trim();
+}
+function normalizeAddressPhraseV597(value){
+  return normalizeAddressSearchV597(value)
+    .replace(/\b(?:רחוב|רח)\b/g," ")
+    .replace(/\s+/g," ")
+    .trim();
+}
+function parseAddressPartsV597(value){
+  const raw=normalizeAddressPhraseV597(value);
+  if(!raw) return {street:"",city:"",withoutNumber:""};
+  const tokens=raw.split(" ").filter(Boolean);
+  const numberIndex=tokens.findIndex(token=>/^\d+[א-תa-z]?$/.test(token));
+  let streetTokens=[], cityTokens=[];
+  if(numberIndex>=0){
+    streetTokens=tokens.slice(0,numberIndex);
+    cityTokens=tokens.slice(numberIndex+1);
+  }else{
+    // ללא מספר בית אין דרך בטוחה להפריד רחוב ועיר; הביטוי כולו משמש כהתאמת רחוב.
+    streetTokens=tokens.slice();
+  }
+  return {
+    street:streetTokens.join(" ").trim(),
+    city:cityTokens.join(" ").trim(),
+    withoutNumber:tokens.filter(token=>!/^\d+[א-תa-z]?$/.test(token)).join(" ").trim()
+  };
+}
+function getFilteredEntriesWithoutAddressV597(){
+  const customer=val("searchCustomer");
+  const type=val("searchType");
+  const date=val("searchDate");
+  const month=val("searchMonth");
+  const scope=getSearchDateScopeV507();
+  let arr=Array.isArray(window.searchBaseEntriesV507) ? window.searchBaseEntriesV507.slice() : [...monthEntries];
+  if(customer) arr=arr.filter(e=>String(e.customerNumber||"").includes(customer));
+  if(type) arr=arr.filter(e=>e.workType===type);
+  if(!scope || scope.mode==="currentMonth"){
+    if(date) arr=arr.filter(e=>e.date===date);
+    if(month) arr=arr.filter(e=>String(e.date||"").startsWith(month));
+  }
+  return arr;
+}
+function buildNearbyAddressGroupsV597(exactEntries){
+  const query=val("searchAddress");
+  if(!String(query||"").trim()) return null;
+  const parts=parseAddressPartsV597(query);
+  if(!parts.street && !parts.city) return null;
+  const exactIds=new Set((exactEntries||[]).map(e=>String(e.id||"")));
+  const all=getFilteredEntriesWithoutAddressV597();
+  const street=[], city=[];
+  const streetIds=new Set();
+  for(const entry of all){
+    const id=String(entry.id||"");
+    if(id && exactIds.has(id)) continue;
+    const address=normalizeAddressPhraseV597(entry.address||"");
+    const parsed=parseAddressPartsV597(entry.address||"");
+    if(parts.street && (parsed.street.includes(parts.street) || address.includes(parts.street))){
+      street.push(entry);
+      if(id) streetIds.add(id);
+      continue;
+    }
+    if(parts.city && !streetIds.has(id) && (parsed.city.includes(parts.city) || address.includes(parts.city))){
+      city.push(entry);
+    }
+  }
+  return {streetTerm:parts.street,cityTerm:parts.city,street,city};
+}
+function createSearchEntryCardV597(e){
+  const details=e.workType==="install" && e.items
+    ? e.items.map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("<br>")
+    : (e.isReturnCall?"קריאה חוזרת ללא תשלום":"קריאת שירות");
+  const div=document.createElement("div");
+  div.className="item smart-entry-link-v584";
+  div.innerHTML=`<div><div class="item-title">${esc(e.date||"")} · ${esc(e.description||"")}</div><div class="item-sub">לקוח: ${esc(e.customerNumber||"")}\nכתובת: ${esc(e.address||"")}\n${nl2br(details)}\n${nl2br(e.notes||"")}</div></div><div class="money">${money(e.amount||0)}</div>`;
+  const entryId=String(e.id||"");
+  const entryDate=String(e.date||"");
+  if(entryId && entryDate){
+    div.setAttribute("role","button");
+    div.setAttribute("tabindex","0");
+    div.setAttribute("aria-label",`פתח את הרשומה מתאריך ${entryDate}`);
+    const openExactSearchEntry=()=>{
+      if(typeof window.openSmartEntryV584==="function") window.openSmartEntryV584(entryId,entryDate);
+    };
+    div.addEventListener("click",openExactSearchEntry);
+    div.addEventListener("keydown",event=>{
+      if(event.key==="Enter" || event.key===" "){
+        event.preventDefault();
+        openExactSearchEntry();
+      }
+    });
+  }
+  return div;
+}
+function appendNearbyAddressResultsV597(results,exactEntries){
+  const groups=buildNearbyAddressGroupsV597(exactEntries);
+  if(!groups || (!groups.street.length && !groups.city.length)) return;
+  const wrapper=document.createElement("div");
+  wrapper.className="nearby-address-results-v597";
+  const title=document.createElement("h3");
+  title.textContent="תוצאות קרובות לכתובת שחיפשת";
+  wrapper.appendChild(title);
+  const addGroup=(label,term,items)=>{
+    if(!term || !items.length) return;
+    const shell=document.createElement("div");
+    shell.className="search-results-shell-v421 nearby-address-group-v597";
+    shell.innerHTML=`<h3>${esc(label)} <strong>„${esc(term)}”</strong> <span class="search-scroll-count-v421">${items.length} תוצאות</span></h3><div class="search-results-scroll-v421"></div>`;
+    const scroller=shell.querySelector(".search-results-scroll-v421");
+    items.slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))).forEach(e=>scroller.appendChild(createSearchEntryCardV597(e)));
+    wrapper.appendChild(shell);
+  };
+  addGroup("תוצאות קרובות לפי הרחוב",groups.streetTerm,groups.street);
+  addGroup("תוצאות קרובות לפי העיר",groups.cityTerm,groups.city);
+  results.appendChild(wrapper);
+}
+
 function getFilteredEntries(){
   const customer=val("searchCustomer");
   const address=val("searchAddress").toLowerCase();
@@ -1661,36 +1792,13 @@ function renderSummary(entries,title){
     : "<p class='muted'>אין תוצאות.</p>";
 
   const target=$("searchResultsScrollV421");
-  if(!target)return;
-  list
-    .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")))
-    .forEach(e=>{
-      const details=e.workType==="install" && e.items
-        ? e.items.map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("<br>")
-        : (e.isReturnCall?"קריאה חוזרת ללא תשלום":"קריאת שירות");
-      const div=document.createElement("div");
-      div.className="item smart-entry-link-v584";
-      div.innerHTML=`<div><div class="item-title">${esc(e.date||"")} · ${esc(e.description||"")}</div><div class="item-sub">לקוח: ${esc(e.customerNumber||"")}\nכתובת: ${esc(e.address||"")}\n${nl2br(details)}\n${nl2br(e.notes||"")}</div></div><div class="money">${money(e.amount||0)}</div>`;
-      // v5.95: רק כרטיסי "פירוט תוצאות" מנווטים לפק״ע המדויקת באמצעות מנגנון 5.84 הקיים.
-      const entryId=String(e.id||"");
-      const entryDate=String(e.date||"");
-      if(entryId && entryDate){
-        div.setAttribute("role","button");
-        div.setAttribute("tabindex","0");
-        div.setAttribute("aria-label",`פתח את הרשומה מתאריך ${entryDate}`);
-        const openExactSearchEntry=()=>{
-          if(typeof window.openSmartEntryV584==="function") window.openSmartEntryV584(entryId,entryDate);
-        };
-        div.addEventListener("click",openExactSearchEntry);
-        div.addEventListener("keydown",event=>{
-          if(event.key==="Enter" || event.key===" "){
-            event.preventDefault();
-            openExactSearchEntry();
-          }
-        });
-      }
-      target.appendChild(div);
-    });
+  if(target){
+    list
+      .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")))
+      .forEach(e=>target.appendChild(createSearchEntryCardV597(e)));
+  }
+  // v5.97: רק בחיפוש כתובת מוסיפים מתחת לתוצאות המדויקות קבוצות קרובות לפי רחוב ועיר.
+  appendNearbyAddressResultsV597(results,list);
   if(typeof cleanVisibleSlashN === "function") cleanVisibleSlashN();
 }
 
@@ -14326,6 +14434,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"5.97", title:"חיפוש כתובת חכם עם תוצאות קרובות", items:["התוצאות המדויקות נשארות בראש החיפוש ללא שינוי.","מתחתיהן מוצגות תוצאות קרובות בחלונות גלילה נפרדים לפי שם הרחוב ולפי שם העיר.","מספר הבית מוסר רק לצורך החיפוש הקרוב, והכותרת מציגה את הביטוי שנמצא ואת מספר התוצאות.","אין כפילויות בין התוצאות המדויקות, קבוצת הרחוב וקבוצת העיר.","כל תוצאה קרובה ניתנת ללחיצה ומנווטת לחודש, ליום ולפק״ע המדויקת.","החיפוש משתמש בנתונים שכבר נטענו ואינו מוסיף שאילתות Firebase נוספות."], date:d},
       {version:"5.96", title:"תיקון פתיחת פק״ע מתוצאת חיפוש בחודש אחר", items:["לחיצה על תוצאת חיפוש מחודש אחר מעבירה תחילה את לוח השנה לחודש המתאים.","המערכת ממתינה לטעינת נתוני החודש מ-Firestore ורק לאחר מכן פותחת את היום.","הפק״ע המדויקת מוצגת, נגללת למרכז המסך ומודגשת זמנית.","תוקן מצב שבו הכותרת הציגה את התאריך הנכון אך היום נראה ריק בגלל שנתוני החודש הקודם נשארו בזיכרון."], date:d},
       {version:"5.95", title:"ניווט מפירוט תוצאות החיפוש לפק״ע המדויקת", items:["כל כרטיס בחלק פירוט תוצאות של החיפוש ניתן ללחיצה.","לחיצה עוברת ליום של הרשומה, פותחת את פאנל היום, גוללת לפק״ע לפי ה-ID ומדגישה אותה זמנית.","הכרטיסים נגישים גם באמצעות Enter או רווח.","השינוי משתמש במנגנון הניווט הקיים ואינו משנה את החיפוש או שמירת הנתונים."], date:d},
       {version:"5.94", title:"שבת לא לחיצה ופתיחה אוטומטית על יום ראשון", items:["תאי שבת בלוח השנה אינם לחיצים ואינם ניתנים לבחירה.","כאשר האפליקציה נפתחת בשבת, היא עוברת אוטומטית ליום ראשון הקרוב.","נוספה חסימת הגנה פנימית שמונעת פתיחת טפסים או שמירת עבודה בשבת דרך מסלול עקיף.","לא שונתה לוגיקת נעילת היום, הדוחות או הגיבוי."], date:d},
