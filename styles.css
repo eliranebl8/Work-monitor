@@ -1,4 +1,4 @@
-/* File version: 5.98 - large scrollable daily entries area and exact-entry focus */
+/* File version: 6.00 - smart nested scroll chaining for daily entries */
 /* Work Monitor app - extracted CSS pilot */
 
 :root{
@@ -4578,7 +4578,9 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
   max-height:clamp(560px,68dvh,820px)!important;
   overflow-y:auto!important;
   overflow-x:hidden!important;
-  overscroll-behavior:contain!important;
+  overscroll-behavior-y:auto!important;
+  overscroll-behavior-x:none!important;
+  touch-action:pan-y!important;
   scroll-behavior:smooth!important;
   -webkit-overflow-scrolling:touch!important;
   scrollbar-width:thin!important;
@@ -4601,4 +4603,12 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
 }
 @media(max-width:800px){
   #dayEntries{max-height:clamp(520px,66dvh,720px)!important}
+}
+
+
+/* ===== v6.00: allow natural scroll chaining from the entries box to the page ===== */
+#dayEntries{
+  overscroll-behavior-y:auto!important;
+  overscroll-behavior-x:none!important;
+  touch-action:pan-y!important;
 }
