@@ -1,4 +1,4 @@
-/* File version: 5.91 - hidden day-lock diagnostics */
+/* File version: 5.98 - large scrollable daily entries area and exact-entry focus */
 /* Work Monitor app - extracted CSS pilot */
 
 :root{
@@ -4569,3 +4569,36 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
 
 /* v5.91: הדיבאג נשאר מותקן אך אינו נראה בשימוש רגיל. */
 .day-lock-debug-v590.is-visible-v591{display:block}
+
+
+/* ===== v5.98: חלון גלילה גדול לפק״עות ביום הנבחר ===== */
+#dayEntries{
+  width:100%!important;
+  max-width:100%!important;
+  max-height:clamp(560px,68dvh,820px)!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior:contain!important;
+  scroll-behavior:smooth!important;
+  -webkit-overflow-scrolling:touch!important;
+  scrollbar-width:thin!important;
+  scrollbar-color:#94a3b8 #e2e8f0!important;
+  padding-inline-end:5px!important;
+  scroll-padding-block:18px!important;
+}
+#dayEntries::-webkit-scrollbar{width:9px!important}
+#dayEntries::-webkit-scrollbar-track{background:#e2e8f0!important;border-radius:999px!important}
+#dayEntries::-webkit-scrollbar-thumb{background:#94a3b8!important;border-radius:999px!important;border:2px solid #e2e8f0!important}
+#dayEntries [data-entry-id]{scroll-margin-block:20px!important}
+#dayEntries .entry-target-highlight-v598{
+  animation:entryTargetPulseV598 3.4s ease!important;
+  outline:3px solid rgba(37,99,235,.72)!important;
+  outline-offset:2px!important;
+}
+@keyframes entryTargetPulseV598{
+  0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}
+  18%,55%{box-shadow:0 0 0 9px rgba(37,99,235,.18)}
+}
+@media(max-width:800px){
+  #dayEntries{max-height:clamp(520px,66dvh,720px)!important}
+}
