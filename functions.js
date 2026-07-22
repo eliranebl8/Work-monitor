@@ -2,7 +2,15 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css and functions.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 5.97 - Smart address search adds nearby street and city results beneath exact matches.
+File version: 5.99 - Exact two-stage navigation to daily entry inside scrollable list.
+
+
+CHANGELOG 5.98 - חלון גלילה גדול לפק״עות וניווט אחיד לרשומה מדויקת
+1. אזור הפק״עות ביום הנבחר קיבל גובה גדול ודינמי וגלילה פנימית רק כאשר הרשימה ארוכה.
+2. נוסף מנגנון ניווט אחיד שמשרת חיפוש רגיל, חיפוש כתובת חכם, מתוזמנות שבוצעו, מתוזמנות שלא בוצעו וכל קישור שמשתמש בניווט לפק״ע.
+3. הניווט עובר לחודש המתאים, ממתין לטעינת Firestore, פותח את היום, גולל בתוך אזור הפק״עות וממרכז את הכרטיס המדויק.
+4. הכרטיס המבוקש מודגש זמנית; אם אין מכולת גלילה פנימית, קיימת נפילה בטוחה לגלילת הדף הרגילה.
+5. לא שונו שמירת נתונים, עריכה, מחיקה, נעילת יום, שבת, חיפוש או דוחות.
 
 
 CHANGELOG 5.97 - חיפוש כתובת חכם עם תוצאות קרובות לפי רחוב ועיר
@@ -180,7 +188,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "5.97";
+const APP_VERSION = "5.99";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -17284,4 +17292,186 @@ function isSaturdayDateV594(value){
     window.requiredChangelogRows=wrapped;
     try{ requiredChangelogRows=wrapped; }catch(e){}
   }
+})();
+
+
+/* ==========================================================================
+CHANGELOG 5.99 - תיקון ניווט דו-שלבי לפק״ע בתוך חלון הגלילה
+1. הניווט גולל תחילה את הדף הראשי עד אזור "עבודות ביום הזה".
+2. לאחר מכן הוא גולל בתוך חלון הפק״עות וממרכז את הכרטיס המדויק.
+3. בסיום מתבצע יישור נוסף של הדף כדי שהפק״ע עצמה תהיה במרכז המסך.
+4. התיקון חל על חיפוש, תוצאות קרובות, מתוזמנות, בוצעו ולא בוצעו דרך מנגנון הניווט האחיד.
+=========================================================================== */
+(function dayEntriesScrollAndUnifiedNavigationV599(){
+  'use strict';
+
+  function waitV599(ms){return new Promise(function(resolve){setTimeout(resolve,ms);});}
+
+  function parseDateV599(value){
+    var p=String(value||'').split('-').map(Number);
+    if(p.length!==3 || !p[0] || !p[1] || !p[2]) return null;
+    return new Date(p[0],p[1]-1,1);
+  }
+
+  function findEntryCardV599(entryId){
+    var target=null;
+    try{
+      document.querySelectorAll('#dayEntries [data-entry-id]').forEach(function(el){
+        if(!target && String(el.getAttribute('data-entry-id')||'')===String(entryId)) target=el;
+      });
+    }catch(e){}
+    return target;
+  }
+
+  async function scrollPageToEntriesV599(container){
+    if(!container) return;
+    try{
+      container.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
+      await waitV599(420);
+    }catch(e){
+      try{container.scrollIntoView({block:'center'});}catch(_e){}
+      await waitV599(80);
+    }
+  }
+
+  async function centerCardInsideContainerV599(container,target){
+    if(!container || !target || !container.contains(target)) return false;
+    if(container.scrollHeight>container.clientHeight+4){
+      try{
+        var cRect=container.getBoundingClientRect();
+        var tRect=target.getBoundingClientRect();
+        var next=container.scrollTop+(tRect.top-cRect.top)-(container.clientHeight/2)+(tRect.height/2);
+        var max=Math.max(0,container.scrollHeight-container.clientHeight);
+        container.scrollTo({top:Math.max(0,Math.min(max,next)),behavior:'smooth'});
+        await waitV599(420);
+        return true;
+      }catch(e){}
+    }
+    return false;
+  }
+
+  async function centerTargetInViewportV599(target){
+    if(!target) return;
+    try{
+      var rect=target.getBoundingClientRect();
+      var viewportHeight=window.innerHeight||document.documentElement.clientHeight||0;
+      var delta=(rect.top+(rect.height/2))-(viewportHeight/2);
+      if(Math.abs(delta)>12){
+        window.scrollBy({top:delta,behavior:'smooth'});
+        await waitV599(380);
+      }
+    }catch(e){
+      try{target.scrollIntoView({behavior:'smooth',block:'center'});}catch(_e){}
+    }
+  }
+
+  async function focusEntryV599(target){
+    if(!target) return false;
+    var container=document.getElementById('dayEntries');
+
+    // שלב 1: מביאים את אזור העבודות עצמו אל מרכז המסך הראשי.
+    await scrollPageToEntriesV599(container||target);
+
+    // שלב 2: גוללים בתוך הרשימה עד הכרטיס המדויק.
+    var usedInner=await centerCardInsideContainerV599(container,target);
+    if(!usedInner){
+      try{target.scrollIntoView({behavior:'smooth',block:'center'});await waitV599(360);}catch(e){}
+    }
+
+    // שלב 3: לאחר שהגלילה הפנימית הסתיימה, מיישרים את הכרטיס עצמו למרכז המסך.
+    await centerTargetInViewportV599(target);
+    return true;
+  }
+
+  function highlightV599(target){
+    if(!target) return;
+    try{
+      target.classList.remove('entry-target-highlight-v598','smart-entry-highlight-v584');
+      void target.offsetWidth;
+      target.classList.add('entry-target-highlight-v598');
+      setTimeout(function(){try{target.classList.remove('entry-target-highlight-v598');}catch(e){}},3400);
+    }catch(e){}
+  }
+
+  window.navigateToEntryV599=async function(entryId,entryDate){
+    try{
+      if(!entryId || !entryDate) return false;
+      var targetMonth=parseDateV599(entryDate);
+      if(!targetMonth) return false;
+      var monthChanged=!(calendarDate instanceof Date)
+        || calendarDate.getFullYear()!==targetMonth.getFullYear()
+        || calendarDate.getMonth()!==targetMonth.getMonth();
+
+      calendarDate=targetMonth;
+      selectedDate=String(entryDate);
+      selectedType=null;
+
+      if(monthChanged && typeof loadMonth==='function'){
+        await loadMonth();
+      }else{
+        try{if(typeof renderCalendar==='function')renderCalendar();}catch(e){}
+        try{if(typeof renderDay==='function')renderDay();}catch(e){}
+        try{if(typeof renderStats==='function')renderStats();}catch(e){}
+        try{if(typeof renderSmartDashboard==='function')renderSmartDashboard();}catch(e){}
+      }
+      try{show('dayPanel');hide('selectDayHint');}catch(e){}
+
+      return await new Promise(function(resolve){
+        var attempts=0;
+        async function focus(){
+          attempts++;
+          var target=findEntryCardV599(entryId);
+          if(target){
+            await focusEntryV599(target);
+            highlightV599(target);
+            resolve(true);
+            return;
+          }
+          if(attempts<22){setTimeout(focus,120);return;}
+          try{
+            var container=document.getElementById('dayEntries');
+            if(container)container.scrollIntoView({behavior:'smooth',block:'center'});
+          }catch(e){}
+          resolve(false);
+        }
+        setTimeout(focus,100);
+      });
+    }catch(e){console.warn('navigateToEntryV599 failed',e);return false;}
+  };
+
+  // כל מקורות הניווט הקיימים משתמשים באותה פונקציה: חיפוש, קרובות, מתוזמנות, בוצעו ולא בוצעו.
+  window.openSmartEntryV584=function(entryId,entryDate){
+    return window.navigateToEntryV599(entryId,entryDate);
+  };
+  window.navigateToEntryV598=window.navigateToEntryV599;
+  window.navigateToEntry=window.navigateToEntryV599;
+
+  function updateChangelogV599(){
+    var old=window.requiredChangelogRows || (typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof old!=='function' || old.__v599Wrapped) return;
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='5.99';})){
+        rows.unshift({version:'5.99',title:'ניווט מדויק לפק״ע בתוך חלון הגלילה',createdAt:'2026-07-22',items:[
+          'הניווט גולל תחילה את הדף הראשי עד אזור עבודות היום.',
+          'לאחר מכן הוא גולל בתוך חלון הפק״עות וממרכז את הכרטיס המדויק.',
+          'בסיום מתבצע יישור נוסף כדי שהפק״ע עצמה תופיע במרכז המסך ולא מתחת לאזור הגלילה.',
+          'התיקון חל על חיפוש רגיל, חיפוש חכם, תוצאות קרובות, מתוזמנות, בוצעו ולא בוצעו.',
+          'לא שונו נתונים, שמירה, נעילת יום, שבת או מבנה הכרטיסים.'
+        ]});
+      }
+      return rows;
+    };
+    wrapped.__v599Wrapped=true;
+    window.requiredChangelogRows=wrapped;
+    try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+
+  function bootV599(){
+    updateChangelogV599();
+    try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(bootV599,350);});
+  else setTimeout(bootV599,80);
+  window.addEventListener('load',function(){setTimeout(bootV599,650);});
 })();
