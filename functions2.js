@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.01 - functions2.js.
+File version: 6.03 - functions2.js.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -7625,4 +7625,150 @@ CHANGELOG 5.99 - תיקון ניווט דו-שלבי לפק״ע בתוך חלו�
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(bootV601,420);});
   else setTimeout(bootV601,120);
   window.addEventListener('load',function(){setTimeout(bootV601,760);});
+})();
+
+
+/* ===== v6.03: Direct month/year jump with optional valid day selector ===== */
+(function(){
+  'use strict';
+  var MONTHS_V602=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
+  function elV602(id){return document.getElementById(id);}
+  function closePickerV602(){var overlay=elV602('monthYearPickerOverlayV602');if(overlay)overlay.hidden=true;}
+
+  // v6.03: The day list is optional and is rebuilt from the selected month/year,
+  // so February and 30-day months never show invalid dates.
+  function populateDaysV603(preserveValue){
+    var monthSelect=elV602('monthPickerV602'),yearSelect=elV602('yearPickerV602'),daySelect=elV602('dayPickerV603');
+    if(!monthSelect||!yearSelect||!daySelect)return;
+    var month=Number(monthSelect.value),year=Number(yearSelect.value);
+    var previous=preserveValue?String(daySelect.value||''):'';
+    daySelect.innerHTML='';
+    var empty=document.createElement('option');empty.value='';empty.textContent='ללא בחירת יום';daySelect.appendChild(empty);
+    if(!Number.isInteger(month)||month<0||month>11||!Number.isInteger(year))return;
+    var daysInMonth=new Date(year,month+1,0).getDate();
+    for(var day=1;day<=daysInMonth;day++){
+      var option=document.createElement('option');option.value=String(day);option.textContent=String(day);daySelect.appendChild(option);
+    }
+    if(previous&&Number(previous)<=daysInMonth)daySelect.value=previous;else daySelect.value='';
+  }
+
+  function populatePickerV602(){
+    var monthSelect=elV602('monthPickerV602'),yearSelect=elV602('yearPickerV602');
+    if(!monthSelect||!yearSelect)return;
+    if(!monthSelect.options.length){
+      MONTHS_V602.forEach(function(name,index){var op=document.createElement('option');op.value=String(index);op.textContent=name;monthSelect.appendChild(op);});
+    }
+    var currentYear=new Date().getFullYear();
+    var activeYear=(calendarDate instanceof Date)?calendarDate.getFullYear():currentYear;
+    var minYear=Math.min(2020,activeYear-10),maxYear=Math.max(currentYear+10,activeYear+10);
+    yearSelect.innerHTML='';
+    for(var y=maxYear;y>=minYear;y--){var yo=document.createElement('option');yo.value=String(y);yo.textContent=String(y);yearSelect.appendChild(yo);}
+    monthSelect.value=String((calendarDate instanceof Date)?calendarDate.getMonth():new Date().getMonth());
+    yearSelect.value=String(activeYear);
+    populateDaysV603(false);
+  }
+
+  function openPickerV602(){
+    populatePickerV602();
+    var overlay=elV602('monthYearPickerOverlayV602');
+    if(overlay){overlay.hidden=false;setTimeout(function(){try{elV602('monthPickerV602').focus();}catch(e){}},30);}
+  }
+
+  async function goToMonthV602(){
+    var monthSelect=elV602('monthPickerV602'),yearSelect=elV602('yearPickerV602'),daySelect=elV602('dayPickerV603');
+    if(!monthSelect||!yearSelect)return;
+    var month=Number(monthSelect.value),year=Number(yearSelect.value);
+    var dayValue=daySelect?String(daySelect.value||''):'';
+    if(!Number.isInteger(month)||month<0||month>11||!Number.isInteger(year))return;
+
+    var targetMonth=month,targetYear=year,targetDate=null;
+    if(dayValue!==''){
+      var day=Number(dayValue),maxDay=new Date(year,month+1,0).getDate();
+      if(!Number.isInteger(day)||day<1||day>maxDay)return;
+      targetDate=new Date(year,month,day);
+      // v6.03: Keep the existing Saturday rule—when Saturday is selected,
+      // continue automatically to the following Sunday, even across a month boundary.
+      if(targetDate.getDay()===6)targetDate.setDate(targetDate.getDate()+1);
+      targetMonth=targetDate.getMonth();
+      targetYear=targetDate.getFullYear();
+    }
+
+    closePickerV602();
+    calendarDate=new Date(targetYear,targetMonth,1);
+    selectedDate=targetDate&&typeof formatDate==='function'?formatDate(targetDate):null;
+    selectedType=null;
+    if(typeof loadMonth==='function')await loadMonth();
+    if(selectedDate){
+      try{if(typeof renderCalendar==='function')renderCalendar();}catch(e){}
+      try{if(typeof renderDay==='function')renderDay();}catch(e){}
+      try{if(typeof renderStats==='function')renderStats();}catch(e){}
+    }
+  }
+
+  async function goTodayV602(){
+    var target;
+    try{target=(typeof initialCalendarDateV594==='function')?initialCalendarDateV594():new Date();}catch(e){target=new Date();}
+    if(!(target instanceof Date)||isNaN(target.getTime()))target=new Date();
+    closePickerV602();
+    calendarDate=new Date(target.getFullYear(),target.getMonth(),1);
+    selectedDate=(typeof formatDate==='function')?formatDate(target):null;
+    selectedType=null;
+    if(typeof loadMonth==='function')await loadMonth();
+    if(selectedDate){
+      try{if(typeof renderCalendar==='function')renderCalendar();}catch(e){}
+      try{if(typeof renderDay==='function')renderDay();}catch(e){}
+      try{if(typeof renderStats==='function')renderStats();}catch(e){}
+    }
+  }
+
+  function bindPickerV602(){
+    var open=elV602('openMonthYearPickerV602'),close=elV602('closeMonthYearPickerV602'),go=elV602('goMonthYearV602'),today=elV602('goTodayV602'),overlay=elV602('monthYearPickerOverlayV602');
+    if(!open||open.dataset.boundV602==='1')return;
+    open.dataset.boundV602='1';
+    open.addEventListener('click',openPickerV602);
+    if(close)close.addEventListener('click',closePickerV602);
+    if(go)go.addEventListener('click',goToMonthV602);
+    if(today)today.addEventListener('click',goTodayV602);
+    var monthSelect=elV602('monthPickerV602'),yearSelect=elV602('yearPickerV602');
+    if(monthSelect)monthSelect.addEventListener('change',function(){populateDaysV603(false);});
+    if(yearSelect)yearSelect.addEventListener('change',function(){populateDaysV603(false);});
+    if(overlay)overlay.addEventListener('click',function(e){if(e.target===overlay)closePickerV602();});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'&&overlay&&!overlay.hidden)closePickerV602();});
+  }
+
+  function updateChangelogV602(){
+    var old=window.requiredChangelogRows || (typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof old!=='function'||old.__v602Wrapped)return;
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.03';})){
+        rows.unshift({version:'6.03',title:'בחירת יום אופציונלית בקפיצה ללוח השנה',createdAt:'2026-07-24',items:[
+          'נוסף שדה יום אופציונלי באותו חלון של בחירת חודש ושנה.',
+          'רשימת הימים מתעדכנת אוטומטית לפי החודש והשנה ומציגה רק 28, 29, 30 או 31 ימים תקינים.',
+          'ללא בחירת יום המערכת עוברת רק לחודש ולשנה; עם בחירת יום היא פותחת את היום המדויק.',
+          'כאשר נבחר יום שבת מופעלת לוגיקת השבת הקיימת והמערכת עוברת ליום ראשון הקרוב.',
+          'לא שונו טעינת נתונים, חיצי החודשים, עבודות, חיפוש, נעילות או Firestore.'
+        ]});
+      }
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.02';})){
+        rows.unshift({version:'6.02',title:'קפיצה ישירה לחודש ושנה בלוח השנה',createdAt:'2026-07-24',items:[
+          'נוסף אייקון לוח שנה קטן ליד כותרת החודש והשנה.',
+          'האייקון פותח בחירה נוחה של חודש ושנה ומבצע טעינה אחת בלבד של חודש היעד.',
+          'נוסף כפתור היום לחזרה מיידית לחודש וליום הנוכחיים; בשבת נשמרת לוגיקת המעבר ליום ראשון.',
+          'חיצי המעבר הקיימים לחודש קודם ולחודש הבא נשארו ללא שינוי.',
+          'לא שונו נתוני עבודות, חיפוש, נעילת יום או מבנה Firestore.'
+        ]});
+      }
+      return rows;
+    };
+    wrapped.__v602Wrapped=true;
+    window.requiredChangelogRows=wrapped;
+    try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+
+  function bootV602(){bindPickerV602();updateChangelogV602();try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(bootV602,460);});
+  else setTimeout(bootV602,140);
+  window.addEventListener('load',function(){setTimeout(bootV602,800);});
 })();
