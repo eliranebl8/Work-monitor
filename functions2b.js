@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.10 BETA - functions2.js.
+File version: 6.11 BETA - functions2.js.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -4510,6 +4510,10 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"6.11-beta", title:"דוח התחשבנות חודשי מהמטמון והשלמת מה חדש", items:["דוח התחשבנות לחודש שנמצא בתוך טווח 730 הימים נטען ישירות ממטמון השנתיים ללא קריאה חוזרת של workEntries.","בחירת חודש ישן יותר מהטווח שולחת ל-Firestore שאילתה ממוקדת רק לחודש המבוקש ושומרת אותו במטמון החודשים ההיסטוריים.","מסמך ההתחשבנות החודשי עצמו ממשיך להיקרא ממסמך יחיד תחת workers/{workerId}/monthlySettlements/{YYYY-MM}.","הושלמו במקור הקבוע של מה חדש הרשומות 6.08-beta, 6.09-beta, 6.10-beta ו-6.11-beta כדי שיוזרמו ל-Firestore ולא ייעצרו ב-6.07."], date:d},
+      {version:"6.10-beta", title:"רענון מרכזי מהמטמון ותיקון מחיקת סידור עתידי", items:["נוסף מנגנון רענון מרכזי שמצייר מחדש את החודש, היום, הלוח, הסטטיסטיקות והדשבורד ישירות ממטמון השנתיים ללא קריאה חוזרת של workEntries.","מחיקת עבודה רגילה או מתוזמנת מסירה את הרשומה מכל מאגרי המטמון ומעדכנת מיד את המסך לאחר אישור המחיקה ב-Firestore.","נוסף חיווי הצלחה ברור לאחר מחיקה ללא צורך ברענון הדפדפן.","המנגנון המרכזי זמין גם לפעולות שמירה, עריכה ומחיקה עתידיות."], date:d},
+      {version:"6.09-beta", title:"תיקון ניתוב כפתורי השמירה בבטא", items:["תוקן מצב שבו סידור עתידי נכתב ל-Firestore אך המטמון והמסך לא התעדכנו.","ארבעת כפתורי השמירה מנותבים ישירות למנגנון השמירה שמעדכן את מטמון השנתיים.","לאחר שמירה מתקבל חיווי אישור והרשומה מוצגת מיד ביום הנבחר.","נמנעת הפעלה כפולה של מסלול השמירה הישן."], date:d},
+      {version:"6.08-beta", title:"הצגה מיידית לאחר שמירת עבודה", items:["קריאת שירות, התקנה וסידור עתידי מתווספים מיד למטמון לאחר השמירה.","היום הנבחר, לוח השנה, הסטטיסטיקות והדשבורד מתרעננים ללא טעינה מלאה של workEntries.","מוצגת הודעת אישור ברורה והטופס מתאפס כמו בגרסה היציבה.","מזהה מסמך קבוע מונע כפילויות לאחר סנכרון Firestore."], date:d},
       {version:"6.07-beta", title:"תיקון הצגת ימי חופש במעבר בין חודשים בבטא", items:["תוקן מצב שבו מעבר לחודש קודם או הבא מתוך מטמון השנתיים לא טען את ימי החופש של החודש הנבחר.","לאחר כל מעבר חודש נטענים מ-workerDaysOff גם ימי החופש וגם נעילות הימים של חודש היעד לפני ציור הלוח והדשבורד.","עבודות החודש ממשיכות להגיע מהזיכרון בלבד ואינן נטענות מחדש מ-Firestore.","חישובי ימי החופש, ימי העבודה שנותרו והיעד היומי מתעדכנים לפי החודש שמוצג."], date:d},
       {version:"6.06-beta", title:"תיקון הצגת ימים נעולים במעבר בין חודשים בבטא", items:["תוקן מצב שבו מעבר לחודש אחר מתוך מטמון השנתיים הציג ימים שנשמרו כנעולים כאילו הם פתוחים.","לאחר מעבר חודש נטענות נעילות החודש הנבחר ולוח השנה והיום הנבחר מצוירים מחדש.","עבודות החודש ממשיכות להיטען מהזיכרון בלבד.","לא שונו שמירת נעילה, החיפוש או השלמת הכתובת."], date:d},
       {version:"6.05-beta", title:"בטא: השלמת כתובת רק מזיכרון השנתיים", items:["בעת הקלדת מספר לקוח, בדיקת הלקוח והשלמת הכתובת משתמשות רק במערך 730 הימים שכבר נטען לזיכרון.","הקלדת מספר לקוח אינה שולחת עוד שאילתת Firestore נפרדת ואינה מחפשת מעבר לשנתיים.","לקוחות ישנים יותר ממשיכים להופיע רק במסך החיפוש המלא, שממשיך לחפש בכל ההיסטוריה.","נשמרו התראות 30 הימים, פק״עות מתוזמנות ופק״עות שלא בוצעו על בסיס הנתונים הקיימים בזיכרון."], date:d},
@@ -8590,5 +8594,85 @@ VERSION 6.10 BETA - CENTRAL CACHE REFRESH + DELETE SYNC
     wrapped.__v610Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
   }
   updateChangelogV610();
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.11 BETA - MONTHLY SETTLEMENT CACHE OPTIMIZATION + CHANGELOG RESEED
+-------------------------------------------------------------------------------
+1. Recent settlement months use WM_DATA_CACHE_V604 and do not reread workEntries.
+2. Months older than the 730-day cutoff query only the requested date range.
+3. Historical month results are cached for subsequent report loads/navigation.
+4. Missing changelog rows 6.08-6.11 are now part of the authoritative seed list.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  if(window.__wmSettlementCacheV611Installed)return;
+  window.__wmSettlementCacheV611Installed=true;
+
+  function padV611(n){return String(n).padStart(2,'0');}
+  function rangesV611(month){
+    var parts=String(month||'').split('-'),y=Number(parts[0]),m=Number(parts[1]);
+    if(!y||!m||m<1||m>12)return null;
+    var key=y+'-'+padV611(m),last=new Date(y,m,0).getDate();
+    return {key:key,start:key+'-01',end:key+'-'+padV611(last)};
+  }
+  function doneV611(entry){
+    try{if(typeof isDoneEntryForSettlementV547==='function')return isDoneEntryForSettlementV547(entry);}catch(e){}
+    var st=String((entry&&(entry.entryStatus||entry.status))||'done').toLowerCase();
+    return st!=='planned'&&st!=='not_done'&&st!=='cancelled';
+  }
+  function filterMonthV611(rows,r){
+    return (Array.isArray(rows)?rows:[]).filter(function(e){
+      var d=String((e&&e.date)||'');
+      return d>=r.start&&d<=r.end&&doneV611(e);
+    });
+  }
+  async function loadSettlementEntriesCacheV611(month){
+    if(!viewedWorker||!viewedWorker.id)return [];
+    var r=rangesV611(month);if(!r)return [];
+    var state=window.WM_DATA_CACHE_V604||null;
+
+    // A full month entirely inside the rolling 730-day window comes only from RAM.
+    if(state&&Array.isArray(state.entries)&&state.cutoff&&r.start>=String(state.cutoff)){
+      return filterMonthV611(state.entries,r);
+    }
+
+    // Reuse a historical month already fetched by search/navigation/report.
+    if(state&&state.historicalMonths&&Array.isArray(state.historicalMonths[r.key])){
+      return filterMonthV611(state.historicalMonths[r.key],r);
+    }
+
+    // Older month: query only that worker and that exact month, never all history.
+    var query=db.collection('workEntries')
+      .where('workerId','==',viewedWorker.id)
+      .where('date','>=',r.start)
+      .where('date','<=',r.end);
+    var snap=await query.get();
+    var rows=snap.docs.map(function(d){return Object.assign({id:d.id},d.data()||{});});
+    if(state){
+      if(!state.historicalMonths)state.historicalMonths={};
+      state.historicalMonths[r.key]=rows.slice();
+    }
+    return filterMonthV611(rows,r);
+  }
+
+  window.loadSettlementEntriesV547=loadSettlementEntriesCacheV611;
+  try{loadSettlementEntriesV547=loadSettlementEntriesCacheV611;}catch(e){}
+
+  // Force the clean changelog mechanism to compare and seed the newly completed rows.
+  function reseedV611(){
+    try{
+      var fetcher=window.fetchCleanChangelogV494||window.fetchChangelogV475;
+      if(typeof fetcher==='function')fetcher(false).catch(function(e){console.warn('v6.11 changelog reseed skipped',e);});
+    }catch(e){}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(reseedV611,900);});
+  else setTimeout(reseedV611,900);
+  window.addEventListener('load',function(){setTimeout(reseedV611,1500);});
+
   try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
 })();
