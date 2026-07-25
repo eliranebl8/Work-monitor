@@ -1,4 +1,7 @@
-<!DOCTYPE html>
+<!-- Work Monitor index.html | File version: 6.03 | Changed: added optional day selector to direct calendar jump dialog -->
+<!DOCTYPE html
+<!-- File version: 5.89 - Chrome-stable SVG password visibility icons -->
+
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8"/>
@@ -62,7 +65,7 @@
 
 <section id="workerLoginView" class="card login-box hidden">
 <h1 class="big-title">כניסת עובד</h1><p style="text-align:center">הכנס שם משתמש וסיסמה שקיבלת מהמנהל.</p>
-<input id="workerUsername" placeholder="שם משתמש" autocomplete="off"><input id="workerPassword" type="password" placeholder="סיסמה" autocomplete="new-password">
+<input id="workerUsername" placeholder="שם משתמש" autocomplete="off"><div class="password-field-v585"><input id="workerPassword" type="password" placeholder="סיסמה" autocomplete="new-password"><button class="password-eye-v585" type="button" aria-label="הצג סיסמה" aria-pressed="false" title="הצג סיסמה" onclick="togglePasswordVisibilityV585('workerPassword',this)"><svg class="password-eye-svg-v589" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.75"></circle></svg></button></div>
 <label class="checkline"><input id="rememberMe" type="checkbox"> השאר אותי מחובר</label>
 <button class="btn-green" onclick="workerLogin()">כניסה</button>
 <button class="btn-light" onclick="showRegister()">הרשמה לעובד חדש</button>
@@ -123,7 +126,7 @@
 
 <section id="adminLoginView" class="card login-box hidden">
 <div class="cal-head"><h1>כניסת מנהל</h1><button class="btn-light" onclick="showWorkerLogin()">חזרה</button></div>
-<input id="adminUsername" placeholder="שם משתמש מנהל" autocomplete="off"><input id="adminPassword" type="password" placeholder="סיסמה" autocomplete="new-password">
+<input id="adminUsername" placeholder="שם משתמש מנהל" autocomplete="off"><div class="password-field-v585"><input id="adminPassword" type="password" placeholder="סיסמה" autocomplete="new-password"><button class="password-eye-v585" type="button" aria-label="הצג סיסמה" aria-pressed="false" title="הצג סיסמה" onclick="togglePasswordVisibilityV585('adminPassword',this)"><svg class="password-eye-svg-v589" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.75"></circle></svg></button></div>
 <button onclick="adminLogin()">כניסת מנהל</button><p id="adminLoginMsg" class="danger"></p>
 </section>
 
@@ -310,7 +313,7 @@
     <div id="workerToolsPanel">
       <p>ייצוא, גיבוי ושחזור לנתונים האישיים שלך בלבד.</p>
       <div class="actions">
-        <button class="btn-green" onclick="exportMyEntriesCSV()">📊 ייצוא לאקסל</button>
+        <button class="btn-green" onclick="exportMyEntriesCSV()">📊 ייצוא מלא לאקסל</button>
         <button class="btn-green" type="button" onclick="exportMonthlyPdfReportV558()">📄 סיכום חודש PDF</button>
         <button onclick="backupMyJSON()">💾 גיבוי JSON</button>
         <button class="btn-yellow" onclick="$('restoreMyFile').click()">♻️ שחזור JSON</button>
@@ -480,7 +483,7 @@
 
 <div class="calendar-work-shell-v420">
   <div class="calendar-work-title-v420">📅 לוח שנה ועבודות</div>
-<div class="card calendar-card-v544"><div class="cal-head month-nav-v540 month-nav-v544"><button class="btn-light month-nav-btn-v540 month-nav-btn-v544" type="button" onclick="changeMonth(-1)" aria-label="חודש קודם"><span class="month-nav-arrow-v540 month-nav-arrow-v544">‹</span></button><div class="month-title-wrap-v540 month-title-wrap-v544"><h2 id="calTitle"></h2></div><button class="btn-light month-nav-btn-v540 month-nav-btn-v544" type="button" onclick="changeMonth(1)" aria-label="חודש הבא"><span class="month-nav-arrow-v540 month-nav-arrow-v544">›</span></button></div><div id="calendar" class="cal"></div></div>
+<div class="card calendar-card-v544"><div class="cal-head month-nav-v540 month-nav-v544"><button class="btn-light month-nav-btn-v540 month-nav-btn-v544" type="button" onclick="changeMonth(-1)" aria-label="חודש קודם"><span class="month-nav-arrow-v540 month-nav-arrow-v544">‹</span></button><div class="month-title-wrap-v540 month-title-wrap-v544 month-title-picker-wrap-v602"><h2 id="calTitle"></h2><button id="openMonthYearPickerV602" class="month-year-picker-btn-v602" type="button" aria-label="בחירת חודש ושנה" title="בחירת חודש ושנה">📅</button></div><button class="btn-light month-nav-btn-v540 month-nav-btn-v544" type="button" onclick="changeMonth(1)" aria-label="חודש הבא"><span class="month-nav-arrow-v540 month-nav-arrow-v544">›</span></button></div><div id="calendar" class="cal"></div></div>
 <div id="dayPanel" class="card hidden"><h2 id="dateTitle">בחר יום</h2><p id="shabbatMsg" class="danger hidden">שבת חסומה לעבודה.</p>
 <div id="entryForm"><div class="grid2"><div id="serviceBtn" class="type-card" onclick="setType('service')">קריאת שירות<br><span id="servicePriceLabel" class="muted">₪65 קבוע</span></div><div id="installBtn" class="type-card" onclick="setType('install')">התקנה<br><span class="muted">לפי מחירון</span></div></div>
 <div id="serviceForm" class="hidden" style="margin-top:14px"><h3>קריאת שירות</h3><input id="sCustomer" inputmode="numeric" pattern="[0-9]*" placeholder="מספר לקוח - ספרות בלבד" onblur="checkRecentCustomer('sCustomer','sCustomerHistory')"><div id="sCustomerHistory" class="muted"></div><div class="grid2"><input id="sAddress" placeholder="כתובת"><button class="btn-light" onclick="fillAddressFromLocation('sAddress')">📍 מיקום</button></div><label style="display:flex;align-items:center;gap:8px;font-weight:900;margin:10px 0"><input id="sReturnCall" type="checkbox" onchange="updateServicePreview()" style="width:24px;height:24px;margin:0"> קריאת שירות חוזרת / ללא תשלום</label><textarea id="sNotes" placeholder="הערות"></textarea><div id="servicePreview" class="total-preview">סה״כ: ₪65</div><button class="btn-green" onclick="addService()">שמור קריאת שירות</button></div>
@@ -494,6 +497,15 @@
   <textarea id="editEntryNotes" placeholder="הערות"></textarea>
   <input id="editEntryAmount" type="number" placeholder="סכום">
   <div id="editInstallItemsBox" class="hidden">
+    <!-- v5.64: עריכת סוג פק״ע בהתקנות קיימות/מתוזמנות -->
+    <div id="editPekaTypeWrapV564" class="peka-row-v527">
+      <span class="peka-label-v527">סוג פק״ע</span>
+      <select id="editPekaTypeV564" class="peka-select-v527" title="סוג פק״ע">
+        <option value="">—</option>
+        <option value="CN">CN</option>
+        <option value="CH">CH</option>
+      </select>
+    </div>
     <h3>עריכת פריטי התקנה</h3>
     <p class="muted">אם זו התקנה, אפשר לערוך כאן את הסימונים והכמויות לפי המחירון. הסכום יחושב מחדש אוטומטית.</p>
     <div id="editInstallItems" class="edit-install-items-scroll-v540"></div>
@@ -855,7 +867,29 @@
 
 
 
-<script src="./functions.js"></script>
+<div id="monthYearPickerOverlayV602" class="month-year-picker-overlay-v602" hidden>
+  <div class="month-year-picker-dialog-v602" role="dialog" aria-modal="true" aria-labelledby="monthYearPickerTitleV602">
+    <div class="month-year-picker-head-v602">
+      <h3 id="monthYearPickerTitleV602">מעבר לחודש ושנה</h3>
+      <button id="closeMonthYearPickerV602" class="month-year-picker-close-v602" type="button" aria-label="סגירה">×</button>
+    </div>
+    <label class="month-year-picker-label-v602" for="monthPickerV602">חודש</label>
+    <select id="monthPickerV602" class="month-year-picker-select-v602"></select>
+    <label class="month-year-picker-label-v602" for="yearPickerV602">שנה</label>
+    <select id="yearPickerV602" class="month-year-picker-select-v602"></select>
+    <label class="month-year-picker-label-v602" for="dayPickerV603">יום (אופציונלי)</label>
+    <select id="dayPickerV603" class="month-year-picker-select-v602">
+      <option value="">ללא בחירת יום</option>
+    </select>
+    <div class="month-year-picker-actions-v602">
+      <button id="goMonthYearV602" class="btn-primary" type="button">מעבר</button>
+      <button id="goTodayV602" class="btn-light" type="button">היום</button>
+    </div>
+  </div>
+</div>
+
+<script src="./functions1.js"></script>
+<script src="./functions2.js"></script>
 </body>
 
 
