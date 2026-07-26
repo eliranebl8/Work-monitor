@@ -2,7 +2,7 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css, functions1.js and functions2.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 6.25 BETA - removed legacy startup workEntries query; listener remains authoritative.
+File version: 6.26 BETA - fixed the actual legacy login loadMonth and removed its full workEntries GET.
 This is the stable core file. Future functional changes should be added to functions2.js.
 APP_VERSION remains the single version source here; only its version line should be updated in future releases.
 
@@ -198,7 +198,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "6.25-beta";
+const APP_VERSION = "6.26-beta";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -6342,12 +6342,22 @@ async function loadMonth(token){
   renderCalendar(); renderDay(); renderStats();
 
   const workerId = viewedWorker.id;
-  const snap = await db.collection("workEntries").where("workerId","==",workerId).get();
+
+  // v6.26: מקור הנתונים היחיד בכניסה הוא מטמון השנתיים שמוזן מה-listener המרכזי.
+  // אין לבצע כאן get() מלא של workEntries, משום שהוא מכפיל את כל קריאות הפתיחה.
+  const cacheV626 = window.WM_DATA_CACHE_V604 || null;
+  if(cacheV626 && cacheV626.readyPromise){
+    try{ await cacheV626.readyPromise; }catch(_cacheErr){}
+  }
   if(isStaleNavV180(token) || !viewedWorker || viewedWorker.id !== workerId) return;
 
-  // v5.11: כל עבודות העובד נשמרות לטוגל מגמת 7/14/30 ימים; monthEntries נשאר חודשי בלבד.
-  window.workerAllEntriesV511 = snap.docs.map(d=>({id:d.id,...d.data()}));
-  monthEntries = window.workerAllEntriesV511.filter(e=>e.date>=start&&e.date<=end);
+  const cachedRowsV626 = cacheV626 && Array.isArray(cacheV626.entries)
+    ? cacheV626.entries.slice()
+    : (Array.isArray(window.workerAllEntriesV511) ? window.workerAllEntriesV511.slice() : []);
+
+  // v6.26: כל עבודות טווח השנתיים נשמרות למגמות ולמסכים; monthEntries נשאר חודשי בלבד.
+  window.workerAllEntriesV511 = cachedRowsV626;
+  monthEntries = cachedRowsV626.filter(e=>e.date>=start&&e.date<=end);
   if(!selectedDate) selectTodayOnCurrentMonthV564();
   renderCalendar(); renderDay(); renderStats();
   try{ renderSmartDashboard(); }catch(e){ console.warn("dashboard render skipped", e); }
