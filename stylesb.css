@@ -1,4 +1,4 @@
-/* File version: 6.02 - direct month/year picker dialog */
+/* File version: 6.20 BETA - dedicated Firebase audit window */
 /* Work Monitor app - extracted CSS pilot */
 
 :root{
@@ -4677,3 +4677,15 @@ CHANGE 5.39 - לא בוצע עם שכפול אופציונלי למועד חדש
 }
 .month-year-picker-actions-v602{display:flex;gap:10px;margin-top:18px}
 .month-year-picker-actions-v602 button{flex:1;min-height:44px}
+
+
+/* v6.20 BETA: dedicated Firebase/Firestore audit window. */
+.wm-firebase-audit-v620{position:fixed;z-index:2147483647;left:8px;right:8px;bottom:8px;max-height:58vh;background:rgba(2,6,23,.98);color:#e2e8f0;border:2px solid #fb923c;border-radius:14px;box-shadow:0 14px 45px rgba(0,0,0,.55);direction:rtl;font-family:Arial,sans-serif;overflow:hidden}
+.wm-firebase-head-v620{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:#111827;border-bottom:1px solid #475569}
+.wm-firebase-head-v620>div{display:flex;gap:5px;flex-wrap:wrap}
+.wm-firebase-head-v620 button{appearance:none;border:1px solid #64748b;background:#1e293b;color:#fff;border-radius:7px;padding:5px 8px;font-size:12px;cursor:pointer}
+.wm-firebase-summary-v620{padding:7px 10px;background:#172033;color:#fed7aa;direction:ltr;text-align:left;font:12px/1.35 monospace;border-bottom:1px solid #334155;white-space:pre-wrap}
+.wm-firebase-audit-v620 pre{margin:0;padding:10px;max-height:43vh;overflow:auto;direction:ltr;text-align:left;white-space:pre-wrap;word-break:break-word;font:11px/1.4 monospace;background:#020617;color:#dbeafe}
+.wm-firebase-audit-v620.is-minimized .wm-firebase-summary-v620,.wm-firebase-audit-v620.is-minimized pre{display:none}
+.wm-firebase-audit-v620.is-minimized{max-height:none;right:auto;min-width:310px}
+@media(max-width:600px){.wm-firebase-audit-v620{max-height:54vh}.wm-firebase-head-v620{align-items:flex-start;font-size:12px}.wm-firebase-head-v620 button{font-size:10px;padding:4px 6px}.wm-firebase-summary-v620{font-size:10px}.wm-firebase-audit-v620 pre{max-height:38vh;font-size:9px}.wm-firebase-audit-v620.is-minimized{min-width:280px}}
