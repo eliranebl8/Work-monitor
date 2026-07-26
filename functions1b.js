@@ -2,7 +2,7 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css, functions1.js and functions2.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 6.23 BETA - single-session static Firestore cache and guarded admin initialization.
+File version: 6.24 BETA - final Firestore read deduplication before stable release.
 This is the stable core file. Future functional changes should be added to functions2.js.
 APP_VERSION remains the single version source here; only its version line should be updated in future releases.
 
@@ -198,7 +198,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "6.23-beta";
+const APP_VERSION = "6.24-beta";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1081,7 +1081,7 @@ async function loadSettings(force){
   if(settingsMainPromiseV623)return settingsMainPromiseV623;
   settingsMainPromiseV623=(async function(){
     const doc=await db.collection("settings").doc("main").get();
-    if(doc.exists){const d=doc.data();if(d.servicePrice!==undefined)SERVICE_PRICE=Number(d.servicePrice||65);if(d.defaultTrialDays!==undefined)DEFAULT_TRIAL_DAYS=Number(d.defaultTrialDays||90);if(d.adminUsername)ADMIN_USERNAME=d.adminUsername;if(d.adminPasswordHash)ADMIN_PASSWORD_SHA256=d.adminPasswordHash}
+    if(doc.exists){const d=doc.data();if(d.servicePrice!==undefined)SERVICE_PRICE=Number(d.servicePrice||65);if(d.defaultTrialDays!==undefined)DEFAULT_TRIAL_DAYS=Number(d.defaultTrialDays||90);if(d.adminUsername)ADMIN_USERNAME=d.adminUsername;if(d.adminPasswordHash)ADMIN_PASSWORD_SHA256=d.adminPasswordHash;try{if(typeof cleanEmailV174==='function'){ADMIN_RECOVERY_EMAIL_V174=cleanEmailV174(d.adminRecoveryEmail||'');ADMIN_AUTH_EMAIL_V174=cleanEmailV174(d.adminAuthEmail||'')||'admin@work-monitor.local';}}catch(_e){}}
     else if(session&&session.role==="admin"){await db.collection("settings").doc("main").set({servicePrice:65,defaultTrialDays:90,adminUsername:"Eliran",adminPasswordHash:ADMIN_PASSWORD_SHA256,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true})}
     settingsMainReadyV623=true;updateServicePriceLabels();
   })().finally(function(){settingsMainPromiseV623=null;});
@@ -5212,16 +5212,10 @@ function adminAuthEmailV173(){ return ADMIN_AUTH_EMAIL_V174 || "admin@work-monit
 function adminAuthEmailV170(){ return ADMIN_AUTH_EMAIL_V174 || "admin@work-monitor.local"; }
 
 const oldLoadSettingsV174 = window.loadSettings;
-window.loadSettings = async function(){
-  if(typeof oldLoadSettingsV174 === "function") await oldLoadSettingsV174();
-  try{
-    const doc=await db.collection("settings").doc("main").get();
-    if(doc.exists){
-      const d=doc.data()||{};
-      ADMIN_RECOVERY_EMAIL_V174 = cleanEmailV174(d.adminRecoveryEmail || "");
-      ADMIN_AUTH_EMAIL_V174 = cleanEmailV174(d.adminAuthEmail || "") || "admin@work-monitor.local";
-    }
-  }catch(e){ console.warn("loadSettings V174 recovery fields failed", e); }
+window.loadSettings = async function(force){
+  // v6.24: recovery fields are populated by the core cached settings/main read.
+  // Do not issue a second document get from this compatibility wrapper.
+  if(typeof oldLoadSettingsV174 === "function") return await oldLoadSettingsV174(force);
 };
 
 function addAdminRecoveryPanelV174(){
