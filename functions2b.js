@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.20 BETA - dedicated Firebase/Firestore audit window with copyable log.
+File version: 6.21 BETA - fixed direct connection between the audit window and the live Firebase services.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -9522,7 +9522,7 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
   }
   function fullText(){
     var list=rows(),s=summary();
-    return 'WORK MONITOR FIREBASE AUDIT v6.20\n'+
+    return 'WORK MONITOR FIREBASE AUDIT v6.21\n'+
       'generated: '+now()+'\nurl: '+location.href+'\nuserAgent: '+navigator.userAgent+'\n'+
       'summary: '+JSON.stringify(s,null,2)+'\n\n'+
       list.map(function(r){return r.time+' | '+r.event+' | '+JSON.stringify(r.data);}).join('\n');
@@ -9540,7 +9540,7 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
   function ensure(){
     var box=document.getElementById('wmFirebaseAuditWindowV620');if(box)return box;
     box=document.createElement('section');box.id='wmFirebaseAuditWindowV620';box.className='wm-firebase-audit-v620';
-    box.innerHTML='<div class="wm-firebase-head-v620"><strong>🔥 Firebase Audit 6.20</strong><div><button id="wmFirebaseCopyV620" type="button">העתק לוג</button><button id="wmFirebaseClearV620" type="button">נקה לוג</button><button id="wmFirebaseMinV620" type="button">מזער</button><button id="wmFirebaseCloseV620" type="button">סגור</button></div></div><div id="wmFirebaseSummaryV620" class="wm-firebase-summary-v620"></div><pre id="wmFirebaseRowsV620"></pre>';
+    box.innerHTML='<div class="wm-firebase-head-v620"><strong>🔥 Firebase Audit 6.21</strong><div><button id="wmFirebaseCopyV620" type="button">העתק לוג</button><button id="wmFirebaseClearV620" type="button">נקה לוג</button><button id="wmFirebaseMinV620" type="button">מזער</button><button id="wmFirebaseCloseV620" type="button">סגור</button></div></div><div id="wmFirebaseSummaryV620" class="wm-firebase-summary-v620"></div><pre id="wmFirebaseRowsV620"></pre>';
     (document.body||document.documentElement).appendChild(box);
     box.querySelector('#wmFirebaseCopyV620').onclick=copy;
     box.querySelector('#wmFirebaseClearV620').onclick=clear;
@@ -9556,7 +9556,14 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
     pre.textContent=list.slice(-220).map(function(r){return r.time.slice(11,23)+'  '+r.event+'  '+JSON.stringify(r.data);}).join('\n')||'עדיין אין אירועים. עבור באפליקציה ובצע פעולות.';
     pre.scrollTop=pre.scrollHeight;
   }
-  function start(){wrapAuth();ensure();add('FIREBASE_AUDIT_WINDOW_READY',{version:'6.20',parameter:'firebaseDebug=1'});setInterval(function(){wrapAuth();render();},800);}
+  function start(){
+    wrapAuth();ensure();
+    add('FIREBASE_AUDIT_WINDOW_READY',{version:'6.21',parameter:'firebaseDebug=1'});
+    add('FIREBASE_AUDIT_CONNECTION_CHECK',{dbAvailable:!!window.db,authAvailable:!!window.auth,firestoreAuditInstalled:!!window.__WM_FS_AUDIT_INSTALLED_V618,authWrapped:!!(window.auth&&window.auth.__auditV620)});
+    if(!window.db||!window.__WM_FS_AUDIT_INSTALLED_V618)add('FIREBASE_AUDIT_INSTALL_ERROR',{reason:'Firestore audit layer was not attached to the live db instance'});
+    if(!window.auth)add('FIREBASE_AUDIT_INSTALL_ERROR',{reason:'Firebase Auth instance is unavailable'});
+    setInterval(function(){wrapAuth();render();},800);
+  }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
 
@@ -9565,6 +9572,13 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
   if(typeof old!=='function'||old.__v620Wrapped)return;
   var wrapped=function(){
     var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+    if(!rows.some(function(r){return String(r.version||r.id||'')==='6.21-beta';}))rows.unshift({version:'6.21-beta',title:'תיקון חיבור חלון בדיקת Firebase',createdAt:'2026-07-26',items:[
+      'תוקן חיבור חלון ה-Audit למופעי db ו-auth האמיתיים שבהם האפליקציה משתמשת.',
+      'קריאות Firestore, מאזינים, כתיבות, מחיקות ופעולות Firebase Auth נלכדות כעת ישירות בשכבת Firebase.',
+      'נוספה שורת FIREBASE_AUDIT_CONNECTION_CHECK שמאשרת בתחילת כל בדיקה שהחיבור והעטיפות הותקנו בפועל.',
+      'במקרה שהלכידה לא הותקנה, נרשמת שגיאת FIREBASE_AUDIT_INSTALL_ERROR ברורה במקום להציג לוג אפס מטעה.',
+      'לא שונתה לוגיקת הנתונים, המטמון, ההתחברות או השמירה של האפליקציה.'
+    ]});
     if(!rows.some(function(r){return String(r.version||r.id||'')==='6.20-beta';}))rows.unshift({version:'6.20-beta',title:'חלון בדיקת Firebase מלא',createdAt:'2026-07-26',items:[
       'נוסף חלון דיבאג גדול שנפתח באמצעות הפרמטר ?firebaseDebug=1 ומציג בזמן אמת כל פנייה שנלכדה ל-Firestore ול-Firebase Auth.',
       'הלוג מציג קריאות, מאזינים, כתיבות, מחיקות, מקור Cache/Server, זמני ביצוע וסיכום לפי אוסף.',
