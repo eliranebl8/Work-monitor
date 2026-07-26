@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.13 BETA - functions2.js.
+File version: 6.14 BETA - functions2.js.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -9019,4 +9019,103 @@ VERSION 6.13 BETA - SAFE SNAPSHOT MERGE + MONTH HEADER SYNCHRONIZATION
   updateChangelogV613();
   try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
   setTimeout(function(){try{monthTitleV613();if(typeof fetchCleanChangelogV494==='function')fetchCleanChangelogV494();}catch(e){}},1200);
+})();
+
+
+/*
+===============================================================================
+VERSION 6.14 BETA - MONTH METADATA RELOAD FOR VACATION DAYS AND DAY LOCKS
+-------------------------------------------------------------------------------
+1. Version 6.13 replaced the final loadMonth route after the older 6.06/6.07
+   wrappers had already been installed, so those wrappers no longer ran when
+   navigating to a previous or future month.
+2. Every month navigation now reloads the target month's vacation-day metadata
+   and day-lock metadata after the cached work entries are ready.
+3. The calendar, selected day, statistics and dashboard are rendered again only
+   after both metadata loaders finish, so previous/future months display the
+   same lock and vacation markers as the current month.
+4. This fix does not reload workEntries and therefore preserves the persistent
+   two-year cache optimization introduced in the beta series.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  if(window.__wmMonthMetadataReloadV614Installed)return;
+  window.__wmMonthMetadataReloadV614Installed=true;
+
+  var baseLoadMonthV614=window.loadMonth;
+  if(typeof baseLoadMonthV614==='function'&&!baseLoadMonthV614.__monthMetadataV614){
+    var wrappedLoadMonthV614=async function(){
+      var result=await baseLoadMonthV614.apply(this,arguments);
+
+      // v6.14: load vacation days for calendarDate's month. The work-entry cache
+      // remains untouched; only the small workerDaysOff metadata is refreshed.
+      try{
+        if(typeof window.loadVacationDaysV437==='function'){
+          await window.loadVacationDaysV437();
+        }else if(typeof window.loadVacationDaysV489==='function'){
+          await window.loadVacationDaysV489();
+        }else if(typeof window.loadVacationDaysV487==='function'){
+          await window.loadVacationDaysV487();
+        }else if(typeof loadVacationDaysV487==='function'){
+          await loadVacationDaysV487();
+        }
+      }catch(err){
+        console.error('v6.14 month vacation-days reload failed',err);
+      }
+
+      // v6.14: day locks use calendarDate to filter the requested month.
+      // Run this after vacation loading because both states share workerDaysOff.
+      try{
+        if(typeof window.loadDayLocksV585==='function'){
+          await window.loadDayLocksV585();
+        }
+      }catch(err){
+        console.error('v6.14 month day-lock reload failed',err);
+      }
+
+      // Rebuild all dependent views only after the target month's metadata is ready.
+      try{
+        if(typeof window.wmRefreshFromCacheV610==='function'){
+          window.wmRefreshFromCacheV610({reason:'month-metadata-v6.14'});
+        }else{
+          if(typeof renderCalendar==='function')renderCalendar();
+          if(typeof renderDay==='function')renderDay();
+          if(typeof updateStats==='function')updateStats();
+          if(typeof renderSmartDashboard==='function')renderSmartDashboard();
+        }
+      }catch(err){
+        console.error('v6.14 month metadata render failed',err);
+      }
+      return result;
+    };
+    wrappedLoadMonthV614.__monthMetadataV614=true;
+    window.loadMonth=wrappedLoadMonthV614;
+    try{loadMonth=wrappedLoadMonthV614;}catch(e){}
+  }
+
+  function updateChangelogV614(){
+    var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof old!=='function'||old.__v614Wrapped)return;
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.14-beta';}))rows.unshift({
+        version:'6.14-beta',title:'תיקון ימי חופש ונעילות במעבר בין חודשים',createdAt:'2026-07-26',items:[
+          'תוקן מצב שבו ימי חופש ונעילות יום הוצגו רק בחודש הנוכחי ונעלמו בחודשים קודמים או עתידיים.',
+          'לאחר כל מעבר חודש נטענים מחדש נתוני ימי החופש ונתוני הנעילות עבור החודש שמוצג בפועל.',
+          'לוח השנה, היום הנבחר, הסטטיסטיקות והדשבורד מתרעננים רק לאחר סיום טעינת נתוני החודש.',
+          'טעינת העבודות ממשיכה להתבצע מהמטמון הקבוע של השנתיים ואינה חוזרת לקריאה מלאה של workEntries.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v614Wrapped=true;
+    window.requiredChangelogRows=wrapped;
+    try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  updateChangelogV614();
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+  setTimeout(function(){
+    try{if(typeof fetchCleanChangelogV494==='function')fetchCleanChangelogV494();}catch(e){}
+  },1500);
 })();
