@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.21 BETA - fixed direct connection between the audit window and the live Firebase services.
+File version: 6.22 BETA - fixed direct connection between the audit window and the live Firebase services.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -3947,10 +3947,16 @@ CHANGELOG 4.40 - דשבורד חכם: מגמת הכנסות לפי חודשים
       content.innerHTML='<p class="muted">טוען מגמת חודשים...</p>';
       var start=year+'-01-01';
       var end=year+'-12-31';
-      var snap=await db.collection('workEntries').where('workerId','==',workerId).get();
+      // v6.22: annual trend must use the already loaded two-year cache.
+      // It previously queried every work entry again on each dashboard render/refresh.
+      var cachedEntries=[];
+      try{
+        if(window.WM_DATA_CACHE_V604&&Array.isArray(window.WM_DATA_CACHE_V604.entries)) cachedEntries=window.WM_DATA_CACHE_V604.entries.slice();
+        else if(Array.isArray(window.workerAllEntriesV511)) cachedEntries=window.workerAllEntriesV511.slice();
+      }catch(_cacheErr){cachedEntries=[];}
       if(req!==monthlyTrendRequestV440) return;
       var values=new Array(12).fill(0);
-      snap.docs.map(function(d){return {id:d.id,...(d.data()||{})};})
+      cachedEntries
         .filter(function(e){return e.date>=start && e.date<=end;})
         .filter(function(e){return !isPlanned440(e);})
         .forEach(function(e){
@@ -9588,4 +9594,111 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
     return rows;
   };
   wrapped.__v620Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.22 BETA - FIRESTORE READ DEDUPLICATION
+-------------------------------------------------------------------------------
+1. Price list and installation templates are loaded once per signed-in worker
+   session and concurrent calls share the same Promise.
+2. Vacation-day documents are loaded once per worker and filtered in memory for
+   the displayed month.
+3. loadMonth calls are serialized so rapid navigation cannot start overlapping
+   Firebase loading chains.
+4. The smart dashboard annual trend uses the existing two-year work-entry cache
+   and no longer reads the entire workEntries collection on every render.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  if(window.__wmReadDedupV622Installed)return;
+  window.__wmReadDedupV622Installed=true;
+
+  var staticCache={workerId:'',priceReady:false,templatesReady:false,pricePromise:null,templatesPromise:null};
+  function workerIdV622(){try{return viewedWorker&&viewedWorker.id?String(viewedWorker.id):'';}catch(e){return '';}}
+  function resetForWorkerV622(){
+    var id=workerIdV622();
+    if(staticCache.workerId!==id){staticCache.workerId=id;staticCache.priceReady=false;staticCache.templatesReady=false;staticCache.pricePromise=null;staticCache.templatesPromise=null;}
+  }
+
+  var originalLoadPriceListV622=window.loadPriceList||(typeof loadPriceList==='function'?loadPriceList:null);
+  if(typeof originalLoadPriceListV622==='function'){
+    var cachedLoadPriceListV622=async function(force){
+      resetForWorkerV622();
+      if(force===true)staticCache.priceReady=false;
+      if(staticCache.priceReady&&Array.isArray(priceList)&&priceList.length)return priceList;
+      if(staticCache.pricePromise)return staticCache.pricePromise;
+      staticCache.pricePromise=Promise.resolve(originalLoadPriceListV622.apply(this,arguments)).then(function(result){staticCache.priceReady=true;return result||priceList;}).finally(function(){staticCache.pricePromise=null;});
+      return staticCache.pricePromise;
+    };
+    window.loadPriceList=cachedLoadPriceListV622;try{loadPriceList=cachedLoadPriceListV622;}catch(e){}
+  }
+
+  var originalLoadTemplatesV622=window.loadTemplates||(typeof loadTemplates==='function'?loadTemplates:null);
+  if(typeof originalLoadTemplatesV622==='function'){
+    var cachedLoadTemplatesV622=async function(force){
+      resetForWorkerV622();
+      if(force===true)staticCache.templatesReady=false;
+      if(staticCache.templatesReady&&Array.isArray(templates))return templates;
+      if(staticCache.templatesPromise)return staticCache.templatesPromise;
+      staticCache.templatesPromise=Promise.resolve(originalLoadTemplatesV622.apply(this,arguments)).then(function(result){staticCache.templatesReady=true;return result||templates;}).finally(function(){staticCache.templatesPromise=null;});
+      return staticCache.templatesPromise;
+    };
+    window.loadTemplates=cachedLoadTemplatesV622;try{loadTemplates=cachedLoadTemplatesV622;}catch(e){}
+  }
+
+  var dayOffCache={workerId:'',docs:null,promise:null};
+  function monthRangeV622(){var y=calendarDate.getFullYear(),m=calendarDate.getMonth()+1,last=new Date(y,m,0).getDate(),mm=String(m).padStart(2,'0');return {start:y+'-'+mm+'-01',end:y+'-'+mm+'-'+String(last).padStart(2,'0')};}
+  async function allDayOffDocsV622(){
+    var id=workerIdV622();if(!id)return [];
+    if(dayOffCache.workerId!==id){dayOffCache={workerId:id,docs:null,promise:null};}
+    if(Array.isArray(dayOffCache.docs))return dayOffCache.docs;
+    if(dayOffCache.promise)return dayOffCache.promise;
+    dayOffCache.promise=db.collection('workerDaysOff').where('workerId','==',id).get().then(function(snap){dayOffCache.docs=snap.docs.map(function(d){return Object.assign({id:d.id},d.data()||{});});return dayOffCache.docs;}).finally(function(){dayOffCache.promise=null;});
+    return dayOffCache.promise;
+  }
+  async function cachedVacationDaysV622(force){
+    if(force===true)dayOffCache.docs=null;
+    var r=monthRangeV622(),docs=await allDayOffDocsV622();
+    window.vacationDaysV437=Array.from(new Set(docs.filter(function(d){var date=String(d.date||'');return (d.type==='vacation'||!d.type)&&d.active!==false&&date>=r.start&&date<=r.end;}).map(function(d){return String(d.date||'');}))).sort();
+    window.vacationDaysLoadedForV437=workerIdV622()+'_'+r.start.slice(0,7);
+    return window.vacationDaysV437;
+  }
+  ['loadVacationDaysV437','loadVacationDaysV439','loadVacationDaysV482','loadVacationDaysV486','loadVacationDaysV487','loadVacationDaysV489'].forEach(function(name){window[name]=cachedVacationDaysV622;});
+
+  var baseLoadMonthV622=window.loadMonth;
+  var activeMonthPromiseV622=null,pendingMonthReloadV622=false;
+  if(typeof baseLoadMonthV622==='function'){
+    var serializedLoadMonthV622=function(){
+      if(activeMonthPromiseV622){pendingMonthReloadV622=true;return activeMonthPromiseV622;}
+      var args=arguments,self=this;
+      activeMonthPromiseV622=Promise.resolve(baseLoadMonthV622.apply(self,args)).finally(async function(){
+        activeMonthPromiseV622=null;
+        if(pendingMonthReloadV622){pendingMonthReloadV622=false;await serializedLoadMonthV622();}
+      });
+      return activeMonthPromiseV622;
+    };
+    serializedLoadMonthV622.__readDedupV622=true;window.loadMonth=serializedLoadMonthV622;try{loadMonth=serializedLoadMonthV622;}catch(e){}
+  }
+
+  window.wmInvalidateStaticCacheV622=function(){staticCache.priceReady=false;staticCache.templatesReady=false;dayOffCache.docs=null;};
+})();
+
+(function updateChangelogV622(){
+  var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof old!=='function'||old.__v622Wrapped)return;
+  var wrapped=function(){
+    var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+    if(!rows.some(function(r){return String(r.version||r.id||'')==='6.22-beta';}))rows.unshift({version:'6.22-beta',title:'צמצום דרמטי של קריאות Firestore כפולות',createdAt:'2026-07-26',items:[
+      'מגמת ההכנסות השנתית בדשבורד משתמשת כעת במטמון השנתיים ואינה קוראת מחדש את כל workEntries בכל רינדור.',
+      'מחירון ותבניות התקנה נטענים פעם אחת לעובד; קריאות מקבילות חולקות Promise אחד.',
+      'ימי חופש נטענים פעם אחת לעובד ומסוננים בזיכרון לפי החודש המוצג.',
+      'קריאות loadMonth חופפות מאוחדות כדי שמעבר מהיר בין חודשים לא יפתח שרשראות טעינה מקבילות.',
+      'לא שונו מבנה הנתונים, הרשאות, פעולות שמירה, מחיקה או חיפוש היסטורי.'
+    ]});
+    return rows;
+  };
+  wrapped.__v622Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
 })();
