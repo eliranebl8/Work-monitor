@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.12 BETA - functions2.js.
+File version: 6.13 BETA - functions2.js.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -8860,4 +8860,163 @@ VERSION 6.12 BETA - PERSISTENT TWO-YEAR CACHE + SAFE FIRST-SAVE REFRESH
   }
   updateChangelogV612();
   try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.13 BETA - SAFE SNAPSHOT MERGE + MONTH HEADER SYNCHRONIZATION
+-------------------------------------------------------------------------------
+1. Firestore snapshot changes are now applied by document id instead of replacing
+   the entire two-year cache with a possibly partial local snapshot.
+2. Local pending-write snapshots can add/modify/remove one record without hiding
+   the rest of the visible month after the first save.
+3. A confirmed server snapshot remains authoritative and replaces the rolling
+   two-year cache only when the server has returned the complete query result.
+4. Every cache refresh now also updates calTitle and monthSub directly from
+   calendarDate, so the visible month title follows previous/next navigation.
+5. The repaired cache is persisted back to IndexedDB after each safe merge.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  if(window.__wmSnapshotMergeV613Installed)return;
+  window.__wmSnapshotMergeV613Installed=true;
+
+  var state=window.WM_DATA_CACHE_V604=window.WM_DATA_CACHE_V604||{};
+  var listenerWorkerV613='';
+  var listenerPromiseV613=null;
+  var DB_NAME_V613='work-monitor-local-cache',DB_VERSION_V613=1,STORE_V613='workerCaches';
+
+  function padV613(n){return String(n).padStart(2,'0');}
+  function cutoffV613(){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-730);return d.getFullYear()+'-'+padV613(d.getMonth()+1)+'-'+padV613(d.getDate());}
+  function monthTitleV613(){
+    try{
+      if(!(calendarDate instanceof Date))return;
+      var y=calendarDate.getFullYear(),m=calendarDate.getMonth(),label=(Array.isArray(months)&&months[m])?months[m]:(m+1);
+      if(document.getElementById('calTitle'))text('calTitle',label+' '+y);
+      if(document.getElementById('monthSub'))text('monthSub','חודש בתצוגה: '+label+' '+y);
+    }catch(e){console.warn('v6.13 month title update skipped',e);}
+  }
+  function openDbV613(){
+    return new Promise(function(resolve,reject){
+      if(!window.indexedDB){reject(new Error('IndexedDB unavailable'));return;}
+      var req=indexedDB.open(DB_NAME_V613,DB_VERSION_V613);
+      req.onupgradeneeded=function(){var db=req.result;if(!db.objectStoreNames.contains(STORE_V613))db.createObjectStore(STORE_V613,{keyPath:'workerId'});};
+      req.onsuccess=function(){resolve(req.result);};req.onerror=function(){reject(req.error||new Error('IndexedDB open failed'));};
+    });
+  }
+  async function persistV613(){
+    try{
+      if(!state.workerId||!Array.isArray(state.entries))return;
+      var dbi=await openDbV613();
+      await new Promise(function(resolve,reject){
+        var tx=dbi.transaction(STORE_V613,'readwrite');
+        tx.objectStore(STORE_V613).put({workerId:String(state.workerId),cutoff:String(state.cutoff||''),entries:state.entries,savedAt:Date.now(),schema:1});
+        tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error);};tx.onabort=function(){reject(tx.error);};
+      });
+      dbi.close();
+    }catch(e){console.warn('v6.13 cache persist skipped',e);}
+  }
+  async function hydrateV613(workerId,cutoff){
+    try{
+      var dbi=await openDbV613();
+      var saved=await new Promise(function(resolve,reject){
+        var tx=dbi.transaction(STORE_V613,'readonly'),req=tx.objectStore(STORE_V613).get(workerId);
+        req.onsuccess=function(){resolve(req.result||null);};req.onerror=function(){reject(req.error);};tx.oncomplete=function(){dbi.close();};
+      });
+      if(saved&&saved.cutoff===cutoff&&Array.isArray(saved.entries)){
+        state.workerId=workerId;state.cutoff=cutoff;state.entries=saved.entries.slice();window.workerAllEntriesV511=state.entries.slice();
+        return true;
+      }
+    }catch(e){console.warn('v6.13 cache hydrate skipped',e);}
+    return false;
+  }
+  function applyChangesV613(snap){
+    var map=Object.create(null);
+    (Array.isArray(state.entries)?state.entries:[]).forEach(function(e){if(e&&e.id)map[e.id]=e;});
+    var changes=[];try{changes=snap.docChanges();}catch(e){}
+    changes.forEach(function(ch){
+      var id=ch.doc.id;
+      if(ch.type==='removed')delete map[id];
+      else map[id]=Object.assign({id:id},ch.doc.data()||{});
+    });
+    state.entries=Object.keys(map).map(function(id){return map[id];});
+  }
+  function renderV613(){
+    monthTitleV613();
+    try{if(typeof window.wmRefreshFromCacheV610==='function')window.wmRefreshFromCacheV610();}catch(e){console.error('v6.13 cache render failed',e);}
+    monthTitleV613();
+  }
+  function stopOldListenerV613(){
+    try{if(state.unsubscribe)state.unsubscribe();}catch(e){}
+    state.unsubscribe=null;listenerWorkerV613='';listenerPromiseV613=null;
+  }
+  function startListenerV613(workerId,cutoff){
+    if(listenerWorkerV613===workerId&&listenerPromiseV613)return listenerPromiseV613;
+    stopOldListenerV613();listenerWorkerV613=workerId;
+    listenerPromiseV613=new Promise(function(resolve,reject){
+      var first=true;
+      try{
+        var q=db.collection('workEntries').where('workerId','==',workerId).where('date','>=',cutoff);
+        state.unsubscribe=q.onSnapshot({includeMetadataChanges:true},function(snap){
+          var fromCache=!!(snap.metadata&&snap.metadata.fromCache);
+          if(fromCache){
+            // v6.13: merge only changed docs so a one-record pending snapshot cannot replace the full month.
+            applyChangesV613(snap);
+            state.lastEvent='v6.13-local-changes-merged';
+          }else{
+            // Server result is the complete authoritative result of the two-year query.
+            state.entries=snap.docs.map(function(d){return Object.assign({id:d.id},d.data()||{});});
+            state.lastEvent='v6.13-server-snapshot';
+          }
+          state.workerId=workerId;state.cutoff=cutoff;window.workerAllEntriesV511=state.entries.slice();
+          renderV613();persistV613();
+          if(first){first=false;resolve(state.entries);}
+        },function(err){if(first){first=false;reject(err);}else console.error('v6.13 listener failed',err);});
+      }catch(e){first=false;reject(e);}
+    });
+    return listenerPromiseV613;
+  }
+
+  // Final loadMonth route for v6.13: persistent cache first, then safe differential listener.
+  window.loadMonth=async function(){
+    if(!viewedWorker||!viewedWorker.id)return;
+    try{await loadPriceList();}catch(e){console.warn('v6.13 price list load skipped',e);}
+    try{await loadTemplates();}catch(e){console.warn('v6.13 templates load skipped',e);}
+    var workerId=String(viewedWorker.id),cutoff=cutoffV613();state.workerId=workerId;state.cutoff=cutoff;
+    await hydrateV613(workerId,cutoff);renderV613();
+    try{await startListenerV613(workerId,cutoff);}catch(e){if(!Array.isArray(state.entries)||!state.entries.length)throw e;}
+    renderV613();
+  };
+  try{loadMonth=window.loadMonth;}catch(e){}
+
+  // Keep the month heading synchronized for every central refresh, including arrow navigation.
+  var baseRefreshV613=window.wmRefreshFromCacheV610;
+  if(typeof baseRefreshV613==='function'&&!baseRefreshV613.__monthHeaderV613){
+    var wrappedRefreshV613=function(options){monthTitleV613();var result=baseRefreshV613(options);monthTitleV613();return result;};
+    wrappedRefreshV613.__monthHeaderV613=true;window.wmRefreshFromCacheV610=wrappedRefreshV613;
+  }
+
+  function updateChangelogV613(){
+    var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof old!=='function'||old.__v613Wrapped)return;
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.13-beta';}))rows.unshift({
+        version:'6.13-beta',title:'תיקון היעלמות החודש וסנכרון כותרת החודש',createdAt:'2026-07-26',items:[
+          'תמונות מצב מקומיות של Firestore מתמזגות כעת לפי מזהה מסמך ואינן מחליפות את כל מטמון השנתיים ברשומה החדשה בלבד.',
+          'שמירה ראשונה של קריאת שירות או התקנה אינה אמורה עוד להעלים את שאר העבודות מלוח החודש.',
+          'תמונת מצב מאושרת מהשרת נשארת מקור האמת המלא ומחליפה את המטמון רק לאחר קבלת תוצאת השאילתה השלמה.',
+          'כותרת לוח השנה וכותרת המשנה מתעדכנות ישירות מתוך calendarDate בכל מעבר בין חודשים ובכל רענון מהמטמון.',
+          'המטמון המתוקן נשמר מחדש ב-IndexedDB לאחר כל סנכרון.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v613Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  updateChangelogV613();
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+  setTimeout(function(){try{monthTitleV613();if(typeof fetchCleanChangelogV494==='function')fetchCleanChangelogV494();}catch(e){}},1200);
 })();
