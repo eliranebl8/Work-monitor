@@ -9238,13 +9238,13 @@ VERSION 6.17 BETA - ONE-SHOT CACHE STARTUP + FIRST-SAVE MONTH INTEGRITY TRACE
     var row={time:new Date().toISOString(),event:String(event||'EVENT'),data:safeData(extra)};
     try{var list=rows();list.push(row);if(list.length>500)list=list.slice(list.length-500);sessionStorage.setItem(KEY,JSON.stringify(list));}catch(e){}
     state.v617LastTrace=row;
-    try{console.log('[WM 6.17 TRACE]',row.event,row.data);}catch(e){}
+    try{console.log('[WM 6.18 TRACE]',row.event,row.data);}catch(e){}
     render();return row;
   }
   window.wmTraceV617=trace;
 
   function fullText(){
-    var header='WORK MONITOR 6.17 BETA DEBUG LOG\n'+'generated: '+new Date().toISOString()+'\n'+'url: '+location.href+'\n'+'userAgent: '+navigator.userAgent+'\n\n';
+    var header='WORK MONITOR 6.18 BETA DEBUG LOG\n'+'generated: '+new Date().toISOString()+'\n'+'url: '+location.href+'\n'+'userAgent: '+navigator.userAgent+'\n\n';
     return header+rows().map(function(r){return r.time+' | '+r.event+' | '+JSON.stringify(r.data);}).join('\n');
   }
   async function copyLog(){
