@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.24 BETA - shared day-off cache, settings deduplication and startup query cleanup.
+File version: 6.25 BETA - final removal of legacy startup workEntries GET and live-sync clarification.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -9794,4 +9794,38 @@ VERSION 6.23 BETA - SINGLE FIRESTORE LOAD PER SESSION
     return rows;
   };
   wrapped.__v623Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.25 BETA - FINAL STARTUP READ CLEANUP
+-------------------------------------------------------------------------------
+1. Removed the remaining legacy full-history workEntries GET from the original
+   month loader. It now reads only from the central rolling two-year cache.
+2. The single Firestore onSnapshot listener remains the authoritative live source
+   for additions, edits and deletions made from another device.
+3. Month navigation continues to filter RAM only and does not open new reads.
+4. Explicit full-history search without a date range remains unchanged.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof old==='function'&&!old.__v625Wrapped){
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.25-beta';}))rows.unshift({
+        version:'6.25-beta',title:'הסרת הקריאה האחרונה המיותרת בכניסה',createdAt:'2026-07-26',items:[
+          'נתיב טעינת החודש הישן אינו מבצע יותר שאילתת workEntries מלאה בזמן הכניסה.',
+          'ה-listener היחיד של מטמון השנתיים הוא מקור האמת לעדכונים חיים ממכשירים אחרים.',
+          'מעבר בין חודשים ממשיך לעבוד מהזיכרון ללא קריאות Firestore נוספות.',
+          'חיפוש מפורש ללא טווח תאריכים ממשיך לטעון היסטוריה מלאה לפי דרישת המשתמש.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v625Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
 })();
