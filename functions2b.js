@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.23 BETA - all static Firestore sources load once per authenticated session.
+File version: 6.24 BETA - shared day-off cache, settings deduplication and startup query cleanup.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -1940,6 +1940,18 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
   window.isVacationDayV487=isVacation;
   window.isVacationDayV489=isVacation;
 
+  // v6.24: one shared workerDaysOff cache for vacations, locks and validators.
+  window.WM_DAYOFF_DOCS_CACHE_V624=window.WM_DAYOFF_DOCS_CACHE_V624||{workerId:'',docs:null,promise:null};
+  window.wmGetAllDayOffDocsV624=window.wmGetAllDayOffDocsV624||async function(workerId,force){
+    var c=window.WM_DAYOFF_DOCS_CACHE_V624;
+    if(c.workerId!==workerId){c.workerId=workerId;c.docs=null;c.promise=null;}
+    if(force===true){c.docs=null;c.promise=null;}
+    if(Array.isArray(c.docs))return c.docs;
+    if(c.promise)return c.promise;
+    c.promise=db.collection('workerDaysOff').where('workerId','==',workerId).get().then(function(snap){c.docs=snap.docs.map(function(doc){return Object.assign({id:doc.id},doc.data()||{});});return c.docs;}).finally(function(){c.promise=null;});
+    return c.promise;
+  };
+
   // v6.23: one workerDaysOff read per worker/session; month navigation filters memory only.
   var vacationDocsCacheV623={workerId:'',docs:null,promise:null};
   async function fetchVacationDaysFirestore(workerId,start,end){
@@ -1952,10 +1964,7 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
     if(vacationDocsCacheV623.workerId!==workerId){vacationDocsCacheV623={workerId:workerId,docs:null,promise:null};}
     if(!Array.isArray(vacationDocsCacheV623.docs)){
       if(!vacationDocsCacheV623.promise){
-        vacationDocsCacheV623.promise=db.collection('workerDaysOff').where('workerId','==',workerId).get().then(function(snap){
-          vacationDocsCacheV623.docs=snap.docs.map(function(doc){return Object.assign({id:doc.id},doc.data()||{});});
-          return vacationDocsCacheV623.docs;
-        }).finally(function(){vacationDocsCacheV623.promise=null;});
+        vacationDocsCacheV623.promise=window.wmGetAllDayOffDocsV624(workerId).then(function(rows){vacationDocsCacheV623.docs=rows;return rows;}).finally(function(){vacationDocsCacheV623.promise=null;});
       }
       await vacationDocsCacheV623.promise;
     }
@@ -1966,7 +1975,7 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
     });
     return Array.from(new Set(days.filter(Boolean))).sort();
   }
-  window.wmInvalidateVacationDaysV623=function(){vacationDocsCacheV623.docs=null;vacationDocsCacheV623.promise=null;};
+  window.wmInvalidateVacationDaysV623=function(){vacationDocsCacheV623.docs=null;vacationDocsCacheV623.promise=null;try{var c=window.WM_DAYOFF_DOCS_CACHE_V624;if(c){c.docs=null;c.promise=null;}}catch(e){}};
 
   async function loadVacationDaysV487(){
     var workerId=selectedWorkerId();
@@ -4164,10 +4173,17 @@ CHANGELOG 4.40 - דשבורד חכם: מגמת הכנסות לפי חודשים
       var end=y+'-'+pad(m+1)+'-'+pad(last);
       text('calTitle', months[m]+' '+y);
       text('monthSub', 'חודש בתצוגה: '+months[m]+' '+y);
-      var snap=await db.collection('workEntries').where('workerId','==',viewedWorker.id).get();
-      // v5.11: שומרים את כל עבודות העובד בזיכרון כדי שמגמת 30 ימים תוכל למשוך גם מהחודש הקודם.
-      // monthEntries נשאר רק החודש הנבחר כדי לא לפגוע בכל הסיכומים והמסכים הקיימים.
-      window.workerAllEntriesV511=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      // v6.24: never open a full-history query during startup. Join the central two-year cache/listener.
+      var cacheV624=window.WM_DATA_CACHE_V604||null,rowsV624=[];
+      if(cacheV624&&cacheV624.readyPromise){try{await cacheV624.readyPromise;}catch(_e){}}
+      if(cacheV624&&Array.isArray(cacheV624.entries))rowsV624=cacheV624.entries.slice();
+      if(!rowsV624.length){
+        var cutoffV624=new Date();cutoffV624.setHours(0,0,0,0);cutoffV624.setDate(cutoffV624.getDate()-730);
+        var cutoffStrV624=cutoffV624.getFullYear()+'-'+String(cutoffV624.getMonth()+1).padStart(2,'0')+'-'+String(cutoffV624.getDate()).padStart(2,'0');
+        var snapV624=await db.collection('workEntries').where('workerId','==',viewedWorker.id).where('date','>=',cutoffStrV624).get();
+        rowsV624=snapV624.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      }
+      window.workerAllEntriesV511=rowsV624;
       monthEntries=window.workerAllEntriesV511.filter(function(e){return e.date>=start && e.date<=end;});
       renderCalendar();
       renderDay();
@@ -6973,10 +6989,10 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
       // המתנה קצרה מונעת קריאת Firestore מוקדמת שנכשלת ואז מציגה בטעות יום פתוח.
       var authUser=await waitForLockAuthV588(5500);
       window.dayLockDebugV590&&window.dayLockDebugV590('LOAD_LOCKS_AUTH_READY',authUser?{uid:authUser.uid,email:authUser.email||''}:null);
-      var snap=await db.collection('workerDaysOff').where('workerId','==',workerId).get();
-      window.dayLockDebugV590&&window.dayLockDebugV590('LOAD_LOCKS_QUERY_RESULT',{workerId:workerId,size:snap.size,docs:snap.docs.map(function(d){var x=d.data()||{};return{id:d.id,date:x.date||'',locked:x.locked,active:x.active,type:x.type||'',workerId:x.workerId||'',authUid:x.authUid||''};})});
-      snap.docs.forEach(function(doc){
-        var data=doc.data()||{},date=String(data.date||'');
+      var lockDocs=await window.wmGetAllDayOffDocsV624(workerId);
+      window.dayLockDebugV590&&window.dayLockDebugV590('LOAD_LOCKS_QUERY_RESULT',{workerId:workerId,size:lockDocs.length,docs:lockDocs.map(function(x){return{id:x.id,date:x.date||'',locked:x.locked,active:x.active,type:x.type||'',workerId:x.workerId||'',authUid:x.authUid||''};})});
+      lockDocs.forEach(function(data){
+        var date=String(data.date||'');
         if(data.locked===true && date>=range.start && date<=range.end) next.add(date);
       });
       lockedDays=next; loadedWorkerId=workerId;
@@ -9554,7 +9570,7 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
   }
   function fullText(){
     var list=rows(),s=summary();
-    return 'WORK MONITOR FIREBASE AUDIT v6.21\n'+
+    return 'WORK MONITOR FIREBASE AUDIT v'+String(window.APP_VERSION||'unknown')+'\n'+
       'generated: '+now()+'\nurl: '+location.href+'\nuserAgent: '+navigator.userAgent+'\n'+
       'summary: '+JSON.stringify(s,null,2)+'\n\n'+
       list.map(function(r){return r.time+' | '+r.event+' | '+JSON.stringify(r.data);}).join('\n');
@@ -9572,7 +9588,7 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
   function ensure(){
     var box=document.getElementById('wmFirebaseAuditWindowV620');if(box)return box;
     box=document.createElement('section');box.id='wmFirebaseAuditWindowV620';box.className='wm-firebase-audit-v620';
-    box.innerHTML='<div class="wm-firebase-head-v620"><strong>🔥 Firebase Audit 6.21</strong><div><button id="wmFirebaseCopyV620" type="button">העתק לוג</button><button id="wmFirebaseClearV620" type="button">נקה לוג</button><button id="wmFirebaseMinV620" type="button">מזער</button><button id="wmFirebaseCloseV620" type="button">סגור</button></div></div><div id="wmFirebaseSummaryV620" class="wm-firebase-summary-v620"></div><pre id="wmFirebaseRowsV620"></pre>';
+    box.innerHTML='<div class="wm-firebase-head-v620"><strong>🔥 Firebase Audit ' + String(window.APP_VERSION||'') + '</strong><div><button id="wmFirebaseCopyV620" type="button">העתק לוג</button><button id="wmFirebaseClearV620" type="button">נקה לוג</button><button id="wmFirebaseMinV620" type="button">מזער</button><button id="wmFirebaseCloseV620" type="button">סגור</button></div></div><div id="wmFirebaseSummaryV620" class="wm-firebase-summary-v620"></div><pre id="wmFirebaseRowsV620"></pre>';
     (document.body||document.documentElement).appendChild(box);
     box.querySelector('#wmFirebaseCopyV620').onclick=copy;
     box.querySelector('#wmFirebaseClearV620').onclick=clear;
@@ -9590,7 +9606,7 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
   }
   function start(){
     wrapAuth();ensure();
-    add('FIREBASE_AUDIT_WINDOW_READY',{version:'6.21',parameter:'firebaseDebug=1'});
+    add('FIREBASE_AUDIT_WINDOW_READY',{version:String(window.APP_VERSION||'unknown'),parameter:'firebaseDebug=1'});
     add('FIREBASE_AUDIT_CONNECTION_CHECK',{dbAvailable:!!window.db,authAvailable:!!window.auth,firestoreAuditInstalled:!!window.__WM_FS_AUDIT_INSTALLED_V618,authWrapped:!!(window.auth&&window.auth.__auditV620)});
     if(!window.db||!window.__WM_FS_AUDIT_INSTALLED_V618)add('FIREBASE_AUDIT_INSTALL_ERROR',{reason:'Firestore audit layer was not attached to the live db instance'});
     if(!window.auth)add('FIREBASE_AUDIT_INSTALL_ERROR',{reason:'Firebase Auth instance is unavailable'});
@@ -9682,7 +9698,7 @@ VERSION 6.22 BETA - FIRESTORE READ DEDUPLICATION
     if(dayOffCache.workerId!==id){dayOffCache={workerId:id,docs:null,promise:null};}
     if(Array.isArray(dayOffCache.docs))return dayOffCache.docs;
     if(dayOffCache.promise)return dayOffCache.promise;
-    dayOffCache.promise=db.collection('workerDaysOff').where('workerId','==',id).get().then(function(snap){dayOffCache.docs=snap.docs.map(function(d){return Object.assign({id:d.id},d.data()||{});});return dayOffCache.docs;}).finally(function(){dayOffCache.promise=null;});
+    dayOffCache.promise=window.wmGetAllDayOffDocsV624(id).then(function(rows){dayOffCache.docs=rows;return rows;}).finally(function(){dayOffCache.promise=null;});
     return dayOffCache.promise;
   }
   async function cachedVacationDaysV622(force){
@@ -9709,7 +9725,7 @@ VERSION 6.22 BETA - FIRESTORE READ DEDUPLICATION
     serializedLoadMonthV622.__readDedupV622=true;window.loadMonth=serializedLoadMonthV622;try{loadMonth=serializedLoadMonthV622;}catch(e){}
   }
 
-  window.wmInvalidateStaticCacheV622=function(){staticCache.priceReady=false;staticCache.templatesReady=false;dayOffCache.docs=null;};
+  window.wmInvalidateStaticCacheV622=function(){staticCache.priceReady=false;staticCache.templatesReady=false;dayOffCache.docs=null;try{var c=window.WM_DAYOFF_DOCS_CACHE_V624;if(c){c.docs=null;c.promise=null;}}catch(e){}};
 })();
 
 (function updateChangelogV622(){
@@ -9745,6 +9761,23 @@ VERSION 6.23 BETA - SINGLE FIRESTORE LOAD PER SESSION
    performs a search without a date range.
 ===============================================================================
 */
+(function updateChangelogV624(){
+  var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof old!=='function'||old.__v624Wrapped)return;
+  var wrapped=function(){
+    var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+    if(!rows.some(function(r){return String(r.version||r.id||'')==='6.24-beta';}))rows.unshift({version:'6.24-beta',title:'בטא אחרונה לפני יציבה — סגירת קריאות Firebase המיותרות',createdAt:'2026-07-26',items:[
+      'settings/main נטען דרך Promise משותף אחד; שכבת שחזור הסיסמה אינה מבצעת קריאה נוספת.',
+      'ימי חופש ונעילות משתמשים באותו מטמון workerDaysOff משותף לכל החודש ולכל כלי האימות.',
+      'מעבר בין חודשים וחזרה להיום מסננים את הנתונים בזיכרון ואינם טוענים שוב את כל workerDaysOff.',
+      'טעינת הפתיחה אינה מבצעת יותר שאילתת workEntries מלאה במקביל ל-listener המרכזי.',
+      'חלון Firebase Audit מציג מעכשיו את APP_VERSION האמיתי ולא מספר גרסה מקודד ידנית.'
+    ]});
+    return rows;
+  };
+  wrapped.__v624Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+})();
+
 (function updateChangelogV623(){
   var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
   if(typeof old!=='function'||old.__v623Wrapped)return;
