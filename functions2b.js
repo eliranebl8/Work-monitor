@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.11 BETA - functions2.js.
+File version: 6.12 BETA - functions2.js.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -8674,5 +8674,190 @@ VERSION 6.11 BETA - MONTHLY SETTLEMENT CACHE OPTIMIZATION + CHANGELOG RESEED
   else setTimeout(reseedV611,900);
   window.addEventListener('load',function(){setTimeout(reseedV611,1500);});
 
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.12 BETA - PERSISTENT TWO-YEAR CACHE + SAFE FIRST-SAVE REFRESH
+-------------------------------------------------------------------------------
+1. The rolling 730-day work cache is persisted in IndexedDB per worker.
+2. App launch renders the saved cache immediately before the Firestore listener
+   completes, so opening the home-screen shortcut does not start with an empty UI.
+3. Firestore then synchronizes the same 730-day query in the background and only
+   replaces the local cache with a valid snapshot.
+4. A cache snapshot that is temporarily empty and comes only from local metadata
+   cannot erase an already-populated visible month.
+5. Every central cache refresh also persists create/update/delete results locally,
+   fixing the first-save case where the visible month could become empty.
+6. Added firestore.indexes.json for the workerId + date range query.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  if(window.__wmPersistentCacheV612Installed)return;
+  window.__wmPersistentCacheV612Installed=true;
+
+  var DB_NAME='work-monitor-local-cache';
+  var DB_VERSION=1;
+  var STORE='workerCaches';
+  var state=window.WM_DATA_CACHE_V604=window.WM_DATA_CACHE_V604||{};
+  var activeListenerWorker='';
+  var listenerReadyPromise=null;
+
+  function openDbV612(){
+    return new Promise(function(resolve,reject){
+      if(!window.indexedDB){reject(new Error('IndexedDB unavailable'));return;}
+      var req=indexedDB.open(DB_NAME,DB_VERSION);
+      req.onupgradeneeded=function(){
+        var db=req.result;
+        if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'workerId'});
+      };
+      req.onsuccess=function(){resolve(req.result);};
+      req.onerror=function(){reject(req.error||new Error('IndexedDB open failed'));};
+    });
+  }
+  async function readCacheV612(workerId){
+    var db=await openDbV612();
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(STORE,'readonly'),req=tx.objectStore(STORE).get(workerId);
+      req.onsuccess=function(){resolve(req.result||null);};
+      req.onerror=function(){reject(req.error);};
+      tx.oncomplete=function(){db.close();};
+    });
+  }
+  async function writeCacheV612(){
+    try{
+      if(!state.workerId||!Array.isArray(state.entries))return;
+      var db=await openDbV612();
+      await new Promise(function(resolve,reject){
+        var tx=db.transaction(STORE,'readwrite');
+        tx.objectStore(STORE).put({
+          workerId:String(state.workerId),
+          cutoff:String(state.cutoff||''),
+          entries:state.entries,
+          savedAt:Date.now(),
+          schema:1
+        });
+        tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error);};tx.onabort=function(){reject(tx.error);};
+      });
+      db.close();
+    }catch(e){console.warn('v6.12 IndexedDB cache write skipped',e);}
+  }
+  function renderV612(){
+    try{
+      if(typeof window.wmRefreshFromCacheV610==='function'){
+        window.wmRefreshFromCacheV610();
+      }else if(typeof renderCalendar==='function'){
+        renderCalendar();if(typeof renderDay==='function')renderDay();if(typeof renderStats==='function')renderStats();
+      }
+    }catch(e){console.warn('v6.12 cache render skipped',e);}
+  }
+  function stopV612(){
+    try{if(state.unsubscribe)state.unsubscribe();}catch(e){}
+    state.unsubscribe=null;activeListenerWorker='';listenerReadyPromise=null;
+  }
+  function cutoffV612(){
+    var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-730);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  async function hydrateV612(workerId,cutoff){
+    try{
+      var saved=await readCacheV612(workerId);
+      if(saved&&saved.cutoff===cutoff&&Array.isArray(saved.entries)){
+        state.workerId=workerId;state.cutoff=cutoff;state.entries=saved.entries.slice();
+        window.workerAllEntriesV511=state.entries.slice();
+        state.lastEvent='indexeddb-hydrated';
+        renderV612();
+        return true;
+      }
+    }catch(e){console.warn('v6.12 IndexedDB cache read skipped',e);}
+    return false;
+  }
+  function startListenerV612(workerId,cutoff){
+    if(activeListenerWorker===workerId&&listenerReadyPromise)return listenerReadyPromise;
+    stopV612();activeListenerWorker=workerId;
+    listenerReadyPromise=new Promise(function(resolve,reject){
+      var first=true;
+      try{
+        var q=db.collection('workEntries').where('workerId','==',workerId).where('date','>=',cutoff);
+        state.unsubscribe=q.onSnapshot({includeMetadataChanges:true},function(snap){
+          var incoming=snap.docs.map(function(d){return Object.assign({id:d.id},d.data()||{});});
+          var fromCache=!!(snap.metadata&&snap.metadata.fromCache);
+          // Never let a transient empty cache-only snapshot wipe valid persisted data.
+          if(!(fromCache&&incoming.length===0&&Array.isArray(state.entries)&&state.entries.length>0)){
+            state.entries=incoming;
+            state.workerId=workerId;state.cutoff=cutoff;
+            window.workerAllEntriesV511=state.entries.slice();
+            state.lastEvent=fromCache?'firestore-local-snapshot':'firestore-server-snapshot';
+            renderV612();
+            writeCacheV612();
+          }
+          if(first){first=false;resolve(state.entries||[]);}
+        },function(err){
+          console.error('v6.12 two-year listener failed',err);
+          if(first){first=false;reject(err);}
+        });
+      }catch(e){first=false;reject(e);}
+    });
+    return listenerReadyPromise;
+  }
+
+  // Final loadMonth implementation: hydrate persistent cache first, then sync in background.
+  window.loadMonth=async function(){
+    if(!viewedWorker||!viewedWorker.id)return;
+    try{await loadPriceList();}catch(e){console.warn('v6.12 price list load skipped',e);}
+    try{await loadTemplates();}catch(e){console.warn('v6.12 templates load skipped',e);}
+    var workerId=String(viewedWorker.id),cutoff=cutoffV612();
+    state.workerId=workerId;state.cutoff=cutoff;
+    await hydrateV612(workerId,cutoff);
+    renderV612();
+    try{await startListenerV612(workerId,cutoff);}catch(e){
+      // Persisted data remains usable when offline or when Firestore is temporarily unavailable.
+      if(!Array.isArray(state.entries)||!state.entries.length)throw e;
+    }
+    renderV612();
+  };
+  try{loadMonth=window.loadMonth;}catch(e){}
+
+  // Persist every successful local cache refresh, including the first create/delete.
+  var baseRefresh=window.wmRefreshFromCacheV610;
+  if(typeof baseRefresh==='function'&&!baseRefresh.__persistentV612){
+    var wrappedRefresh=function(options){
+      var result=baseRefresh(options);
+      writeCacheV612();
+      return result;
+    };
+    wrappedRefresh.__persistentV612=true;
+    window.wmRefreshFromCacheV610=wrappedRefresh;
+  }
+
+  // Also persist direct cache upserts/removals used by beta save/delete routes.
+  var baseRemove=window.wmRemoveEntryFromCacheV610;
+  if(typeof baseRemove==='function'&&!baseRemove.__persistentV612){
+    var wrappedRemove=function(id){var r=baseRemove(id);writeCacheV612();return r;};
+    wrappedRemove.__persistentV612=true;window.wmRemoveEntryFromCacheV610=wrappedRemove;
+  }
+
+  function updateChangelogV612(){
+    var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof old!=='function'||old.__v612Wrapped)return;
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.12-beta';}))rows.unshift({
+        version:'6.12-beta',title:'מטמון קבוע בטלפון ותיקון התרוקנות החודש בשמירה הראשונה',createdAt:'2026-07-26',items:[
+          'נתוני 730 הימים האחרונים נשמרים כעת ב-IndexedDB לפי עובד ונפתחים מיד מהטלפון בלחיצה על קיצור הדרך.',
+          'לאחר הצגת המטמון Firestore מסנכרן את אותה שאילתת שנתיים ברקע ומעדכן רק כאשר מתקבלת תמונת מצב תקינה.',
+          'נחסמה תמונת מצב מקומית ריקה וזמנית מלמחוק חודש שכבר הוצג מהמטמון.',
+          'כל שמירה, עריכה או מחיקה שמרעננת את המטמון המרכזי נשמרת מיד גם במטמון הקבוע, ובכך תוקן המצב שבו השמירה הראשונה רוקנה את תצוגת החודש.',
+          'נוסף לקובצי הפרויקט firestore.indexes.json עבור שאילתת workerId וטווח date.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v612Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  updateChangelogV612();
   try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
 })();
