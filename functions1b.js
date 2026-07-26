@@ -2,7 +2,7 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css, functions1.js and functions2.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 6.21 BETA - exposes the live Firebase services to the dedicated audit layer.
+File version: 6.23 BETA - single-session static Firestore cache and guarded admin initialization.
 This is the stable core file. Future functional changes should be added to functions2.js.
 APP_VERSION remains the single version source here; only its version line should be updated in future releases.
 
@@ -198,7 +198,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "6.22-beta";
+const APP_VERSION = "6.23-beta";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1073,8 +1073,21 @@ async function workerLogin(){
 
 function logout(){localStorage.removeItem("workSession");try{if(firebaseAuthReady())auth.signOut()}catch(e){}session=null;viewedWorker=null;clearLoginFields();showWorkerLogin()}
 async function showAdmin(){hideAll();show("adminView");show("logoutBtn");text("userLine","מנהל");await ensureDefaultPriceList();await loadSettings();$("servicePriceInput").value=SERVICE_PRICE;$("adminSetUsername").value=ADMIN_USERNAME;if($("trialDaysInput"))$("trialDaysInput").value=DEFAULT_TRIAL_DAYS;await loadWorkers();await loadPriceListAdmin();await loadTemplatesAdmin();await loadPaymentRequests();await loadDebugLogs()}
-async function loadSettings(){const doc=await db.collection("settings").doc("main").get();if(doc.exists){const d=doc.data();if(d.servicePrice!==undefined)SERVICE_PRICE=Number(d.servicePrice||65);if(d.defaultTrialDays!==undefined)DEFAULT_TRIAL_DAYS=Number(d.defaultTrialDays||90);if(d.adminUsername)ADMIN_USERNAME=d.adminUsername;if(d.adminPasswordHash)ADMIN_PASSWORD_SHA256=d.adminPasswordHash}else{await db.collection("settings").doc("main").set({servicePrice:65,defaultTrialDays:90,adminUsername:"Eliran",adminPasswordHash:ADMIN_PASSWORD_SHA256,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true})}updateServicePriceLabels()}
-async function saveAdminSettings(){const username=val("adminSetUsername"),password=val("adminSetPassword");if(!username)return $("adminSettingsMsg").innerHTML="<p class='danger'>חובה למלא שם משתמש מנהל.</p>";const update={adminUsername:username,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(password.trim())update.adminPasswordHash=await sha256(password.trim());await db.collection("settings").doc("main").set(update,{merge:true});$("adminSetPassword").value="";await loadSettings();$("adminSettingsMsg").innerHTML="<div class='notice'>הגדרות מנהל נשמרו ✅</div>"}
+let settingsMainPromiseV623=null,settingsMainReadyV623=false;
+async function loadSettings(force){
+  // v6.23: settings/main is static during a session. Concurrent callers share one Promise.
+  if(force===true){settingsMainReadyV623=false;settingsMainPromiseV623=null;}
+  if(settingsMainReadyV623){updateServicePriceLabels();return;}
+  if(settingsMainPromiseV623)return settingsMainPromiseV623;
+  settingsMainPromiseV623=(async function(){
+    const doc=await db.collection("settings").doc("main").get();
+    if(doc.exists){const d=doc.data();if(d.servicePrice!==undefined)SERVICE_PRICE=Number(d.servicePrice||65);if(d.defaultTrialDays!==undefined)DEFAULT_TRIAL_DAYS=Number(d.defaultTrialDays||90);if(d.adminUsername)ADMIN_USERNAME=d.adminUsername;if(d.adminPasswordHash)ADMIN_PASSWORD_SHA256=d.adminPasswordHash}
+    else if(session&&session.role==="admin"){await db.collection("settings").doc("main").set({servicePrice:65,defaultTrialDays:90,adminUsername:"Eliran",adminPasswordHash:ADMIN_PASSWORD_SHA256,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true})}
+    settingsMainReadyV623=true;updateServicePriceLabels();
+  })().finally(function(){settingsMainPromiseV623=null;});
+  return settingsMainPromiseV623;
+}
+async function saveAdminSettings(){const username=val("adminSetUsername"),password=val("adminSetPassword");if(!username)return $("adminSettingsMsg").innerHTML="<p class='danger'>חובה למלא שם משתמש מנהל.</p>";const update={adminUsername:username,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(password.trim())update.adminPasswordHash=await sha256(password.trim());await db.collection("settings").doc("main").set(update,{merge:true});$("adminSetPassword").value="";await loadSettings(true);$("adminSettingsMsg").innerHTML="<div class='notice'>הגדרות מנהל נשמרו ✅</div>"}
 async function createWorker(){const btn=$("createWorkerBtn"),msg=$("workerMsg");msg.innerHTML="<div class='notice'>יוצר עובד...</div>";btn.disabled=true;try{const name=val("wName"),username=val("wUser"),pass=val("wPass"),goal=Number(val("wGoal")||0),usernameKey=normalize(username),id=workerIdFromUsername(usernameKey),authEmail=authEmailFromUsername(username);if(!name||!username||!pass)return msg.innerHTML="<p class='danger'>חובה למלא שם, שם משתמש וסיסמה.</p>";await db.collection("workers").doc(id).set({name,username,usernameKey,authEmail,authReady:false,authNote:"נוצר מאדמין — חיבור Firebase Auth יושלם כשהעובד יירשם/נחבר Cloud Function",passwordHash:await sha256(pass),monthlyGoal:goal,active:true,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});["wName","wUser","wPass","wGoal"].forEach(x=>$(x).value="");msg.innerHTML=`<div class='notice'>העובד ${esc(name)} נוצר/עודכן בהצלחה ✅<br>הוכן ל־Firebase Auth עם אימייל פנימי: ${esc(authEmail)}</div>`;await loadWorkers()}catch(e){msg.innerHTML=`<p class='danger'>שגיאה: ${esc(e.message)}</p>`}finally{btn.disabled=false}}
 async function loadWorkers(){const box=$("workersList");box.innerHTML="<p>טוען עובדים...</p>";const snap=await db.collection("workers").get();workers=snap.docs.map(d=>({id:d.id,...d.data()})).filter(w=>!w.movedTo).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));box.innerHTML=workers.length?"":"<p class='muted'>אין עובדים עדיין.</p>";workers.forEach(w=>{const row=document.createElement("div");row.className="item";row.innerHTML=`<div><div class="item-title">${esc(w.name)}</div><div class="item-sub">שם משתמש: ${esc(w.username)} · יעד: ${money(w.monthlyGoal||0)} · ${w.active===false?"לא פעיל":"פעיל"} · Auth: ${w.authUid?"מחובר":"בהכנה"} · מנוי: ${esc(w.subscriptionStatus||"רגיל")} עד ${esc(w.subscriptionUntil||w.trialUntil||"ללא הגבלה")} · ID: ${w.id}</div></div><div class="actions"><button onclick="showWorkerById('${w.id}')">פתח מעקב</button><button class="btn-yellow" onclick="openWorkerEdit('${w.id}')">ערוך</button><button onclick="openSubscriptionEdit('${w.id}')">מנוי</button><button class="${w.active===false?"btn-green":"btn-red"}" onclick="toggleWorker('${w.id}', ${w.active===false})">${w.active===false?"הפעל":"בטל"}</button></div>`;box.appendChild(row)});cleanVisibleSlashN()}
 function openWorkerEdit(id){const w=workers.find(x=>x.id===id);if(!w)return;show("editWorkerPanel");$("editWorkerId").value=id;$("editWorkerName").value=w.name||"";$("editWorkerUsername").value=w.username||"";$("editWorkerPassword").value="";$("editWorkerGoal").value=w.monthlyGoal||0;$("editWorkerActive").value=w.active===false?"false":"true";$("editWorkerMsg").innerHTML="";window.scrollTo({top:$("editWorkerPanel").offsetTop-20,behavior:"smooth"})}
@@ -1084,6 +1097,8 @@ async function saveServicePrice(){const price=Number(val("servicePriceInput"));i
 function updateServicePriceLabels(){if($("servicePriceLabel"))$("servicePriceLabel").textContent=`${money(SERVICE_PRICE)} קבוע`;updateServicePreview()}
 function updateServicePreview(){if(!$("servicePreview"))return;const isReturn=$("sReturnCall")&&$("sReturnCall").checked;$("servicePreview").textContent=isReturn?"סה״כ: ₪0 - קריאה חוזרת ללא תשלום":`סה״כ: ${money(SERVICE_PRICE)}`}
 async function ensureDefaultPriceList(){
+  // v6.23: this is an admin-only initialization. Never probe priceList before login or for workers.
+  if(!session || session.role!=="admin" || !firebaseAuthReady() || !auth.currentUser) return;
   // יוצר מחירון ברירת מחדל רק אם אין פריטים פעילים בכלל.
   // לא מוסיף שוב אם כבר קיימים פריטים, כדי למנוע כפילויות.
   const snap = await db.collection("priceList").limit(1).get();
