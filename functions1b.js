@@ -2,7 +2,7 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css, functions1.js and functions2.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 6.20 BETA - APP_VERSION updated for the dedicated Firebase audit build.
+File version: 6.21 BETA - exposes the live Firebase services to the dedicated audit layer.
 This is the stable core file. Future functional changes should be added to functions2.js.
 APP_VERSION remains the single version source here; only its version line should be updated in future releases.
 
@@ -198,7 +198,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "6.20-beta";
+const APP_VERSION = "6.21-beta";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -888,6 +888,9 @@ async function refreshLastLoginPanelV523(){
 const firebaseConfig={apiKey:"AIzaSyCR41hsAakxY7FgaPhJAhV63lnrgLIT9eM",authDomain:"work-monitor-a3bb9.firebaseapp.com",projectId:"work-monitor-a3bb9",storageBucket:"work-monitor-a3bb9.firebasestorage.app",messagingSenderId:"571499964314",appId:"1:571499964314:web:ec0f18ba9f1e6502fabc23",measurementId:"G-4SLEBPPYE8"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.firestore();
+// CHANGE 6.21 BETA: expose the exact live Firestore instance to the audit layer.
+// This does not create another connection and does not change application data logic.
+window.db=db;
 /*
 ===============================================================================
 CHANGE 5.13 - FIRESTORE OFFLINE CORE
@@ -912,6 +915,8 @@ try{
   console.warn("Firestore offline persistence init failed:", e && e.message ? e.message : e);
 }
 const auth=firebase.auth ? firebase.auth() : null;
+// CHANGE 6.21 BETA: expose the exact live Firebase Auth instance to the audit layer.
+window.auth=auth;
 let ADMIN_USERNAME="Eliran",ADMIN_PASSWORD_SHA256="a3548d64df7d2c4eeeb1c0480aa87b0b306b3e0b0f8faa8c8aef71140761a759",SERVICE_PRICE=65,DEFAULT_TRIAL_DAYS=90;
 let tapCount=0,session=null,viewedWorker=null,calendarDate=new Date(),selectedDate=null,selectedType=null,monthEntries=[],workers=[],priceList=[],templates=[];
 const months=["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"],weekdays=["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","שבת"];
