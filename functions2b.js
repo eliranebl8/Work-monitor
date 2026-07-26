@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.25 BETA - final removal of legacy startup workEntries GET and live-sync clarification.
+File version: 6.26 BETA - changelog for actual legacy login loader correction.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -9826,6 +9826,38 @@ VERSION 6.25 BETA - FINAL STARTUP READ CLEANUP
       return rows;
     };
     wrapped.__v625Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.26 BETA - ACTUAL LOGIN LOADER FIX
+-------------------------------------------------------------------------------
+1. Corrected the original token-protected loadMonth that is called by showWorker.
+2. Removed its unfiltered workerId-only workEntries GET.
+3. The function now waits for and reads the central two-year listener cache only.
+4. Full-history search remains available only when explicitly requested.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof old==='function'&&!old.__v626Wrapped){
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.26-beta';}))rows.unshift({
+        version:'6.26-beta',title:'תיקון נתיב הכניסה האמיתי והסרת GET כפול',createdAt:'2026-07-26',items:[
+          'תוקנה פונקציית loadMonth המקורית שמופעלת בפועל מתוך showWorker בזמן הכניסה.',
+          'הוסרה ממנה שאילתת workEntries מלאה לפי workerId שהכפילה את קריאות הפתיחה.',
+          'הפונקציה ממתינה כעת למטמון השנתיים של ה-listener המרכזי וקוראת ממנו בלבד.',
+          'מעבר חודשים נשאר מהזיכרון, וחיפוש היסטוריה מלא נשאר רק בפעולת חיפוש מפורשת.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v626Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
   }
   try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
 })();
