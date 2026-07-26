@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.17 BETA - functions2.js.
+File version: 6.18 BETA - functions2.js.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -4510,6 +4510,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"6.18-beta", title:"יומן ביקורת מלא לפניות Firestore", items:["נוסף Audit מדויק לכל קריאה, מאזין, כתיבה ומחיקה שהאפליקציה מבצעת מול Firestore בזמן בדיקות.","כל אירוע מציג אוסף או מסמך, תנאי where, מיון, טווחים, limit, מספר מסמכים שהתקבלו, מקור Cache/Server, כתיבות ממתינות וזמן ביצוע.","נוספו מוני Estimated Reads, Writes ו-Deletes וכן סיכום לפי אוסף כדי לבדוק שמעברי חודש רגילים משתמשים במטמון ורק פעולות שדורשות שרת פונות ל-Firestore.","כפתור העתקת כל הלוג הקיים נשאר פעיל והלוג המועתק כולל גם את כל אירועי FIRESTORE_AUDIT."], date:d},
       {version:"6.17-beta", title:"אתחול מטמון חד-פעמי ותיקון התרוקנות החודש בשמירה הראשונה", items:["תוקן שורש התקלה שבו מצב המטמון נשאר לא מוכן לאחר סיום הטעינה ולכן מנגנון הניסיון החוזר הפעיל שוב ושוב את loadMonth.","המטמון מאותחל כעת פעם אחת בלבד לכל עובד; לאחר הצלחה הוא מסומן READY והניסיון החוזר נעצר לחלוטין.","נחסמו אתחולים חופפים וטעינות חודש כפולות שעלולות היו לאפס זמנית את monthEntries ולהשאיר רק את הקריאה החדשה בשמירה הראשונה.","חלון cacheDebug=1, כפתור העתקת כל הלוג וכפתור ניקוי הלוג נשארו פעילים, ונוספו אירועי READY, עצירת Retry והתראות שלמות חודש עם Stack מקוצר."], date:d},
       {version:"6.16-beta", title:"מעקב אתחול מלא, תיקון הפעלת המטמון וכפתור העתקת לוג", items:["נוסף Trace מלא שמציג את סדר האתחול: פתיחת הדף, זיהוי העובד, הפעלת המטמון, חיבור המאזין, קבלת Snapshot, מעבר חודש ושמירה ראשונה.","תוקן מצב שבו מנגנון המטמון עלה לפני שמזהה העובד היה זמין ולא הופעל מחדש; המערכת מנסה להפעיל אותו שוב מיד לאחר זיהוי העובד ובחזרה לאפליקציה.","חלון cacheDebug=1 כולל כפתור העתקת לוג מלא וכפתור ניקוי, ללא צורך בפתיחת הקונסולה.","הלוג כולל זמני אירועים, מזהה עובד, חודש מוצג, כמות מסמכים במטמון ובחודש וסיבת כל רענון, ואינו כותב דבר ל-Firestore."], date:d},
       {version:"6.15-beta", title:"תיקון היעלמות הלוח בשמירה הראשונה וכלי אבחון מורחב", items:["תוקן מצב שבו תמונת מצב ראשונה עם כתיבה מקומית ממתינה החליפה בטעות את כל מטמון השנתיים ברשומה החדשה בלבד.","תמונת מצב עם fromCache או hasPendingWrites מתמזגת כעת לפי מזהה מסמך ואינה רשאית למחוק את שאר החודש.","רק תמונת מצב מאושרת מהשרת ללא כתיבות ממתינות רשאית להחליף את המטמון המלא.","חלון cacheDebug=1 מציג כעת את פרטי תמונת המצב האחרונה, מספר הרשומות לפני ואחרי הרענון, מספר רשומות החודש וסיבת הרענון."], date:d},
@@ -9334,4 +9335,116 @@ VERSION 6.17 BETA - ONE-SHOT CACHE STARTUP + FIRST-SAVE MONTH INTEGRITY TRACE
   window.addEventListener('pageshow',function(e){trace('PAGE_SHOW',{persisted:!!e.persisted});installLoadMonthTrace();installRefreshIntegrityTrace();startCacheOnce('pageshow');});
   document.addEventListener('visibilitychange',function(){trace('VISIBILITY_CHANGE',{visibility:document.visibilityState});if(document.visibilityState==='visible')startCacheOnce('visible');});
   setInterval(render,700);
+})();
+
+
+/* ======================================================================
+VERSION 6.18 BETA - FIRESTORE REQUEST AUDIT
+1. Instruments Firestore calls without changing application data logic.
+2. Logs query shape, path, returned document counts, cache/server metadata,
+   pending writes, duration and estimated read/write/delete operations.
+3. Uses the existing cacheDebug=1 log and copy button so the complete audit
+   can be copied after real-world testing on the phone.
+====================================================================== */
+(function installFirestoreAuditV618(){
+  'use strict';
+  var enabled=false;
+  try{var params=new URLSearchParams(location.search);enabled=params.get('cacheDebug')==='1'||params.get('firestoreDebug')==='1';}catch(e){}
+  if(!enabled||!window.db||window.__WM_FS_AUDIT_INSTALLED_V618)return;
+  window.__WM_FS_AUDIT_INSTALLED_V618=true;
+
+  var audit=window.WM_FIRESTORE_AUDIT_V618={
+    startedAt:new Date().toISOString(), estimatedReads:0, writes:0, deletes:0,
+    listenerSnapshots:0, queryGets:0, documentGets:0, byCollection:{}, sequence:0
+  };
+  var decoratedQueries=new WeakSet(), decoratedDocs=new WeakSet();
+  var queryMeta=new WeakMap();
+
+  function trace(event,data){
+    data=data||{}; data.auditSeq=++audit.sequence;
+    if(typeof window.wmTraceV617==='function') window.wmTraceV617('FIRESTORE_'+event,data);
+    else try{console.log('[WM FIRESTORE AUDIT 6.18]',event,data);}catch(e){}
+    updatePanel();
+  }
+  function collectionName(path){return String(path||'unknown').split('/')[0]||'unknown';}
+  function bump(path,key,n){
+    var c=collectionName(path); audit.byCollection[c]=audit.byCollection[c]||{reads:0,writes:0,deletes:0,listeners:0};
+    audit.byCollection[c][key]=(audit.byCollection[c][key]||0)+(n||0);
+  }
+  function cloneMeta(m){return {path:m.path||'',filters:(m.filters||[]).slice(),orders:(m.orders||[]).slice(),limits:(m.limits||[]).slice(),cursors:(m.cursors||[]).slice()};}
+  function safeVal(v){
+    try{
+      if(v&&typeof v.toDate==='function')return {timestamp:v.toDate().toISOString()};
+      if(v instanceof Date)return v.toISOString();
+      if(v&&v.path)return {refPath:v.path};
+      if(Array.isArray(v))return v.slice(0,10).map(safeVal);
+      if(v&&typeof v==='object')return JSON.parse(JSON.stringify(v,function(k,x){if(x&&typeof x.toDate==='function')return x.toDate().toISOString();return x;}));
+      return v;
+    }catch(e){return String(v);}
+  }
+  function getMeta(obj){return queryMeta.get(obj)||{path:(obj&&obj.path)||'',filters:[],orders:[],limits:[],cursors:[]};}
+  function setDerived(parent,child,kind,args){
+    var m=cloneMeta(getMeta(parent));
+    if(kind==='where')m.filters.push({field:String(args[0]),op:String(args[1]),value:safeVal(args[2])});
+    else if(kind==='orderBy')m.orders.push({field:String(args[0]),direction:String(args[1]||'asc')});
+    else if(kind==='limit'||kind==='limitToLast')m.limits.push({type:kind,value:args[0]});
+    else m.cursors.push({type:kind,values:Array.prototype.slice.call(args).map(safeVal)});
+    queryMeta.set(child,m); decorateQuery(child); return child;
+  }
+  function queryInfo(q){var m=getMeta(q);return {path:m.path,filters:m.filters,orders:m.orders,limits:m.limits,cursors:m.cursors};}
+  function snapInfo(snap){
+    var changes=[];try{changes=snap.docChanges().map(function(c){return {type:c.type,id:c.doc.id};});}catch(e){}
+    return {docs:snap&&typeof snap.size==='number'?snap.size:(snap&&snap.docs?snap.docs.length:0),changes:changes.length,changeTypes:changes.slice(0,25),fromCache:!!(snap&&snap.metadata&&snap.metadata.fromCache),pending:!!(snap&&snap.metadata&&snap.metadata.hasPendingWrites)};
+  }
+  function decorateQuery(q){
+    if(!q||decoratedQueries.has(q))return q; decoratedQueries.add(q);
+    if(!queryMeta.has(q))queryMeta.set(q,{path:q.path||'',filters:[],orders:[],limits:[],cursors:[]});
+    ['where','orderBy','limit','limitToLast','startAt','startAfter','endAt','endBefore'].forEach(function(name){
+      if(typeof q[name]!=='function')return; var original=q[name];
+      try{q[name]=function(){var child=original.apply(this,arguments);return setDerived(this,child,name,arguments);};}catch(e){}
+    });
+    if(typeof q.get==='function'){
+      var originalGet=q.get;
+      try{q.get=function(){
+        var info=queryInfo(this), started=performance.now(); audit.queryGets++; trace('QUERY_GET_START',info);
+        return originalGet.apply(this,arguments).then(function(snap){var si=snapInfo(snap),reads=si.docs;audit.estimatedReads+=reads;bump(info.path,'reads',reads);trace('QUERY_GET_DONE',Object.assign({},info,si,{estimatedReads:reads,durationMs:Math.round(performance.now()-started)}));return snap;},function(err){trace('QUERY_GET_ERROR',Object.assign({},info,{durationMs:Math.round(performance.now()-started),error:String(err&&err.message||err)}));throw err;});
+      };}catch(e){}
+    }
+    if(typeof q.onSnapshot==='function'){
+      var originalListen=q.onSnapshot;
+      try{q.onSnapshot=function(){
+        var self=this,args=Array.prototype.slice.call(arguments),info=queryInfo(self),started=performance.now(),first=true;
+        var options=null,nextIndex=0;if(args[0]&&typeof args[0]==='object'&&typeof args[0]!=='function'){options=args[0];nextIndex=1;}
+        var next=args[nextIndex],error=args[nextIndex+1],complete=args[nextIndex+2];
+        trace('LISTENER_ATTACH',Object.assign({},info,{includeMetadataChanges:!!(options&&options.includeMetadataChanges)}));bump(info.path,'listeners',1);
+        if(typeof next==='function')args[nextIndex]=function(snap){var si=snapInfo(snap);var reads=first?si.docs:si.changes;first=false;audit.listenerSnapshots++;audit.estimatedReads+=reads;bump(info.path,'reads',reads);trace('LISTENER_SNAPSHOT',Object.assign({},info,si,{estimatedReads:reads,durationSinceAttachMs:Math.round(performance.now()-started)}));return next.apply(this,arguments);};
+        if(typeof error==='function')args[nextIndex+1]=function(err){trace('LISTENER_ERROR',Object.assign({},info,{error:String(err&&err.message||err)}));return error.apply(this,arguments);};
+        var unsubscribe=originalListen.apply(self,args);return function(){trace('LISTENER_DETACH',info);return unsubscribe&&unsubscribe();};
+      };}catch(e){}
+    }
+    if(typeof q.doc==='function'){
+      var originalDoc=q.doc;try{q.doc=function(){return decorateDoc(originalDoc.apply(this,arguments));};}catch(e){}
+    }
+    if(typeof q.add==='function'){
+      var originalAdd=q.add;try{q.add=function(data){var info=queryInfo(this),started=performance.now();trace('ADD_START',Object.assign({},info,{fields:data?Object.keys(data):[]}));return originalAdd.apply(this,arguments).then(function(ref){audit.writes++;bump(info.path,'writes',1);trace('ADD_DONE',Object.assign({},info,{documentPath:ref.path,writes:1,durationMs:Math.round(performance.now()-started)}));return decorateDoc(ref);},function(err){trace('ADD_ERROR',Object.assign({},info,{error:String(err&&err.message||err)}));throw err;});};}catch(e){}
+    }
+    return q;
+  }
+  function decorateDoc(ref){
+    if(!ref||decoratedDocs.has(ref))return ref;decoratedDocs.add(ref);var path=ref.path||'';
+    if(typeof ref.collection==='function'){var oc=ref.collection;try{ref.collection=function(){var col=oc.apply(this,arguments);queryMeta.set(col,{path:col.path||'',filters:[],orders:[],limits:[],cursors:[]});return decorateQuery(col);};}catch(e){}}
+    if(typeof ref.get==='function'){var og=ref.get;try{ref.get=function(){var started=performance.now();audit.documentGets++;trace('DOC_GET_START',{path:path});return og.apply(this,arguments).then(function(s){var reads=1;audit.estimatedReads+=reads;bump(path,'reads',reads);trace('DOC_GET_DONE',{path:path,exists:!!s.exists,fromCache:!!(s.metadata&&s.metadata.fromCache),pending:!!(s.metadata&&s.metadata.hasPendingWrites),estimatedReads:reads,durationMs:Math.round(performance.now()-started)});return s;},function(err){trace('DOC_GET_ERROR',{path:path,error:String(err&&err.message||err)});throw err;});};}catch(e){}}
+    [['set','writes'],['update','writes'],['delete','deletes']].forEach(function(pair){var name=pair[0],kind=pair[1];if(typeof ref[name]!=='function')return;var original=ref[name];try{ref[name]=function(){var started=performance.now(),fields=(arguments[0]&&typeof arguments[0]==='object')?Object.keys(arguments[0]):[];trace('DOC_'+name.toUpperCase()+'_START',{path:path,fields:fields});return original.apply(this,arguments).then(function(v){if(kind==='writes'){audit.writes++;bump(path,'writes',1);}else{audit.deletes++;bump(path,'deletes',1);}trace('DOC_'+name.toUpperCase()+'_DONE',{path:path,writes:kind==='writes'?1:0,deletes:kind==='deletes'?1:0,durationMs:Math.round(performance.now()-started)});return v;},function(err){trace('DOC_'+name.toUpperCase()+'_ERROR',{path:path,error:String(err&&err.message||err)});throw err;});};}catch(e){}});
+    return ref;
+  }
+  function updatePanel(){
+    var box=document.getElementById('wmFirestoreAuditV618');if(!box){box=document.createElement('div');box.id='wmFirestoreAuditV618';box.style.cssText='position:fixed;left:8px;bottom:8px;z-index:2147483646;background:#102232;color:#fff;border:1px solid #74c0fc;border-radius:8px;padding:7px 9px;font:11px/1.35 monospace;max-width:48vw;white-space:pre-wrap;direction:ltr;pointer-events:none;opacity:.92';document.body&&document.body.appendChild(box);}if(box)box.textContent='FS AUDIT 6.18\nreads≈ '+audit.estimatedReads+'  writes '+audit.writes+'  deletes '+audit.deletes+'\ngets '+audit.queryGets+'/'+audit.documentGets+'  listener snaps '+audit.listenerSnapshots;
+  }
+  var originalCollection=db.collection;
+  try{db.collection=function(){var col=originalCollection.apply(this,arguments);queryMeta.set(col,{path:col.path||String(arguments[0]||''),filters:[],orders:[],limits:[],cursors:[]});return decorateQuery(col);};}catch(e){trace('INSTALL_WARNING',{step:'collection-wrap',error:String(e)});}
+  if(typeof db.batch==='function'){
+    var originalBatch=db.batch;try{db.batch=function(){var batch=originalBatch.apply(this,arguments),ops=[];['set','update','delete'].forEach(function(name){if(typeof batch[name]!=='function')return;var original=batch[name];batch[name]=function(ref){ops.push({type:name,path:ref&&ref.path||''});return original.apply(this,arguments);};});if(typeof batch.commit==='function'){var oc=batch.commit;batch.commit=function(){var started=performance.now();trace('BATCH_COMMIT_START',{operations:ops.slice(),count:ops.length});return oc.apply(this,arguments).then(function(v){ops.forEach(function(op){if(op.type==='delete'){audit.deletes++;bump(op.path,'deletes',1);}else{audit.writes++;bump(op.path,'writes',1);}});trace('BATCH_COMMIT_DONE',{operations:ops.slice(),count:ops.length,durationMs:Math.round(performance.now()-started)});return v;},function(err){trace('BATCH_COMMIT_ERROR',{operations:ops.slice(),error:String(err&&err.message||err)});throw err;});};}return batch;};}catch(e){trace('INSTALL_WARNING',{step:'batch-wrap',error:String(e)});}
+  }
+  window.wmFirestoreAuditSummaryV618=function(){var summary=JSON.stringify(audit,null,2);try{navigator.clipboard.writeText(summary);}catch(e){}return summary;};
+  trace('AUDIT_INSTALLED',{note:'App-side estimate. Firebase billing console remains authoritative.'});updatePanel();
 })();
