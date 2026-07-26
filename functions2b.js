@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.22 BETA - fixed direct connection between the audit window and the live Firebase services.
+File version: 6.23 BETA - all static Firestore sources load once per authenticated session.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -1940,6 +1940,8 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
   window.isVacationDayV487=isVacation;
   window.isVacationDayV489=isVacation;
 
+  // v6.23: one workerDaysOff read per worker/session; month navigation filters memory only.
+  var vacationDocsCacheV623={workerId:'',docs:null,promise:null};
   async function fetchVacationDaysFirestore(workerId,start,end){
     /*
       v4.88: אין יותר query עם workerId + date range.
@@ -1947,17 +1949,24 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
       לכן טוענים את ימי החופש של העובד בלבד לפי workerId, ואת סינון החודש עושים כאן בצד הלקוח.
       זה שינוי ישיר של פונקציית הליבה, לא patch חיצוני.
     */
-    var snap=await db.collection('workerDaysOff')
-      .where('workerId','==',workerId)
-      .get();
+    if(vacationDocsCacheV623.workerId!==workerId){vacationDocsCacheV623={workerId:workerId,docs:null,promise:null};}
+    if(!Array.isArray(vacationDocsCacheV623.docs)){
+      if(!vacationDocsCacheV623.promise){
+        vacationDocsCacheV623.promise=db.collection('workerDaysOff').where('workerId','==',workerId).get().then(function(snap){
+          vacationDocsCacheV623.docs=snap.docs.map(function(doc){return Object.assign({id:doc.id},doc.data()||{});});
+          return vacationDocsCacheV623.docs;
+        }).finally(function(){vacationDocsCacheV623.promise=null;});
+      }
+      await vacationDocsCacheV623.promise;
+    }
     var days=[];
-    snap.docs.forEach(function(doc){
-      var d=doc.data()||{};
+    vacationDocsCacheV623.docs.forEach(function(d){
       var date=String(d.date||'');
       if((d.type==='vacation' || !d.type) && d.active!==false && date && date>=start && date<=end) days.push(date);
     });
     return Array.from(new Set(days.filter(Boolean))).sort();
   }
+  window.wmInvalidateVacationDaysV623=function(){vacationDocsCacheV623.docs=null;vacationDocsCacheV623.promise=null;};
 
   async function loadVacationDaysV487(){
     var workerId=selectedWorkerId();
@@ -2416,6 +2425,10 @@ CHANGE 5.13 - OFFLINE SYNC SAFE LAYER
   }
 
   function startPendingMonitorV513(){
+    // v6.23: do not open a second workEntries listener. The main cache listener is the single live source.
+    state.pendingWorkEntries=0;
+    window.updateOfflineSyncIndicatorV513();
+    return;
     var scopeKey=currentScopeKey();
     if(scopeKey === state.lastScopeKey && state.unsubscribe) return;
     state.lastScopeKey=scopeKey;
@@ -4847,14 +4860,20 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
       ]}
     ].map(function(x,i){ return row(docId(x.version),Object.assign({active:true,order:(i+1)*10},x),'required-default-v4-94',i); });
   }
-  async function firebaseRows(){
-    try{
+  var changelogCacheV623={rows:null,promise:null,seedAttempted:false};
+  async function firebaseRows(force){
+    if(force===true){changelogCacheV623.rows=null;changelogCacheV623.promise=null;}
+    if(Array.isArray(changelogCacheV623.rows))return changelogCacheV623.rows.slice();
+    if(changelogCacheV623.promise)return changelogCacheV623.promise;
+    changelogCacheV623.promise=(async function(){try{
       var snap=await db.collection(COLLECTION).get();
-      return snap.docs.map(function(d,i){ return row(d.id,d.data(),'firebase',i); });
+      changelogCacheV623.rows=snap.docs.map(function(d,i){ return row(d.id,d.data(),'firebase',i); });
+      return changelogCacheV623.rows.slice();
     }catch(e){
       console.warn('v4.94 changelog read failed', e && e.message ? e.message : e);
       return null;
-    }
+    }})().finally(function(){changelogCacheV623.promise=null;});
+    return changelogCacheV623.promise;
   }
   async function seedMissingRows(existingRows){
     /*
@@ -4888,7 +4907,14 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   async function fetchChangelog(includeInactive){
     var fb=await firebaseRows();
     if(Array.isArray(fb)){
-      try{ fb=await seedMissingRows(fb); }
+      var isAdmin=false;try{isAdmin=!!(session&&session.role==='admin');}catch(_e){}
+      try{
+        if(isAdmin&&!changelogCacheV623.seedAttempted){
+          changelogCacheV623.seedAttempted=true;
+          fb=await seedMissingRows(fb);
+          changelogCacheV623.rows=fb.slice();
+        }
+      }
       catch(e){
         /*
           v4.94 SAFE FALLBACK:
@@ -9701,4 +9727,38 @@ VERSION 6.22 BETA - FIRESTORE READ DEDUPLICATION
     return rows;
   };
   wrapped.__v622Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.23 BETA - SINGLE FIRESTORE LOAD PER SESSION
+-------------------------------------------------------------------------------
+1. workerDaysOff is read once per worker and month navigation filters memory.
+2. The duplicate offline-status workEntries listener was removed; only the main
+   two-year cache listener remains.
+3. appChangelog is read once; missing rows are seeded only by an authenticated
+   admin and only once per session.
+4. settings/main is loaded once and concurrent calls share one Promise.
+5. price-list initialization no longer probes Firestore before admin login.
+6. Full-history workEntries search remains intentionally available when the user
+   performs a search without a date range.
+===============================================================================
+*/
+(function updateChangelogV623(){
+  var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof old!=='function'||old.__v623Wrapped)return;
+  var wrapped=function(){
+    var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+    if(!rows.some(function(r){return String(r.version||r.id||'')==='6.23-beta';}))rows.unshift({version:'6.23-beta',title:'טעינה יחידה של מקורות Firestore קבועים',createdAt:'2026-07-26',items:[
+      'ימי חופש נטענים פעם אחת לעובד ומעבר חודש מתבצע מהזיכרון בלבד.',
+      'הוסר listener כפול של workEntries; נשאר listener מרכזי אחד למטמון השנתיים.',
+      'מה חדש נטען פעם אחת, והשלמת רשומות ל-Firestore מתבצעת רק אצל מנהל מחובר ופעם אחת.',
+      'settings/main, מחירון ותבניות חולקים מטמון ו-Promise יחיד במהלך הכניסה.',
+      'בדיקת יצירת מחירון אינה רצה יותר לפני כניסת מנהל.',
+      'חיפוש ללא טווח תאריכים נשאר בכוונה חיפוש מלא ב-Firestore.'
+    ]});
+    return rows;
+  };
+  wrapped.__v623Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
 })();
