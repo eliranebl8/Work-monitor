@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.16 BETA - functions2.js.
+File version: 6.17 BETA - functions2.js.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -4510,6 +4510,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"6.17-beta", title:"אתחול מטמון חד-פעמי ותיקון התרוקנות החודש בשמירה הראשונה", items:["תוקן שורש התקלה שבו מצב המטמון נשאר לא מוכן לאחר סיום הטעינה ולכן מנגנון הניסיון החוזר הפעיל שוב ושוב את loadMonth.","המטמון מאותחל כעת פעם אחת בלבד לכל עובד; לאחר הצלחה הוא מסומן READY והניסיון החוזר נעצר לחלוטין.","נחסמו אתחולים חופפים וטעינות חודש כפולות שעלולות היו לאפס זמנית את monthEntries ולהשאיר רק את הקריאה החדשה בשמירה הראשונה.","חלון cacheDebug=1, כפתור העתקת כל הלוג וכפתור ניקוי הלוג נשארו פעילים, ונוספו אירועי READY, עצירת Retry והתראות שלמות חודש עם Stack מקוצר."], date:d},
       {version:"6.16-beta", title:"מעקב אתחול מלא, תיקון הפעלת המטמון וכפתור העתקת לוג", items:["נוסף Trace מלא שמציג את סדר האתחול: פתיחת הדף, זיהוי העובד, הפעלת המטמון, חיבור המאזין, קבלת Snapshot, מעבר חודש ושמירה ראשונה.","תוקן מצב שבו מנגנון המטמון עלה לפני שמזהה העובד היה זמין ולא הופעל מחדש; המערכת מנסה להפעיל אותו שוב מיד לאחר זיהוי העובד ובחזרה לאפליקציה.","חלון cacheDebug=1 כולל כפתור העתקת לוג מלא וכפתור ניקוי, ללא צורך בפתיחת הקונסולה.","הלוג כולל זמני אירועים, מזהה עובד, חודש מוצג, כמות מסמכים במטמון ובחודש וסיבת כל רענון, ואינו כותב דבר ל-Firestore."], date:d},
       {version:"6.15-beta", title:"תיקון היעלמות הלוח בשמירה הראשונה וכלי אבחון מורחב", items:["תוקן מצב שבו תמונת מצב ראשונה עם כתיבה מקומית ממתינה החליפה בטעות את כל מטמון השנתיים ברשומה החדשה בלבד.","תמונת מצב עם fromCache או hasPendingWrites מתמזגת כעת לפי מזהה מסמך ואינה רשאית למחוק את שאר החודש.","רק תמונת מצב מאושרת מהשרת ללא כתיבות ממתינות רשאית להחליף את המטמון המלא.","חלון cacheDebug=1 מציג כעת את פרטי תמונת המצב האחרונה, מספר הרשומות לפני ואחרי הרענון, מספר רשומות החודש וסיבת הרענון."], date:d},
       {version:"6.11-beta", title:"דוח התחשבנות חודשי מהמטמון והשלמת מה חדש", items:["דוח התחשבנות לחודש שנמצא בתוך טווח 730 הימים נטען ישירות ממטמון השנתיים ללא קריאה חוזרת של workEntries.","בחירת חודש ישן יותר מהטווח שולחת ל-Firestore שאילתה ממוקדת רק לחודש המבוקש ושומרת אותו במטמון החודשים ההיסטוריים.","מסמך ההתחשבנות החודשי עצמו ממשיך להיקרא ממסמך יחיד תחת workers/{workerId}/monthlySettlements/{YYYY-MM}.","הושלמו במקור הקבוע של מה חדש הרשומות 6.08-beta, 6.09-beta, 6.10-beta ו-6.11-beta כדי שיוזרמו ל-Firestore ולא ייעצרו ב-6.07."], date:d},
@@ -9198,165 +9199,139 @@ VERSION 6.15 BETA - FIRST-SAVE CACHE DIAGNOSTICS
 
 /*
 ===============================================================================
-VERSION 6.16 BETA - FULL STARTUP TRACE, CACHE RESTART AND COPYABLE DEBUG LOG
+VERSION 6.17 BETA - ONE-SHOT CACHE STARTUP + FIRST-SAVE MONTH INTEGRITY TRACE
 -------------------------------------------------------------------------------
-1. Records the complete startup/order-of-events trace in sessionStorage.
-2. Restarts the two-year cache when the worker becomes available after page boot.
-3. Adds visible Copy log and Clear log buttons to the existing ?cacheDebug=1 box.
-4. Rechecks initialization on pageshow/visibility changes without reloading data
-   when the correct worker cache is already active.
-5. Diagnostics never write to Firestore and never expose passwords.
+1. Fixes the root cause found in the 6.16 log: the final v6.12/v6.13 loadMonth
+   route did not assign state.readyPromise, so the retry loop initialized the
+   cache and reloaded the month repeatedly even after a successful load.
+2. Cache startup is now one-shot per worker. A single shared promise blocks
+   overlapping starts, READY is set after success, and the retry loop stops.
+3. Existing copy/clear debug controls remain available with ?cacheDebug=1.
+4. Adds month-integrity diagnostics, including a shortened JavaScript stack,
+   whenever a refresh unexpectedly reduces a populated month to zero/one rows.
+5. Diagnostics remain local in sessionStorage and never write to Firestore.
 ===============================================================================
 */
 (function(){
   'use strict';
   var state=window.WM_DATA_CACHE_V604=window.WM_DATA_CACHE_V604||{};
-  var KEY='wmCacheDebugLogV616';
-  var bootStart=Date.now(), retryTimer=null, lastWorkerSeen='', initializing=false;
+  var KEY='wmCacheDebugLogV617';
+  var bootStart=Date.now(),retryTimer=null,lastWorkerSeen='';
+  var activeWorker='',initPromise=null,ready=false,saveWasClicked=false;
 
   function monthValue(){try{return calendarDate instanceof Date?calendarDate.toISOString().slice(0,7):'';}catch(e){return '';}}
   function selectedValue(){try{return typeof selectedDate!=='undefined'?String(selectedDate||''):'';}catch(e){return '';}}
-  function workerValue(){
-    try{return viewedWorker&&viewedWorker.id?String(viewedWorker.id):'';}catch(e){return '';}
-  }
+  function workerValue(){try{return viewedWorker&&viewedWorker.id?String(viewedWorker.id):'';}catch(e){return '';}}
   function monthCount(){try{return Array.isArray(monthEntries)?monthEntries.length:-1;}catch(e){return -1;}}
   function cacheCount(){return Array.isArray(state.entries)?state.entries.length:0;}
+  function shortStack(){
+    try{return String(new Error().stack||'').split('\n').slice(2,8).map(function(x){return x.trim();}).join(' <- ');}catch(e){return '';}
+  }
   function safeData(extra){
-    var base={
-      elapsedMs:Date.now()-bootStart,
-      workerId:workerValue()||state.workerId||'',
-      cacheWorkerId:state.workerId||'',
-      month:monthValue(),selectedDate:selectedValue(),
-      cacheDocs:cacheCount(),monthDocs:monthCount(),
-      ready:!!state.readyPromise,lastEvent:state.lastEvent||''
-    };
-    if(extra&&typeof extra==='object')Object.keys(extra).forEach(function(k){
-      var v=extra[k];
-      if(/password|secret|token/i.test(k))v='[hidden]';
-      base[k]=v;
-    });
+    var base={elapsedMs:Date.now()-bootStart,workerId:workerValue()||state.workerId||'',cacheWorkerId:state.workerId||'',activeWorker:activeWorker||'',month:monthValue(),selectedDate:selectedValue(),cacheDocs:cacheCount(),monthDocs:monthCount(),ready:ready,initBusy:!!initPromise,lastEvent:state.lastEvent||''};
+    if(extra&&typeof extra==='object')Object.keys(extra).forEach(function(k){var v=extra[k];if(/password|secret|token/i.test(k))v='[hidden]';base[k]=v;});
     return base;
   }
+  function rows(){try{return JSON.parse(sessionStorage.getItem(KEY)||'[]');}catch(e){return [];}}
   function trace(event,extra){
     var row={time:new Date().toISOString(),event:String(event||'EVENT'),data:safeData(extra)};
-    try{
-      var rows=JSON.parse(sessionStorage.getItem(KEY)||'[]');
-      rows.push(row);if(rows.length>300)rows=rows.slice(rows.length-300);
-      sessionStorage.setItem(KEY,JSON.stringify(rows));
-    }catch(e){}
-    state.v616LastTrace=row;
-    try{console.log('[WM 6.16 TRACE]',row.event,row.data);}catch(e){}
-    render();
-    return row;
+    try{var list=rows();list.push(row);if(list.length>500)list=list.slice(list.length-500);sessionStorage.setItem(KEY,JSON.stringify(list));}catch(e){}
+    state.v617LastTrace=row;
+    try{console.log('[WM 6.17 TRACE]',row.event,row.data);}catch(e){}
+    render();return row;
   }
-  window.wmTraceV616=trace;
+  window.wmTraceV617=trace;
 
   function fullText(){
-    var rows=[];try{rows=JSON.parse(sessionStorage.getItem(KEY)||'[]');}catch(e){}
-    var header='WORK MONITOR 6.16 BETA DEBUG LOG\n'+
-      'generated: '+new Date().toISOString()+'\n'+
-      'url: '+location.origin+location.pathname+'?cacheDebug=1\n'+
-      'userAgent: '+navigator.userAgent+'\n\n';
-    return header+rows.map(function(r){return r.time+' | '+r.event+' | '+JSON.stringify(r.data);}).join('\n');
+    var header='WORK MONITOR 6.17 BETA DEBUG LOG\n'+'generated: '+new Date().toISOString()+'\n'+'url: '+location.href+'\n'+'userAgent: '+navigator.userAgent+'\n\n';
+    return header+rows().map(function(r){return r.time+' | '+r.event+' | '+JSON.stringify(r.data);}).join('\n');
   }
   async function copyLog(){
     var text=fullText(),ok=false;
-    try{await navigator.clipboard.writeText(text);ok=true;}catch(e){
-      try{var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();ok=document.execCommand('copy');ta.remove();}catch(_e){}
-    }
+    try{await navigator.clipboard.writeText(text);ok=true;}catch(e){try{var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();ok=document.execCommand('copy');ta.remove();}catch(_e){}}
     trace(ok?'LOG_COPIED':'LOG_COPY_FAILED',{characters:text.length});
-    var btn=document.getElementById('wmDebugCopyV616');if(btn){var old=btn.textContent;btn.textContent=ok?'✅ הועתק':'❌ לא הועתק';setTimeout(function(){btn.textContent=old;},1600);}
+    var btn=document.getElementById('wmDebugCopyV617');if(btn){var old=btn.textContent;btn.textContent=ok?'✅ הועתק':'❌ לא הועתק';setTimeout(function(){btn.textContent=old;},1600);}
     return text;
   }
+  window.wmCopyCacheDebugV617=copyLog;
   window.wmCopyCacheDebugV616=copyLog;
-  window.wmClearCacheDebugV616=function(){try{sessionStorage.removeItem(KEY);}catch(e){}trace('LOG_CLEARED');render();};
+  window.wmClearCacheDebugV617=function(){try{sessionStorage.removeItem(KEY);}catch(e){}trace('LOG_CLEARED');render();};
 
-  function ensureBoxButtons(box){
-    var controls=document.getElementById('wmDebugControlsV616');
-    if(controls)return;
-    controls=document.createElement('div');controls.id='wmDebugControlsV616';
-    controls.style.cssText='display:flex;gap:7px;margin-top:9px;direction:rtl;position:sticky;bottom:0;background:#111;padding-top:7px;';
-    var copy=document.createElement('button');copy.id='wmDebugCopyV616';copy.type='button';copy.textContent='📋 העתק את כל הלוג';
+  function ensureButtons(box){
+    if(document.getElementById('wmDebugControlsV617'))return;
+    var controls=document.createElement('div');controls.id='wmDebugControlsV617';controls.style.cssText='display:flex;gap:7px;margin-top:9px;direction:rtl;position:sticky;bottom:0;background:#111;padding-top:7px;';
+    var copy=document.createElement('button');copy.id='wmDebugCopyV617';copy.type='button';copy.textContent='📋 העתק את כל הלוג';
     var clear=document.createElement('button');clear.type='button';clear.textContent='🗑️ נקה לוג';
     [copy,clear].forEach(function(b){b.style.cssText='border:1px solid #6b8;border-radius:8px;padding:7px 9px;background:#20352a;color:#effff2;font:12px Arial;cursor:pointer;';});
-    copy.onclick=function(e){e.stopPropagation();copyLog();};clear.onclick=function(e){e.stopPropagation();window.wmClearCacheDebugV616();};
+    copy.onclick=function(e){e.stopPropagation();copyLog();};clear.onclick=function(e){e.stopPropagation();window.wmClearCacheDebugV617();};
     controls.appendChild(copy);controls.appendChild(clear);box.appendChild(controls);
   }
   function render(){
     try{
       if(new URLSearchParams(location.search).get('cacheDebug')!=='1')return;
-      var box=document.getElementById('wmCacheDebugV604');
-      if(!box){box=document.createElement('div');box.id='wmCacheDebugV604';document.body.appendChild(box);}
+      var box=document.getElementById('wmCacheDebugV604');if(!box){box=document.createElement('div');box.id='wmCacheDebugV604';document.body.appendChild(box);}
       box.style.cssText='position:fixed;left:8px;bottom:8px;z-index:999999;background:#111;color:#d7ffd7;border:1px solid #55aa55;border-radius:10px;padding:9px 11px;direction:ltr;text-align:left;font:12px/1.45 monospace;max-width:94vw;width:min(620px,92vw);max-height:58vh;overflow:auto;white-space:pre-wrap;box-shadow:0 4px 18px #0008;';
-      var last=state.v616LastTrace||{},snap=state.v615LastSnapshot||{},ref=state.v615LastRefresh||{};
-      box.textContent='WM CACHE 6.16 BETA\n'+
-        'worker current/cache: '+(workerValue()||'-')+' / '+(state.workerId||'-')+'\n'+
-        'cache docs: '+cacheCount()+'   month docs: '+monthCount()+'\n'+
-        'month: '+(monthValue()||'-')+'   selected: '+(selectedValue()||'-')+'\n'+
-        'ready: '+(state.readyPromise?'yes':'no')+'   snapshots: '+(state.snapshotCount||0)+'\n'+
-        'snapshot docs/changes: '+(snap.docs===undefined?'-':snap.docs)+' / '+(snap.changes===undefined?'-':snap.changes)+'\n'+
-        'snapshot cache/pending: '+(snap.fromCache===undefined?'-':snap.fromCache)+' / '+(snap.pending===undefined?'-':snap.pending)+'\n'+
-        'refresh: '+(ref.reason||'-')+'   '+(ref.monthBefore===undefined?'-':ref.monthBefore)+'→'+(ref.monthAfter===undefined?'-':ref.monthAfter)+'\n'+
-        'last trace: '+(last.event||'-')+'\n'+
-        'last cache event: '+(state.lastEvent||'-')+'\n'+
-        'log rows: '+(function(){try{return JSON.parse(sessionStorage.getItem(KEY)||'[]').length;}catch(e){return 0;}})();
-      ensureBoxButtons(box);
+      var last=state.v617LastTrace||{},snap=state.v615LastSnapshot||{},ref=state.v615LastRefresh||{};
+      box.textContent='WM CACHE 6.17 BETA\n'+'worker current/cache: '+(workerValue()||'-')+' / '+(state.workerId||'-')+'\n'+'cache docs: '+cacheCount()+'   month docs: '+monthCount()+'\n'+'month: '+(monthValue()||'-')+'   selected: '+(selectedValue()||'-')+'\n'+'READY: '+(ready?'YES':'NO')+'   init busy: '+(initPromise?'YES':'NO')+'\n'+'snapshots: '+(state.snapshotCount||0)+'   snapshot docs: '+(snap.docs===undefined?'-':snap.docs)+'\n'+'snapshot cache/pending: '+(snap.fromCache===undefined?'-':snap.fromCache)+' / '+(snap.pending===undefined?'-':snap.pending)+'\n'+'refresh: '+(ref.reason||'-')+'   '+(ref.monthBefore===undefined?'-':ref.monthBefore)+'→'+(ref.monthAfter===undefined?'-':ref.monthAfter)+'\n'+'last trace: '+(last.event||'-')+'\n'+'last cache event: '+(state.lastEvent||'-')+'\n'+'log rows: '+rows().length;
+      ensureButtons(box);
     }catch(e){}
   }
 
-  async function startCacheWhenWorkerReady(reason){
-    var wid=workerValue();
-    trace('CACHE_START_CHECK',{reason:reason,detectedWorker:wid});
-    if(!wid){trace('CACHE_START_WAIT_NO_WORKER',{reason:reason});return false;}
-    if(initializing){trace('CACHE_START_SKIPPED_BUSY',{reason:reason});return false;}
-    if(state.workerId===wid&&state.readyPromise){trace('CACHE_ALREADY_ACTIVE',{reason:reason});return true;}
-    initializing=true;lastWorkerSeen=wid;
-    try{
-      trace('CACHE_INIT_START',{reason:reason});
-      if(typeof window.loadMonth==='function')await window.loadMonth();
-      else if(typeof loadMonth==='function')await loadMonth();
-      trace('CACHE_INIT_DONE',{reason:reason});
-      return true;
-    }catch(err){trace('CACHE_INIT_ERROR',{reason:reason,message:(err&&err.message)||String(err||'')});return false;}
-    finally{initializing=false;render();}
+  function stopRetry(reason){if(retryTimer){clearInterval(retryTimer);retryTimer=null;trace('CACHE_RETRY_STOPPED',{reason:reason});}}
+  function markReady(wid){
+    activeWorker=wid;ready=true;
+    // v6.17: state.readyPromise is the common readiness contract used by older
+    // cache guards and by diagnostics. Keep it resolved after initialization.
+    state.readyPromise=Promise.resolve(Array.isArray(state.entries)?state.entries:[]);
+    state.v617Ready=true;
+    stopRetry('ready');
+    trace('CACHE_READY',{worker:wid,docs:cacheCount(),monthDocs:monthCount()});
+  }
+  function startCacheOnce(reason){
+    var wid=workerValue();trace('CACHE_START_CHECK',{reason:reason,detectedWorker:wid});
+    if(!wid){trace('CACHE_START_WAIT_NO_WORKER',{reason:reason});return Promise.resolve(false);}
+    if(ready&&activeWorker===wid){trace('CACHE_ALREADY_READY',{reason:reason});return Promise.resolve(true);}
+    if(initPromise){trace('CACHE_START_JOIN_EXISTING',{reason:reason});return initPromise;}
+    if(activeWorker&&activeWorker!==wid){ready=false;state.v617Ready=false;state.readyPromise=null;activeWorker=wid;trace('CACHE_WORKER_SWITCH',{reason:reason});}
+    activeWorker=wid;
+    initPromise=(async function(){
+      try{
+        trace('CACHE_INIT_START',{reason:reason});
+        if(typeof window.loadMonth==='function')await window.loadMonth();else if(typeof loadMonth==='function')await loadMonth();
+        markReady(wid);trace('CACHE_INIT_DONE',{reason:reason});return true;
+      }catch(err){ready=false;state.v617Ready=false;state.readyPromise=null;trace('CACHE_INIT_ERROR',{reason:reason,message:(err&&err.message)||String(err||'')});return false;}
+      finally{initPromise=null;render();}
+    })();
+    state.readyPromise=initPromise;
+    return initPromise;
   }
 
   function installLoadMonthTrace(){
-    var base=window.loadMonth;
-    if(typeof base!=='function'||base.__traceV616)return;
-    var wrapped=async function(){
-      trace('LOAD_MONTH_START');
-      try{var out=await base.apply(this,arguments);trace('LOAD_MONTH_DONE');return out;}
-      catch(err){trace('LOAD_MONTH_ERROR',{message:(err&&err.message)||String(err||'')});throw err;}
-    };
-    wrapped.__traceV616=true;wrapped.__baseV616=base;window.loadMonth=wrapped;try{loadMonth=wrapped;}catch(e){}
+    var base=window.loadMonth;if(typeof base!=='function'||base.__traceV617)return;
+    var wrapped=async function(){var before=monthCount();trace('LOAD_MONTH_START',{monthBefore:before,stack:shortStack()});try{var out=await base.apply(this,arguments);trace('LOAD_MONTH_DONE',{monthBefore:before,monthAfter:monthCount()});return out;}catch(err){trace('LOAD_MONTH_ERROR',{message:(err&&err.message)||String(err||''),stack:shortStack()});throw err;}};
+    wrapped.__traceV617=true;wrapped.__baseV617=base;window.loadMonth=wrapped;try{loadMonth=wrapped;}catch(e){}
   }
-
-  function installSaveClickTrace(){
-    document.addEventListener('click',function(ev){
-      var t=ev.target&&ev.target.closest?ev.target.closest('#saveServicePlannedBtnV49,#saveInstallPlannedBtnV49,#serviceSaveDoneBtnV411,#installSaveDoneBtnV411'):null;
-      if(t)trace('FIRST_SAVE_BUTTON_CLICK',{buttonId:t.id});
-    },true);
+  function installRefreshIntegrityTrace(){
+    var base=window.wmRefreshFromCacheV610;if(typeof base!=='function'||base.__integrityV617)return;
+    var wrapped=function(options){var before=monthCount(),cacheBefore=cacheCount(),out=base.apply(this,arguments),after=monthCount();
+      if(before>1&&after<=1&&cacheCount()>1)trace('MONTH_INTEGRITY_DROP',{reason:(options&&options.reason)||'unspecified',before:before,after:after,cacheBefore:cacheBefore,cacheAfter:cacheCount(),afterFirstSave:saveWasClicked,stack:shortStack()});
+      else trace('CACHE_REFRESH_DONE',{reason:(options&&options.reason)||'unspecified',before:before,after:after});
+      return out;};
+    wrapped.__integrityV617=true;window.wmRefreshFromCacheV610=wrapped;
   }
-
-  function beginRetryLoop(){
-    var tries=0;
-    retryTimer=setInterval(function(){
-      tries++;var wid=workerValue();
-      if(wid!==lastWorkerSeen){trace('WORKER_DETECTED_CHANGE',{previous:lastWorkerSeen,current:wid});lastWorkerSeen=wid;}
-      if(wid&&(!state.readyPromise||state.workerId!==wid))startCacheWhenWorkerReady('retry-'+tries);
-      if(tries>=60||(wid&&state.readyPromise&&state.workerId===wid)){clearInterval(retryTimer);retryTimer=null;trace('CACHE_RETRY_LOOP_END',{tries:tries});}
-      render();
-    },500);
+  function installSaveTrace(){
+    document.addEventListener('click',function(ev){var t=ev.target&&ev.target.closest?ev.target.closest('#saveServicePlannedBtnV49,#saveInstallPlannedBtnV49,#serviceSaveDoneBtnV411,#installSaveDoneBtnV411'):null;if(t){saveWasClicked=true;trace('SAVE_BUTTON_CLICK',{buttonId:t.id,monthBefore:monthCount(),cacheBefore:cacheCount()});setTimeout(function(){trace('SAVE_AFTER_250MS',{monthAfter:monthCount(),cacheAfter:cacheCount()});},250);setTimeout(function(){trace('SAVE_AFTER_1500MS',{monthAfter:monthCount(),cacheAfter:cacheCount()});},1500);}},true);
+  }
+  function beginRetry(){
+    if(retryTimer||ready)return;var tries=0;
+    retryTimer=setInterval(function(){tries++;var wid=workerValue();if(wid!==lastWorkerSeen){trace('WORKER_DETECTED_CHANGE',{previous:lastWorkerSeen,current:wid});lastWorkerSeen=wid;}if(wid)startCacheOnce('retry-'+tries);if(tries>=120&&!ready)stopRetry('timeout');render();},500);
   }
 
   trace('APP_SCRIPT_LOADED',{readyState:document.readyState});
-  function boot(){
-    trace('DOM_BOOT',{readyState:document.readyState});installLoadMonthTrace();installSaveClickTrace();startCacheWhenWorkerReady('boot');beginRetryLoop();render();
-  }
+  function boot(){trace('DOM_BOOT',{readyState:document.readyState});installLoadMonthTrace();installRefreshIntegrityTrace();installSaveTrace();startCacheOnce('boot');beginRetry();render();}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-  window.addEventListener('load',function(){trace('WINDOW_LOAD');installLoadMonthTrace();startCacheWhenWorkerReady('window-load');render();},{once:true});
-  window.addEventListener('pageshow',function(e){trace('PAGE_SHOW',{persisted:!!e.persisted});installLoadMonthTrace();startCacheWhenWorkerReady('pageshow');});
-  document.addEventListener('visibilitychange',function(){trace('VISIBILITY_CHANGE',{visibility:document.visibilityState});if(document.visibilityState==='visible')startCacheWhenWorkerReady('visible');});
-  setInterval(render,600);
+  window.addEventListener('load',function(){trace('WINDOW_LOAD');installLoadMonthTrace();installRefreshIntegrityTrace();startCacheOnce('window-load');render();},{once:true});
+  window.addEventListener('pageshow',function(e){trace('PAGE_SHOW',{persisted:!!e.persisted});installLoadMonthTrace();installRefreshIntegrityTrace();startCacheOnce('pageshow');});
+  document.addEventListener('visibilitychange',function(){trace('VISIBILITY_CHANGE',{visibility:document.visibilityState});if(document.visibilityState==='visible')startCacheOnce('visible');});
+  setInterval(render,700);
 })();
