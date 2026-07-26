@@ -2,7 +2,7 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css, functions1.js and functions2.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 6.03 - Split JavaScript core (functions1.js); APP_VERSION updated only.
+File version: 6.27 STABLE - changelog completion and local-cache synchronization only.
 This is the stable core file. Future functional changes should be added to functions2.js.
 APP_VERSION remains the single version source here; only its version line should be updated in future releases.
 
@@ -198,7 +198,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "6.03";
+const APP_VERSION = "6.27";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -888,6 +888,9 @@ async function refreshLastLoginPanelV523(){
 const firebaseConfig={apiKey:"AIzaSyCR41hsAakxY7FgaPhJAhV63lnrgLIT9eM",authDomain:"work-monitor-a3bb9.firebaseapp.com",projectId:"work-monitor-a3bb9",storageBucket:"work-monitor-a3bb9.firebasestorage.app",messagingSenderId:"571499964314",appId:"1:571499964314:web:ec0f18ba9f1e6502fabc23",measurementId:"G-4SLEBPPYE8"};
 firebase.initializeApp(firebaseConfig);
 const db=firebase.firestore();
+// CHANGE 6.21 BETA: expose the exact live Firestore instance to the audit layer.
+// This does not create another connection and does not change application data logic.
+window.db=db;
 /*
 ===============================================================================
 CHANGE 5.13 - FIRESTORE OFFLINE CORE
@@ -912,6 +915,8 @@ try{
   console.warn("Firestore offline persistence init failed:", e && e.message ? e.message : e);
 }
 const auth=firebase.auth ? firebase.auth() : null;
+// CHANGE 6.21 BETA: expose the exact live Firebase Auth instance to the audit layer.
+window.auth=auth;
 let ADMIN_USERNAME="Eliran",ADMIN_PASSWORD_SHA256="a3548d64df7d2c4eeeb1c0480aa87b0b306b3e0b0f8faa8c8aef71140761a759",SERVICE_PRICE=65,DEFAULT_TRIAL_DAYS=90;
 let tapCount=0,session=null,viewedWorker=null,calendarDate=new Date(),selectedDate=null,selectedType=null,monthEntries=[],workers=[],priceList=[],templates=[];
 const months=["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"],weekdays=["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","שבת"];
@@ -1068,8 +1073,21 @@ async function workerLogin(){
 
 function logout(){localStorage.removeItem("workSession");try{if(firebaseAuthReady())auth.signOut()}catch(e){}session=null;viewedWorker=null;clearLoginFields();showWorkerLogin()}
 async function showAdmin(){hideAll();show("adminView");show("logoutBtn");text("userLine","מנהל");await ensureDefaultPriceList();await loadSettings();$("servicePriceInput").value=SERVICE_PRICE;$("adminSetUsername").value=ADMIN_USERNAME;if($("trialDaysInput"))$("trialDaysInput").value=DEFAULT_TRIAL_DAYS;await loadWorkers();await loadPriceListAdmin();await loadTemplatesAdmin();await loadPaymentRequests();await loadDebugLogs()}
-async function loadSettings(){const doc=await db.collection("settings").doc("main").get();if(doc.exists){const d=doc.data();if(d.servicePrice!==undefined)SERVICE_PRICE=Number(d.servicePrice||65);if(d.defaultTrialDays!==undefined)DEFAULT_TRIAL_DAYS=Number(d.defaultTrialDays||90);if(d.adminUsername)ADMIN_USERNAME=d.adminUsername;if(d.adminPasswordHash)ADMIN_PASSWORD_SHA256=d.adminPasswordHash}else{await db.collection("settings").doc("main").set({servicePrice:65,defaultTrialDays:90,adminUsername:"Eliran",adminPasswordHash:ADMIN_PASSWORD_SHA256,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true})}updateServicePriceLabels()}
-async function saveAdminSettings(){const username=val("adminSetUsername"),password=val("adminSetPassword");if(!username)return $("adminSettingsMsg").innerHTML="<p class='danger'>חובה למלא שם משתמש מנהל.</p>";const update={adminUsername:username,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(password.trim())update.adminPasswordHash=await sha256(password.trim());await db.collection("settings").doc("main").set(update,{merge:true});$("adminSetPassword").value="";await loadSettings();$("adminSettingsMsg").innerHTML="<div class='notice'>הגדרות מנהל נשמרו ✅</div>"}
+let settingsMainPromiseV623=null,settingsMainReadyV623=false;
+async function loadSettings(force){
+  // v6.23: settings/main is static during a session. Concurrent callers share one Promise.
+  if(force===true){settingsMainReadyV623=false;settingsMainPromiseV623=null;}
+  if(settingsMainReadyV623){updateServicePriceLabels();return;}
+  if(settingsMainPromiseV623)return settingsMainPromiseV623;
+  settingsMainPromiseV623=(async function(){
+    const doc=await db.collection("settings").doc("main").get();
+    if(doc.exists){const d=doc.data();if(d.servicePrice!==undefined)SERVICE_PRICE=Number(d.servicePrice||65);if(d.defaultTrialDays!==undefined)DEFAULT_TRIAL_DAYS=Number(d.defaultTrialDays||90);if(d.adminUsername)ADMIN_USERNAME=d.adminUsername;if(d.adminPasswordHash)ADMIN_PASSWORD_SHA256=d.adminPasswordHash;try{if(typeof cleanEmailV174==='function'){ADMIN_RECOVERY_EMAIL_V174=cleanEmailV174(d.adminRecoveryEmail||'');ADMIN_AUTH_EMAIL_V174=cleanEmailV174(d.adminAuthEmail||'')||'admin@work-monitor.local';}}catch(_e){}}
+    else if(session&&session.role==="admin"){await db.collection("settings").doc("main").set({servicePrice:65,defaultTrialDays:90,adminUsername:"Eliran",adminPasswordHash:ADMIN_PASSWORD_SHA256,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true})}
+    settingsMainReadyV623=true;updateServicePriceLabels();
+  })().finally(function(){settingsMainPromiseV623=null;});
+  return settingsMainPromiseV623;
+}
+async function saveAdminSettings(){const username=val("adminSetUsername"),password=val("adminSetPassword");if(!username)return $("adminSettingsMsg").innerHTML="<p class='danger'>חובה למלא שם משתמש מנהל.</p>";const update={adminUsername:username,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};if(password.trim())update.adminPasswordHash=await sha256(password.trim());await db.collection("settings").doc("main").set(update,{merge:true});$("adminSetPassword").value="";await loadSettings(true);$("adminSettingsMsg").innerHTML="<div class='notice'>הגדרות מנהל נשמרו ✅</div>"}
 async function createWorker(){const btn=$("createWorkerBtn"),msg=$("workerMsg");msg.innerHTML="<div class='notice'>יוצר עובד...</div>";btn.disabled=true;try{const name=val("wName"),username=val("wUser"),pass=val("wPass"),goal=Number(val("wGoal")||0),usernameKey=normalize(username),id=workerIdFromUsername(usernameKey),authEmail=authEmailFromUsername(username);if(!name||!username||!pass)return msg.innerHTML="<p class='danger'>חובה למלא שם, שם משתמש וסיסמה.</p>";await db.collection("workers").doc(id).set({name,username,usernameKey,authEmail,authReady:false,authNote:"נוצר מאדמין — חיבור Firebase Auth יושלם כשהעובד יירשם/נחבר Cloud Function",passwordHash:await sha256(pass),monthlyGoal:goal,active:true,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});["wName","wUser","wPass","wGoal"].forEach(x=>$(x).value="");msg.innerHTML=`<div class='notice'>העובד ${esc(name)} נוצר/עודכן בהצלחה ✅<br>הוכן ל־Firebase Auth עם אימייל פנימי: ${esc(authEmail)}</div>`;await loadWorkers()}catch(e){msg.innerHTML=`<p class='danger'>שגיאה: ${esc(e.message)}</p>`}finally{btn.disabled=false}}
 async function loadWorkers(){const box=$("workersList");box.innerHTML="<p>טוען עובדים...</p>";const snap=await db.collection("workers").get();workers=snap.docs.map(d=>({id:d.id,...d.data()})).filter(w=>!w.movedTo).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));box.innerHTML=workers.length?"":"<p class='muted'>אין עובדים עדיין.</p>";workers.forEach(w=>{const row=document.createElement("div");row.className="item";row.innerHTML=`<div><div class="item-title">${esc(w.name)}</div><div class="item-sub">שם משתמש: ${esc(w.username)} · יעד: ${money(w.monthlyGoal||0)} · ${w.active===false?"לא פעיל":"פעיל"} · Auth: ${w.authUid?"מחובר":"בהכנה"} · מנוי: ${esc(w.subscriptionStatus||"רגיל")} עד ${esc(w.subscriptionUntil||w.trialUntil||"ללא הגבלה")} · ID: ${w.id}</div></div><div class="actions"><button onclick="showWorkerById('${w.id}')">פתח מעקב</button><button class="btn-yellow" onclick="openWorkerEdit('${w.id}')">ערוך</button><button onclick="openSubscriptionEdit('${w.id}')">מנוי</button><button class="${w.active===false?"btn-green":"btn-red"}" onclick="toggleWorker('${w.id}', ${w.active===false})">${w.active===false?"הפעל":"בטל"}</button></div>`;box.appendChild(row)});cleanVisibleSlashN()}
 function openWorkerEdit(id){const w=workers.find(x=>x.id===id);if(!w)return;show("editWorkerPanel");$("editWorkerId").value=id;$("editWorkerName").value=w.name||"";$("editWorkerUsername").value=w.username||"";$("editWorkerPassword").value="";$("editWorkerGoal").value=w.monthlyGoal||0;$("editWorkerActive").value=w.active===false?"false":"true";$("editWorkerMsg").innerHTML="";window.scrollTo({top:$("editWorkerPanel").offsetTop-20,behavior:"smooth"})}
@@ -1079,6 +1097,8 @@ async function saveServicePrice(){const price=Number(val("servicePriceInput"));i
 function updateServicePriceLabels(){if($("servicePriceLabel"))$("servicePriceLabel").textContent=`${money(SERVICE_PRICE)} קבוע`;updateServicePreview()}
 function updateServicePreview(){if(!$("servicePreview"))return;const isReturn=$("sReturnCall")&&$("sReturnCall").checked;$("servicePreview").textContent=isReturn?"סה״כ: ₪0 - קריאה חוזרת ללא תשלום":`סה״כ: ${money(SERVICE_PRICE)}`}
 async function ensureDefaultPriceList(){
+  // v6.23: this is an admin-only initialization. Never probe priceList before login or for workers.
+  if(!session || session.role!=="admin" || !firebaseAuthReady() || !auth.currentUser) return;
   // יוצר מחירון ברירת מחדל רק אם אין פריטים פעילים בכלל.
   // לא מוסיף שוב אם כבר קיימים פריטים, כדי למנוע כפילויות.
   const snap = await db.collection("priceList").limit(1).get();
@@ -2079,7 +2099,7 @@ async function extendSubscriptionDays(days){
 }
 
 async function showWorkerById(id){const doc=await db.collection("workers").doc(id).get();const worker={id:doc.id,...doc.data()};if(session&&session.role==="worker"&&isSubscriptionExpired(worker)){localStorage.removeItem("workSession");session=null;showExpiredView(worker);return;}await showWorker(worker)}async function showWorker(worker){viewedWorker=worker;hideAll();show("workerView");show("logoutBtn");text("userLine",`${worker.name} · ${session.role==="admin"?"צפייה כמנהל":"עובד"}`);text("helloTitle",`שלום ${worker.name}`);calendarDate=initialCalendarDateV594();selectedDate=null;selectedType=null;bindGoalMonthInputV556();if($("selfGoalMonth"))$("selfGoalMonth").value=currentCalendarMonthKeyV556();if($("selfGoalMonth"))$("selfGoalMonth").value=currentCalendarMonthKeyV556();if($("selfMonthlyGoal"))$("selfMonthlyGoal").value=getWorkerGoalForMonthV556();if($("selfNewPassword"))$("selfNewPassword").value="";await loadSettings();await loadMonth();try{initMonthlySettlementV547();}catch(e){console.warn("v5.47 settlement init failed",e)}}
-async function loadMonth(){await loadPriceList();await loadTemplates();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);monthEntries=[];renderCalendar();renderDay();renderStats();const snap=await db.collection("workEntries").where("workerId","==",viewedWorker.id).get();monthEntries=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats();renderSmartDashboard();if($('searchPanel')&&!$('searchPanel').classList.contains('hidden'))renderFullSummary()}
+async function loadMonth(){await loadPriceList();await loadTemplates();const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate(),start=`${y}-${pad(m+1)}-01`,end=`${y}-${pad(m+1)}-${pad(last)}`;text("calTitle",`${months[m]} ${y}`);text("monthSub",`חודש בתצוגה: ${months[m]} ${y}`);/* v6.25: legacy loader must never query all workEntries. The central two-year listener/cache is the single live source. */const cache=window.WM_DATA_CACHE_V604||null;if(cache&&cache.readyPromise){try{await cache.readyPromise}catch(_e){}}const rows=cache&&Array.isArray(cache.entries)?cache.entries:(Array.isArray(window.workerAllEntriesV511)?window.workerAllEntriesV511:[]);monthEntries=rows.filter(e=>e.date>=start&&e.date<=end);renderCalendar();renderDay();renderStats();renderSmartDashboard();if($('searchPanel')&&!$('searchPanel').classList.contains('hidden'))renderFullSummary()}
 function renderCalendar(){const cal=$("calendar");cal.innerHTML="";weekdays.forEach(w=>{const d=document.createElement("div");d.className="weekday";d.textContent=w;cal.appendChild(d)});const y=calendarDate.getFullYear(),m=calendarDate.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0).getDate(),today=formatDate(new Date());for(let i=0;i<first.getDay();i++){const e=document.createElement("div");e.className="day empty";cal.appendChild(e)}for(let d=1;d<=last;d++){const ds=`${y}-${pad(m+1)}-${pad(d)}`,dt=new Date(y,m,d),sh=dt.getDay()===6,entries=monthEntries.filter(e=>e.date===ds),total=entries.reduce((s,e)=>s+Number(e.amount||0),0),div=document.createElement("div");div.className="day";if(sh)div.classList.add("shabbat");if(ds===today)div.classList.add("today");if(ds===selectedDate)div.classList.add("selected");div.innerHTML=`<div class="day-num">${d}</div>${total?`<div class="day-total">${money(total)}</div>`:""}${entries.length?`<div class="day-count">${entries.length} עבודות</div>`:""}`;if(!sh)div.onclick=()=>selectDay(ds);cal.appendChild(div)}}
 function selectDay(ds){selectedDate=ds;selectedType=null;renderCalendar();renderDay();renderStats();renderSmartDashboard();cleanVisibleSlashN()}function renderDay(){if(!selectedDate){hide("dayPanel");show("selectDayHint");return}show("dayPanel");hide("selectDayHint");text("dateTitle",`יום ${heDate(selectedDate)}`);renderInstallItems();setType(selectedType,false);updateServicePriceLabels();const entries=monthEntries.filter(e=>e.date===selectedDate).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)),box=$("dayEntries");box.innerHTML=entries.length?"":"<p class='muted'>אין עבודות ביום הזה עדיין.</p>";entries.forEach(e=>{const details=e.workType==="service"?`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n${e.notes||""}`:`מספר לקוח: ${e.customerNumber||""}\nכתובת: ${e.address||""}\n`+(e.items||[]).map(i=>`${i.name} × ${i.quantity} = ${money(i.total)}`).join("<br>")+`\n${e.notes||""}`,row=document.createElement("div");row.className="item";const iconClass=e.workType==="install"?"install":(e.isReturnCall?"return":"service");const icon=e.workType==="install"?"🛠️":(e.isReturnCall?"🔁":"☎️");row.innerHTML=`<div class="work-row-main"><div class="work-icon ${iconClass}">${icon}</div><div><div class="item-title">${esc(e.description)}</div><div class="item-sub">${nl2br(details)}</div></div></div><div><div class="money">${money(e.amount)}</div><div class="actions" style="margin-top:8px"><button class="btn-yellow" onclick="openEntryEdit('${e.id}')">ערוך</button>${e.workType==="install"?`<button class="btn-light" onclick="saveEntryAsTemplate('${e.id}')">שמור כתבנית</button>`:""}<button class="btn-red" onclick="deleteEntry('${e.id}')">מחק</button></div></div>`;box.appendChild(row)})}
 function renderStats(){const monthTotal=monthEntries.reduce((s,e)=>s+Number(e.amount||0),0),dayTotal=selectedDate?monthEntries.filter(e=>e.date===selectedDate).reduce((s,e)=>s+Number(e.amount||0),0):0,goal=getWorkerGoalForMonthV556(),left=Math.max(goal-monthTotal,0);$("monthTotal").textContent=money(monthTotal);$("dayTotal").textContent=money(dayTotal);$("goalTotal").textContent=money(goal);$("leftTotal").textContent=money(left);$("goalBar").style.width=goal?Math.min(monthTotal/goal*100,100)+"%":"0%";text("paceLine",goal?(left<=0?"מעולה — היעד הושג.":`חסר ליעד: ${money(left)}.`):"לא הוגדר יעד חודשי לחודש הזה.");syncGoalSettingsMonthV556();}
@@ -5192,16 +5212,10 @@ function adminAuthEmailV173(){ return ADMIN_AUTH_EMAIL_V174 || "admin@work-monit
 function adminAuthEmailV170(){ return ADMIN_AUTH_EMAIL_V174 || "admin@work-monitor.local"; }
 
 const oldLoadSettingsV174 = window.loadSettings;
-window.loadSettings = async function(){
-  if(typeof oldLoadSettingsV174 === "function") await oldLoadSettingsV174();
-  try{
-    const doc=await db.collection("settings").doc("main").get();
-    if(doc.exists){
-      const d=doc.data()||{};
-      ADMIN_RECOVERY_EMAIL_V174 = cleanEmailV174(d.adminRecoveryEmail || "");
-      ADMIN_AUTH_EMAIL_V174 = cleanEmailV174(d.adminAuthEmail || "") || "admin@work-monitor.local";
-    }
-  }catch(e){ console.warn("loadSettings V174 recovery fields failed", e); }
+window.loadSettings = async function(force){
+  // v6.24: recovery fields are populated by the core cached settings/main read.
+  // Do not issue a second document get from this compatibility wrapper.
+  if(typeof oldLoadSettingsV174 === "function") return await oldLoadSettingsV174(force);
 };
 
 function addAdminRecoveryPanelV174(){
@@ -6328,12 +6342,22 @@ async function loadMonth(token){
   renderCalendar(); renderDay(); renderStats();
 
   const workerId = viewedWorker.id;
-  const snap = await db.collection("workEntries").where("workerId","==",workerId).get();
+
+  // v6.26: מקור הנתונים היחיד בכניסה הוא מטמון השנתיים שמוזן מה-listener המרכזי.
+  // אין לבצע כאן get() מלא של workEntries, משום שהוא מכפיל את כל קריאות הפתיחה.
+  const cacheV626 = window.WM_DATA_CACHE_V604 || null;
+  if(cacheV626 && cacheV626.readyPromise){
+    try{ await cacheV626.readyPromise; }catch(_cacheErr){}
+  }
   if(isStaleNavV180(token) || !viewedWorker || viewedWorker.id !== workerId) return;
 
-  // v5.11: כל עבודות העובד נשמרות לטוגל מגמת 7/14/30 ימים; monthEntries נשאר חודשי בלבד.
-  window.workerAllEntriesV511 = snap.docs.map(d=>({id:d.id,...d.data()}));
-  monthEntries = window.workerAllEntriesV511.filter(e=>e.date>=start&&e.date<=end);
+  const cachedRowsV626 = cacheV626 && Array.isArray(cacheV626.entries)
+    ? cacheV626.entries.slice()
+    : (Array.isArray(window.workerAllEntriesV511) ? window.workerAllEntriesV511.slice() : []);
+
+  // v6.26: כל עבודות טווח השנתיים נשמרות למגמות ולמסכים; monthEntries נשאר חודשי בלבד.
+  window.workerAllEntriesV511 = cachedRowsV626;
+  monthEntries = cachedRowsV626.filter(e=>e.date>=start&&e.date<=end);
   if(!selectedDate) selectTodayOnCurrentMonthV564();
   renderCalendar(); renderDay(); renderStats();
   try{ renderSmartDashboard(); }catch(e){ console.warn("dashboard render skipped", e); }
