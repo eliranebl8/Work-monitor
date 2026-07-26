@@ -9238,13 +9238,13 @@ VERSION 6.17 BETA - ONE-SHOT CACHE STARTUP + FIRST-SAVE MONTH INTEGRITY TRACE
     var row={time:new Date().toISOString(),event:String(event||'EVENT'),data:safeData(extra)};
     try{var list=rows();list.push(row);if(list.length>500)list=list.slice(list.length-500);sessionStorage.setItem(KEY,JSON.stringify(list));}catch(e){}
     state.v617LastTrace=row;
-    try{console.log('[WM 6.18 TRACE]',row.event,row.data);}catch(e){}
+    try{console.log('[WM 6.17 TRACE]',row.event,row.data);}catch(e){}
     render();return row;
   }
   window.wmTraceV617=trace;
 
   function fullText(){
-    var header='WORK MONITOR 6.18 BETA DEBUG LOG\n'+'generated: '+new Date().toISOString()+'\n'+'url: '+location.href+'\n'+'userAgent: '+navigator.userAgent+'\n\n';
+    var header='WORK MONITOR '+APP_VERSION+' DEBUG LOG\n'+'generated: '+new Date().toISOString()+'\n'+'url: '+location.href+'\n'+'userAgent: '+navigator.userAgent+'\n\n';
     return header+rows().map(function(r){return r.time+' | '+r.event+' | '+JSON.stringify(r.data);}).join('\n');
   }
   async function copyLog(){
@@ -9273,7 +9273,7 @@ VERSION 6.17 BETA - ONE-SHOT CACHE STARTUP + FIRST-SAVE MONTH INTEGRITY TRACE
       var box=document.getElementById('wmCacheDebugV604');if(!box){box=document.createElement('div');box.id='wmCacheDebugV604';document.body.appendChild(box);}
       box.style.cssText='position:fixed;left:8px;bottom:8px;z-index:999999;background:#111;color:#d7ffd7;border:1px solid #55aa55;border-radius:10px;padding:9px 11px;direction:ltr;text-align:left;font:12px/1.45 monospace;max-width:94vw;width:min(620px,92vw);max-height:58vh;overflow:auto;white-space:pre-wrap;box-shadow:0 4px 18px #0008;';
       var last=state.v617LastTrace||{},snap=state.v615LastSnapshot||{},ref=state.v615LastRefresh||{};
-      box.textContent='WM CACHE 6.17 BETA\n'+'worker current/cache: '+(workerValue()||'-')+' / '+(state.workerId||'-')+'\n'+'cache docs: '+cacheCount()+'   month docs: '+monthCount()+'\n'+'month: '+(monthValue()||'-')+'   selected: '+(selectedValue()||'-')+'\n'+'READY: '+(ready?'YES':'NO')+'   init busy: '+(initPromise?'YES':'NO')+'\n'+'snapshots: '+(state.snapshotCount||0)+'   snapshot docs: '+(snap.docs===undefined?'-':snap.docs)+'\n'+'snapshot cache/pending: '+(snap.fromCache===undefined?'-':snap.fromCache)+' / '+(snap.pending===undefined?'-':snap.pending)+'\n'+'refresh: '+(ref.reason||'-')+'   '+(ref.monthBefore===undefined?'-':ref.monthBefore)+'→'+(ref.monthAfter===undefined?'-':ref.monthAfter)+'\n'+'last trace: '+(last.event||'-')+'\n'+'last cache event: '+(state.lastEvent||'-')+'\n'+'log rows: '+rows().length;
+      box.textContent='WM CACHE '+APP_VERSION+'\n'+'worker current/cache: '+(workerValue()||'-')+' / '+(state.workerId||'-')+'\n'+'cache docs: '+cacheCount()+'   month docs: '+monthCount()+'\n'+'month: '+(monthValue()||'-')+'   selected: '+(selectedValue()||'-')+'\n'+'READY: '+(ready?'YES':'NO')+'   init busy: '+(initPromise?'YES':'NO')+'\n'+'snapshots: '+(state.snapshotCount||0)+'   snapshot docs: '+(snap.docs===undefined?'-':snap.docs)+'\n'+'snapshot cache/pending: '+(snap.fromCache===undefined?'-':snap.fromCache)+' / '+(snap.pending===undefined?'-':snap.pending)+'\n'+'refresh: '+(ref.reason||'-')+'   '+(ref.monthBefore===undefined?'-':ref.monthBefore)+'→'+(ref.monthAfter===undefined?'-':ref.monthAfter)+'\n'+'last trace: '+(last.event||'-')+'\n'+'last cache event: '+(state.lastEvent||'-')+'\n'+'log rows: '+rows().length;
       ensureButtons(box);
     }catch(e){}
   }
