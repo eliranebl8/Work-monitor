@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.03 - functions2.js.
+File version: 6.27 STABLE - centralized changelog completion and local-cache synchronization.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -1940,6 +1940,20 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
   window.isVacationDayV487=isVacation;
   window.isVacationDayV489=isVacation;
 
+  // v6.24: one shared workerDaysOff cache for vacations, locks and validators.
+  window.WM_DAYOFF_DOCS_CACHE_V624=window.WM_DAYOFF_DOCS_CACHE_V624||{workerId:'',docs:null,promise:null};
+  window.wmGetAllDayOffDocsV624=window.wmGetAllDayOffDocsV624||async function(workerId,force){
+    var c=window.WM_DAYOFF_DOCS_CACHE_V624;
+    if(c.workerId!==workerId){c.workerId=workerId;c.docs=null;c.promise=null;}
+    if(force===true){c.docs=null;c.promise=null;}
+    if(Array.isArray(c.docs))return c.docs;
+    if(c.promise)return c.promise;
+    c.promise=db.collection('workerDaysOff').where('workerId','==',workerId).get().then(function(snap){c.docs=snap.docs.map(function(doc){return Object.assign({id:doc.id},doc.data()||{});});return c.docs;}).finally(function(){c.promise=null;});
+    return c.promise;
+  };
+
+  // v6.23: one workerDaysOff read per worker/session; month navigation filters memory only.
+  var vacationDocsCacheV623={workerId:'',docs:null,promise:null};
   async function fetchVacationDaysFirestore(workerId,start,end){
     /*
       v4.88: אין יותר query עם workerId + date range.
@@ -1947,17 +1961,21 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
       לכן טוענים את ימי החופש של העובד בלבד לפי workerId, ואת סינון החודש עושים כאן בצד הלקוח.
       זה שינוי ישיר של פונקציית הליבה, לא patch חיצוני.
     */
-    var snap=await db.collection('workerDaysOff')
-      .where('workerId','==',workerId)
-      .get();
+    if(vacationDocsCacheV623.workerId!==workerId){vacationDocsCacheV623={workerId:workerId,docs:null,promise:null};}
+    if(!Array.isArray(vacationDocsCacheV623.docs)){
+      if(!vacationDocsCacheV623.promise){
+        vacationDocsCacheV623.promise=window.wmGetAllDayOffDocsV624(workerId).then(function(rows){vacationDocsCacheV623.docs=rows;return rows;}).finally(function(){vacationDocsCacheV623.promise=null;});
+      }
+      await vacationDocsCacheV623.promise;
+    }
     var days=[];
-    snap.docs.forEach(function(doc){
-      var d=doc.data()||{};
+    vacationDocsCacheV623.docs.forEach(function(d){
       var date=String(d.date||'');
       if((d.type==='vacation' || !d.type) && d.active!==false && date && date>=start && date<=end) days.push(date);
     });
     return Array.from(new Set(days.filter(Boolean))).sort();
   }
+  window.wmInvalidateVacationDaysV623=function(){vacationDocsCacheV623.docs=null;vacationDocsCacheV623.promise=null;try{var c=window.WM_DAYOFF_DOCS_CACHE_V624;if(c){c.docs=null;c.promise=null;}}catch(e){}};
 
   async function loadVacationDaysV487(){
     var workerId=selectedWorkerId();
@@ -2403,13 +2421,23 @@ CHANGE 5.13 - OFFLINE SYNC SAFE LAYER
       if(scopeKey === 'admin:all') return database.collection('workEntries');
       if(scopeKey.indexOf('worker:') === 0){
         var workerId = scopeKey.slice('worker:'.length);
-        if(workerId) return database.collection('workEntries').where('workerId','==',workerId);
+        if(workerId){
+          // v6.04 BETA: pending-write listener watches only the same 730-day working window,
+          // preventing an additional full-history snapshot on every login.
+          var cutoff=new Date(); cutoff.setHours(0,0,0,0); cutoff.setDate(cutoff.getDate()-730);
+          var cutoffStr=cutoff.getFullYear()+'-'+String(cutoff.getMonth()+1).padStart(2,'0')+'-'+String(cutoff.getDate()).padStart(2,'0');
+          return database.collection('workEntries').where('workerId','==',workerId).where('date','>=',cutoffStr);
+        }
       }
     }catch(e){ console.warn('v5.13 offline query build failed', e && e.message ? e.message : e); }
     return null;
   }
 
   function startPendingMonitorV513(){
+    // v6.23: do not open a second workEntries listener. The main cache listener is the single live source.
+    state.pendingWorkEntries=0;
+    window.updateOfflineSyncIndicatorV513();
+    return;
     var scopeKey=currentScopeKey();
     if(scopeKey === state.lastScopeKey && state.unsubscribe) return;
     state.lastScopeKey=scopeKey;
@@ -3941,10 +3969,16 @@ CHANGELOG 4.40 - דשבורד חכם: מגמת הכנסות לפי חודשים
       content.innerHTML='<p class="muted">טוען מגמת חודשים...</p>';
       var start=year+'-01-01';
       var end=year+'-12-31';
-      var snap=await db.collection('workEntries').where('workerId','==',workerId).get();
+      // v6.22: annual trend must use the already loaded two-year cache.
+      // It previously queried every work entry again on each dashboard render/refresh.
+      var cachedEntries=[];
+      try{
+        if(window.WM_DATA_CACHE_V604&&Array.isArray(window.WM_DATA_CACHE_V604.entries)) cachedEntries=window.WM_DATA_CACHE_V604.entries.slice();
+        else if(Array.isArray(window.workerAllEntriesV511)) cachedEntries=window.workerAllEntriesV511.slice();
+      }catch(_cacheErr){cachedEntries=[];}
       if(req!==monthlyTrendRequestV440) return;
       var values=new Array(12).fill(0);
-      snap.docs.map(function(d){return {id:d.id,...(d.data()||{})};})
+      cachedEntries
         .filter(function(e){return e.date>=start && e.date<=end;})
         .filter(function(e){return !isPlanned440(e);})
         .forEach(function(e){
@@ -4139,10 +4173,17 @@ CHANGELOG 4.40 - דשבורד חכם: מגמת הכנסות לפי חודשים
       var end=y+'-'+pad(m+1)+'-'+pad(last);
       text('calTitle', months[m]+' '+y);
       text('monthSub', 'חודש בתצוגה: '+months[m]+' '+y);
-      var snap=await db.collection('workEntries').where('workerId','==',viewedWorker.id).get();
-      // v5.11: שומרים את כל עבודות העובד בזיכרון כדי שמגמת 30 ימים תוכל למשוך גם מהחודש הקודם.
-      // monthEntries נשאר רק החודש הנבחר כדי לא לפגוע בכל הסיכומים והמסכים הקיימים.
-      window.workerAllEntriesV511=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      // v6.24: never open a full-history query during startup. Join the central two-year cache/listener.
+      var cacheV624=window.WM_DATA_CACHE_V604||null,rowsV624=[];
+      if(cacheV624&&cacheV624.readyPromise){try{await cacheV624.readyPromise;}catch(_e){}}
+      if(cacheV624&&Array.isArray(cacheV624.entries))rowsV624=cacheV624.entries.slice();
+      if(!rowsV624.length){
+        var cutoffV624=new Date();cutoffV624.setHours(0,0,0,0);cutoffV624.setDate(cutoffV624.getDate()-730);
+        var cutoffStrV624=cutoffV624.getFullYear()+'-'+String(cutoffV624.getMonth()+1).padStart(2,'0')+'-'+String(cutoffV624.getDate()).padStart(2,'0');
+        var snapV624=await db.collection('workEntries').where('workerId','==',viewedWorker.id).where('date','>=',cutoffStrV624).get();
+        rowsV624=snapV624.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      }
+      window.workerAllEntriesV511=rowsV624;
       monthEntries=window.workerAllEntriesV511.filter(function(e){return e.date>=start && e.date<=end;});
       renderCalendar();
       renderDay();
@@ -4504,6 +4545,33 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"6.27", title:"גרסה יציבה — תיקון מלא של מה חדש", items:["כל רשומות מה חדש מ-5.97 ועד 6.27 רוכזו במקור מרכזי אחד בקוד.","עובד רגיל אינו בודק ואינו מנסה להשלים גרסאות ב-Firestore בזמן עליית האפליקציה.","חלון מה חדש נפתח מיד מהמטמון המקומי או מרשימת ברירת המחדל שבקוד.","בעת פתיחת מה חדש נבדק מסמך סטטוס קטן; רשימת Firestore המלאה נטענת רק אם מנהל שינה את הרשימה וה-revision השתנה.","רק מנהל מחובר משלים ל-Firestore גרסאות חסרות, בלי לדרוס עריכות או גרסאות שהוסתרו דרך הממשק.","הוספה, עריכה או הסתרה דרך ממשק המנהל מעדכנות revision ומרעננות את המטמון המקומי."], date:d},
+      {version:"6.26-beta", title:"תיקון נתיב הכניסה האמיתי והסרת GET כפול", items:["תוקנה פונקציית loadMonth המקורית שמופעלת בפועל מתוך showWorker בזמן הכניסה.","הוסרה ממנה שאילתת workEntries מלאה לפי workerId שהכפילה את קריאות הפתיחה.","הפונקציה ממתינה למטמון השנתיים של ה-listener המרכזי וקוראת ממנו בלבד.","מעבר חודשים נשאר מהזיכרון וחיפוש היסטוריה מלא נשאר רק בפעולת חיפוש מפורשת."], date:d},
+      {version:"6.25-beta", title:"הסרת הקריאה האחרונה המיותרת בכניסה", items:["נתיב טעינת החודש הישן אינו מבצע יותר שאילתת workEntries מלאה בזמן הכניסה.","ה-listener היחיד של מטמון השנתיים הוא מקור האמת לעדכונים חיים ממכשירים אחרים.","מעבר בין חודשים ממשיך לעבוד מהזיכרון ללא קריאות Firestore נוספות.","חיפוש מפורש ללא טווח תאריכים ממשיך לטעון היסטוריה מלאה לפי דרישת המשתמש."], date:d},
+      {version:"6.24-beta", title:"סגירת קריאות Firebase המיותרות", items:["settings/main נטען דרך Promise משותף אחד ושכבת שחזור הסיסמה אינה מבצעת קריאה נוספת.","ימי חופש ונעילות משתמשים באותו מטמון workerDaysOff משותף.","מעבר בין חודשים וחזרה להיום מסננים נתונים בזיכרון.","טעינת הפתיחה אינה מבצעת שאילתת workEntries מלאה במקביל ל-listener המרכזי."], date:d},
+      {version:"6.23-beta", title:"טעינה יחידה של מקורות Firestore קבועים", items:["ימי חופש נטענים פעם אחת לעובד ומעבר חודש מתבצע מהזיכרון.","הוסר listener כפול של workEntries ונשאר listener מרכזי אחד.","settings/main, מחירון ותבניות חולקים מטמון ו-Promise יחיד.","חיפוש ללא טווח תאריכים נשאר חיפוש מלא לפי דרישת המשתמש."], date:d},
+      {version:"6.22-beta", title:"צמצום קריאות Firestore כפולות", items:["מגמת ההכנסות השנתית בדשבורד משתמשת במטמון השנתיים.","מחירון ותבניות התקנה נטענים פעם אחת לעובד.","ימי חופש נטענים פעם אחת ומסוננים בזיכרון.","קריאות loadMonth חופפות מאוחדות."], date:d},
+      {version:"6.21-beta", title:"תיקון חיבור חלון בדיקת Firebase", items:["חלון ה-Audit חובר למופעי db ו-auth האמיתיים.","קריאות, מאזינים, כתיבות, מחיקות ו-Auth נלכדים ישירות.","נוספה בדיקת חיבור ברורה בתחילת כל Audit.","לא שונתה לוגיקת הנתונים או השמירה."], date:d},
+      {version:"6.20-beta", title:"חלון בדיקת Firebase מלא", items:["נוסף חלון דיבאג באמצעות firebaseDebug=1.","הלוג מציג קריאות, מאזינים, כתיבות, מחיקות ומקור Cache/Server.","נוספו כפתורי העתקה, ניקוי, מזעור וסגירה.","נתוני הדיבאג נשמרים מקומית בלבד."], date:d},
+      {version:"6.19-beta", title:"הכנת בדיקת קריאות Firebase", items:["נוספה תשתית בדיקה ייעודית למעקב אחר פעולות Firebase לפני שלב האופטימיזציה.","הבדיקה נועדה לזהות טעינות כפולות וקריאות מיותרות בלי לשנות את נתוני העבודה.","לא בוצע שינוי בלוגיקת השמירה, החיפוש או הסנכרון."], date:d},
+      {version:"6.18-beta", title:"יומן ביקורת מלא לפניות Firestore", items:["נוסף Audit מדויק לכל קריאה, מאזין, כתיבה ומחיקה שהאפליקציה מבצעת מול Firestore בזמן בדיקות.","כל אירוע מציג אוסף או מסמך, תנאי where, מיון, טווחים, limit, מספר מסמכים שהתקבלו, מקור Cache/Server, כתיבות ממתינות וזמן ביצוע.","נוספו מוני Estimated Reads, Writes ו-Deletes וכן סיכום לפי אוסף כדי לבדוק שמעברי חודש רגילים משתמשים במטמון ורק פעולות שדורשות שרת פונות ל-Firestore.","כפתור העתקת כל הלוג הקיים נשאר פעיל והלוג המועתק כולל גם את כל אירועי FIRESTORE_AUDIT."], date:d},
+      {version:"6.17-beta", title:"אתחול מטמון חד-פעמי ותיקון התרוקנות החודש בשמירה הראשונה", items:["תוקן שורש התקלה שבו מצב המטמון נשאר לא מוכן לאחר סיום הטעינה ולכן מנגנון הניסיון החוזר הפעיל שוב ושוב את loadMonth.","המטמון מאותחל כעת פעם אחת בלבד לכל עובד; לאחר הצלחה הוא מסומן READY והניסיון החוזר נעצר לחלוטין.","נחסמו אתחולים חופפים וטעינות חודש כפולות שעלולות היו לאפס זמנית את monthEntries ולהשאיר רק את הקריאה החדשה בשמירה הראשונה.","חלון cacheDebug=1, כפתור העתקת כל הלוג וכפתור ניקוי הלוג נשארו פעילים, ונוספו אירועי READY, עצירת Retry והתראות שלמות חודש עם Stack מקוצר."], date:d},
+      {version:"6.16-beta", title:"מעקב אתחול מלא, תיקון הפעלת המטמון וכפתור העתקת לוג", items:["נוסף Trace מלא שמציג את סדר האתחול: פתיחת הדף, זיהוי העובד, הפעלת המטמון, חיבור המאזין, קבלת Snapshot, מעבר חודש ושמירה ראשונה.","תוקן מצב שבו מנגנון המטמון עלה לפני שמזהה העובד היה זמין ולא הופעל מחדש; המערכת מנסה להפעיל אותו שוב מיד לאחר זיהוי העובד ובחזרה לאפליקציה.","חלון cacheDebug=1 כולל כפתור העתקת לוג מלא וכפתור ניקוי, ללא צורך בפתיחת הקונסולה.","הלוג כולל זמני אירועים, מזהה עובד, חודש מוצג, כמות מסמכים במטמון ובחודש וסיבת כל רענון, ואינו כותב דבר ל-Firestore."], date:d},
+      {version:"6.15-beta", title:"תיקון היעלמות הלוח בשמירה הראשונה וכלי אבחון מורחב", items:["תוקן מצב שבו תמונת מצב ראשונה עם כתיבה מקומית ממתינה החליפה בטעות את כל מטמון השנתיים ברשומה החדשה בלבד.","תמונת מצב עם fromCache או hasPendingWrites מתמזגת כעת לפי מזהה מסמך ואינה רשאית למחוק את שאר החודש.","רק תמונת מצב מאושרת מהשרת ללא כתיבות ממתינות רשאית להחליף את המטמון המלא.","חלון cacheDebug=1 מציג כעת את פרטי תמונת המצב האחרונה, מספר הרשומות לפני ואחרי הרענון, מספר רשומות החודש וסיבת הרענון."], date:d},
+      {version:"6.11-beta", title:"דוח התחשבנות חודשי מהמטמון והשלמת מה חדש", items:["דוח התחשבנות לחודש שנמצא בתוך טווח 730 הימים נטען ישירות ממטמון השנתיים ללא קריאה חוזרת של workEntries.","בחירת חודש ישן יותר מהטווח שולחת ל-Firestore שאילתה ממוקדת רק לחודש המבוקש ושומרת אותו במטמון החודשים ההיסטוריים.","מסמך ההתחשבנות החודשי עצמו ממשיך להיקרא ממסמך יחיד תחת workers/{workerId}/monthlySettlements/{YYYY-MM}.","הושלמו במקור הקבוע של מה חדש הרשומות 6.08-beta, 6.09-beta, 6.10-beta ו-6.11-beta כדי שיוזרמו ל-Firestore ולא ייעצרו ב-6.07."], date:d},
+      {version:"6.10-beta", title:"רענון מרכזי מהמטמון ותיקון מחיקת סידור עתידי", items:["נוסף מנגנון רענון מרכזי שמצייר מחדש את החודש, היום, הלוח, הסטטיסטיקות והדשבורד ישירות ממטמון השנתיים ללא קריאה חוזרת של workEntries.","מחיקת עבודה רגילה או מתוזמנת מסירה את הרשומה מכל מאגרי המטמון ומעדכנת מיד את המסך לאחר אישור המחיקה ב-Firestore.","נוסף חיווי הצלחה ברור לאחר מחיקה ללא צורך ברענון הדפדפן.","המנגנון המרכזי זמין גם לפעולות שמירה, עריכה ומחיקה עתידיות."], date:d},
+      {version:"6.09-beta", title:"תיקון ניתוב כפתורי השמירה בבטא", items:["תוקן מצב שבו סידור עתידי נכתב ל-Firestore אך המטמון והמסך לא התעדכנו.","ארבעת כפתורי השמירה מנותבים ישירות למנגנון השמירה שמעדכן את מטמון השנתיים.","לאחר שמירה מתקבל חיווי אישור והרשומה מוצגת מיד ביום הנבחר.","נמנעת הפעלה כפולה של מסלול השמירה הישן."], date:d},
+      {version:"6.08-beta", title:"הצגה מיידית לאחר שמירת עבודה", items:["קריאת שירות, התקנה וסידור עתידי מתווספים מיד למטמון לאחר השמירה.","היום הנבחר, לוח השנה, הסטטיסטיקות והדשבורד מתרעננים ללא טעינה מלאה של workEntries.","מוצגת הודעת אישור ברורה והטופס מתאפס כמו בגרסה היציבה.","מזהה מסמך קבוע מונע כפילויות לאחר סנכרון Firestore."], date:d},
+      {version:"6.07-beta", title:"תיקון הצגת ימי חופש במעבר בין חודשים בבטא", items:["תוקן מצב שבו מעבר לחודש קודם או הבא מתוך מטמון השנתיים לא טען את ימי החופש של החודש הנבחר.","לאחר כל מעבר חודש נטענים מ-workerDaysOff גם ימי החופש וגם נעילות הימים של חודש היעד לפני ציור הלוח והדשבורד.","עבודות החודש ממשיכות להגיע מהזיכרון בלבד ואינן נטענות מחדש מ-Firestore.","חישובי ימי החופש, ימי העבודה שנותרו והיעד היומי מתעדכנים לפי החודש שמוצג."], date:d},
+      {version:"6.06-beta", title:"תיקון הצגת ימים נעולים במעבר בין חודשים בבטא", items:["תוקן מצב שבו מעבר לחודש אחר מתוך מטמון השנתיים הציג ימים שנשמרו כנעולים כאילו הם פתוחים.","לאחר מעבר חודש נטענות נעילות החודש הנבחר ולוח השנה והיום הנבחר מצוירים מחדש.","עבודות החודש ממשיכות להיטען מהזיכרון בלבד.","לא שונו שמירת נעילה, החיפוש או השלמת הכתובת."], date:d},
+      {version:"6.05-beta", title:"בטא: השלמת כתובת רק מזיכרון השנתיים", items:["בעת הקלדת מספר לקוח, בדיקת הלקוח והשלמת הכתובת משתמשות רק במערך 730 הימים שכבר נטען לזיכרון.","הקלדת מספר לקוח אינה שולחת עוד שאילתת Firestore נפרדת ואינה מחפשת מעבר לשנתיים.","לקוחות ישנים יותר ממשיכים להופיע רק במסך החיפוש המלא, שממשיך לחפש בכל ההיסטוריה.","נשמרו התראות 30 הימים, פק״עות מתוזמנות ופק״עות שלא בוצעו על בסיס הנתונים הקיימים בזיכרון."], date:d},
+      {version:"6.04-beta", title:"בטא: טעינה אחת של שנתיים ועבודה מהזיכרון", items:["בכניסה לעובד נטענות מ-Firestore רק העבודות מ-730 הימים האחרונים ונשמרות במערך זיכרון מרכזי.","מעבר בין חודשים וימים, רינדור לוח השנה, דשבורד וסטטיסטיקות עובדים מהזיכרון ללא טעינה מלאה חוזרת.","מאזין ממוקד מעדכן את הזיכרון לאחר שמירה, עריכה או מחיקה ומחזיר למסכים את הנתונים המעודכנים.","שדה החיפוש ממשיך לחפש בכל היסטוריית העובד, גם מעבר לשנתיים.","לחיצה על תוצאת חיפוש ישנה טוענת לפי דרישה רק את חודש היעד כדי לפתוח את הפק״ע המדויקת.","נוסף Debug אופציונלי באמצעות הפרמטר cacheDebug=1 לבדיקת טעינות, עדכוני זיכרון וחודשים היסטוריים."], date:d},
+      {version:"6.03", title:"בחירת יום אופציונלית בקפיצה ללוח השנה", items:["נוסף שדה יום אופציונלי באותו חלון של בחירת חודש ושנה.","רשימת הימים מתעדכנת לפי החודש והשנה ומציגה רק ימים שקיימים בפועל.","ללא בחירת יום המערכת עוברת לחודש בלבד; עם בחירת יום היא פותחת את היום המדויק.","בבחירת שבת מופעלת לוגיקת המעבר ליום ראשון הקרוב."], date:d},
+      {version:"6.02", title:"קפיצה ישירה לחודש ושנה בלוח השנה", items:["נוסף אייקון לוח שנה קטן ליד כותרת החודש והשנה.","נוסף חלון לבחירת חודש ושנה וכפתור היום לחזרה לתאריך הנוכחי.","חיצי החודשים הקיימים נשארו ללא שינוי."], date:d},
+      {version:"6.01", title:"פיצול functions.js לשני קבצים", items:["קובץ JavaScript הגדול פוצל ל-functions1.js ול-functions2.js לפי גבול קוד תקין.","index.html טוען את functions1.js לפני functions2.js.","APP_VERSION נשאר מקור גרסה יחיד ב-functions1.js וכל פיתוח חדש מרוכז ב-functions2.js."], date:d},
+      {version:"6.00", title:"גלילה חכמה בין רשימת העבודות לעמוד", items:["כאשר רשימת העבודות מגיעה לקצה העליון או התחתון, המשך הגלילה עובר באופן טבעי לעמוד.","באמצע הרשימה הגלילה נשארת בתוך אזור העבודות.","נשמרה הגלילה המדויקת לפק״ע בעת ניווט."], date:d},
+      {version:"5.99", title:"מרכוז מדויק של פק״ע בניווט", items:["הניווט גולל תחילה את העמוד לאזור עבודות היום.","לאחר מכן מתבצעת גלילה פנימית לכרטיס המדויק ומרכוזו במסך.","הפק״ע מודגשת זמנית לאחר ההגעה."], date:d},
+      {version:"5.98", title:"רשימת עבודות נגללת וניווט אחיד", items:["אזור עבודות היום הפך לרשימה פנימית גדולה ונגללת.","חיפוש, דשבורד ורשימות מתוזמנות משתמשים במנגנון ניווט אחיד לחודש, ליום ולפק״ע.","נשמרה הדגשה זמנית של הרשומה שנפתחה."], date:d},
       {version:"5.97", title:"חיפוש כתובת חכם עם תוצאות קרובות", items:["התוצאות המדויקות נשארות בראש החיפוש ללא שינוי.","מתחתיהן מוצגות תוצאות קרובות בחלונות גלילה נפרדים לפי שם הרחוב ולפי שם העיר.","מספר הבית מוסר רק לצורך החיפוש הקרוב, והכותרת מציגה את הביטוי שנמצא ואת מספר התוצאות.","אין כפילויות בין התוצאות המדויקות, קבוצת הרחוב וקבוצת העיר.","כל תוצאה קרובה ניתנת ללחיצה ומנווטת לחודש, ליום ולפק״ע המדויקת.","החיפוש משתמש בנתונים שכבר נטענו ואינו מוסיף שאילתות Firebase נוספות."], date:d},
       {version:"5.96", title:"תיקון פתיחת פק״ע מתוצאת חיפוש בחודש אחר", items:["לחיצה על תוצאת חיפוש מחודש אחר מעבירה תחילה את לוח השנה לחודש המתאים.","המערכת ממתינה לטעינת נתוני החודש מ-Firestore ורק לאחר מכן פותחת את היום.","הפק״ע המדויקת מוצגת, נגללת למרכז המסך ומודגשת זמנית.","תוקן מצב שבו הכותרת הציגה את התאריך הנכון אך היום נראה ריק בגלל שנתוני החודש הקודם נשארו בזיכרון."], date:d},
       {version:"5.95", title:"ניווט מפירוט תוצאות החיפוש לפק״ע המדויקת", items:["כל כרטיס בחלק פירוט תוצאות של החיפוש ניתן ללחיצה.","לחיצה עוברת ליום של הרשומה, פותחת את פאנל היום, גוללת לפק״ע לפי ה-ID ומדגישה אותה זמנית.","הכרטיסים נגישים גם באמצעות Enter או רווח.","השינוי משתמש במנגנון הניווט הקיים ואינו משנה את החיפוש או שמירת הנתונים."], date:d},
@@ -4817,64 +4885,128 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
       ]}
     ].map(function(x,i){ return row(docId(x.version),Object.assign({active:true,order:(i+1)*10},x),'required-default-v4-94',i); });
   }
-  async function firebaseRows(){
+  /*
+    VERSION 6.27 STABLE - CHANGELOG SYNC CORE
+    - Workers never seed or write changelog rows.
+    - Normal app startup never reads the full appChangelog collection.
+    - The local cache is displayed immediately.
+    - A small status document is checked only when the user opens "What's New".
+    - Only an authenticated admin loads the full collection and seeds missing rows.
+    - Existing/admin-edited/hidden rows are never overwritten by the seed process.
+  */
+  var CHANGELOG_CACHE_KEY_V627='wm_changelog_cache_v627';
+  var CHANGELOG_META_KEY_V627='wm_changelog_meta_v627';
+  var CHANGELOG_STATUS_PATH_V627='settings/changelogStatus';
+  var changelogCacheV623={rows:null,promise:null,seedAttempted:false,statusPromise:null};
+
+  function isAdminV627(){try{return !!(session&&session.role==='admin');}catch(e){return false;}}
+  function versionSequenceV627(v){
+    var cleanV=String(v||'').replace(/^v/i,'').replace(/-.*$/,'');
+    var parts=cleanV.split('.');
+    var major=parseInt(parts[0],10)||0, minor=parseInt(parts[1],10)||0;
+    return major*100+minor;
+  }
+  function latestRequiredV627(){
+    var rows=requiredChangelogRows();
+    return rows.slice().sort(function(a,b){return versionSequenceV627(b.version)-versionSequenceV627(a.version);})[0]||null;
+  }
+  function readLocalRowsV627(){
     try{
+      var raw=localStorage.getItem(CHANGELOG_CACHE_KEY_V627);
+      var parsed=raw?JSON.parse(raw):null;
+      if(Array.isArray(parsed)&&parsed.length)return parsed.map(function(r,i){return row(r.id||docId(r.version),r,'local-cache-v6-27',i);});
+    }catch(e){}
+    return null;
+  }
+  function readLocalMetaV627(){try{return JSON.parse(localStorage.getItem(CHANGELOG_META_KEY_V627)||'{}')||{};}catch(e){return {};}}
+  function writeLocalRowsV627(rows,meta){
+    try{
+      localStorage.setItem(CHANGELOG_CACHE_KEY_V627,JSON.stringify((rows||[]).map(function(r){return {id:r.id||docId(r.version),version:r.version,title:r.title,date:r.date,items:r.items||[],active:r.active!==false,order:r.order||0};})));
+      localStorage.setItem(CHANGELOG_META_KEY_V627,JSON.stringify(Object.assign({savedAt:Date.now()},meta||{})));
+    }catch(e){}
+  }
+  function localDisplayRowsV627(includeInactive){
+    var rows=readLocalRowsV627()||requiredChangelogRows();
+    return sortRows(rows.filter(function(r){return (includeInactive||r.active!==false)&&!!(r.version||r.title||(r.items&&r.items.length));}));
+  }
+  async function firebaseRows(force){
+    if(force===true){changelogCacheV623.rows=null;changelogCacheV623.promise=null;}
+    if(Array.isArray(changelogCacheV623.rows))return changelogCacheV623.rows.slice();
+    if(changelogCacheV623.promise)return changelogCacheV623.promise;
+    changelogCacheV623.promise=(async function(){try{
       var snap=await db.collection(COLLECTION).get();
-      return snap.docs.map(function(d,i){ return row(d.id,d.data(),'firebase',i); });
-    }catch(e){
-      console.warn('v4.94 changelog read failed', e && e.message ? e.message : e);
-      return null;
-    }
+      changelogCacheV623.rows=snap.docs.map(function(d,i){return row(d.id,d.data(),'firebase',i);});
+      return changelogCacheV623.rows.slice();
+    }catch(e){console.warn('v6.27 changelog read failed',e&&e.message?e.message:e);return null;}})().finally(function(){changelogCacheV623.promise=null;});
+    return changelogCacheV623.promise;
+  }
+  async function readStatusV627(){
+    if(changelogCacheV623.statusPromise)return changelogCacheV623.statusPromise;
+    changelogCacheV623.statusPromise=(async function(){try{
+      var snap=await db.doc(CHANGELOG_STATUS_PATH_V627).get();
+      return snap.exists?(snap.data()||{}):null;
+    }catch(e){return null;}})().finally(function(){changelogCacheV623.statusPromise=null;});
+    return changelogCacheV623.statusPromise;
+  }
+  async function updateStatusV627(options){
+    options=options||{};
+    var latest=latestRequiredV627();
+    var data={latestSequence:latest?versionSequenceV627(latest.version):0,latestVersion:latest?latest.version:'',updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+    if(options.incrementRevision)data.revision=firebase.firestore.FieldValue.increment(1);
+    else if(typeof options.revision==='number')data.revision=options.revision;
+    await db.doc(CHANGELOG_STATUS_PATH_V627).set(data,{merge:true});
   }
   async function seedMissingRows(existingRows){
-    /*
-      v4.94 CORE FIX:
-      מוסיף ל-Firebase רק רשומות חסרות. לא מוחק, לא משנה ולא דורס גרסאות קיימות שהאדמין ערך.
-      זה פותר מצב שבו Firebase נשאר תקוע עד v4.82 למרות שהקובץ כבר בגרסאות גבוהות יותר.
-    */
+    if(!isAdminV627())return Array.isArray(existingRows)?existingRows:[];
     var existing=Array.isArray(existingRows)?existingRows:[];
-    var existingMap={};
-    existing.forEach(function(r){ existingMap[docId(r.version||r.id)] = true; });
-    var missing=requiredChangelogRows().filter(function(r){ return !existingMap[docId(r.version||r.id)]; });
-    if(!missing.length) return existing;
-    var batch=db.batch();
-    missing.forEach(function(r,i){
-      batch.set(db.collection(COLLECTION).doc(docId(r.version)),{
-        version:r.version,
-        title:r.title,
-        date:r.date,
-        items:r.items||[],
-        active:true,
-        order:Number(r.order||((i+1)*10)),
-        source:'firebase-missing-seed-v4-94',
-        seedVersion:APP_VERSION,
-        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-      },{merge:false});
-    });
-    await batch.commit();
-    return await firebaseRows() || existing.concat(missing);
+    var existingMap={};existing.forEach(function(r){existingMap[docId(r.version||r.id)]=true;});
+    var missing=requiredChangelogRows().filter(function(r){return !existingMap[docId(r.version||r.id)];});
+    if(missing.length){
+      var batch=db.batch();
+      missing.forEach(function(r,i){batch.set(db.collection(COLLECTION).doc(docId(r.version)),{version:r.version,title:r.title,date:r.date,items:r.items||[],active:true,order:Number(r.order||((i+1)*10)),source:'admin-missing-seed-v6-27',seedVersion:APP_VERSION,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:false});});
+      await batch.commit();
+      await updateStatusV627({incrementRevision:true});
+      var refreshed=await firebaseRows(true)||existing.concat(missing);
+      writeLocalRowsV627(refreshed,{revision:(readLocalMetaV627().revision||0)+1,latestVersion:APP_VERSION});
+      return refreshed;
+    }
+    var status=await readStatusV627();
+    if(!status){await updateStatusV627({revision:1});}
+    writeLocalRowsV627(existing,{revision:Number(status&&status.revision||1),latestVersion:String(status&&status.latestVersion||APP_VERSION)});
+    return existing;
   }
   async function fetchChangelog(includeInactive){
+    if(!isAdminV627())return localDisplayRowsV627(includeInactive);
     var fb=await firebaseRows();
-    if(Array.isArray(fb)){
-      try{ fb=await seedMissingRows(fb); }
-      catch(e){
-        /*
-          v4.94 SAFE FALLBACK:
-          לעובד רגיל אין תמיד הרשאת כתיבה ל-appChangelog. אם השלמת החסר נכשלה,
-          עדיין ממזגים את ברירות המחדל לתצוגה כדי שהעובד לא יישאר תקוע על v4.82.
-          בפעם הבאה שאדמין ייכנס, הרשומות החסרות יישמרו בפועל ב-Firebase.
-        */
-        console.warn('v4.94 changelog seed failed; using display fallback', e && e.message ? e.message : e);
-        var map={};
-        fb.forEach(function(r){ map[docId(r.version||r.id)] = r; });
-        requiredChangelogRows().forEach(function(r){ if(!map[docId(r.version)]) fb.push(r); });
-      }
-      return sortRows(fb.filter(function(r){ return (includeInactive||r.active!==false) && !!(r.version||r.title||(r.items&&r.items.length)); }));
+    if(!Array.isArray(fb))return localDisplayRowsV627(includeInactive);
+    if(!changelogCacheV623.seedAttempted){
+      changelogCacheV623.seedAttempted=true;
+      try{fb=await seedMissingRows(fb);changelogCacheV623.rows=fb.slice();}catch(e){console.warn('v6.27 admin changelog completion failed',e&&e.message?e.message:e);}
     }
-    return sortRows(requiredChangelogRows().filter(function(r){ return includeInactive || r.active!==false; }));
+    writeLocalRowsV627(fb,{revision:Number((await readStatusV627()||{}).revision||1),latestVersion:APP_VERSION});
+    return sortRows(fb.filter(function(r){return (includeInactive||r.active!==false)&&!!(r.version||r.title||(r.items&&r.items.length));}));
   }
+  async function syncWorkerChangelogV627(){
+    if(isAdminV627())return fetchChangelog(false);
+    var status=await readStatusV627();
+    if(!status)return localDisplayRowsV627(false);
+    var meta=readLocalMetaV627();
+    if(Number(meta.revision||0)===Number(status.revision||0)&&readLocalRowsV627())return localDisplayRowsV627(false);
+    var fb=await firebaseRows(true);
+    if(Array.isArray(fb)){
+      writeLocalRowsV627(fb,{revision:Number(status.revision||0),latestVersion:String(status.latestVersion||'')});
+      return sortRows(fb.filter(function(r){return r.active!==false;}));
+    }
+    return localDisplayRowsV627(false);
+  }
+  window.syncWorkerChangelogV627=syncWorkerChangelogV627;
+  window.markChangelogChangedV627=async function(){
+    if(!isAdminV627())return;
+    await updateStatusV627({incrementRevision:true});
+    changelogCacheV623.rows=null;
+    var fb=await firebaseRows(true);
+    if(Array.isArray(fb))writeLocalRowsV627(fb,{revision:Number(readLocalMetaV627().revision||0)+1,latestVersion:APP_VERSION});
+  };
   window.fetchGlobalChangelogV476 = fetchChangelog;
   window.fetchGlobalChangelogV477 = fetchChangelog;
   window.fetchChangelogV475 = fetchChangelog;
@@ -4935,13 +5067,14 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
     try{
       var id=(editId&&editId.indexOf('v_')===0)?editId:docId(version);
       await db.collection(COLLECTION).doc(id).set({version:version,title:title,date:date,items:items,active:true,source:'admin-crud-v4-94',pageVersion:APP_VERSION,updatedAt:firebase.firestore.FieldValue.serverTimestamp(),createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+      if(typeof window.markChangelogChangedV627==='function') await window.markChangelogChangedV627();
       if(msg) msg.innerHTML='<div class="notice">הגרסה נשמרה לכל העובדים ✅</div>';
       window.resetChangelogFormV475(); await window.loadAdminChangelogV475();
     }catch(e){ if(msg) msg.innerHTML='<p class="danger">שגיאה בשמירה: '+esc(e.message||e)+'</p>'; }
   };
-  window.deleteChangelogVersionV475=async function(id){ if(!confirm('למחוק את הגרסה מהחלון "מה חדש" לכל העובדים?')) return; try{ var rows=await fetchChangelog(true); var r=rows.find(function(x){return x.id===id;})||rows.find(function(x){return docId(x.version)===id;}); var did=(r&&r.version)?docId(r.version):id; await db.collection(COLLECTION).doc(did).set({version:r&&r.version?r.version:'',title:r&&r.title?r.title:'',date:r&&r.date?r.date:'',items:r&&r.items?r.items:[],active:false,source:'admin-deleted-v4-94',deletedAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true}); await window.loadAdminChangelogV475(); }catch(e){ alert('שגיאה במחיקת גרסה: '+(e.message||e)); } };
+  window.deleteChangelogVersionV475=async function(id){ if(!confirm('למחוק את הגרסה מהחלון "מה חדש" לכל העובדים?')) return; try{ var rows=await fetchChangelog(true); var r=rows.find(function(x){return x.id===id;})||rows.find(function(x){return docId(x.version)===id;}); var did=(r&&r.version)?docId(r.version):id; await db.collection(COLLECTION).doc(did).set({version:r&&r.version?r.version:'',title:r&&r.title?r.title:'',date:r&&r.date?r.date:'',items:r&&r.items?r.items:[],active:false,source:'admin-hidden-v6-27',deletedAt:new Date().toISOString(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true}); if(typeof window.markChangelogChangedV627==='function') await window.markChangelogChangedV627(); await window.loadAdminChangelogV475(); }catch(e){ alert('שגיאה במחיקת גרסה: '+(e.message||e)); } };
   function whatsHtml(rows){return (rows||[]).map(function(v){return '<div class="whats-new-version-v474"><div class="whats-new-version-head-v474"><div><div class="whats-new-version-title-v474">'+esc(v.title)+'</div><div class="whats-new-date-v474">'+esc(v.date||'')+'</div></div><div class="whats-new-ver-v474">v'+esc(v.version)+'</div></div><ul class="whats-new-list-v474">'+(v.items||[]).map(function(i){return '<li>'+esc(i)+'</li>';}).join('')+'</ul></div>';}).join('');}
-  window.openWhatsNewV474=async function(){ ensureCss(); var old=q('whatsNewOverlayV474'); if(old) old.remove(); var overlay=document.createElement('div'); overlay.id='whatsNewOverlayV474'; overlay.className='whats-new-overlay-v474'; overlay.innerHTML='<div class="whats-new-card-v474" role="dialog" aria-modal="true"><div class="whats-new-head-v474"><div class="whats-new-title-v474">✨ מה חדש באפליקציה</div><button class="whats-new-close-v474" type="button" id="whatsNewCloseV474">×</button></div><div class="whats-new-body-v474" id="whatsNewBodyV474"><p class="muted">טוען גרסאות...</p></div><div class="whats-new-footer-v474">מעודכן לגרסה '+esc(window.APP_VERSION||APP_VERSION||'')+'</div></div>'; try{document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden';}catch(e){} document.body.appendChild(overlay); var body=overlay.querySelector('#whatsNewBodyV474'); function close(){try{overlay.remove();}catch(e){} try{document.documentElement.style.overflow='';document.body.style.overflow='';}catch(e){}} overlay.querySelector('#whatsNewCloseV474').onclick=close; overlay.addEventListener('click',function(ev){if(ev.target===overlay)close();}); try{body.innerHTML=whatsHtml(await fetchChangelog(false));}catch(e){body.innerHTML=whatsHtml(requiredChangelogRows());} };
+  window.openWhatsNewV474=async function(){ ensureCss(); var old=q('whatsNewOverlayV474'); if(old) old.remove(); var overlay=document.createElement('div'); overlay.id='whatsNewOverlayV474'; overlay.className='whats-new-overlay-v474'; overlay.innerHTML='<div class="whats-new-card-v474" role="dialog" aria-modal="true"><div class="whats-new-head-v474"><div class="whats-new-title-v474">✨ מה חדש באפליקציה</div><button class="whats-new-close-v474" type="button" id="whatsNewCloseV474">×</button></div><div class="whats-new-body-v474" id="whatsNewBodyV474"></div><div class="whats-new-footer-v474">מעודכן לגרסה '+esc(window.APP_VERSION||APP_VERSION||'')+'</div></div>'; try{document.documentElement.style.overflow='hidden';document.body.style.overflow='hidden';}catch(e){} document.body.appendChild(overlay); var body=overlay.querySelector('#whatsNewBodyV474'); function close(){try{overlay.remove();}catch(e){} try{document.documentElement.style.overflow='';document.body.style.overflow='';}catch(e){}} overlay.querySelector('#whatsNewCloseV474').onclick=close; overlay.addEventListener('click',function(ev){if(ev.target===overlay)close();}); body.innerHTML=whatsHtml(await fetchChangelog(false)); try{var synced=await syncWorkerChangelogV627();if(document.body.contains(overlay))body.innerHTML=whatsHtml(synced);}catch(e){} };
   function ensureWorkerLink(){ ensureCss(); var worker=q('workerView'); if(!worker) return; var shell=q('workerBottomLinksV474'); if(!shell){ shell=document.createElement('div'); shell.id='workerBottomLinksV474'; shell.className='worker-bottom-links-v474'; worker.appendChild(shell); } var old=q('whatsNewLinkV474'); if(old&&old.tagName&&old.tagName.toLowerCase()!=='a'){try{old.remove();}catch(e){}} if(!q('whatsNewLinkV474')){ var link=document.createElement('a'); link.id='whatsNewLinkV474'; link.href='#'; link.className='whats-new-link-v474 whats-new-link-v475'; link.textContent='מה חדש'; link.onclick=function(ev){ev.preventDefault(); window.openWhatsNewV474();}; shell.appendChild(link); }else{ q('whatsNewLinkV474').onclick=function(ev){if(ev&&ev.preventDefault)ev.preventDefault(); window.openWhatsNewV474();}; } var bug=q('bugContactLinkV220'); if(bug&&bug.parentNode!==shell){try{shell.insertBefore(bug,q('whatsNewLinkV474'));}catch(e){}} }
   window.ensureWhatsNewLinkV474=ensureWorkerLink;
   window.ensureWorkerLinksV475=ensureWorkerLink;
@@ -6917,10 +7050,10 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
       // המתנה קצרה מונעת קריאת Firestore מוקדמת שנכשלת ואז מציגה בטעות יום פתוח.
       var authUser=await waitForLockAuthV588(5500);
       window.dayLockDebugV590&&window.dayLockDebugV590('LOAD_LOCKS_AUTH_READY',authUser?{uid:authUser.uid,email:authUser.email||''}:null);
-      var snap=await db.collection('workerDaysOff').where('workerId','==',workerId).get();
-      window.dayLockDebugV590&&window.dayLockDebugV590('LOAD_LOCKS_QUERY_RESULT',{workerId:workerId,size:snap.size,docs:snap.docs.map(function(d){var x=d.data()||{};return{id:d.id,date:x.date||'',locked:x.locked,active:x.active,type:x.type||'',workerId:x.workerId||'',authUid:x.authUid||''};})});
-      snap.docs.forEach(function(doc){
-        var data=doc.data()||{},date=String(data.date||'');
+      var lockDocs=await window.wmGetAllDayOffDocsV624(workerId);
+      window.dayLockDebugV590&&window.dayLockDebugV590('LOAD_LOCKS_QUERY_RESULT',{workerId:workerId,size:lockDocs.length,docs:lockDocs.map(function(x){return{id:x.id,date:x.date||'',locked:x.locked,active:x.active,type:x.type||'',workerId:x.workerId||'',authUid:x.authUid||''};})});
+      lockDocs.forEach(function(data){
+        var date=String(data.date||'');
         if(data.locked===true && date>=range.start && date<=range.end) next.add(date);
       });
       lockedDays=next; loadedWorkerId=workerId;
@@ -7771,4 +7904,2021 @@ CHANGELOG 5.99 - תיקון ניווט דו-שלבי לפק״ע בתוך חלו�
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(bootV602,460);});
   else setTimeout(bootV602,140);
   window.addEventListener('load',function(){setTimeout(bootV602,800);});
+})();
+
+
+/*
+===============================================================================
+VERSION 6.04 BETA - TWO-YEAR MEMORY DATA MANAGER
+-------------------------------------------------------------------------------
+1. Initial worker load subscribes once to the last 730 days only.
+2. Month/day changes render from the in-memory cache without new full reads.
+3. Firestore snapshot changes keep the cache synchronized after writes/edits/deletes.
+4. Search remains full-history using the existing dedicated search query.
+5. Opening a search result older than 730 days loads only its target month on demand.
+6. Optional diagnostics: add ?audit=1 to the URL.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  var state=window.WM_DATA_CACHE_V604=window.WM_DATA_CACHE_V604||{
+    workerId:'', cutoff:'', entries:[], unsubscribe:null, readyPromise:null,
+    historicalMonths:Object.create(null), snapshotCount:0, historicalLoads:0,
+    lastEvent:'not-started', initialDocs:0
+  };
+
+  function pad2(n){return String(n).padStart(2,'0');}
+  function dateStr(d){return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
+  function cutoff730(){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-730);return dateStr(d);}
+  function monthKey(d){return d.getFullYear()+'-'+pad2(d.getMonth()+1);}
+  function activeWorkerId(){try{return viewedWorker&&viewedWorker.id?String(viewedWorker.id):'';}catch(e){return '';}}
+  function isDebug(){try{return new URLSearchParams(location.search).get('cacheDebug')==='1';}catch(e){return false;}}
+  function debug(msg,extra){
+    state.lastEvent=msg;
+    if(extra!==undefined) console.log('[WM 6.04 BETA CACHE]',msg,extra); else console.log('[WM 6.04 BETA CACHE]',msg);
+    renderDebug();
+  }
+  function renderDebug(){
+    if(!isDebug())return;
+    var box=document.getElementById('wmCacheDebugV604');
+    if(!box){
+      box=document.createElement('div');box.id='wmCacheDebugV604';
+      box.style.cssText='position:fixed;left:8px;bottom:8px;z-index:999999;background:#111;color:#d7ffd7;border:1px solid #55aa55;border-radius:10px;padding:9px 11px;direction:ltr;text-align:left;font:12px/1.45 monospace;max-width:92vw;box-shadow:0 4px 18px #0008;';
+      document.body.appendChild(box);
+    }
+    var current='';try{current=calendarDate instanceof Date?monthKey(calendarDate):'';}catch(e){}
+    box.textContent='WM CACHE 6.04 BETA\nworker: '+(state.workerId||'-')+'\ncutoff: '+(state.cutoff||'-')+'\n2y docs: '+state.entries.length+'\nsnapshots: '+state.snapshotCount+'\nhistory months: '+Object.keys(state.historicalMonths).length+'\nhistory loads: '+state.historicalLoads+'\ncurrent month: '+current+'\nlast: '+state.lastEvent;
+  }
+  function allLoadedEntries(){
+    var merged=state.entries.slice();
+    Object.keys(state.historicalMonths).forEach(function(k){
+      (state.historicalMonths[k]||[]).forEach(function(e){if(!merged.some(function(x){return x.id===e.id;}))merged.push(e);});
+    });
+    return merged;
+  }
+  function renderCurrentMonth(){
+    if(!state.workerId)return;
+    var y=calendarDate.getFullYear(),m=calendarDate.getMonth(),last=new Date(y,m+1,0).getDate();
+    var start=y+'-'+pad2(m+1)+'-01',end=y+'-'+pad2(m+1)+'-'+pad2(last),key=y+'-'+pad2(m+1);
+    var source=String(end)<state.cutoff?(state.historicalMonths[key]||[]):state.entries;
+    window.workerAllEntriesV511=allLoadedEntries();
+    monthEntries=source.filter(function(e){return String(e.date||'')>=start&&String(e.date||'')<=end;});
+    try{if(document.getElementById('calTitle'))text('calTitle',months[m]+' '+y);}catch(e){}
+    try{if(document.getElementById('monthSub'))text('monthSub','חודש בתצוגה: '+months[m]+' '+y);}catch(e){}
+    try{if(!selectedDate&&typeof selectTodayOnCurrentMonthV564==='function')selectTodayOnCurrentMonthV564();}catch(e){}
+    try{renderCalendar();}catch(e){}
+    try{renderDay();}catch(e){}
+    try{renderStats();}catch(e){}
+    try{renderSmartDashboard();}catch(e){}
+    try{if(document.getElementById('searchPanel')&&!document.getElementById('searchPanel').classList.contains('hidden'))renderFullSummary();}catch(e){}
+    renderDebug();
+  }
+  function stopListener(){if(state.unsubscribe){try{state.unsubscribe();}catch(e){}state.unsubscribe=null;}}
+  function ensureCache(workerId){
+    var cutoff=cutoff730();
+    if(state.workerId===workerId&&state.cutoff===cutoff&&state.readyPromise)return state.readyPromise;
+    stopListener();
+    state.workerId=workerId;state.cutoff=cutoff;state.entries=[];state.historicalMonths=Object.create(null);state.snapshotCount=0;state.historicalLoads=0;
+    state.readyPromise=new Promise(function(resolve,reject){
+      var first=true;
+      try{
+        var q=db.collection('workEntries').where('workerId','==',workerId).where('date','>=',cutoff);
+        state.unsubscribe=q.onSnapshot({includeMetadataChanges:true},function(snap){
+          state.snapshotCount++;
+          state.entries=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+          state.initialDocs=state.entries.length;
+          window.workerAllEntriesV511=allLoadedEntries();
+          debug(first?'initial-two-year-load':'cache-snapshot-update',{docs:state.entries.length,fromCache:!!(snap.metadata&&snap.metadata.fromCache),pending:!!(snap.metadata&&snap.metadata.hasPendingWrites)});
+          renderCurrentMonth();
+          if(first){first=false;resolve(state.entries);}
+        },function(err){
+          debug('two-year-query-error',err&&err.message?err.message:err);
+          if(first){first=false;reject(err);}
+        });
+      }catch(err){first=false;reject(err);}
+    });
+    return state.readyPromise;
+  }
+  async function loadHistoricalMonth(dateValue){
+    var d=dateValue instanceof Date?dateValue:new Date(String(dateValue||'')+'T12:00:00');
+    if(!(d instanceof Date)||isNaN(d.getTime()))return [];
+    var key=monthKey(d);if(state.historicalMonths[key])return state.historicalMonths[key];
+    var workerId=activeWorkerId();if(!workerId)return [];
+    var start=key+'-01',end=dateStr(new Date(d.getFullYear(),d.getMonth()+1,0));
+    debug('loading-historical-month',{key:key});
+    var snap=await db.collection('workEntries').where('workerId','==',workerId).where('date','>=',start).where('date','<=',end).get();
+    state.historicalMonths[key]=snap.docs.map(function(doc){return Object.assign({id:doc.id},doc.data());});
+    state.historicalLoads++;
+    window.workerAllEntriesV511=allLoadedEntries();
+    debug('historical-month-loaded',{key:key,docs:state.historicalMonths[key].length});
+    return state.historicalMonths[key];
+  }
+
+  // v6.04 BETA: replaces the final loadMonth implementation. Price list/templates retain existing behavior;
+  // work entries are loaded once and every later call only filters the memory cache.
+  loadMonth=async function(token){
+    token=token||(typeof currentNavTokenV180==='function'?currentNavTokenV180():null);
+    if(!viewedWorker||!viewedWorker.id)return;
+    try{if(typeof isStaleNavV180==='function'&&token&&isStaleNavV180(token))return;}catch(e){}
+    try{await loadPriceList();}catch(e){console.warn('v6.04 price list load skipped',e);}
+    try{await loadTemplates();}catch(e){console.warn('v6.04 templates load skipped',e);}
+    var workerId=activeWorkerId();
+    await ensureCache(workerId);
+    renderCurrentMonth();
+  };
+  window.loadMonth=loadMonth;
+  window.loadHistoricalMonthV604=loadHistoricalMonth;
+
+  // Older search results remain fully functional: only the selected old month is fetched on demand.
+  function wrapNavigation(){
+    var original=window.navigateToEntryV599;
+    if(typeof original!=='function'||original.__cacheV604)return;
+    var wrapped=async function(entryId,entryDate){
+      try{if(String(entryDate||'')<state.cutoff)await loadHistoricalMonth(entryDate);}catch(e){console.warn('v6.04 historical navigation load failed',e);}
+      return original.apply(this,arguments);
+    };
+    wrapped.__cacheV604=true;
+    window.navigateToEntryV599=wrapped;window.navigateToEntryV598=wrapped;window.navigateToEntry=wrapped;window.openSmartEntryV584=wrapped;
+  }
+  function boot(){wrapNavigation();renderDebug();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(boot,900);});else setTimeout(boot,300);
+  window.addEventListener('load',function(){setTimeout(boot,1300);});
+})();
+
+
+/*
+===============================================================================
+VERSION 6.05 BETA - CUSTOMER LOOKUP FROM TWO-YEAR MEMORY ONLY
+-------------------------------------------------------------------------------
+1. Customer-number blur lookup no longer performs a Firestore query.
+2. It reads only WM_DATA_CACHE_V604.entries (the active 730-day window).
+3. Address autofill and customer warnings therefore ignore records older than
+   two years; full-history records remain available only in the Search panel.
+4. This override lives in functions2.js as required for all new functionality.
+===============================================================================
+*/
+(function(){
+  'use strict';
+
+  function byId(id){return document.getElementById(id);}
+  function valueOf(id){var node=byId(id);return node?String(node.value||'').trim():'';}
+  function safeEsc(value){
+    try{if(typeof esc==='function')return esc(value);}catch(e){}
+    return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  }
+  function safeMoney(value){
+    try{if(typeof money==='function')return money(value);}catch(e){}
+    return '₪'+Number(value||0).toLocaleString('he-IL');
+  }
+  function safeHeDate(value){
+    try{if(typeof heDate==='function')return heDate(value);}catch(e){}
+    return String(value||'');
+  }
+  function todayValue(){
+    try{if(typeof todayStr==='function')return todayStr();}catch(e){}
+    var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function dateDaysAgo(days){
+    var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-days);
+    try{if(typeof formatDate==='function')return formatDate(d);}catch(e){}
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  window.checkRecentCustomer=async function(inputId,resultId){
+    var num=valueOf(inputId),box=byId(resultId);
+    if(!box)return;
+    box.innerHTML='';
+    if(!num)return;
+    if(!/^\d+$/.test(num)){
+      box.innerHTML="<div class='danger'>מספר לקוח חייב להיות ספרות בלבד</div>";
+      return;
+    }
+    var workerId='';
+    try{workerId=viewedWorker&&viewedWorker.id?String(viewedWorker.id):'';}catch(e){}
+    if(!workerId){
+      box.innerHTML="<div class='danger'>לא זוהה עובד פעיל לבדיקה.</div>";
+      return;
+    }
+
+    // v6.05 BETA: intentionally use only the 730-day live cache. Do not use
+    // workerAllEntriesV511 because it may also contain an old month loaded from Search.
+    var cache=window.WM_DATA_CACHE_V604;
+    var cachedEntries=cache&&Array.isArray(cache.entries)?cache.entries:[];
+    if(cache&&cache.readyPromise){
+      try{await cache.readyPromise;}catch(e){}
+      cachedEntries=Array.isArray(cache.entries)?cache.entries:[];
+    }
+
+    var all=cachedEntries
+      .filter(function(entry){
+        return String(entry&&entry.workerId||'')===workerId && String(entry&&entry.customerNumber||'').trim()===num;
+      })
+      .sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''));});
+
+    var fromStr=dateDaysAgo(30),today=todayValue();
+    var notDoneMatches=all
+      .filter(function(e){return String(e.entryStatus||e.status||'')==='not_done';})
+      .sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''));});
+    var doneMatches=all
+      .filter(function(e){
+        var status=String(e.entryStatus||e.status||'done');
+        var planned=false;try{planned=!!(window.isPlannedV49&&window.isPlannedV49(e));}catch(err){}
+        return status!=='not_done'&&!planned&&status!=='planned'&&String(e.date||'')>=fromStr;
+      })
+      .sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''));});
+    var plannedMatches=all
+      .filter(function(e){
+        var status=String(e.entryStatus||e.status||'');
+        var planned=false;try{planned=!!(window.isPlannedV49&&window.isPlannedV49(e));}catch(err){}
+        return status!=='not_done'&&(planned||status==='planned')&&String(e.date||'')>=today;
+      })
+      .sort(function(a,b){return String(a.date||'').localeCompare(String(b.date||''));});
+
+    var addressTargetId=inputId==='sCustomer'?'sAddress':(inputId==='iCustomer'?'iAddress':'');
+    var addressTarget=addressTargetId?byId(addressTargetId):null;
+    var addressSource=doneMatches.find(function(e){return String(e.address||'').trim();})
+      ||plannedMatches.find(function(e){return String(e.address||'').trim();})
+      ||all.find(function(e){return String(e.address||'').trim();});
+    if(addressTarget&&!String(addressTarget.value||'').trim()&&addressSource&&addressSource.address){
+      addressTarget.value=addressSource.address;
+    }
+
+    if(!doneMatches.length&&!plannedMatches.length&&!notDoneMatches.length){
+      box.innerHTML="<div class='recent-ok'>לא נמצאה עבודה שבוצעה ב־30 הימים האחרונים, אין סידור מתוזמן ואין פק״ע שלא בוצעה ללקוח הזה בשנתיים שנטענו ✅</div>";
+      return;
+    }
+
+    var parts=[];
+    if(doneMatches.length){
+      var last=doneMatches[0];
+      parts.push('✅ היית אצל לקוח זה ב־30 הימים האחרונים.<br>פעם אחרונה: '+safeHeDate(last.date)+' · '+safeEsc(last.description||'עבודה')+' · '+safeMoney(last.amount||0)+'<br>כתובת: '+safeEsc(last.address||''));
+    }
+    if(plannedMatches.length){
+      var next=plannedMatches[0];
+      parts.push('📋 קיימת קריאה/התקנה מתוזמנת ללקוח זה.<br>מועד קרוב: '+safeHeDate(next.date)+' · '+safeEsc(next.description||'סידור מתוזמן')+' · צפי '+safeMoney(next.amount||0)+'<br>כתובת: '+safeEsc(next.address||''));
+    }
+    if(notDoneMatches.length){
+      var nd=notDoneMatches[0];
+      var reason=nd.notDoneReason?' · סיבה: '+safeEsc(nd.notDoneReason):'';
+      var note=nd.notDoneNote?'<br>פירוט: '+safeEsc(nd.notDoneNote):'';
+      parts.push('🚫 קיימת פק״ע מתוזמנת שלא בוצעה ללקוח זה.<br>תאריך: '+safeHeDate(nd.date)+' · '+safeEsc(nd.description||'פק״ע מתוזמנת')+reason+'<br>כתובת: '+safeEsc(nd.address||'')+note);
+    }
+    box.innerHTML='<div class="'+((doneMatches.length||notDoneMatches.length)?'recent-box':'recent-ok')+'">'+parts.join('<br><br>')+'</div>';
+  };
+})();
+
+
+/*
+===============================================================================
+VERSION 6.06 BETA - RELOAD DAY LOCKS WHEN CHANGING MONTH FROM MEMORY CACHE
+-------------------------------------------------------------------------------
+1. The 6.04 memory-cache loadMonth replacement had bypassed the older day-lock
+   wrapper, so calendar month changes rendered before that month's locks loaded.
+2. Every loadMonth call now loads the target month's locks after the cached work
+   entries are rendered, then redraws the calendar and selected day.
+3. Work entries still come from the two-year memory cache; only the small
+   workerDaysOff/day-lock query is refreshed for the selected month.
+4. Existing lock persistence, search behavior and customer lookup are unchanged.
+===============================================================================
+*/
+(function(){
+  'use strict';
+
+  function installMonthLockReloadV606(){
+    var base=window.loadMonth;
+    if(typeof base!=='function' || base.__dayLocksMonthReloadV606) return;
+
+    var wrapped=async function(){
+      var result=await base.apply(this,arguments);
+      try{
+        if(typeof window.loadDayLocksV585==='function'){
+          await window.loadDayLocksV585();
+        }
+      }catch(err){
+        console.error('v6.06 month day-lock reload failed',err);
+        try{
+          window.dayLockDebugV590&&window.dayLockDebugV590('V606_MONTH_LOCK_RELOAD_ERROR',{
+            message:(err&&err.message)||String(err||'')
+          });
+        }catch(_e){}
+      }
+      try{if(typeof window.renderCalendar==='function')window.renderCalendar();else if(typeof renderCalendar==='function')renderCalendar();}catch(e){}
+      try{if(typeof window.renderDay==='function')window.renderDay();else if(typeof renderDay==='function')renderDay();}catch(e){}
+      try{
+        window.dayLockDebugV590&&window.dayLockDebugV590('V606_MONTH_LOCK_RELOAD_SUCCESS',{
+          calendarDate:(typeof calendarDate!=='undefined'&&calendarDate)?String(calendarDate):''
+        });
+      }catch(_e2){}
+      return result;
+    };
+    wrapped.__dayLocksMonthReloadV606=true;
+    wrapped.__baseV606=base;
+    window.loadMonth=wrapped;
+    try{loadMonth=wrapped;}catch(e){}
+  }
+
+  function updateChangelogV606(){
+    var old=window.requiredChangelogRows || (typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof old!=='function' || old.__v606Wrapped) return;
+    var wrapped=function(){
+      var rows=[];
+      try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.06-beta';})){
+        rows.unshift({
+          version:'6.06-beta',
+          title:'תיקון הצגת ימים נעולים במעבר בין חודשים בבטא',
+          createdAt:'2026-07-25',
+          items:[
+            'תוקן מצב שבו מעבר לחודש אחר מתוך מטמון השנתיים הציג את כל הימים כפתוחים למרות שנשמרו כנעולים.',
+            'לאחר כל מעבר חודש נטענות נעילות החודש הנבחר מ-workerDaysOff ולוח השנה והיום הנבחר מצוירים מחדש.',
+            'עבודות החודש ממשיכות להיטען מהזיכרון בלבד ואינן נקראות מחדש מ-Firestore.',
+            'לא שונו שמירת נעילה, חיפוש בכל ההיסטוריה או השלמת כתובת ממטמון השנתיים.'
+          ]
+        });
+      }
+      return rows;
+    };
+    wrapped.__v606Wrapped=true;
+    window.requiredChangelogRows=wrapped;
+    try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+
+  installMonthLockReloadV606();
+  updateChangelogV606();
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+})();
+
+/*
+===============================================================================
+VERSION 6.07 BETA - RELOAD VACATION DAYS WHEN CHANGING MONTH FROM MEMORY CACHE
+-------------------------------------------------------------------------------
+1. The two-year cache keeps work entries in memory, but every displayed month
+   still needs its small workerDaysOff metadata query for vacation days/locks.
+2. Every loadMonth call now reloads the selected month's vacation days, then
+   reloads day locks, and redraws calendar/day/statistics/smart dashboard.
+3. No workEntries collection is re-read during month/day navigation.
+4. Full-history Search and two-year customer lookup behavior are unchanged.
+===============================================================================
+*/
+(function(){
+  'use strict';
+
+  function installMonthVacationReloadV607(){
+    var base=window.loadMonth;
+    if(typeof base!=='function' || base.__vacationMonthReloadV607) return;
+
+    var wrapped=async function(){
+      var result=await base.apply(this,arguments);
+
+      try{
+        if(typeof window.loadVacationDaysV437==='function'){
+          await window.loadVacationDaysV437();
+        }else if(typeof window.loadVacationDaysV489==='function'){
+          await window.loadVacationDaysV489();
+        }else if(typeof window.loadVacationDaysV487==='function'){
+          await window.loadVacationDaysV487();
+        }else if(typeof loadVacationDaysV487==='function'){
+          await loadVacationDaysV487();
+        }
+      }catch(err){
+        console.error('v6.07 month vacation-days reload failed',err);
+      }
+
+      // Keep lock metadata synchronized as well. The v6.06 wrapper may already
+      // have loaded it; this small query is intentional to guarantee final state
+      // after vacation filtering in workerDaysOff.
+      try{
+        if(typeof window.loadDayLocksV585==='function'){
+          await window.loadDayLocksV585();
+        }
+      }catch(lockErr){
+        console.error('v6.07 month day-lock reload failed',lockErr);
+      }
+
+      try{if(typeof window.renderCalendar==='function')window.renderCalendar();else if(typeof renderCalendar==='function')renderCalendar();}catch(e){}
+      try{if(typeof window.renderDay==='function')window.renderDay();else if(typeof renderDay==='function')renderDay();}catch(e){}
+      try{if(typeof window.renderStats==='function')window.renderStats();else if(typeof renderStats==='function')renderStats();}catch(e){}
+      try{if(typeof window.renderSmartDashboard==='function')window.renderSmartDashboard();else if(typeof renderSmartDashboard==='function')renderSmartDashboard();}catch(e){}
+      return result;
+    };
+
+    wrapped.__vacationMonthReloadV607=true;
+    wrapped.__baseV607=base;
+    window.loadMonth=wrapped;
+    try{loadMonth=wrapped;}catch(e){}
+  }
+
+  function updateChangelogV607(){
+    var old=window.requiredChangelogRows || (typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof old!=='function' || old.__v607Wrapped) return;
+    var wrapped=function(){
+      var rows=[];
+      try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.07-beta';})){
+        rows.unshift({
+          version:'6.07-beta',
+          title:'תיקון הצגת ימי חופש במעבר בין חודשים בבטא',
+          createdAt:'2026-07-25',
+          items:[
+            'תוקן מצב שבו מעבר לחודש קודם או הבא מתוך מטמון השנתיים לא טען את ימי החופש של החודש הנבחר.',
+            'לאחר כל מעבר חודש נטענים ימי החופש ונעילות הימים של חודש היעד לפני ציור הלוח והדשבורד.',
+            'עבודות החודש ממשיכות להגיע מהזיכרון בלבד ואינן נקראות מחדש מ-Firestore.',
+            'חישובי ימי החופש, ימי העבודה שנותרו והיעד היומי מתעדכנים לפי החודש שמוצג.'
+          ]
+        });
+      }
+      return rows;
+    };
+    wrapped.__v607Wrapped=true;
+    window.requiredChangelogRows=wrapped;
+    try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+
+  installMonthVacationReloadV607();
+  updateChangelogV607();
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+})();
+
+
+
+/*
+===============================================================================
+VERSION 6.08 BETA - IMMEDIATE CACHE UPDATE AFTER SAVING WORK
+-------------------------------------------------------------------------------
+1. Service/install saves create a known document id before writing.
+2. The new entry is inserted optimistically into the two-year memory cache.
+3. The selected day, calendar, statistics and dashboard refresh immediately.
+4. A clear success message is shown and the form resets as before.
+5. Firestore snapshot later replaces the optimistic copy by the same id,
+   preventing duplicates and preserving offline behavior.
+===============================================================================
+*/
+(function(){
+  'use strict';
+
+  function byIdV608(id){return document.getElementById(id);}
+  function valueV608(id){var el=byIdV608(id);return el?String(el.value||'').trim():'';}
+  function currentUidV608(){try{return typeof currentAuthUid==='function'?currentAuthUid():'';}catch(e){return '';}}
+  function beginV608(){try{return typeof window.wmBeginEntrySaveV516==='function'?window.wmBeginEntrySaveV516():true;}catch(e){return true;}}
+  function successTextV608(label,amount,status){
+    try{return window.wmOfflineSaveNoticeV516(label,status==='planned'?null:amount,status,'היא לא נכנסה להתחשבנות עד שתלחץ בוצע.');}catch(e){}
+    return '<div class="notice">'+label+' נשמרה בהצלחה ✅</div>';
+  }
+  function afterV608(message){
+    try{if(typeof window.wmAfterLocalEntrySaveV516==='function'){window.wmAfterLocalEntrySaveV516(message);return;}}catch(e){}
+    var box=byIdV608('entryMsg');if(box)box.innerHTML=message;
+  }
+  function errorV608(err){
+    try{if(typeof window.wmHandleEntrySaveErrorV516==='function'){window.wmHandleEntrySaveErrorV516(err);return;}}catch(e){}
+    var box=byIdV608('entryMsg');if(box)box.innerHTML='<p class="danger">שגיאה בשמירה: '+String((err&&(err.message||err.code))||err||'')+'</p>';
+  }
+  function showValidationV608(message,focusId){
+    var box=byIdV608('entryMsg');if(box)box.innerHTML='<p class="danger">'+message+'</p>';
+    var el=focusId?byIdV608(focusId):null;if(el){try{el.focus();}catch(e){}}
+    return false;
+  }
+  function cacheStateV608(){return window.WM_DATA_CACHE_V604||null;}
+  function upsertCacheV608(entry){
+    var state=cacheStateV608();
+    if(!state||!Array.isArray(state.entries))return;
+    var idx=state.entries.findIndex(function(x){return x&&x.id===entry.id;});
+    if(idx>=0)state.entries[idx]=Object.assign({},state.entries[idx],entry);
+    else state.entries.push(entry);
+    try{window.workerAllEntriesV511=state.entries.slice();}catch(e){}
+  }
+  function removeCacheV608(id){
+    var state=cacheStateV608();if(!state||!Array.isArray(state.entries))return;
+    state.entries=state.entries.filter(function(x){return !x||x.id!==id;});
+    try{window.workerAllEntriesV511=state.entries.slice();}catch(e){}
+  }
+  function refreshUiV608(){
+    var state=cacheStateV608();
+    try{
+      if(state&&Array.isArray(state.entries)&&calendarDate instanceof Date){
+        var y=calendarDate.getFullYear(),m=calendarDate.getMonth();
+        var start=y+'-'+String(m+1).padStart(2,'0')+'-01';
+        var end=y+'-'+String(m+1).padStart(2,'0')+'-'+String(new Date(y,m+1,0).getDate()).padStart(2,'0');
+        monthEntries=state.entries.filter(function(e){var d=String((e&&e.date)||'');return d>=start&&d<=end;});
+      }
+    }catch(e){}
+    try{if(typeof renderCalendar==='function')renderCalendar();}catch(e){}
+    try{if(typeof renderDay==='function')renderDay();}catch(e){}
+    try{if(typeof renderStats==='function')renderStats();}catch(e){}
+    try{if(typeof renderSmartDashboard==='function')renderSmartDashboard();}catch(e){}
+    try{if(typeof renderFullSummary==='function'&&byIdV608('searchPanel')&&!byIdV608('searchPanel').classList.contains('hidden'))renderFullSummary();}catch(e){}
+  }
+  function selectedPekaV608(){var el=byIdV608('pekaTypeV527');var v=String((el&&el.value)||'').trim().toUpperCase();return v==='CN'||v==='CH'?v:'';}
+  function selectedKindV608(){
+    try{if(typeof selectedKindV411==='function')return selectedKindV411();}catch(e){}
+    var rf=byIdV608('installKindRfV411');return rf&&rf.checked?'rf':'fiber';
+  }
+  function kindLabelV608(kind){return String(kind||'').toLowerCase()==='rf'?'RF':'סיב';}
+  function servicePriceV608(){try{return Number(SERVICE_PRICE||0);}catch(e){return 65;}}
+
+  function savePayloadV608(payload,label,amount,status){
+    if(!beginV608())return false;
+    var ref=db.collection('workEntries').doc();
+    var optimistic=Object.assign({id:ref.id,createdAtLocal:new Date().toISOString(),_pendingV608:true},payload);
+    upsertCacheV608(optimistic);
+    refreshUiV608();
+    afterV608(successTextV608(label,amount,status));
+
+    ref.set(payload).then(function(){
+      upsertCacheV608(Object.assign({},optimistic,{_pendingV608:false}));
+      refreshUiV608();
+    }).catch(function(err){
+      removeCacheV608(ref.id);
+      refreshUiV608();
+      errorV608(err);
+    });
+    return true;
+  }
+
+  function addServiceV608(status){
+    var customerNumber=valueV608('sCustomer'),address=valueV608('sAddress'),notes=valueV608('sNotes');
+    var returnCb=byIdV608('sReturnCall'),isReturnCall=!!(returnCb&&returnCb.checked),amount=isReturnCall?0:servicePriceV608();
+    if(!customerNumber||!/^[0-9]+$/.test(customerNumber))return showValidationV608('חובה למלא מספר לקוח בספרות בלבד.','sCustomer');
+    if(!address)return showValidationV608('חובה למלא כתובת.','sAddress');
+    if(!viewedWorker||!viewedWorker.id||!selectedDate)return showValidationV608('חסר עובד או יום נבחר. רענן את המסך ונסה שוב.','sCustomer');
+    return savePayloadV608({
+      workerId:viewedWorker.id,workerName:viewedWorker.name,authUid:viewedWorker.authUid||currentUidV608(),
+      date:selectedDate,workType:'service',entryStatus:status,
+      description:isReturnCall?'קריאת שירות חוזרת':'קריאת שירות',customerNumber:customerNumber,address:address,notes:notes,
+      isReturnCall:isReturnCall,amount:amount,createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    },'קריאת השירות',amount,status);
+  }
+
+  function addInstallV608(status){
+    var customerNumber=valueV608('iCustomer'),address=valueV608('iAddress'),notes=valueV608('iNotes');
+    if(!customerNumber||!/^[0-9]+$/.test(customerNumber))return showValidationV608('חובה למלא מספר לקוח בספרות בלבד.','iCustomer');
+    if(!address)return showValidationV608('חובה למלא כתובת.','iAddress');
+    if(!viewedWorker||!viewedWorker.id||!selectedDate)return showValidationV608('חסר עובד או יום נבחר. רענן את המסך ונסה שוב.','iCustomer');
+    var kind=selectedKindV608(),peka=selectedPekaV608(),items=[],total=0;
+    if(!peka)return showValidationV608('חובה לבחור סוג פק״ע: CN או CH.','pekaTypeV527');
+    try{(priceList||[]).forEach(function(p){
+      var el=byIdV608('qty_'+p.id),q=0;
+      if(el)q=(p.inputMode||'qty')==='check'?(el.checked?1:0):Number(el.value||0);
+      if(q>0){var price=Number(p.price||0);items.push({id:p.id,name:p.name,price:price,quantity:q,inputMode:p.inputMode||'qty',priceType:kind,installKind:kind,pekaType:peka,total:q*price});total+=q*price;}
+    });}catch(e){}
+    if(!items.length)return showValidationV608('חובה לבחור לפחות פריט אחד.','iCustomer');
+    var label='התקנת '+kindLabelV608(kind);
+    return savePayloadV608({
+      workerId:viewedWorker.id,workerName:viewedWorker.name,authUid:viewedWorker.authUid||currentUidV608(),
+      date:selectedDate,workType:'install',installKind:kind,priceType:kind,pekaType:peka,entryStatus:status,
+      description:label,customerNumber:customerNumber,address:address,notes:notes,items:items,amount:total,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    },label,total,status);
+  }
+
+  // v6.09: expose the exact cache-aware save implementations so the final
+  // button binding cannot fall back to an older wrapped/global function.
+  window.wmAddServiceCacheV608=addServiceV608;
+  window.wmAddInstallCacheV608=addInstallV608;
+
+  // v6.08: final overrides for all four create paths.
+  window.addService=function(){return addServiceV608('done');};
+  window.addInstall=function(){return addInstallV608('done');};
+  window.addServicePlannedV49=function(){return addServiceV608('planned');};
+  window.addInstallPlannedV49=function(){return addInstallV608('planned');};
+  try{addService=window.addService;addInstall=window.addInstall;addServicePlannedV49=window.addServicePlannedV49;addInstallPlannedV49=window.addInstallPlannedV49;}catch(e){}
+
+  function updateChangelogV608(){
+    var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof old!=='function'||old.__v608Wrapped)return;
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.08-beta';})){
+        rows.unshift({version:'6.08-beta',title:'הצגה מיידית לאחר שמירת עבודה בבטא',createdAt:'2026-07-25',items:[
+          'תוקן מצב שבו סידור עתידי נשמר ב-Firestore אך לא הופיע במסך עד פתיחת הגרסה הישנה או רענון מלא.',
+          'לאחר שמירת קריאת שירות או התקנה, רגילה או מתוזמנת, הרשומה מתווספת מיד למטמון השנתיים וליום הנבחר.',
+          'מוצגת הודעת אישור ברורה, הטופס מתאפס והלוח, היום, הסטטיסטיקות והדשבורד מתעדכנים ללא טעינה מחדש של workEntries.',
+          'הכתיבה נשארת תואמת מצב אופליין; עדכון Firestore המאוחר מחליף את אותה רשומה לפי מזהה קבוע ואינו יוצר כפילות.'
+        ]});
+      }
+      return rows;
+    };
+    wrapped.__v608Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  updateChangelogV608();
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.09 BETA - FINAL SAVE BUTTON ROUTING
+-------------------------------------------------------------------------------
+1. Save buttons are intercepted by their actual DOM ids in capture phase.
+2. Planned and regular saves are routed directly to the cache-aware v6.08
+   implementations, bypassing old wrappers/closures that remained in the app.
+3. Prevents a write from reaching Firestore while the visible cache/UI path is
+   skipped, which caused scheduled work to appear only in the stable version.
+4. Adds a small independent confirmation toast after an accepted save action.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  if(window.__wmSaveButtonRouterV609Installed)return;
+  window.__wmSaveButtonRouterV609Installed=true;
+
+  function toastV609(text){
+    var box=document.getElementById('wmSaveToastV609');
+    if(!box){
+      box=document.createElement('div');
+      box.id='wmSaveToastV609';
+      box.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:1000000;background:#153d2b;color:#fff;border:1px solid #61c48a;border-radius:12px;padding:11px 16px;font-weight:700;box-shadow:0 8px 28px #0007;direction:rtl;text-align:center;display:none;max-width:90vw';
+      document.body.appendChild(box);
+    }
+    box.textContent=text;
+    box.style.display='block';
+    clearTimeout(box.__hideTimerV609);
+    box.__hideTimerV609=setTimeout(function(){box.style.display='none';},2600);
+  }
+
+  function routeV609(id){
+    var result=false;
+    if(id==='saveServicePlannedBtnV49'){
+      result=window.wmAddServiceCacheV608&&window.wmAddServiceCacheV608('planned');
+      if(result)toastV609('קריאת השירות נשמרה כסידור עתידי ✅');
+      return true;
+    }
+    if(id==='saveInstallPlannedBtnV49'){
+      result=window.wmAddInstallCacheV608&&window.wmAddInstallCacheV608('planned');
+      if(result)toastV609('ההתקנה נשמרה כסידור עתידי ✅');
+      return true;
+    }
+    if(id==='serviceSaveDoneBtnV411'){
+      result=window.wmAddServiceCacheV608&&window.wmAddServiceCacheV608('done');
+      if(result)toastV609('קריאת השירות נשמרה ✅');
+      return true;
+    }
+    if(id==='installSaveDoneBtnV411'){
+      result=window.wmAddInstallCacheV608&&window.wmAddInstallCacheV608('done');
+      if(result)toastV609('ההתקנה נשמרה ✅');
+      return true;
+    }
+    return false;
+  }
+
+  // Capture phase is intentional: older code created onclick closures that kept
+  // references to legacy save functions. This handler runs first and blocks them.
+  document.addEventListener('click',function(ev){
+    var target=ev.target&&ev.target.closest?ev.target.closest('button'):null;
+    if(!target||!routeV609(target.id))return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if(typeof ev.stopImmediatePropagation==='function')ev.stopImmediatePropagation();
+  },true);
+
+  function updateChangelogV609(){
+    var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof old!=='function'||old.__v609Wrapped)return;
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.09-beta';})){
+        rows.unshift({version:'6.09-beta',title:'תיקון סופי לניתוב כפתורי השמירה בבטא',createdAt:'2026-07-25',items:[
+          'תוקן מצב שבו סידור עתידי נכתב ל-Firestore אך כפתור השמירה המשיך לעבור דרך פונקציה ישנה ולכן המטמון והמסך לא התעדכנו.',
+          'ארבעת כפתורי השמירה מנותבים כעת ישירות למנגנון השמירה שמעדכן את מטמון השנתיים: קריאת שירות, התקנה, בוצע ומתוזמן.',
+          'לאחר שמירה מתקבל חיווי אישור ברור והרשומה מוצגת מיד ביום הנבחר ללא טעינה מחדש של כל העבודות.',
+          'החיפוש המלא, נעילות ימים, ימי חופש וטעינת השנתיים נשארו ללא שינוי.'
+        ]});
+      }
+      return rows;
+    };
+    wrapped.__v609Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  updateChangelogV609();
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.10 BETA - CENTRAL CACHE REFRESH + DELETE SYNC
+-------------------------------------------------------------------------------
+1. Adds one central refresh function that rebuilds the visible month and all
+   dependent screens only from WM_DATA_CACHE_V604, without reading workEntries.
+2. Scheduled and completed deletions remove the deleted id from every cache
+   bucket immediately after Firestore accepts the delete.
+3. Calendar, selected day, statistics, Smart Dashboard and open search summary
+   refresh together, preventing future features from needing separate fixes.
+4. Firestore remains the write destination; the browser cache is the sole source
+   for the immediate visible refresh after create/update/delete actions.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  if(window.__wmCentralCacheRefreshV610Installed)return;
+  window.__wmCentralCacheRefreshV610Installed=true;
+
+  function cacheV610(){return window.WM_DATA_CACHE_V604||null;}
+  function padV610(n){return String(n).padStart(2,'0');}
+  function mergeAllV610(state){
+    var map=Object.create(null),out=[];
+    function add(e){if(!e||!e.id)return;if(map[e.id])return;map[e.id]=true;out.push(e);}
+    (state&&Array.isArray(state.entries)?state.entries:[]).forEach(add);
+    if(state&&state.historicalMonths){Object.keys(state.historicalMonths).forEach(function(k){(state.historicalMonths[k]||[]).forEach(add);});}
+    return out;
+  }
+  function monthSourceV610(state,key,end){
+    if(state&&state.cutoff&&String(end)<String(state.cutoff))return (state.historicalMonths&&state.historicalMonths[key])||[];
+    return state&&Array.isArray(state.entries)?state.entries:[];
+  }
+  function renderNoticeV610(html){
+    var box=document.getElementById('entryMsg');
+    if(box&&html)box.innerHTML=html;
+  }
+  function toastV610(text){
+    var box=document.getElementById('wmCacheActionToastV610');
+    if(!box){
+      box=document.createElement('div');box.id='wmCacheActionToastV610';
+      box.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:1000000;background:#153d2b;color:#fff;border:1px solid #61c48a;border-radius:12px;padding:11px 16px;font-weight:700;box-shadow:0 8px 28px #0007;direction:rtl;text-align:center;display:none;max-width:90vw';
+      document.body.appendChild(box);
+    }
+    box.textContent=text;box.style.display='block';clearTimeout(box.__timerV610);
+    box.__timerV610=setTimeout(function(){box.style.display='none';},2600);
+  }
+
+  // One reusable refresh path for all future cache-aware actions.
+  window.wmRefreshFromCacheV610=function(options){
+    options=options||{};
+    var state=cacheV610();
+    if(!state||!Array.isArray(state.entries))return false;
+    try{
+      window.workerAllEntriesV511=mergeAllV610(state);
+      if(calendarDate instanceof Date){
+        var y=calendarDate.getFullYear(),m=calendarDate.getMonth(),key=y+'-'+padV610(m+1);
+        var start=key+'-01',end=key+'-'+padV610(new Date(y,m+1,0).getDate());
+        monthEntries=monthSourceV610(state,key,end).filter(function(e){var d=String((e&&e.date)||'');return d>=start&&d<=end;});
+      }
+      if(typeof renderCalendar==='function')renderCalendar();
+      if(typeof renderDay==='function')renderDay();
+      if(typeof renderStats==='function')renderStats();
+      if(typeof renderSmartDashboard==='function')renderSmartDashboard();
+      var search=document.getElementById('searchPanel');
+      if(search&&!search.classList.contains('hidden')&&typeof renderFullSummary==='function')renderFullSummary();
+      if(options.messageHtml)renderNoticeV610(options.messageHtml);
+      if(options.toast)toastV610(options.toast);
+      return true;
+    }catch(err){console.error('v6.10 cache refresh failed',err);return false;}
+  };
+
+  window.wmRemoveEntryFromCacheV610=function(id){
+    var state=cacheV610();if(!state||!id)return false;
+    if(Array.isArray(state.entries))state.entries=state.entries.filter(function(e){return !e||e.id!==id;});
+    if(state.historicalMonths){Object.keys(state.historicalMonths).forEach(function(k){state.historicalMonths[k]=(state.historicalMonths[k]||[]).filter(function(e){return !e||e.id!==id;});});}
+    return true;
+  };
+
+  // Final delete override: write once to Firestore, then refresh solely from cache.
+  window.deleteEntry=async function(id){
+    if(!id)return;
+    var all=[];try{all=Array.isArray(window.workerAllEntriesV511)?window.workerAllEntriesV511:[];}catch(e){}
+    var entry=all.find(function(x){return x&&x.id===id;})||(Array.isArray(monthEntries)?monthEntries:[]).find(function(x){return x&&x.id===id;});
+    var label=entry?((entry.workType==='install'?'התקנה':'קריאת שירות')+(entry.customerNumber?' ללקוח '+entry.customerNumber:'')):'העבודה';
+    if(!confirm('למחוק את '+label+'?'))return;
+    try{
+      await db.collection('workEntries').doc(id).delete();
+      window.wmRemoveEntryFromCacheV610(id);
+      window.wmRefreshFromCacheV610({messageHtml:'<div class="notice">העבודה נמחקה בהצלחה ✅</div>',toast:'העבודה נמחקה והמסך עודכן ✅'});
+    }catch(e){
+      var code=e&&(e.code||e.message)?(e.code||e.message):String(e),hint='שגיאה במחיקה: '+code;
+      if(String(code).includes('permission-denied')||String(code).includes('Missing or insufficient permissions'))hint='Firestore חסם את המחיקה. צריך לפרסם את כללי האבטחה המתאימים ואז לנסות שוב.';
+      renderNoticeV610('<p class="danger">'+String(hint).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</p>');
+      alert(hint);
+      try{if(typeof writeAppLogV167==='function')await writeAppLogV167('deleteEntryFailedV610',{entryId:id,errorCode:e.code||'',errorMessage:e.message||String(e)});}catch(_e){}
+    }
+  };
+  try{deleteEntry=window.deleteEntry;}catch(e){}
+
+  function updateChangelogV610(){
+    var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof old!=='function'||old.__v610Wrapped)return;
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.10-beta';}))rows.unshift({version:'6.10-beta',title:'רענון מרכזי מהמטמון ותיקון מחיקת סידור עתידי',createdAt:'2026-07-25',items:[
+        'נוסף מנגנון רענון מרכזי שמצייר מחדש את החודש, היום, הלוח, הסטטיסטיקות והדשבורד ישירות ממטמון השנתיים ללא קריאה חוזרת של workEntries.',
+        'מחיקת עבודה רגילה או מתוזמנת מסירה כעת את הרשומה מכל מאגרי המטמון ומעדכנת מיד את המסך לאחר אישור המחיקה ב-Firestore.',
+        'נוסף חיווי הצלחה ברור לאחר מחיקה, בלי צורך ברענון הדפדפן או פתיחת הגרסה היציבה.',
+        'המנגנון המרכזי זמין גם לפעולות שמירה, עריכה ומחיקה עתידיות כדי למנוע תיקון נפרד לכל מסלול.'
+      ]});
+      return rows;
+    };
+    wrapped.__v610Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  updateChangelogV610();
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.11 BETA - MONTHLY SETTLEMENT CACHE OPTIMIZATION + CHANGELOG RESEED
+-------------------------------------------------------------------------------
+1. Recent settlement months use WM_DATA_CACHE_V604 and do not reread workEntries.
+2. Months older than the 730-day cutoff query only the requested date range.
+3. Historical month results are cached for subsequent report loads/navigation.
+4. Missing changelog rows 6.08-6.11 are now part of the authoritative seed list.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  if(window.__wmSettlementCacheV611Installed)return;
+  window.__wmSettlementCacheV611Installed=true;
+
+  function padV611(n){return String(n).padStart(2,'0');}
+  function rangesV611(month){
+    var parts=String(month||'').split('-'),y=Number(parts[0]),m=Number(parts[1]);
+    if(!y||!m||m<1||m>12)return null;
+    var key=y+'-'+padV611(m),last=new Date(y,m,0).getDate();
+    return {key:key,start:key+'-01',end:key+'-'+padV611(last)};
+  }
+  function doneV611(entry){
+    try{if(typeof isDoneEntryForSettlementV547==='function')return isDoneEntryForSettlementV547(entry);}catch(e){}
+    var st=String((entry&&(entry.entryStatus||entry.status))||'done').toLowerCase();
+    return st!=='planned'&&st!=='not_done'&&st!=='cancelled';
+  }
+  function filterMonthV611(rows,r){
+    return (Array.isArray(rows)?rows:[]).filter(function(e){
+      var d=String((e&&e.date)||'');
+      return d>=r.start&&d<=r.end&&doneV611(e);
+    });
+  }
+  async function loadSettlementEntriesCacheV611(month){
+    if(!viewedWorker||!viewedWorker.id)return [];
+    var r=rangesV611(month);if(!r)return [];
+    var state=window.WM_DATA_CACHE_V604||null;
+
+    // A full month entirely inside the rolling 730-day window comes only from RAM.
+    if(state&&Array.isArray(state.entries)&&state.cutoff&&r.start>=String(state.cutoff)){
+      return filterMonthV611(state.entries,r);
+    }
+
+    // Reuse a historical month already fetched by search/navigation/report.
+    if(state&&state.historicalMonths&&Array.isArray(state.historicalMonths[r.key])){
+      return filterMonthV611(state.historicalMonths[r.key],r);
+    }
+
+    // Older month: query only that worker and that exact month, never all history.
+    var query=db.collection('workEntries')
+      .where('workerId','==',viewedWorker.id)
+      .where('date','>=',r.start)
+      .where('date','<=',r.end);
+    var snap=await query.get();
+    var rows=snap.docs.map(function(d){return Object.assign({id:d.id},d.data()||{});});
+    if(state){
+      if(!state.historicalMonths)state.historicalMonths={};
+      state.historicalMonths[r.key]=rows.slice();
+    }
+    return filterMonthV611(rows,r);
+  }
+
+  window.loadSettlementEntriesV547=loadSettlementEntriesCacheV611;
+  try{loadSettlementEntriesV547=loadSettlementEntriesCacheV611;}catch(e){}
+
+  // Force the clean changelog mechanism to compare and seed the newly completed rows.
+  function reseedV611(){
+    try{
+      var fetcher=window.fetchCleanChangelogV494||window.fetchChangelogV475;
+      if(typeof fetcher==='function')fetcher(false).catch(function(e){console.warn('v6.11 changelog reseed skipped',e);});
+    }catch(e){}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(reseedV611,900);});
+  else setTimeout(reseedV611,900);
+  window.addEventListener('load',function(){setTimeout(reseedV611,1500);});
+
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.12 BETA - PERSISTENT TWO-YEAR CACHE + SAFE FIRST-SAVE REFRESH
+-------------------------------------------------------------------------------
+1. The rolling 730-day work cache is persisted in IndexedDB per worker.
+2. App launch renders the saved cache immediately before the Firestore listener
+   completes, so opening the home-screen shortcut does not start with an empty UI.
+3. Firestore then synchronizes the same 730-day query in the background and only
+   replaces the local cache with a valid snapshot.
+4. A cache snapshot that is temporarily empty and comes only from local metadata
+   cannot erase an already-populated visible month.
+5. Every central cache refresh also persists create/update/delete results locally,
+   fixing the first-save case where the visible month could become empty.
+6. Added firestore.indexes.json for the workerId + date range query.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  if(window.__wmPersistentCacheV612Installed)return;
+  window.__wmPersistentCacheV612Installed=true;
+
+  var DB_NAME='work-monitor-local-cache';
+  var DB_VERSION=1;
+  var STORE='workerCaches';
+  var state=window.WM_DATA_CACHE_V604=window.WM_DATA_CACHE_V604||{};
+  var activeListenerWorker='';
+  var listenerReadyPromise=null;
+
+  function openDbV612(){
+    return new Promise(function(resolve,reject){
+      if(!window.indexedDB){reject(new Error('IndexedDB unavailable'));return;}
+      var req=indexedDB.open(DB_NAME,DB_VERSION);
+      req.onupgradeneeded=function(){
+        var db=req.result;
+        if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'workerId'});
+      };
+      req.onsuccess=function(){resolve(req.result);};
+      req.onerror=function(){reject(req.error||new Error('IndexedDB open failed'));};
+    });
+  }
+  async function readCacheV612(workerId){
+    var db=await openDbV612();
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(STORE,'readonly'),req=tx.objectStore(STORE).get(workerId);
+      req.onsuccess=function(){resolve(req.result||null);};
+      req.onerror=function(){reject(req.error);};
+      tx.oncomplete=function(){db.close();};
+    });
+  }
+  async function writeCacheV612(){
+    try{
+      if(!state.workerId||!Array.isArray(state.entries))return;
+      var db=await openDbV612();
+      await new Promise(function(resolve,reject){
+        var tx=db.transaction(STORE,'readwrite');
+        tx.objectStore(STORE).put({
+          workerId:String(state.workerId),
+          cutoff:String(state.cutoff||''),
+          entries:state.entries,
+          savedAt:Date.now(),
+          schema:1
+        });
+        tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error);};tx.onabort=function(){reject(tx.error);};
+      });
+      db.close();
+    }catch(e){console.warn('v6.12 IndexedDB cache write skipped',e);}
+  }
+  function renderV612(){
+    try{
+      if(typeof window.wmRefreshFromCacheV610==='function'){
+        window.wmRefreshFromCacheV610();
+      }else if(typeof renderCalendar==='function'){
+        renderCalendar();if(typeof renderDay==='function')renderDay();if(typeof renderStats==='function')renderStats();
+      }
+    }catch(e){console.warn('v6.12 cache render skipped',e);}
+  }
+  function stopV612(){
+    try{if(state.unsubscribe)state.unsubscribe();}catch(e){}
+    state.unsubscribe=null;activeListenerWorker='';listenerReadyPromise=null;
+  }
+  function cutoffV612(){
+    var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-730);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  async function hydrateV612(workerId,cutoff){
+    try{
+      var saved=await readCacheV612(workerId);
+      if(saved&&saved.cutoff===cutoff&&Array.isArray(saved.entries)){
+        state.workerId=workerId;state.cutoff=cutoff;state.entries=saved.entries.slice();
+        window.workerAllEntriesV511=state.entries.slice();
+        state.lastEvent='indexeddb-hydrated';
+        renderV612();
+        return true;
+      }
+    }catch(e){console.warn('v6.12 IndexedDB cache read skipped',e);}
+    return false;
+  }
+  function startListenerV612(workerId,cutoff){
+    if(activeListenerWorker===workerId&&listenerReadyPromise)return listenerReadyPromise;
+    stopV612();activeListenerWorker=workerId;
+    listenerReadyPromise=new Promise(function(resolve,reject){
+      var first=true;
+      try{
+        var q=db.collection('workEntries').where('workerId','==',workerId).where('date','>=',cutoff);
+        state.unsubscribe=q.onSnapshot({includeMetadataChanges:true},function(snap){
+          var incoming=snap.docs.map(function(d){return Object.assign({id:d.id},d.data()||{});});
+          var fromCache=!!(snap.metadata&&snap.metadata.fromCache);
+          // Never let a transient empty cache-only snapshot wipe valid persisted data.
+          if(!(fromCache&&incoming.length===0&&Array.isArray(state.entries)&&state.entries.length>0)){
+            state.entries=incoming;
+            state.workerId=workerId;state.cutoff=cutoff;
+            window.workerAllEntriesV511=state.entries.slice();
+            state.lastEvent=fromCache?'firestore-local-snapshot':'firestore-server-snapshot';
+            renderV612();
+            writeCacheV612();
+          }
+          if(first){first=false;resolve(state.entries||[]);}
+        },function(err){
+          console.error('v6.12 two-year listener failed',err);
+          if(first){first=false;reject(err);}
+        });
+      }catch(e){first=false;reject(e);}
+    });
+    return listenerReadyPromise;
+  }
+
+  // Final loadMonth implementation: hydrate persistent cache first, then sync in background.
+  window.loadMonth=async function(){
+    if(!viewedWorker||!viewedWorker.id)return;
+    try{await loadPriceList();}catch(e){console.warn('v6.12 price list load skipped',e);}
+    try{await loadTemplates();}catch(e){console.warn('v6.12 templates load skipped',e);}
+    var workerId=String(viewedWorker.id),cutoff=cutoffV612();
+    state.workerId=workerId;state.cutoff=cutoff;
+    await hydrateV612(workerId,cutoff);
+    renderV612();
+    try{await startListenerV612(workerId,cutoff);}catch(e){
+      // Persisted data remains usable when offline or when Firestore is temporarily unavailable.
+      if(!Array.isArray(state.entries)||!state.entries.length)throw e;
+    }
+    renderV612();
+  };
+  try{loadMonth=window.loadMonth;}catch(e){}
+
+  // Persist every successful local cache refresh, including the first create/delete.
+  var baseRefresh=window.wmRefreshFromCacheV610;
+  if(typeof baseRefresh==='function'&&!baseRefresh.__persistentV612){
+    var wrappedRefresh=function(options){
+      var result=baseRefresh(options);
+      writeCacheV612();
+      return result;
+    };
+    wrappedRefresh.__persistentV612=true;
+    window.wmRefreshFromCacheV610=wrappedRefresh;
+  }
+
+  // Also persist direct cache upserts/removals used by beta save/delete routes.
+  var baseRemove=window.wmRemoveEntryFromCacheV610;
+  if(typeof baseRemove==='function'&&!baseRemove.__persistentV612){
+    var wrappedRemove=function(id){var r=baseRemove(id);writeCacheV612();return r;};
+    wrappedRemove.__persistentV612=true;window.wmRemoveEntryFromCacheV610=wrappedRemove;
+  }
+
+  function updateChangelogV612(){
+    var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof old!=='function'||old.__v612Wrapped)return;
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.12-beta';}))rows.unshift({
+        version:'6.12-beta',title:'מטמון קבוע בטלפון ותיקון התרוקנות החודש בשמירה הראשונה',createdAt:'2026-07-26',items:[
+          'נתוני 730 הימים האחרונים נשמרים כעת ב-IndexedDB לפי עובד ונפתחים מיד מהטלפון בלחיצה על קיצור הדרך.',
+          'לאחר הצגת המטמון Firestore מסנכרן את אותה שאילתת שנתיים ברקע ומעדכן רק כאשר מתקבלת תמונת מצב תקינה.',
+          'נחסמה תמונת מצב מקומית ריקה וזמנית מלמחוק חודש שכבר הוצג מהמטמון.',
+          'כל שמירה, עריכה או מחיקה שמרעננת את המטמון המרכזי נשמרת מיד גם במטמון הקבוע, ובכך תוקן המצב שבו השמירה הראשונה רוקנה את תצוגת החודש.',
+          'נוסף לקובצי הפרויקט firestore.indexes.json עבור שאילתת workerId וטווח date.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v612Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  updateChangelogV612();
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.13 BETA - SAFE SNAPSHOT MERGE + MONTH HEADER SYNCHRONIZATION
+-------------------------------------------------------------------------------
+1. Firestore snapshot changes are now applied by document id instead of replacing
+   the entire two-year cache with a possibly partial local snapshot.
+2. Local pending-write snapshots can add/modify/remove one record without hiding
+   the rest of the visible month after the first save.
+3. A confirmed server snapshot remains authoritative and replaces the rolling
+   two-year cache only when the server has returned the complete query result.
+4. Every cache refresh now also updates calTitle and monthSub directly from
+   calendarDate, so the visible month title follows previous/next navigation.
+5. The repaired cache is persisted back to IndexedDB after each safe merge.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  if(window.__wmSnapshotMergeV613Installed)return;
+  window.__wmSnapshotMergeV613Installed=true;
+
+  var state=window.WM_DATA_CACHE_V604=window.WM_DATA_CACHE_V604||{};
+  var listenerWorkerV613='';
+  var listenerPromiseV613=null;
+  var DB_NAME_V613='work-monitor-local-cache',DB_VERSION_V613=1,STORE_V613='workerCaches';
+
+  function padV613(n){return String(n).padStart(2,'0');}
+  function cutoffV613(){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-730);return d.getFullYear()+'-'+padV613(d.getMonth()+1)+'-'+padV613(d.getDate());}
+  function monthTitleV613(){
+    try{
+      if(!(calendarDate instanceof Date))return;
+      var y=calendarDate.getFullYear(),m=calendarDate.getMonth(),label=(Array.isArray(months)&&months[m])?months[m]:(m+1);
+      if(document.getElementById('calTitle'))text('calTitle',label+' '+y);
+      if(document.getElementById('monthSub'))text('monthSub','חודש בתצוגה: '+label+' '+y);
+    }catch(e){console.warn('v6.13 month title update skipped',e);}
+  }
+  function openDbV613(){
+    return new Promise(function(resolve,reject){
+      if(!window.indexedDB){reject(new Error('IndexedDB unavailable'));return;}
+      var req=indexedDB.open(DB_NAME_V613,DB_VERSION_V613);
+      req.onupgradeneeded=function(){var db=req.result;if(!db.objectStoreNames.contains(STORE_V613))db.createObjectStore(STORE_V613,{keyPath:'workerId'});};
+      req.onsuccess=function(){resolve(req.result);};req.onerror=function(){reject(req.error||new Error('IndexedDB open failed'));};
+    });
+  }
+  async function persistV613(){
+    try{
+      if(!state.workerId||!Array.isArray(state.entries))return;
+      var dbi=await openDbV613();
+      await new Promise(function(resolve,reject){
+        var tx=dbi.transaction(STORE_V613,'readwrite');
+        tx.objectStore(STORE_V613).put({workerId:String(state.workerId),cutoff:String(state.cutoff||''),entries:state.entries,savedAt:Date.now(),schema:1});
+        tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error);};tx.onabort=function(){reject(tx.error);};
+      });
+      dbi.close();
+    }catch(e){console.warn('v6.13 cache persist skipped',e);}
+  }
+  async function hydrateV613(workerId,cutoff){
+    try{
+      var dbi=await openDbV613();
+      var saved=await new Promise(function(resolve,reject){
+        var tx=dbi.transaction(STORE_V613,'readonly'),req=tx.objectStore(STORE_V613).get(workerId);
+        req.onsuccess=function(){resolve(req.result||null);};req.onerror=function(){reject(req.error);};tx.oncomplete=function(){dbi.close();};
+      });
+      if(saved&&saved.cutoff===cutoff&&Array.isArray(saved.entries)){
+        state.workerId=workerId;state.cutoff=cutoff;state.entries=saved.entries.slice();window.workerAllEntriesV511=state.entries.slice();
+        return true;
+      }
+    }catch(e){console.warn('v6.13 cache hydrate skipped',e);}
+    return false;
+  }
+  function applyChangesV613(snap){
+    var map=Object.create(null);
+    (Array.isArray(state.entries)?state.entries:[]).forEach(function(e){if(e&&e.id)map[e.id]=e;});
+    var changes=[];try{changes=snap.docChanges();}catch(e){}
+    changes.forEach(function(ch){
+      var id=ch.doc.id;
+      if(ch.type==='removed')delete map[id];
+      else map[id]=Object.assign({id:id},ch.doc.data()||{});
+    });
+    state.entries=Object.keys(map).map(function(id){return map[id];});
+  }
+  function renderV613(){
+    monthTitleV613();
+    try{if(typeof window.wmRefreshFromCacheV610==='function')window.wmRefreshFromCacheV610();}catch(e){console.error('v6.13 cache render failed',e);}
+    monthTitleV613();
+  }
+  function stopOldListenerV613(){
+    try{if(state.unsubscribe)state.unsubscribe();}catch(e){}
+    state.unsubscribe=null;listenerWorkerV613='';listenerPromiseV613=null;
+  }
+  function startListenerV613(workerId,cutoff){
+    if(listenerWorkerV613===workerId&&listenerPromiseV613)return listenerPromiseV613;
+    stopOldListenerV613();listenerWorkerV613=workerId;
+    listenerPromiseV613=new Promise(function(resolve,reject){
+      var first=true;
+      try{
+        var q=db.collection('workEntries').where('workerId','==',workerId).where('date','>=',cutoff);
+        state.unsubscribe=q.onSnapshot({includeMetadataChanges:true},function(snap){
+          var fromCache=!!(snap.metadata&&snap.metadata.fromCache);
+          var hasPendingWrites=!!(snap.metadata&&snap.metadata.hasPendingWrites);
+          var beforeCount=Array.isArray(state.entries)?state.entries.length:0;
+          var changeCount=0;try{changeCount=snap.docChanges().length;}catch(e){}
+
+          // v6.15: a snapshot with pending local writes is NOT a complete authoritative
+          // server result. The first save after app startup can produce such a snapshot
+          // containing only the newly written document. Replacing the full two-year cache
+          // with it caused the calendar month to appear empty until navigating away/back.
+          if(fromCache||hasPendingWrites){
+            applyChangesV613(snap);
+            state.lastEvent='v6.15-differential-merge';
+          }else{
+            // Only a server-confirmed snapshot without pending writes may replace the cache.
+            state.entries=snap.docs.map(function(d){return Object.assign({id:d.id},d.data()||{});});
+            state.lastEvent='v6.15-authoritative-server-snapshot';
+          }
+          state.v615LastSnapshot={fromCache:fromCache,pending:hasPendingWrites,docs:snap.docs.length,changes:changeCount,before:beforeCount,after:state.entries.length,time:new Date().toLocaleTimeString('he-IL')};
+          try{console.log('[WM 6.15 SNAPSHOT]',state.v615LastSnapshot);}catch(e){}
+          state.workerId=workerId;state.cutoff=cutoff;window.workerAllEntriesV511=state.entries.slice();
+          renderV613();persistV613();
+          if(first){first=false;resolve(state.entries);}
+        },function(err){if(first){first=false;reject(err);}else console.error('v6.13 listener failed',err);});
+      }catch(e){first=false;reject(e);}
+    });
+    return listenerPromiseV613;
+  }
+
+  // Final loadMonth route for v6.13: persistent cache first, then safe differential listener.
+  window.loadMonth=async function(){
+    if(!viewedWorker||!viewedWorker.id)return;
+    try{await loadPriceList();}catch(e){console.warn('v6.13 price list load skipped',e);}
+    try{await loadTemplates();}catch(e){console.warn('v6.13 templates load skipped',e);}
+    var workerId=String(viewedWorker.id),cutoff=cutoffV613();state.workerId=workerId;state.cutoff=cutoff;
+    await hydrateV613(workerId,cutoff);renderV613();
+    try{await startListenerV613(workerId,cutoff);}catch(e){if(!Array.isArray(state.entries)||!state.entries.length)throw e;}
+    renderV613();
+  };
+  try{loadMonth=window.loadMonth;}catch(e){}
+
+  // Keep the month heading synchronized for every central refresh, including arrow navigation.
+  var baseRefreshV613=window.wmRefreshFromCacheV610;
+  if(typeof baseRefreshV613==='function'&&!baseRefreshV613.__monthHeaderV613){
+    var wrappedRefreshV613=function(options){monthTitleV613();var result=baseRefreshV613(options);monthTitleV613();return result;};
+    wrappedRefreshV613.__monthHeaderV613=true;window.wmRefreshFromCacheV610=wrappedRefreshV613;
+  }
+
+  function updateChangelogV613(){
+    var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof old!=='function'||old.__v613Wrapped)return;
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.13-beta';}))rows.unshift({
+        version:'6.13-beta',title:'תיקון היעלמות החודש וסנכרון כותרת החודש',createdAt:'2026-07-26',items:[
+          'תמונות מצב מקומיות של Firestore מתמזגות כעת לפי מזהה מסמך ואינן מחליפות את כל מטמון השנתיים ברשומה החדשה בלבד.',
+          'שמירה ראשונה של קריאת שירות או התקנה אינה אמורה עוד להעלים את שאר העבודות מלוח החודש.',
+          'תמונת מצב מאושרת מהשרת נשארת מקור האמת המלא ומחליפה את המטמון רק לאחר קבלת תוצאת השאילתה השלמה.',
+          'כותרת לוח השנה וכותרת המשנה מתעדכנות ישירות מתוך calendarDate בכל מעבר בין חודשים ובכל רענון מהמטמון.',
+          'המטמון המתוקן נשמר מחדש ב-IndexedDB לאחר כל סנכרון.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v613Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  updateChangelogV613();
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+  setTimeout(function(){try{monthTitleV613();if(typeof fetchCleanChangelogV494==='function')fetchCleanChangelogV494();}catch(e){}},1200);
+})();
+
+
+/*
+===============================================================================
+VERSION 6.14 BETA - MONTH METADATA RELOAD FOR VACATION DAYS AND DAY LOCKS
+-------------------------------------------------------------------------------
+1. Version 6.13 replaced the final loadMonth route after the older 6.06/6.07
+   wrappers had already been installed, so those wrappers no longer ran when
+   navigating to a previous or future month.
+2. Every month navigation now reloads the target month's vacation-day metadata
+   and day-lock metadata after the cached work entries are ready.
+3. The calendar, selected day, statistics and dashboard are rendered again only
+   after both metadata loaders finish, so previous/future months display the
+   same lock and vacation markers as the current month.
+4. This fix does not reload workEntries and therefore preserves the persistent
+   two-year cache optimization introduced in the beta series.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  if(window.__wmMonthMetadataReloadV614Installed)return;
+  window.__wmMonthMetadataReloadV614Installed=true;
+
+  var baseLoadMonthV614=window.loadMonth;
+  if(typeof baseLoadMonthV614==='function'&&!baseLoadMonthV614.__monthMetadataV614){
+    var wrappedLoadMonthV614=async function(){
+      var result=await baseLoadMonthV614.apply(this,arguments);
+
+      // v6.14: load vacation days for calendarDate's month. The work-entry cache
+      // remains untouched; only the small workerDaysOff metadata is refreshed.
+      try{
+        if(typeof window.loadVacationDaysV437==='function'){
+          await window.loadVacationDaysV437();
+        }else if(typeof window.loadVacationDaysV489==='function'){
+          await window.loadVacationDaysV489();
+        }else if(typeof window.loadVacationDaysV487==='function'){
+          await window.loadVacationDaysV487();
+        }else if(typeof loadVacationDaysV487==='function'){
+          await loadVacationDaysV487();
+        }
+      }catch(err){
+        console.error('v6.14 month vacation-days reload failed',err);
+      }
+
+      // v6.14: day locks use calendarDate to filter the requested month.
+      // Run this after vacation loading because both states share workerDaysOff.
+      try{
+        if(typeof window.loadDayLocksV585==='function'){
+          await window.loadDayLocksV585();
+        }
+      }catch(err){
+        console.error('v6.14 month day-lock reload failed',err);
+      }
+
+      // Rebuild all dependent views only after the target month's metadata is ready.
+      try{
+        if(typeof window.wmRefreshFromCacheV610==='function'){
+          window.wmRefreshFromCacheV610({reason:'month-metadata-v6.14'});
+        }else{
+          if(typeof renderCalendar==='function')renderCalendar();
+          if(typeof renderDay==='function')renderDay();
+          if(typeof updateStats==='function')updateStats();
+          if(typeof renderSmartDashboard==='function')renderSmartDashboard();
+        }
+      }catch(err){
+        console.error('v6.14 month metadata render failed',err);
+      }
+      return result;
+    };
+    wrappedLoadMonthV614.__monthMetadataV614=true;
+    window.loadMonth=wrappedLoadMonthV614;
+    try{loadMonth=wrappedLoadMonthV614;}catch(e){}
+  }
+
+  function updateChangelogV614(){
+    var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+    if(typeof old!=='function'||old.__v614Wrapped)return;
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.14-beta';}))rows.unshift({
+        version:'6.14-beta',title:'תיקון ימי חופש ונעילות במעבר בין חודשים',createdAt:'2026-07-26',items:[
+          'תוקן מצב שבו ימי חופש ונעילות יום הוצגו רק בחודש הנוכחי ונעלמו בחודשים קודמים או עתידיים.',
+          'לאחר כל מעבר חודש נטענים מחדש נתוני ימי החופש ונתוני הנעילות עבור החודש שמוצג בפועל.',
+          'לוח השנה, היום הנבחר, הסטטיסטיקות והדשבורד מתרעננים רק לאחר סיום טעינת נתוני החודש.',
+          'טעינת העבודות ממשיכה להתבצע מהמטמון הקבוע של השנתיים ואינה חוזרת לקריאה מלאה של workEntries.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v614Wrapped=true;
+    window.requiredChangelogRows=wrapped;
+    try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  updateChangelogV614();
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+  setTimeout(function(){
+    try{if(typeof fetchCleanChangelogV494==='function')fetchCleanChangelogV494();}catch(e){}
+  },1500);
+})();
+
+
+/*
+===============================================================================
+VERSION 6.15 BETA - FIRST-SAVE CACHE DIAGNOSTICS
+-------------------------------------------------------------------------------
+1. Extends the existing ?audit=1 panel with snapshot metadata and counts.
+2. Records every central refresh reason and month-entry count.
+3. Keeps a rolling diagnostic log in sessionStorage for copying after reproduction.
+4. No Firestore documents are written by this diagnostic tool.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  var state=window.WM_DATA_CACHE_V604=window.WM_DATA_CACHE_V604||{};
+  var KEY='wmCacheDebugLogV615';
+  function push(event,data){
+    try{
+      var rows=JSON.parse(sessionStorage.getItem(KEY)||'[]');
+      rows.push({time:new Date().toISOString(),event:event,data:data||{}});
+      if(rows.length>120)rows=rows.slice(rows.length-120);
+      sessionStorage.setItem(KEY,JSON.stringify(rows));
+    }catch(e){}
+  }
+  function currentMonthCount(){try{return Array.isArray(monthEntries)?monthEntries.length:-1;}catch(e){return -1;}}
+  function totalCount(){return Array.isArray(state.entries)?state.entries.length:0;}
+  var baseRefresh=window.wmRefreshFromCacheV610;
+  if(typeof baseRefresh==='function'&&!baseRefresh.__debugV615){
+    var wrapped=function(options){
+      var before=currentMonthCount(),totalBefore=totalCount();
+      var out=baseRefresh.apply(this,arguments);
+      var info={reason:(options&&options.reason)||'unspecified',monthBefore:before,monthAfter:currentMonthCount(),cacheBefore:totalBefore,cacheAfter:totalCount(),selectedDate:(typeof selectedDate!=='undefined'?selectedDate:''),calendar:(typeof calendarDate!=='undefined'&&calendarDate?calendarDate.toISOString().slice(0,7):'')};
+      state.v615LastRefresh=info;push('refresh',info);render();return out;
+    };
+    wrapped.__debugV615=true;window.wmRefreshFromCacheV610=wrapped;
+  }
+  function render(){
+    try{
+      if(new URLSearchParams(location.search).get('cacheDebug')!=='1')return;
+      var box=document.getElementById('wmCacheDebugV604');if(!box)return;
+      var snap=state.v615LastSnapshot||{},ref=state.v615LastRefresh||{};
+      box.style.maxHeight='55vh';box.style.overflow='auto';box.style.whiteSpace='pre-wrap';
+      box.textContent='WM CACHE 6.15 BETA\n'+
+        'worker: '+(state.workerId||'-')+'\n'+
+        'cache docs: '+totalCount()+'\n'+
+        'month docs: '+currentMonthCount()+'\n'+
+        'snapshot docs: '+(snap.docs===undefined?'-':snap.docs)+' changes: '+(snap.changes===undefined?'-':snap.changes)+'\n'+
+        'fromCache: '+(snap.fromCache===undefined?'-':snap.fromCache)+' pending: '+(snap.pending===undefined?'-':snap.pending)+'\n'+
+        'snapshot before/after: '+(snap.before===undefined?'-':snap.before)+' / '+(snap.after===undefined?'-':snap.after)+'\n'+
+        'refresh reason: '+(ref.reason||'-')+'\n'+
+        'refresh month before/after: '+(ref.monthBefore===undefined?'-':ref.monthBefore)+' / '+(ref.monthAfter===undefined?'-':ref.monthAfter)+'\n'+
+        'last event: '+(state.lastEvent||'-')+'\n\n'+
+        'לחיצה ארוכה/סימון והעתקה, או בקונסולה:\nwmCopyCacheDebugV615()';
+    }catch(e){}
+  }
+  window.wmCopyCacheDebugV615=function(){
+    var text='';try{text=sessionStorage.getItem(KEY)||'[]';}catch(e){}
+    try{navigator.clipboard.writeText(text);}catch(e){}
+    console.log('[WM 6.15 DEBUG LOG]',text);return text;
+  };
+  window.wmClearCacheDebugV615=function(){try{sessionStorage.removeItem(KEY);}catch(e){}render();};
+  setInterval(render,700);
+  window.addEventListener('load',function(){setTimeout(render,1200);});
+})();
+
+
+/*
+===============================================================================
+VERSION 6.17 BETA - ONE-SHOT CACHE STARTUP + FIRST-SAVE MONTH INTEGRITY TRACE
+-------------------------------------------------------------------------------
+1. Fixes the root cause found in the 6.16 log: the final v6.12/v6.13 loadMonth
+   route did not assign state.readyPromise, so the retry loop initialized the
+   cache and reloaded the month repeatedly even after a successful load.
+2. Cache startup is now one-shot per worker. A single shared promise blocks
+   overlapping starts, READY is set after success, and the retry loop stops.
+3. Existing copy/clear debug controls remain available with ?audit=1.
+4. Adds month-integrity diagnostics, including a shortened JavaScript stack,
+   whenever a refresh unexpectedly reduces a populated month to zero/one rows.
+5. Diagnostics remain local in sessionStorage and never write to Firestore.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  var state=window.WM_DATA_CACHE_V604=window.WM_DATA_CACHE_V604||{};
+  var KEY='wmCacheDebugLogV617';
+  var bootStart=Date.now(),retryTimer=null,lastWorkerSeen='';
+  var activeWorker='',initPromise=null,ready=false,saveWasClicked=false;
+
+  function monthValue(){try{return calendarDate instanceof Date?calendarDate.toISOString().slice(0,7):'';}catch(e){return '';}}
+  function selectedValue(){try{return typeof selectedDate!=='undefined'?String(selectedDate||''):'';}catch(e){return '';}}
+  function workerValue(){try{return viewedWorker&&viewedWorker.id?String(viewedWorker.id):'';}catch(e){return '';}}
+  function monthCount(){try{return Array.isArray(monthEntries)?monthEntries.length:-1;}catch(e){return -1;}}
+  function cacheCount(){return Array.isArray(state.entries)?state.entries.length:0;}
+  function shortStack(){
+    try{return String(new Error().stack||'').split('\n').slice(2,8).map(function(x){return x.trim();}).join(' <- ');}catch(e){return '';}
+  }
+  function safeData(extra){
+    var base={elapsedMs:Date.now()-bootStart,workerId:workerValue()||state.workerId||'',cacheWorkerId:state.workerId||'',activeWorker:activeWorker||'',month:monthValue(),selectedDate:selectedValue(),cacheDocs:cacheCount(),monthDocs:monthCount(),ready:ready,initBusy:!!initPromise,lastEvent:state.lastEvent||''};
+    if(extra&&typeof extra==='object')Object.keys(extra).forEach(function(k){var v=extra[k];if(/password|secret|token/i.test(k))v='[hidden]';base[k]=v;});
+    return base;
+  }
+  function rows(){try{return JSON.parse(sessionStorage.getItem(KEY)||'[]');}catch(e){return [];}}
+  function trace(event,extra){
+    var row={time:new Date().toISOString(),event:String(event||'EVENT'),data:safeData(extra)};
+    try{var list=rows();list.push(row);if(list.length>500)list=list.slice(list.length-500);sessionStorage.setItem(KEY,JSON.stringify(list));}catch(e){}
+    state.v617LastTrace=row;
+    try{console.log('[WM 6.17 TRACE]',row.event,row.data);}catch(e){}
+    render();return row;
+  }
+  window.wmTraceV617=trace;
+
+  function fullText(){
+    var header='WORK MONITOR AUDIT DEBUG LOG\n'+'generated: '+new Date().toISOString()+'\n'+'url: '+location.href+'\n'+'userAgent: '+navigator.userAgent+'\n\n';
+    return header+rows().map(function(r){return r.time+' | '+r.event+' | '+JSON.stringify(r.data);}).join('\n');
+  }
+  async function copyLog(){
+    var text=fullText(),ok=false;
+    try{await navigator.clipboard.writeText(text);ok=true;}catch(e){try{var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();ok=document.execCommand('copy');ta.remove();}catch(_e){}}
+    trace(ok?'LOG_COPIED':'LOG_COPY_FAILED',{characters:text.length});
+    var btn=document.getElementById('wmDebugCopyV617');if(btn){var old=btn.textContent;btn.textContent=ok?'✅ הועתק':'❌ לא הועתק';setTimeout(function(){btn.textContent=old;},1600);}
+    return text;
+  }
+  window.wmCopyCacheDebugV617=copyLog;
+  window.wmCopyCacheDebugV616=copyLog;
+  window.wmClearCacheDebugV617=function(){try{sessionStorage.removeItem(KEY);}catch(e){}trace('LOG_CLEARED');render();};
+
+  function ensureButtons(box){
+    if(document.getElementById('wmDebugControlsV617'))return;
+    var controls=document.createElement('div');controls.id='wmDebugControlsV617';controls.style.cssText='display:flex;gap:7px;margin-top:9px;direction:rtl;position:sticky;bottom:0;background:#111;padding-top:7px;';
+    var copy=document.createElement('button');copy.id='wmDebugCopyV617';copy.type='button';copy.textContent='📋 העתק את כל הלוג';
+    var clear=document.createElement('button');clear.type='button';clear.textContent='🗑️ נקה לוג';
+    [copy,clear].forEach(function(b){b.style.cssText='border:1px solid #6b8;border-radius:8px;padding:7px 9px;background:#20352a;color:#effff2;font:12px Arial;cursor:pointer;';});
+    copy.onclick=function(e){e.stopPropagation();copyLog();};clear.onclick=function(e){e.stopPropagation();window.wmClearCacheDebugV617();};
+    controls.appendChild(copy);controls.appendChild(clear);box.appendChild(controls);
+  }
+  function render(){
+    try{
+      if(new URLSearchParams(location.search).get('cacheDebug')!=='1')return;
+      var box=document.getElementById('wmCacheDebugV604');if(!box){box=document.createElement('div');box.id='wmCacheDebugV604';document.body.appendChild(box);}
+      box.style.cssText='position:fixed;left:8px;bottom:8px;z-index:999999;background:#111;color:#d7ffd7;border:1px solid #55aa55;border-radius:10px;padding:9px 11px;direction:ltr;text-align:left;font:12px/1.45 monospace;max-width:94vw;width:min(620px,92vw);max-height:58vh;overflow:auto;white-space:pre-wrap;box-shadow:0 4px 18px #0008;';
+      var last=state.v617LastTrace||{},snap=state.v615LastSnapshot||{},ref=state.v615LastRefresh||{};
+      box.textContent='WM CACHE AUDIT\n'+'worker current/cache: '+(workerValue()||'-')+' / '+(state.workerId||'-')+'\n'+'cache docs: '+cacheCount()+'   month docs: '+monthCount()+'\n'+'month: '+(monthValue()||'-')+'   selected: '+(selectedValue()||'-')+'\n'+'READY: '+(ready?'YES':'NO')+'   init busy: '+(initPromise?'YES':'NO')+'\n'+'snapshots: '+(state.snapshotCount||0)+'   snapshot docs: '+(snap.docs===undefined?'-':snap.docs)+'\n'+'snapshot cache/pending: '+(snap.fromCache===undefined?'-':snap.fromCache)+' / '+(snap.pending===undefined?'-':snap.pending)+'\n'+'refresh: '+(ref.reason||'-')+'   '+(ref.monthBefore===undefined?'-':ref.monthBefore)+'→'+(ref.monthAfter===undefined?'-':ref.monthAfter)+'\n'+'last trace: '+(last.event||'-')+'\n'+'last cache event: '+(state.lastEvent||'-')+'\n'+'log rows: '+rows().length;
+      ensureButtons(box);
+    }catch(e){}
+  }
+
+  function stopRetry(reason){if(retryTimer){clearInterval(retryTimer);retryTimer=null;trace('CACHE_RETRY_STOPPED',{reason:reason});}}
+  function markReady(wid){
+    activeWorker=wid;ready=true;
+    // v6.17: state.readyPromise is the common readiness contract used by older
+    // cache guards and by diagnostics. Keep it resolved after initialization.
+    state.readyPromise=Promise.resolve(Array.isArray(state.entries)?state.entries:[]);
+    state.v617Ready=true;
+    stopRetry('ready');
+    trace('CACHE_READY',{worker:wid,docs:cacheCount(),monthDocs:monthCount()});
+  }
+  function startCacheOnce(reason){
+    var wid=workerValue();trace('CACHE_START_CHECK',{reason:reason,detectedWorker:wid});
+    if(!wid){trace('CACHE_START_WAIT_NO_WORKER',{reason:reason});return Promise.resolve(false);}
+    if(ready&&activeWorker===wid){trace('CACHE_ALREADY_READY',{reason:reason});return Promise.resolve(true);}
+    if(initPromise){trace('CACHE_START_JOIN_EXISTING',{reason:reason});return initPromise;}
+    if(activeWorker&&activeWorker!==wid){ready=false;state.v617Ready=false;state.readyPromise=null;activeWorker=wid;trace('CACHE_WORKER_SWITCH',{reason:reason});}
+    activeWorker=wid;
+    initPromise=(async function(){
+      try{
+        trace('CACHE_INIT_START',{reason:reason});
+        if(typeof window.loadMonth==='function')await window.loadMonth();else if(typeof loadMonth==='function')await loadMonth();
+        markReady(wid);trace('CACHE_INIT_DONE',{reason:reason});return true;
+      }catch(err){ready=false;state.v617Ready=false;state.readyPromise=null;trace('CACHE_INIT_ERROR',{reason:reason,message:(err&&err.message)||String(err||'')});return false;}
+      finally{initPromise=null;render();}
+    })();
+    state.readyPromise=initPromise;
+    return initPromise;
+  }
+
+  function installLoadMonthTrace(){
+    var base=window.loadMonth;if(typeof base!=='function'||base.__traceV617)return;
+    var wrapped=async function(){var before=monthCount();trace('LOAD_MONTH_START',{monthBefore:before,stack:shortStack()});try{var out=await base.apply(this,arguments);trace('LOAD_MONTH_DONE',{monthBefore:before,monthAfter:monthCount()});return out;}catch(err){trace('LOAD_MONTH_ERROR',{message:(err&&err.message)||String(err||''),stack:shortStack()});throw err;}};
+    wrapped.__traceV617=true;wrapped.__baseV617=base;window.loadMonth=wrapped;try{loadMonth=wrapped;}catch(e){}
+  }
+  function installRefreshIntegrityTrace(){
+    var base=window.wmRefreshFromCacheV610;if(typeof base!=='function'||base.__integrityV617)return;
+    var wrapped=function(options){var before=monthCount(),cacheBefore=cacheCount(),out=base.apply(this,arguments),after=monthCount();
+      if(before>1&&after<=1&&cacheCount()>1)trace('MONTH_INTEGRITY_DROP',{reason:(options&&options.reason)||'unspecified',before:before,after:after,cacheBefore:cacheBefore,cacheAfter:cacheCount(),afterFirstSave:saveWasClicked,stack:shortStack()});
+      else trace('CACHE_REFRESH_DONE',{reason:(options&&options.reason)||'unspecified',before:before,after:after});
+      return out;};
+    wrapped.__integrityV617=true;window.wmRefreshFromCacheV610=wrapped;
+  }
+  function installSaveTrace(){
+    document.addEventListener('click',function(ev){var t=ev.target&&ev.target.closest?ev.target.closest('#saveServicePlannedBtnV49,#saveInstallPlannedBtnV49,#serviceSaveDoneBtnV411,#installSaveDoneBtnV411'):null;if(t){saveWasClicked=true;trace('SAVE_BUTTON_CLICK',{buttonId:t.id,monthBefore:monthCount(),cacheBefore:cacheCount()});setTimeout(function(){trace('SAVE_AFTER_250MS',{monthAfter:monthCount(),cacheAfter:cacheCount()});},250);setTimeout(function(){trace('SAVE_AFTER_1500MS',{monthAfter:monthCount(),cacheAfter:cacheCount()});},1500);}},true);
+  }
+  function beginRetry(){
+    if(retryTimer||ready)return;var tries=0;
+    retryTimer=setInterval(function(){tries++;var wid=workerValue();if(wid!==lastWorkerSeen){trace('WORKER_DETECTED_CHANGE',{previous:lastWorkerSeen,current:wid});lastWorkerSeen=wid;}if(wid)startCacheOnce('retry-'+tries);if(tries>=120&&!ready)stopRetry('timeout');render();},500);
+  }
+
+  trace('APP_SCRIPT_LOADED',{readyState:document.readyState});
+  function boot(){trace('DOM_BOOT',{readyState:document.readyState});installLoadMonthTrace();installRefreshIntegrityTrace();installSaveTrace();startCacheOnce('boot');beginRetry();render();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  window.addEventListener('load',function(){trace('WINDOW_LOAD');installLoadMonthTrace();installRefreshIntegrityTrace();startCacheOnce('window-load');render();},{once:true});
+  window.addEventListener('pageshow',function(e){trace('PAGE_SHOW',{persisted:!!e.persisted});installLoadMonthTrace();installRefreshIntegrityTrace();startCacheOnce('pageshow');});
+  document.addEventListener('visibilitychange',function(){trace('VISIBILITY_CHANGE',{visibility:document.visibilityState});if(document.visibilityState==='visible')startCacheOnce('visible');});
+  setInterval(render,700);
+})();
+
+
+/* ======================================================================
+VERSION 6.18 BETA - FIRESTORE REQUEST AUDIT
+1. Instruments Firestore calls without changing application data logic.
+2. Logs query shape, path, returned document counts, cache/server metadata,
+   pending writes, duration and estimated read/write/delete operations.
+3. Uses the existing cacheDebug=1 log and copy button so the complete audit
+   can be copied after real-world testing on the phone.
+====================================================================== */
+(function installFirestoreAuditV618(){
+  'use strict';
+  var enabled=false;
+  try{var params=new URLSearchParams(location.search);enabled=params.get('cacheDebug')==='1'||params.get('firestoreDebug')==='1'||params.get('firebaseDebug')==='1';}catch(e){}
+  if(!enabled||!window.db||window.__WM_FS_AUDIT_INSTALLED_V618)return;
+  window.__WM_FS_AUDIT_INSTALLED_V618=true;
+
+  var audit=window.WM_FIRESTORE_AUDIT_V618={
+    startedAt:new Date().toISOString(), estimatedReads:0, writes:0, deletes:0,
+    listenerSnapshots:0, queryGets:0, documentGets:0, byCollection:{}, sequence:0
+  };
+  var decoratedQueries=new WeakSet(), decoratedDocs=new WeakSet();
+  var queryMeta=new WeakMap();
+
+  function trace(event,data){
+    data=data||{}; data.auditSeq=++audit.sequence;
+    if(typeof window.wmTraceV617==='function') window.wmTraceV617('FIRESTORE_'+event,data);
+    else try{console.log('[WM FIRESTORE AUDIT 6.18]',event,data);}catch(e){}
+    updatePanel();
+  }
+  function collectionName(path){return String(path||'unknown').split('/')[0]||'unknown';}
+  function bump(path,key,n){
+    var c=collectionName(path); audit.byCollection[c]=audit.byCollection[c]||{reads:0,writes:0,deletes:0,listeners:0};
+    audit.byCollection[c][key]=(audit.byCollection[c][key]||0)+(n||0);
+  }
+  function cloneMeta(m){return {path:m.path||'',filters:(m.filters||[]).slice(),orders:(m.orders||[]).slice(),limits:(m.limits||[]).slice(),cursors:(m.cursors||[]).slice()};}
+  function safeVal(v){
+    try{
+      if(v&&typeof v.toDate==='function')return {timestamp:v.toDate().toISOString()};
+      if(v instanceof Date)return v.toISOString();
+      if(v&&v.path)return {refPath:v.path};
+      if(Array.isArray(v))return v.slice(0,10).map(safeVal);
+      if(v&&typeof v==='object')return JSON.parse(JSON.stringify(v,function(k,x){if(x&&typeof x.toDate==='function')return x.toDate().toISOString();return x;}));
+      return v;
+    }catch(e){return String(v);}
+  }
+  function getMeta(obj){return queryMeta.get(obj)||{path:(obj&&obj.path)||'',filters:[],orders:[],limits:[],cursors:[]};}
+  function setDerived(parent,child,kind,args){
+    var m=cloneMeta(getMeta(parent));
+    if(kind==='where')m.filters.push({field:String(args[0]),op:String(args[1]),value:safeVal(args[2])});
+    else if(kind==='orderBy')m.orders.push({field:String(args[0]),direction:String(args[1]||'asc')});
+    else if(kind==='limit'||kind==='limitToLast')m.limits.push({type:kind,value:args[0]});
+    else m.cursors.push({type:kind,values:Array.prototype.slice.call(args).map(safeVal)});
+    queryMeta.set(child,m); decorateQuery(child); return child;
+  }
+  function queryInfo(q){var m=getMeta(q);return {path:m.path,filters:m.filters,orders:m.orders,limits:m.limits,cursors:m.cursors};}
+  function snapInfo(snap){
+    var changes=[];try{changes=snap.docChanges().map(function(c){return {type:c.type,id:c.doc.id};});}catch(e){}
+    return {docs:snap&&typeof snap.size==='number'?snap.size:(snap&&snap.docs?snap.docs.length:0),changes:changes.length,changeTypes:changes.slice(0,25),fromCache:!!(snap&&snap.metadata&&snap.metadata.fromCache),pending:!!(snap&&snap.metadata&&snap.metadata.hasPendingWrites)};
+  }
+  function decorateQuery(q){
+    if(!q||decoratedQueries.has(q))return q; decoratedQueries.add(q);
+    if(!queryMeta.has(q))queryMeta.set(q,{path:q.path||'',filters:[],orders:[],limits:[],cursors:[]});
+    ['where','orderBy','limit','limitToLast','startAt','startAfter','endAt','endBefore'].forEach(function(name){
+      if(typeof q[name]!=='function')return; var original=q[name];
+      try{q[name]=function(){var child=original.apply(this,arguments);return setDerived(this,child,name,arguments);};}catch(e){}
+    });
+    if(typeof q.get==='function'){
+      var originalGet=q.get;
+      try{q.get=function(){
+        var info=queryInfo(this), started=performance.now(); audit.queryGets++; trace('QUERY_GET_START',info);
+        return originalGet.apply(this,arguments).then(function(snap){var si=snapInfo(snap),reads=si.docs;audit.estimatedReads+=reads;bump(info.path,'reads',reads);trace('QUERY_GET_DONE',Object.assign({},info,si,{estimatedReads:reads,durationMs:Math.round(performance.now()-started)}));return snap;},function(err){trace('QUERY_GET_ERROR',Object.assign({},info,{durationMs:Math.round(performance.now()-started),error:String(err&&err.message||err)}));throw err;});
+      };}catch(e){}
+    }
+    if(typeof q.onSnapshot==='function'){
+      var originalListen=q.onSnapshot;
+      try{q.onSnapshot=function(){
+        var self=this,args=Array.prototype.slice.call(arguments),info=queryInfo(self),started=performance.now(),first=true;
+        var options=null,nextIndex=0;if(args[0]&&typeof args[0]==='object'&&typeof args[0]!=='function'){options=args[0];nextIndex=1;}
+        var next=args[nextIndex],error=args[nextIndex+1],complete=args[nextIndex+2];
+        trace('LISTENER_ATTACH',Object.assign({},info,{includeMetadataChanges:!!(options&&options.includeMetadataChanges)}));bump(info.path,'listeners',1);
+        if(typeof next==='function')args[nextIndex]=function(snap){var si=snapInfo(snap);var reads=first?si.docs:si.changes;first=false;audit.listenerSnapshots++;audit.estimatedReads+=reads;bump(info.path,'reads',reads);trace('LISTENER_SNAPSHOT',Object.assign({},info,si,{estimatedReads:reads,durationSinceAttachMs:Math.round(performance.now()-started)}));return next.apply(this,arguments);};
+        if(typeof error==='function')args[nextIndex+1]=function(err){trace('LISTENER_ERROR',Object.assign({},info,{error:String(err&&err.message||err)}));return error.apply(this,arguments);};
+        var unsubscribe=originalListen.apply(self,args);return function(){trace('LISTENER_DETACH',info);return unsubscribe&&unsubscribe();};
+      };}catch(e){}
+    }
+    if(typeof q.doc==='function'){
+      var originalDoc=q.doc;try{q.doc=function(){return decorateDoc(originalDoc.apply(this,arguments));};}catch(e){}
+    }
+    if(typeof q.add==='function'){
+      var originalAdd=q.add;try{q.add=function(data){var info=queryInfo(this),started=performance.now();trace('ADD_START',Object.assign({},info,{fields:data?Object.keys(data):[]}));return originalAdd.apply(this,arguments).then(function(ref){audit.writes++;bump(info.path,'writes',1);trace('ADD_DONE',Object.assign({},info,{documentPath:ref.path,writes:1,durationMs:Math.round(performance.now()-started)}));return decorateDoc(ref);},function(err){trace('ADD_ERROR',Object.assign({},info,{error:String(err&&err.message||err)}));throw err;});};}catch(e){}
+    }
+    return q;
+  }
+  function decorateDoc(ref){
+    if(!ref||decoratedDocs.has(ref))return ref;decoratedDocs.add(ref);var path=ref.path||'';
+    if(typeof ref.collection==='function'){var oc=ref.collection;try{ref.collection=function(){var col=oc.apply(this,arguments);queryMeta.set(col,{path:col.path||'',filters:[],orders:[],limits:[],cursors:[]});return decorateQuery(col);};}catch(e){}}
+    if(typeof ref.get==='function'){var og=ref.get;try{ref.get=function(){var started=performance.now();audit.documentGets++;trace('DOC_GET_START',{path:path});return og.apply(this,arguments).then(function(s){var reads=1;audit.estimatedReads+=reads;bump(path,'reads',reads);trace('DOC_GET_DONE',{path:path,exists:!!s.exists,fromCache:!!(s.metadata&&s.metadata.fromCache),pending:!!(s.metadata&&s.metadata.hasPendingWrites),estimatedReads:reads,durationMs:Math.round(performance.now()-started)});return s;},function(err){trace('DOC_GET_ERROR',{path:path,error:String(err&&err.message||err)});throw err;});};}catch(e){}}
+    [['set','writes'],['update','writes'],['delete','deletes']].forEach(function(pair){var name=pair[0],kind=pair[1];if(typeof ref[name]!=='function')return;var original=ref[name];try{ref[name]=function(){var started=performance.now(),fields=(arguments[0]&&typeof arguments[0]==='object')?Object.keys(arguments[0]):[];trace('DOC_'+name.toUpperCase()+'_START',{path:path,fields:fields});return original.apply(this,arguments).then(function(v){if(kind==='writes'){audit.writes++;bump(path,'writes',1);}else{audit.deletes++;bump(path,'deletes',1);}trace('DOC_'+name.toUpperCase()+'_DONE',{path:path,writes:kind==='writes'?1:0,deletes:kind==='deletes'?1:0,durationMs:Math.round(performance.now()-started)});return v;},function(err){trace('DOC_'+name.toUpperCase()+'_ERROR',{path:path,error:String(err&&err.message||err)});throw err;});};}catch(e){}});
+    return ref;
+  }
+  function updatePanel(){
+    var box=document.getElementById('wmFirestoreAuditV618');if(!box){box=document.createElement('div');box.id='wmFirestoreAuditV618';box.style.cssText='position:fixed;left:8px;bottom:8px;z-index:2147483646;background:#102232;color:#fff;border:1px solid #74c0fc;border-radius:8px;padding:7px 9px;font:11px/1.35 monospace;max-width:48vw;white-space:pre-wrap;direction:ltr;pointer-events:none;opacity:.92';document.body&&document.body.appendChild(box);}if(box)box.textContent='FS AUDIT 6.18\nreads≈ '+audit.estimatedReads+'  writes '+audit.writes+'  deletes '+audit.deletes+'\ngets '+audit.queryGets+'/'+audit.documentGets+'  listener snaps '+audit.listenerSnapshots;
+  }
+  var originalCollection=db.collection;
+  try{db.collection=function(){var col=originalCollection.apply(this,arguments);queryMeta.set(col,{path:col.path||String(arguments[0]||''),filters:[],orders:[],limits:[],cursors:[]});return decorateQuery(col);};}catch(e){trace('INSTALL_WARNING',{step:'collection-wrap',error:String(e)});}
+  if(typeof db.batch==='function'){
+    var originalBatch=db.batch;try{db.batch=function(){var batch=originalBatch.apply(this,arguments),ops=[];['set','update','delete'].forEach(function(name){if(typeof batch[name]!=='function')return;var original=batch[name];batch[name]=function(ref){ops.push({type:name,path:ref&&ref.path||''});return original.apply(this,arguments);};});if(typeof batch.commit==='function'){var oc=batch.commit;batch.commit=function(){var started=performance.now();trace('BATCH_COMMIT_START',{operations:ops.slice(),count:ops.length});return oc.apply(this,arguments).then(function(v){ops.forEach(function(op){if(op.type==='delete'){audit.deletes++;bump(op.path,'deletes',1);}else{audit.writes++;bump(op.path,'writes',1);}});trace('BATCH_COMMIT_DONE',{operations:ops.slice(),count:ops.length,durationMs:Math.round(performance.now()-started)});return v;},function(err){trace('BATCH_COMMIT_ERROR',{operations:ops.slice(),error:String(err&&err.message||err)});throw err;});};}return batch;};}catch(e){trace('INSTALL_WARNING',{step:'batch-wrap',error:String(e)});}
+  }
+  window.wmFirestoreAuditSummaryV618=function(){var summary=JSON.stringify(audit,null,2);try{navigator.clipboard.writeText(summary);}catch(e){}return summary;};
+  trace('AUDIT_INSTALLED',{note:'App-side estimate. Firebase billing console remains authoritative.'});updatePanel();
+})();
+
+
+/* ======================================================================
+VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
+1. Adds a large, movable-on-screen Firebase diagnostics window enabled with
+   ?firebaseDebug=1 (also compatible with the older debug parameters).
+2. Displays Firestore reads/listeners/writes/deletes and Firebase Auth calls.
+3. Correlates user clicks with Firebase traffic; when a tested action causes no
+   Firebase call within the observation window it records NO_FIREBASE_AFTER_ACTION.
+4. Adds Copy full log, Clear, Minimize and Close controls. The copied text includes
+   environment, counters, per-collection totals and all diagnostic rows.
+5. Diagnostic data stays only in sessionStorage and is never written to Firebase.
+====================================================================== */
+(function installFirebaseAuditWindowV620(){
+  'use strict';
+  var enabled=false;
+  try{var p=new URLSearchParams(location.search);enabled=p.get('firebaseDebug')==='1'||p.get('firestoreDebug')==='1'||p.get('cacheDebug')==='1';}catch(e){}
+  if(!enabled||window.__WM_FIREBASE_WINDOW_V620)return;
+  window.__WM_FIREBASE_WINDOW_V620=true;
+
+  var KEY='wmFirebaseAuditLogV620', MAX=1500, lastFirebaseAt=0, actionSeq=0, authCount=0;
+  function now(){return new Date().toISOString();}
+  function safe(v){try{return JSON.parse(JSON.stringify(v,function(k,x){if(/password|token|secret|credential/i.test(k))return '[hidden]';return x;}));}catch(e){return String(v);}}
+  function rows(){try{return JSON.parse(sessionStorage.getItem(KEY)||'[]');}catch(e){return [];}}
+  function save(list){try{if(list.length>MAX)list=list.slice(list.length-MAX);sessionStorage.setItem(KEY,JSON.stringify(list));}catch(e){}}
+  function add(event,data){var list=rows();list.push({time:now(),event:String(event),data:safe(data||{})});save(list);render();}
+  function isFirebaseEvent(event){return /^FIRESTORE_|^AUTH_/.test(String(event||''));}
+
+  var oldTrace=window.wmTraceV617;
+  window.wmTraceV617=function(event,data){
+    if(isFirebaseEvent(event)){lastFirebaseAt=Date.now();add(event,data);}
+    if(typeof oldTrace==='function')return oldTrace.apply(this,arguments);
+  };
+
+  function wrapAuth(){
+    if(!window.auth||window.auth.__auditV620)return;
+    try{window.auth.__auditV620=true;}catch(e){}
+    ['signInWithEmailAndPassword','signOut','createUserWithEmailAndPassword','sendPasswordResetEmail'].forEach(function(name){
+      if(typeof auth[name]!=='function'||auth[name].__auditV620)return;
+      var original=auth[name];
+      var wrapped=function(){
+        var started=performance.now(),args=Array.prototype.slice.call(arguments).map(function(x,i){return i===1?'[hidden]':safe(x);});
+        authCount++;lastFirebaseAt=Date.now();add('AUTH_'+name.toUpperCase()+'_START',{arguments:args});
+        var result;
+        try{result=original.apply(this,arguments);}catch(err){add('AUTH_'+name.toUpperCase()+'_ERROR',{error:String(err&&err.message||err)});throw err;}
+        if(result&&typeof result.then==='function')return result.then(function(v){add('AUTH_'+name.toUpperCase()+'_DONE',{durationMs:Math.round(performance.now()-started)});return v;},function(err){add('AUTH_'+name.toUpperCase()+'_ERROR',{durationMs:Math.round(performance.now()-started),error:String(err&&err.message||err),code:err&&err.code||''});throw err;});
+        add('AUTH_'+name.toUpperCase()+'_DONE',{durationMs:Math.round(performance.now()-started)});return result;
+      };
+      wrapped.__auditV620=true;try{auth[name]=wrapped;}catch(e){}
+    });
+  }
+
+  function targetLabel(t){
+    if(!t)return 'unknown';var el=t.closest?t.closest('button,a,input[type="button"],input[type="submit"],[onclick]'):t;
+    if(!el)return '';
+    return String(el.id||el.getAttribute&&el.getAttribute('aria-label')||el.title||el.textContent||el.value||el.tagName).trim().replace(/\s+/g,' ').slice(0,120);
+  }
+  document.addEventListener('click',function(ev){
+    if(ev.target&&ev.target.closest&&ev.target.closest('#wmFirebaseAuditWindowV620'))return;
+    var label=targetLabel(ev.target);if(!label||/^העתק לוג|^נקה לוג|^מזער|^סגור/.test(label))return;
+    var id=++actionSeq,start=Date.now(),firebaseBefore=lastFirebaseAt;
+    add('UI_ACTION',{actionId:id,label:label});
+    setTimeout(function(){
+      if(lastFirebaseAt<=firebaseBefore||lastFirebaseAt<start)add('NO_FIREBASE_AFTER_ACTION',{actionId:id,label:label,observationMs:1400});
+      else add('FIREBASE_AFTER_ACTION',{actionId:id,label:label,delayMs:lastFirebaseAt-start});
+    },1400);
+  },true);
+
+  function summary(){
+    var a=window.WM_FIRESTORE_AUDIT_V618||{};
+    return {readsEstimated:a.estimatedReads||0,writes:a.writes||0,deletes:a.deletes||0,queryGets:a.queryGets||0,documentGets:a.documentGets||0,listenerSnapshots:a.listenerSnapshots||0,authCalls:authCount,byCollection:a.byCollection||{},lastFirebaseAt:lastFirebaseAt?new Date(lastFirebaseAt).toISOString():null};
+  }
+  function fullText(){
+    var list=rows(),s=summary();
+    return 'WORK MONITOR FIREBASE AUDIT v'+String(window.APP_VERSION||'unknown')+'\n'+
+      'generated: '+now()+'\nurl: '+location.href+'\nuserAgent: '+navigator.userAgent+'\n'+
+      'summary: '+JSON.stringify(s,null,2)+'\n\n'+
+      list.map(function(r){return r.time+' | '+r.event+' | '+JSON.stringify(r.data);}).join('\n');
+  }
+  async function copy(){
+    var text=fullText(),ok=false;
+    try{await navigator.clipboard.writeText(text);ok=true;}catch(e){try{var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();ok=document.execCommand('copy');ta.remove();}catch(_e){}}
+    add(ok?'AUDIT_LOG_COPIED':'AUDIT_LOG_COPY_FAILED',{characters:text.length});
+    var b=document.getElementById('wmFirebaseCopyV620');if(b){var old=b.textContent;b.textContent=ok?'הועתק ✓':'העתקה נכשלה';setTimeout(function(){b.textContent=old;},1400);}
+    return text;
+  }
+  function clear(){try{sessionStorage.removeItem(KEY);}catch(e){}lastFirebaseAt=0;add('AUDIT_LOG_CLEARED',{});}
+  window.wmCopyFirebaseAuditV620=copy;window.wmClearFirebaseAuditV620=clear;window.wmFirebaseAuditTextV620=fullText;
+
+  function ensure(){
+    var box=document.getElementById('wmFirebaseAuditWindowV620');if(box)return box;
+    box=document.createElement('section');box.id='wmFirebaseAuditWindowV620';box.className='wm-firebase-audit-v620';
+    box.innerHTML='<div class="wm-firebase-head-v620"><strong>🔥 Firebase Audit ' + String(window.APP_VERSION||'') + '</strong><div><button id="wmFirebaseCopyV620" type="button">העתק לוג</button><button id="wmFirebaseClearV620" type="button">נקה לוג</button><button id="wmFirebaseMinV620" type="button">מזער</button><button id="wmFirebaseCloseV620" type="button">סגור</button></div></div><div id="wmFirebaseSummaryV620" class="wm-firebase-summary-v620"></div><pre id="wmFirebaseRowsV620"></pre>';
+    (document.body||document.documentElement).appendChild(box);
+    box.querySelector('#wmFirebaseCopyV620').onclick=copy;
+    box.querySelector('#wmFirebaseClearV620').onclick=clear;
+    box.querySelector('#wmFirebaseMinV620').onclick=function(){box.classList.toggle('is-minimized');this.textContent=box.classList.contains('is-minimized')?'פתח':'מזער';};
+    box.querySelector('#wmFirebaseCloseV620').onclick=function(){box.style.display='none';};
+    return box;
+  }
+  function render(){
+    var legacy=document.getElementById('wmFirestoreAuditV618');if(legacy)legacy.style.display='none';
+    var box=ensure(),s=summary(),list=rows(),pre=box.querySelector('#wmFirebaseRowsV620'),sum=box.querySelector('#wmFirebaseSummaryV620');
+    var age=lastFirebaseAt?Math.max(0,Math.round((Date.now()-lastFirebaseAt)/1000)):'—';
+    sum.textContent='Reads≈ '+s.readsEstimated+' | Writes '+s.writes+' | Deletes '+s.deletes+' | Auth '+s.authCalls+' | Listener snapshots '+s.listenerSnapshots+' | last Firebase '+age+'s ago';
+    pre.textContent=list.slice(-220).map(function(r){return r.time.slice(11,23)+'  '+r.event+'  '+JSON.stringify(r.data);}).join('\n')||'עדיין אין אירועים. עבור באפליקציה ובצע פעולות.';
+    pre.scrollTop=pre.scrollHeight;
+  }
+  function start(){
+    wrapAuth();ensure();
+    add('FIREBASE_AUDIT_WINDOW_READY',{version:String(window.APP_VERSION||'unknown'),parameter:'firebaseDebug=1'});
+    add('FIREBASE_AUDIT_CONNECTION_CHECK',{dbAvailable:!!window.db,authAvailable:!!window.auth,firestoreAuditInstalled:!!window.__WM_FS_AUDIT_INSTALLED_V618,authWrapped:!!(window.auth&&window.auth.__auditV620)});
+    if(!window.db||!window.__WM_FS_AUDIT_INSTALLED_V618)add('FIREBASE_AUDIT_INSTALL_ERROR',{reason:'Firestore audit layer was not attached to the live db instance'});
+    if(!window.auth)add('FIREBASE_AUDIT_INSTALL_ERROR',{reason:'Firebase Auth instance is unavailable'});
+    setInterval(function(){wrapAuth();render();},800);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
+
+(function updateChangelogV620(){
+  var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof old!=='function'||old.__v620Wrapped)return;
+  var wrapped=function(){
+    var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+    if(!rows.some(function(r){return String(r.version||r.id||'')==='6.21-beta';}))rows.unshift({version:'6.21-beta',title:'תיקון חיבור חלון בדיקת Firebase',createdAt:'2026-07-26',items:[
+      'תוקן חיבור חלון ה-Audit למופעי db ו-auth האמיתיים שבהם האפליקציה משתמשת.',
+      'קריאות Firestore, מאזינים, כתיבות, מחיקות ופעולות Firebase Auth נלכדות כעת ישירות בשכבת Firebase.',
+      'נוספה שורת FIREBASE_AUDIT_CONNECTION_CHECK שמאשרת בתחילת כל בדיקה שהחיבור והעטיפות הותקנו בפועל.',
+      'במקרה שהלכידה לא הותקנה, נרשמת שגיאת FIREBASE_AUDIT_INSTALL_ERROR ברורה במקום להציג לוג אפס מטעה.',
+      'לא שונתה לוגיקת הנתונים, המטמון, ההתחברות או השמירה של האפליקציה.'
+    ]});
+    if(!rows.some(function(r){return String(r.version||r.id||'')==='6.20-beta';}))rows.unshift({version:'6.20-beta',title:'חלון בדיקת Firebase מלא',createdAt:'2026-07-26',items:[
+      'נוסף חלון דיבאג גדול שנפתח באמצעות הפרמטר ?firebaseDebug=1 ומציג בזמן אמת כל פנייה שנלכדה ל-Firestore ול-Firebase Auth.',
+      'הלוג מציג קריאות, מאזינים, כתיבות, מחיקות, מקור Cache/Server, זמני ביצוע וסיכום לפי אוסף.',
+      'כל לחיצה מרכזית באפליקציה נבדקת; כאשר לא זוהתה פנייה ל-Firebase לאחר הפעולה נרשם NO_FIREBASE_AFTER_ACTION.',
+      'נוספו כפתורי העתקת לוג מלא, ניקוי, מזעור וסגירה. נתוני הדיבאג נשמרים מקומית בלבד ואינם נכתבים ל-Firebase.'
+    ]});
+    return rows;
+  };
+  wrapped.__v620Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.22 BETA - FIRESTORE READ DEDUPLICATION
+-------------------------------------------------------------------------------
+1. Price list and installation templates are loaded once per signed-in worker
+   session and concurrent calls share the same Promise.
+2. Vacation-day documents are loaded once per worker and filtered in memory for
+   the displayed month.
+3. loadMonth calls are serialized so rapid navigation cannot start overlapping
+   Firebase loading chains.
+4. The smart dashboard annual trend uses the existing two-year work-entry cache
+   and no longer reads the entire workEntries collection on every render.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  if(window.__wmReadDedupV622Installed)return;
+  window.__wmReadDedupV622Installed=true;
+
+  var staticCache={workerId:'',priceReady:false,templatesReady:false,pricePromise:null,templatesPromise:null};
+  function workerIdV622(){try{return viewedWorker&&viewedWorker.id?String(viewedWorker.id):'';}catch(e){return '';}}
+  function resetForWorkerV622(){
+    var id=workerIdV622();
+    if(staticCache.workerId!==id){staticCache.workerId=id;staticCache.priceReady=false;staticCache.templatesReady=false;staticCache.pricePromise=null;staticCache.templatesPromise=null;}
+  }
+
+  var originalLoadPriceListV622=window.loadPriceList||(typeof loadPriceList==='function'?loadPriceList:null);
+  if(typeof originalLoadPriceListV622==='function'){
+    var cachedLoadPriceListV622=async function(force){
+      resetForWorkerV622();
+      if(force===true)staticCache.priceReady=false;
+      if(staticCache.priceReady&&Array.isArray(priceList)&&priceList.length)return priceList;
+      if(staticCache.pricePromise)return staticCache.pricePromise;
+      staticCache.pricePromise=Promise.resolve(originalLoadPriceListV622.apply(this,arguments)).then(function(result){staticCache.priceReady=true;return result||priceList;}).finally(function(){staticCache.pricePromise=null;});
+      return staticCache.pricePromise;
+    };
+    window.loadPriceList=cachedLoadPriceListV622;try{loadPriceList=cachedLoadPriceListV622;}catch(e){}
+  }
+
+  var originalLoadTemplatesV622=window.loadTemplates||(typeof loadTemplates==='function'?loadTemplates:null);
+  if(typeof originalLoadTemplatesV622==='function'){
+    var cachedLoadTemplatesV622=async function(force){
+      resetForWorkerV622();
+      if(force===true)staticCache.templatesReady=false;
+      if(staticCache.templatesReady&&Array.isArray(templates))return templates;
+      if(staticCache.templatesPromise)return staticCache.templatesPromise;
+      staticCache.templatesPromise=Promise.resolve(originalLoadTemplatesV622.apply(this,arguments)).then(function(result){staticCache.templatesReady=true;return result||templates;}).finally(function(){staticCache.templatesPromise=null;});
+      return staticCache.templatesPromise;
+    };
+    window.loadTemplates=cachedLoadTemplatesV622;try{loadTemplates=cachedLoadTemplatesV622;}catch(e){}
+  }
+
+  var dayOffCache={workerId:'',docs:null,promise:null};
+  function monthRangeV622(){var y=calendarDate.getFullYear(),m=calendarDate.getMonth()+1,last=new Date(y,m,0).getDate(),mm=String(m).padStart(2,'0');return {start:y+'-'+mm+'-01',end:y+'-'+mm+'-'+String(last).padStart(2,'0')};}
+  async function allDayOffDocsV622(){
+    var id=workerIdV622();if(!id)return [];
+    if(dayOffCache.workerId!==id){dayOffCache={workerId:id,docs:null,promise:null};}
+    if(Array.isArray(dayOffCache.docs))return dayOffCache.docs;
+    if(dayOffCache.promise)return dayOffCache.promise;
+    dayOffCache.promise=window.wmGetAllDayOffDocsV624(id).then(function(rows){dayOffCache.docs=rows;return rows;}).finally(function(){dayOffCache.promise=null;});
+    return dayOffCache.promise;
+  }
+  async function cachedVacationDaysV622(force){
+    if(force===true)dayOffCache.docs=null;
+    var r=monthRangeV622(),docs=await allDayOffDocsV622();
+    window.vacationDaysV437=Array.from(new Set(docs.filter(function(d){var date=String(d.date||'');return (d.type==='vacation'||!d.type)&&d.active!==false&&date>=r.start&&date<=r.end;}).map(function(d){return String(d.date||'');}))).sort();
+    window.vacationDaysLoadedForV437=workerIdV622()+'_'+r.start.slice(0,7);
+    return window.vacationDaysV437;
+  }
+  ['loadVacationDaysV437','loadVacationDaysV439','loadVacationDaysV482','loadVacationDaysV486','loadVacationDaysV487','loadVacationDaysV489'].forEach(function(name){window[name]=cachedVacationDaysV622;});
+
+  var baseLoadMonthV622=window.loadMonth;
+  var activeMonthPromiseV622=null,pendingMonthReloadV622=false;
+  if(typeof baseLoadMonthV622==='function'){
+    var serializedLoadMonthV622=function(){
+      if(activeMonthPromiseV622){pendingMonthReloadV622=true;return activeMonthPromiseV622;}
+      var args=arguments,self=this;
+      activeMonthPromiseV622=Promise.resolve(baseLoadMonthV622.apply(self,args)).finally(async function(){
+        activeMonthPromiseV622=null;
+        if(pendingMonthReloadV622){pendingMonthReloadV622=false;await serializedLoadMonthV622();}
+      });
+      return activeMonthPromiseV622;
+    };
+    serializedLoadMonthV622.__readDedupV622=true;window.loadMonth=serializedLoadMonthV622;try{loadMonth=serializedLoadMonthV622;}catch(e){}
+  }
+
+  window.wmInvalidateStaticCacheV622=function(){staticCache.priceReady=false;staticCache.templatesReady=false;dayOffCache.docs=null;try{var c=window.WM_DAYOFF_DOCS_CACHE_V624;if(c){c.docs=null;c.promise=null;}}catch(e){}};
+})();
+
+(function updateChangelogV622(){
+  var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof old!=='function'||old.__v622Wrapped)return;
+  var wrapped=function(){
+    var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+    if(!rows.some(function(r){return String(r.version||r.id||'')==='6.22-beta';}))rows.unshift({version:'6.22-beta',title:'צמצום דרמטי של קריאות Firestore כפולות',createdAt:'2026-07-26',items:[
+      'מגמת ההכנסות השנתית בדשבורד משתמשת כעת במטמון השנתיים ואינה קוראת מחדש את כל workEntries בכל רינדור.',
+      'מחירון ותבניות התקנה נטענים פעם אחת לעובד; קריאות מקבילות חולקות Promise אחד.',
+      'ימי חופש נטענים פעם אחת לעובד ומסוננים בזיכרון לפי החודש המוצג.',
+      'קריאות loadMonth חופפות מאוחדות כדי שמעבר מהיר בין חודשים לא יפתח שרשראות טעינה מקבילות.',
+      'לא שונו מבנה הנתונים, הרשאות, פעולות שמירה, מחיקה או חיפוש היסטורי.'
+    ]});
+    return rows;
+  };
+  wrapped.__v622Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.23 BETA - SINGLE FIRESTORE LOAD PER SESSION
+-------------------------------------------------------------------------------
+1. workerDaysOff is read once per worker and month navigation filters memory.
+2. The duplicate offline-status workEntries listener was removed; only the main
+   two-year cache listener remains.
+3. appChangelog is read once; missing rows are seeded only by an authenticated
+   admin and only once per session.
+4. settings/main is loaded once and concurrent calls share one Promise.
+5. price-list initialization no longer probes Firestore before admin login.
+6. Full-history workEntries search remains intentionally available when the user
+   performs a search without a date range.
+===============================================================================
+*/
+(function updateChangelogV624(){
+  var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof old!=='function'||old.__v624Wrapped)return;
+  var wrapped=function(){
+    var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+    if(!rows.some(function(r){return String(r.version||r.id||'')==='6.24-beta';}))rows.unshift({version:'6.24-beta',title:'בטא אחרונה לפני יציבה — סגירת קריאות Firebase המיותרות',createdAt:'2026-07-26',items:[
+      'settings/main נטען דרך Promise משותף אחד; שכבת שחזור הסיסמה אינה מבצעת קריאה נוספת.',
+      'ימי חופש ונעילות משתמשים באותו מטמון workerDaysOff משותף לכל החודש ולכל כלי האימות.',
+      'מעבר בין חודשים וחזרה להיום מסננים את הנתונים בזיכרון ואינם טוענים שוב את כל workerDaysOff.',
+      'טעינת הפתיחה אינה מבצעת יותר שאילתת workEntries מלאה במקביל ל-listener המרכזי.',
+      'חלון Firebase Audit מציג מעכשיו את APP_VERSION האמיתי ולא מספר גרסה מקודד ידנית.'
+    ]});
+    return rows;
+  };
+  wrapped.__v624Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+})();
+
+(function updateChangelogV623(){
+  var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof old!=='function'||old.__v623Wrapped)return;
+  var wrapped=function(){
+    var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+    if(!rows.some(function(r){return String(r.version||r.id||'')==='6.23-beta';}))rows.unshift({version:'6.23-beta',title:'טעינה יחידה של מקורות Firestore קבועים',createdAt:'2026-07-26',items:[
+      'ימי חופש נטענים פעם אחת לעובד ומעבר חודש מתבצע מהזיכרון בלבד.',
+      'הוסר listener כפול של workEntries; נשאר listener מרכזי אחד למטמון השנתיים.',
+      'מה חדש נטען פעם אחת, והשלמת רשומות ל-Firestore מתבצעת רק אצל מנהל מחובר ופעם אחת.',
+      'settings/main, מחירון ותבניות חולקים מטמון ו-Promise יחיד במהלך הכניסה.',
+      'בדיקת יצירת מחירון אינה רצה יותר לפני כניסת מנהל.',
+      'חיפוש ללא טווח תאריכים נשאר בכוונה חיפוש מלא ב-Firestore.'
+    ]});
+    return rows;
+  };
+  wrapped.__v623Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.25 BETA - FINAL STARTUP READ CLEANUP
+-------------------------------------------------------------------------------
+1. Removed the remaining legacy full-history workEntries GET from the original
+   month loader. It now reads only from the central rolling two-year cache.
+2. The single Firestore onSnapshot listener remains the authoritative live source
+   for additions, edits and deletions made from another device.
+3. Month navigation continues to filter RAM only and does not open new reads.
+4. Explicit full-history search without a date range remains unchanged.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof old==='function'&&!old.__v625Wrapped){
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.25-beta';}))rows.unshift({
+        version:'6.25-beta',title:'הסרת הקריאה האחרונה המיותרת בכניסה',createdAt:'2026-07-26',items:[
+          'נתיב טעינת החודש הישן אינו מבצע יותר שאילתת workEntries מלאה בזמן הכניסה.',
+          'ה-listener היחיד של מטמון השנתיים הוא מקור האמת לעדכונים חיים ממכשירים אחרים.',
+          'מעבר בין חודשים ממשיך לעבוד מהזיכרון ללא קריאות Firestore נוספות.',
+          'חיפוש מפורש ללא טווח תאריכים ממשיך לטעון היסטוריה מלאה לפי דרישת המשתמש.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v625Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+})();
+
+
+/*
+===============================================================================
+VERSION 6.26 BETA - ACTUAL LOGIN LOADER FIX
+-------------------------------------------------------------------------------
+1. Corrected the original token-protected loadMonth that is called by showWorker.
+2. Removed its unfiltered workerId-only workEntries GET.
+3. The function now waits for and reads the central two-year listener cache only.
+4. Full-history search remains available only when explicitly requested.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof old==='function'&&!old.__v626Wrapped){
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.26-beta';}))rows.unshift({
+        version:'6.26-beta',title:'תיקון נתיב הכניסה האמיתי והסרת GET כפול',createdAt:'2026-07-26',items:[
+          'תוקנה פונקציית loadMonth המקורית שמופעלת בפועל מתוך showWorker בזמן הכניסה.',
+          'הוסרה ממנה שאילתת workEntries מלאה לפי workerId שהכפילה את קריאות הפתיחה.',
+          'הפונקציה ממתינה כעת למטמון השנתיים של ה-listener המרכזי וקוראת ממנו בלבד.',
+          'מעבר חודשים נשאר מהזיכרון, וחיפוש היסטוריה מלא נשאר רק בפעולת חיפוש מפורשת.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v626Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
 })();
