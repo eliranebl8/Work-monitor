@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.14 BETA - functions2.js.
+File version: 6.15 BETA - functions2.js.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -4510,6 +4510,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"6.15-beta", title:"תיקון היעלמות הלוח בשמירה הראשונה וכלי אבחון מורחב", items:["תוקן מצב שבו תמונת מצב ראשונה עם כתיבה מקומית ממתינה החליפה בטעות את כל מטמון השנתיים ברשומה החדשה בלבד.","תמונת מצב עם fromCache או hasPendingWrites מתמזגת כעת לפי מזהה מסמך ואינה רשאית למחוק את שאר החודש.","רק תמונת מצב מאושרת מהשרת ללא כתיבות ממתינות רשאית להחליף את המטמון המלא.","חלון cacheDebug=1 מציג כעת את פרטי תמונת המצב האחרונה, מספר הרשומות לפני ואחרי הרענון, מספר רשומות החודש וסיבת הרענון."], date:d},
       {version:"6.11-beta", title:"דוח התחשבנות חודשי מהמטמון והשלמת מה חדש", items:["דוח התחשבנות לחודש שנמצא בתוך טווח 730 הימים נטען ישירות ממטמון השנתיים ללא קריאה חוזרת של workEntries.","בחירת חודש ישן יותר מהטווח שולחת ל-Firestore שאילתה ממוקדת רק לחודש המבוקש ושומרת אותו במטמון החודשים ההיסטוריים.","מסמך ההתחשבנות החודשי עצמו ממשיך להיקרא ממסמך יחיד תחת workers/{workerId}/monthlySettlements/{YYYY-MM}.","הושלמו במקור הקבוע של מה חדש הרשומות 6.08-beta, 6.09-beta, 6.10-beta ו-6.11-beta כדי שיוזרמו ל-Firestore ולא ייעצרו ב-6.07."], date:d},
       {version:"6.10-beta", title:"רענון מרכזי מהמטמון ותיקון מחיקת סידור עתידי", items:["נוסף מנגנון רענון מרכזי שמצייר מחדש את החודש, היום, הלוח, הסטטיסטיקות והדשבורד ישירות ממטמון השנתיים ללא קריאה חוזרת של workEntries.","מחיקת עבודה רגילה או מתוזמנת מסירה את הרשומה מכל מאגרי המטמון ומעדכנת מיד את המסך לאחר אישור המחיקה ב-Firestore.","נוסף חיווי הצלחה ברור לאחר מחיקה ללא צורך ברענון הדפדפן.","המנגנון המרכזי זמין גם לפעולות שמירה, עריכה ומחיקה עתידיות."], date:d},
       {version:"6.09-beta", title:"תיקון ניתוב כפתורי השמירה בבטא", items:["תוקן מצב שבו סידור עתידי נכתב ל-Firestore אך המטמון והמסך לא התעדכנו.","ארבעת כפתורי השמירה מנותבים ישירות למנגנון השמירה שמעדכן את מטמון השנתיים.","לאחר שמירה מתקבל חיווי אישור והרשומה מוצגת מיד ביום הנבחר.","נמנעת הפעלה כפולה של מסלול השמירה הישן."], date:d},
@@ -8961,15 +8962,24 @@ VERSION 6.13 BETA - SAFE SNAPSHOT MERGE + MONTH HEADER SYNCHRONIZATION
         var q=db.collection('workEntries').where('workerId','==',workerId).where('date','>=',cutoff);
         state.unsubscribe=q.onSnapshot({includeMetadataChanges:true},function(snap){
           var fromCache=!!(snap.metadata&&snap.metadata.fromCache);
-          if(fromCache){
-            // v6.13: merge only changed docs so a one-record pending snapshot cannot replace the full month.
+          var hasPendingWrites=!!(snap.metadata&&snap.metadata.hasPendingWrites);
+          var beforeCount=Array.isArray(state.entries)?state.entries.length:0;
+          var changeCount=0;try{changeCount=snap.docChanges().length;}catch(e){}
+
+          // v6.15: a snapshot with pending local writes is NOT a complete authoritative
+          // server result. The first save after app startup can produce such a snapshot
+          // containing only the newly written document. Replacing the full two-year cache
+          // with it caused the calendar month to appear empty until navigating away/back.
+          if(fromCache||hasPendingWrites){
             applyChangesV613(snap);
-            state.lastEvent='v6.13-local-changes-merged';
+            state.lastEvent='v6.15-differential-merge';
           }else{
-            // Server result is the complete authoritative result of the two-year query.
+            // Only a server-confirmed snapshot without pending writes may replace the cache.
             state.entries=snap.docs.map(function(d){return Object.assign({id:d.id},d.data()||{});});
-            state.lastEvent='v6.13-server-snapshot';
+            state.lastEvent='v6.15-authoritative-server-snapshot';
           }
+          state.v615LastSnapshot={fromCache:fromCache,pending:hasPendingWrites,docs:snap.docs.length,changes:changeCount,before:beforeCount,after:state.entries.length,time:new Date().toLocaleTimeString('he-IL')};
+          try{console.log('[WM 6.15 SNAPSHOT]',state.v615LastSnapshot);}catch(e){}
           state.workerId=workerId;state.cutoff=cutoff;window.workerAllEntriesV511=state.entries.slice();
           renderV613();persistV613();
           if(first){first=false;resolve(state.entries);}
@@ -9118,4 +9128,68 @@ VERSION 6.14 BETA - MONTH METADATA RELOAD FOR VACATION DAYS AND DAY LOCKS
   setTimeout(function(){
     try{if(typeof fetchCleanChangelogV494==='function')fetchCleanChangelogV494();}catch(e){}
   },1500);
+})();
+
+
+/*
+===============================================================================
+VERSION 6.15 BETA - FIRST-SAVE CACHE DIAGNOSTICS
+-------------------------------------------------------------------------------
+1. Extends the existing ?cacheDebug=1 panel with snapshot metadata and counts.
+2. Records every central refresh reason and month-entry count.
+3. Keeps a rolling diagnostic log in sessionStorage for copying after reproduction.
+4. No Firestore documents are written by this diagnostic tool.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  var state=window.WM_DATA_CACHE_V604=window.WM_DATA_CACHE_V604||{};
+  var KEY='wmCacheDebugLogV615';
+  function push(event,data){
+    try{
+      var rows=JSON.parse(sessionStorage.getItem(KEY)||'[]');
+      rows.push({time:new Date().toISOString(),event:event,data:data||{}});
+      if(rows.length>120)rows=rows.slice(rows.length-120);
+      sessionStorage.setItem(KEY,JSON.stringify(rows));
+    }catch(e){}
+  }
+  function currentMonthCount(){try{return Array.isArray(monthEntries)?monthEntries.length:-1;}catch(e){return -1;}}
+  function totalCount(){return Array.isArray(state.entries)?state.entries.length:0;}
+  var baseRefresh=window.wmRefreshFromCacheV610;
+  if(typeof baseRefresh==='function'&&!baseRefresh.__debugV615){
+    var wrapped=function(options){
+      var before=currentMonthCount(),totalBefore=totalCount();
+      var out=baseRefresh.apply(this,arguments);
+      var info={reason:(options&&options.reason)||'unspecified',monthBefore:before,monthAfter:currentMonthCount(),cacheBefore:totalBefore,cacheAfter:totalCount(),selectedDate:(typeof selectedDate!=='undefined'?selectedDate:''),calendar:(typeof calendarDate!=='undefined'&&calendarDate?calendarDate.toISOString().slice(0,7):'')};
+      state.v615LastRefresh=info;push('refresh',info);render();return out;
+    };
+    wrapped.__debugV615=true;window.wmRefreshFromCacheV610=wrapped;
+  }
+  function render(){
+    try{
+      if(new URLSearchParams(location.search).get('cacheDebug')!=='1')return;
+      var box=document.getElementById('wmCacheDebugV604');if(!box)return;
+      var snap=state.v615LastSnapshot||{},ref=state.v615LastRefresh||{};
+      box.style.maxHeight='55vh';box.style.overflow='auto';box.style.whiteSpace='pre-wrap';
+      box.textContent='WM CACHE 6.15 BETA\n'+
+        'worker: '+(state.workerId||'-')+'\n'+
+        'cache docs: '+totalCount()+'\n'+
+        'month docs: '+currentMonthCount()+'\n'+
+        'snapshot docs: '+(snap.docs===undefined?'-':snap.docs)+' changes: '+(snap.changes===undefined?'-':snap.changes)+'\n'+
+        'fromCache: '+(snap.fromCache===undefined?'-':snap.fromCache)+' pending: '+(snap.pending===undefined?'-':snap.pending)+'\n'+
+        'snapshot before/after: '+(snap.before===undefined?'-':snap.before)+' / '+(snap.after===undefined?'-':snap.after)+'\n'+
+        'refresh reason: '+(ref.reason||'-')+'\n'+
+        'refresh month before/after: '+(ref.monthBefore===undefined?'-':ref.monthBefore)+' / '+(ref.monthAfter===undefined?'-':ref.monthAfter)+'\n'+
+        'last event: '+(state.lastEvent||'-')+'\n\n'+
+        'לחיצה ארוכה/סימון והעתקה, או בקונסולה:\nwmCopyCacheDebugV615()';
+    }catch(e){}
+  }
+  window.wmCopyCacheDebugV615=function(){
+    var text='';try{text=sessionStorage.getItem(KEY)||'[]';}catch(e){}
+    try{navigator.clipboard.writeText(text);}catch(e){}
+    console.log('[WM 6.15 DEBUG LOG]',text);return text;
+  };
+  window.wmClearCacheDebugV615=function(){try{sessionStorage.removeItem(KEY);}catch(e){}render();};
+  setInterval(render,700);
+  window.addEventListener('load',function(){setTimeout(render,1200);});
 })();
