@@ -2,7 +2,7 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css, functions1.js, functions2.js and functions3.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 6.37 BETA - automatic Firestore audit attachment on beta; stable 6.33 files remain untouched.
+File version: 6.38 BETA - duplicate startup reads removed; stable 6.33 files remain untouched.
 This is the stable core file. New additive functionality should be added to functions3.js; edit existing functions in place.
 APP_VERSION remains the single version source here; only its version line should be updated in future releases.
 
@@ -198,7 +198,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "6.37-beta";
+const APP_VERSION = "6.38-beta";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -5796,11 +5796,36 @@ function stopExpiredWorkerSessionV177(worker){
   showExpiredView(worker);
 }
 
+// v6.38 BETA: several startup guards request the same worker document within
+// milliseconds. Share one in-flight request and reuse the fresh result briefly,
+// so subscription validation stays current without paying for duplicate reads.
+const workerFreshReadCacheV638 = {workerId:"", value:null, fetchedAt:0, promise:null};
 async function fetchFreshWorkerV177(workerId){
   if(!workerId) throw new Error("חסר מזהה עובד");
-  const doc = await db.collection("workers").doc(workerId).get();
-  if(!doc.exists) throw new Error("העובד לא נמצא");
-  return {id:doc.id, ...doc.data()};
+  const id=String(workerId);
+  const now=Date.now();
+  if(workerFreshReadCacheV638.workerId===id && workerFreshReadCacheV638.value && (now-workerFreshReadCacheV638.fetchedAt)<2000){
+    return {...workerFreshReadCacheV638.value};
+  }
+  if(workerFreshReadCacheV638.workerId===id && workerFreshReadCacheV638.promise){
+    const shared=await workerFreshReadCacheV638.promise;
+    return {...shared};
+  }
+  workerFreshReadCacheV638.workerId=id;
+  workerFreshReadCacheV638.promise=(async function(){
+    const doc=await db.collection("workers").doc(id).get();
+    if(!doc.exists) throw new Error("העובד לא נמצא");
+    const worker={id:doc.id, ...doc.data()};
+    workerFreshReadCacheV638.value=worker;
+    workerFreshReadCacheV638.fetchedAt=Date.now();
+    return worker;
+  })();
+  try{
+    const worker=await workerFreshReadCacheV638.promise;
+    return {...worker};
+  }finally{
+    workerFreshReadCacheV638.promise=null;
+  }
 }
 
 async function assertWorkerCanViewV177(worker){
