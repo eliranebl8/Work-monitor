@@ -2,7 +2,7 @@
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css, functions1.js, functions2.js and functions3.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 6.39 BETA - IndexedDB local-first rendering before the existing Firestore listener; stable 6.33 files remain untouched.
+File version: 6.40 BETA - IndexedDB restore is fully non-blocking and cannot hold the startup screen; stable 6.33 files remain untouched.
 This is the stable core file. New additive functionality should be added to functions3.js; edit existing functions in place.
 APP_VERSION remains the single version source here; only its version line should be updated in future releases.
 
@@ -198,7 +198,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "6.39-beta";
+const APP_VERSION = "6.40-beta";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
