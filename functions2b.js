@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.37 BETA - automatic audit attachment to the live Firestore instance; stable files untouched.
+File version: 6.38 BETA - startup read deduplication for price lists, templates and worker document; stable files untouched.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -4548,6 +4548,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"6.38-beta", title:"ניקוי קריאות כפולות בעליית הבטא", items:["תוקן מטמון המחירון כך ששתי קריאות פתיחה חופפות חולקות Promise אחד ואינן מורידות פעמיים את כל 309 פריטי המחירון.","תוקן באותו אופן מטמון תבניות ההתקנה כדי למנוע שאילתת פתיחה כפולה.","קריאות חוזרות למסמך העובד בזמן בדיקות הכניסה והמנוי חולקות כעת בקשה אחת ותוצאה טרייה לזמן קצר.","לא שונה עדיין listener העבודות של 730 הימים; זה יטופל בשלב הבא לאחר בדיקת Audit נקייה."], date:d},
       {version:"6.30", title:"תיקון ביטול יום חופש בחודשים היסטוריים", items:["תוקן מצב שבו ביטול יום חופש נכתב ל-Firestore אך היום נשאר מסומן בגלל מטמון workerDaysOff ישן בזיכרון.","לאחר ביטול יום חופש כל שכבות המטמון של ימי החופש והנעילות מתנקות לפני טעינת החודש מחדש.","הכפתור ביטול יום חופש עובד גם בחודשים ישנים שמחוץ לטווח 730 הימים.","לא שונו עבודות, מחירונים, דוחות, חיפוש, נעילות או יתר לוגיקת האפליקציה."], date:d},
       {version:"6.29", title:"תיקון מעבר בין מחירון סיב למחירון RF", items:["תוקן מטמון המחירון כך שהוא נשמר בנפרד לפי סוג ההתקנה שנבחר: סיב או RF.","בלחיצה על RF נטענים ומוצגים בפועל רק פריטי מחירון RF, ולא נשארים פריטי הסיב עם כותרת RF.","בחזרה לסיב נטענים שוב פריטי הסיב המתאימים.","גם מטמון תבניות ההתקנה הופרד לפי סיב/RF כדי למנוע הצגת תבניות מהסוג הקודם.","לא שונו Firestore, שמירת עבודות, לוח השנה, דוחות, חיפוש או יתר לוגיקת האפליקציה."], date:d},
       {version:"6.28", title:"טעינת חודש היסטורי מלא ותיקון חודש גבול 730 ימים", items:["מעבר בלוח השנה לחודש שמתחיל לפני גבול 730 הימים טוען מ-Firestore רק את אותו חודש בשלמותו.","חודש שבו גבול 730 הימים עובר באמצע החודש אינו מוצג עוד כחצי חודש; כל החודש נלקח מהשאילתה ההיסטורית הממוקדת.","פתיחת דוח לחודש היסטורי מרעננת תמיד את אותו חודש מ-Firestore ומעדכנת את המטמון ההיסטורי המשותף.","עבודה שנוספה ממכשיר אחר לחודש ישן תופיע לאחר כניסה לאותו חודש או טעינת הדוח, ללא listener על כל ההיסטוריה.","חלון השנתיים החי, החיפוש ושאר לוגיקת האפליקציה לא שונו."], date:d},
@@ -9781,10 +9782,18 @@ VERSION 6.22 BETA - FIRESTORE READ DEDUPLICATION
     var cachedLoadPriceListV622=async function(force){
       resetForWorkerV622();
       var kind=installKindV629();
-      if(force===true||staticCache.priceKind!==kind){staticCache.priceReady=false;staticCache.pricePromise=null;}
+      // v6.38: record the requested kind before starting the read. Previously the
+      // second concurrent startup call still saw priceKind as empty, cleared the
+      // first Promise and launched an identical 309-document query.
+      if(force===true||staticCache.priceKind!==kind){
+        if(!(staticCache.pricePromise&&staticCache.priceKind===kind)){
+          staticCache.priceReady=false;staticCache.pricePromise=null;staticCache.priceKind=kind;
+        }
+      }
       if(staticCache.priceReady&&staticCache.priceKind===kind&&Array.isArray(priceList))return priceList;
-      if(staticCache.pricePromise)return staticCache.pricePromise;
-      staticCache.pricePromise=Promise.resolve(originalLoadPriceListV622.apply(this,arguments)).then(function(result){staticCache.priceReady=true;staticCache.priceKind=kind;return result||priceList;}).finally(function(){staticCache.pricePromise=null;});
+      if(staticCache.pricePromise&&staticCache.priceKind===kind)return staticCache.pricePromise;
+      staticCache.priceKind=kind;
+      staticCache.pricePromise=Promise.resolve(originalLoadPriceListV622.apply(this,arguments)).then(function(result){staticCache.priceReady=true;return result||priceList;}).finally(function(){staticCache.pricePromise=null;});
       return staticCache.pricePromise;
     };
     window.loadPriceList=cachedLoadPriceListV622;try{loadPriceList=cachedLoadPriceListV622;}catch(e){}
@@ -9795,10 +9804,16 @@ VERSION 6.22 BETA - FIRESTORE READ DEDUPLICATION
     var cachedLoadTemplatesV622=async function(force){
       resetForWorkerV622();
       var kind=installKindV629();
-      if(force===true||staticCache.templatesKind!==kind){staticCache.templatesReady=false;staticCache.templatesPromise=null;}
+      // v6.38: keep concurrent startup calls on the same Promise for the same kind.
+      if(force===true||staticCache.templatesKind!==kind){
+        if(!(staticCache.templatesPromise&&staticCache.templatesKind===kind)){
+          staticCache.templatesReady=false;staticCache.templatesPromise=null;staticCache.templatesKind=kind;
+        }
+      }
       if(staticCache.templatesReady&&staticCache.templatesKind===kind&&Array.isArray(templates))return templates;
-      if(staticCache.templatesPromise)return staticCache.templatesPromise;
-      staticCache.templatesPromise=Promise.resolve(originalLoadTemplatesV622.apply(this,arguments)).then(function(result){staticCache.templatesReady=true;staticCache.templatesKind=kind;return result||templates;}).finally(function(){staticCache.templatesPromise=null;});
+      if(staticCache.templatesPromise&&staticCache.templatesKind===kind)return staticCache.templatesPromise;
+      staticCache.templatesKind=kind;
+      staticCache.templatesPromise=Promise.resolve(originalLoadTemplatesV622.apply(this,arguments)).then(function(result){staticCache.templatesReady=true;return result||templates;}).finally(function(){staticCache.templatesPromise=null;});
       return staticCache.templatesPromise;
     };
     window.loadTemplates=cachedLoadTemplatesV622;try{loadTemplates=cachedLoadTemplatesV622;}catch(e){}
