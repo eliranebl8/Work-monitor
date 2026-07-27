@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.30 STABLE - fix vacation-day cancellation cache refresh.
+File version: 6.33 STABLE - direct historical day-lock snapshot application.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -7004,6 +7004,23 @@ CHANGELOG 5.85 - הצגת סיסמה ונעילת יום ב-Firestore
   }
   function isLocked(date){ return !!date && lockedDays.has(String(date)); }
   window.isDayLockedV585=isLocked;
+
+  // v6.33: apply a historical workerDaysOff listener snapshot directly to the
+  // existing lock Set. This avoids legacy cache/load races that could overwrite
+  // a fresh remote lock state with stale RAM data.
+  window.wmApplyHistoricalDayLocksV633=function(rows,start,end,workerId){
+    rows=Array.isArray(rows)?rows:[];
+    start=String(start||''); end=String(end||'');
+    var next=new Set();
+    rows.forEach(function(data){
+      data=data||{};
+      var date=String(data.date||'');
+      if(data.locked===true && date && (!start||date>=start) && (!end||date<=end)) next.add(date);
+    });
+    lockedDays=next;
+    if(workerId) loadedWorkerId=String(workerId);
+    return Array.from(lockedDays);
+  };
 
   // v5.85: הצגת/הסתרת הסיסמה משנה רק type של שדה הקלט ולא נוגעת באימות.
   window.togglePasswordVisibilityV585=function(inputId,button){
