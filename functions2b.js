@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.39 BETA - preserve and render the IndexedDB work cache before attaching the unchanged 730-day listener; stable files untouched.
+File version: 6.40 BETA - beta changelog for non-blocking local cache startup and loading watchdog; stable files untouched.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -4548,6 +4548,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"6.40-beta", title:"תיקון תקיעה במסך הכנת סביבת העבודה", items:["שחזור IndexedDB אינו ממתין יותר בתוך loadMonth ואינו יכול לעכב את שרשרת העלייה של העובד.","המסלול הרגיל של Firestore מתחיל מיד, והמטמון המקומי נטען ברקע בלבד.","נוסף watchdog בטא שמסיר את מסך הטעינה אם הוא נשאר מוצג מעבר לזמן הבטוח ורושם זאת בחלון הדיבאג.","היציבה 6.33 וקבציה לא שונו."], date:d},
       {version:"6.39-beta", title:"פתיחה מיידית מהמטמון המקומי", items:["בפתיחה חוזרת הבטא ממתינה עד 900 אלפיות השנייה לשחזור IndexedDB ומציגה את נתוני 730 הימים המקומיים לפני חיבור המאזין.","תוקן איפוס פנימי שמחק את נתוני IndexedDB רגע לפני חיבור listener העבודות.","listener הקיים של 730 הימים נשאר פעיל כמקור האמת ומחליף את המטמון רק לאחר snapshot תקין.","כשל או עיכוב ב-IndexedDB אינו חוסם את האפליקציה; לאחר timeout קצר ממשיכים אוטומטית למסלול Firestore הרגיל."], date:d},
       {version:"6.38-beta", title:"ניקוי קריאות כפולות בעליית הבטא", items:["תוקן מטמון המחירון כך ששתי קריאות פתיחה חופפות חולקות Promise אחד ואינן מורידות פעמיים את כל 309 פריטי המחירון.","תוקן באותו אופן מטמון תבניות ההתקנה כדי למנוע שאילתת פתיחה כפולה.","קריאות חוזרות למסמך העובד בזמן בדיקות הכניסה והמנוי חולקות כעת בקשה אחת ותוצאה טרייה לזמן קצר.","לא שונה עדיין listener העבודות של 730 הימים; זה יטופל בשלב הבא לאחר בדיקת Audit נקייה."], date:d},
       {version:"6.30", title:"תיקון ביטול יום חופש בחודשים היסטוריים", items:["תוקן מצב שבו ביטול יום חופש נכתב ל-Firestore אך היום נשאר מסומן בגלל מטמון workerDaysOff ישן בזיכרון.","לאחר ביטול יום חופש כל שכבות המטמון של ימי החופש והנעילות מתנקות לפני טעינת החודש מחדש.","הכפתור ביטול יום חופש עובד גם בחודשים ישנים שמחוץ לטווח 730 הימים.","לא שונו עבודות, מחירונים, דוחות, חיפוש, נעילות או יתר לוגיקת האפליקציה."], date:d},
