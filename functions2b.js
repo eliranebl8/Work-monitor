@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.36 BETA - permanent beta Firebase debug window with copy support; stable files untouched.
+File version: 6.37 BETA - automatic audit attachment to the live Firestore instance; stable files untouched.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -9481,9 +9481,22 @@ VERSION 6.18 BETA - FIRESTORE REQUEST AUDIT
 (function installFirestoreAuditV618(){
   'use strict';
   var enabled=false;
-  try{var params=new URLSearchParams(location.search);enabled=params.get('cacheDebug')==='1'||params.get('firestoreDebug')==='1'||params.get('firebaseDebug')==='1';}catch(e){}
-  if(!enabled||!window.db||window.__WM_FS_AUDIT_INSTALLED_V618)return;
+  try{
+    var params=new URLSearchParams(location.search);
+    enabled=params.get('cacheDebug')==='1'||params.get('firestoreDebug')==='1'||params.get('firebaseDebug')==='1'||/(^|\/)beta\.html$/i.test(location.pathname||'');
+  }catch(e){enabled=/(^|\/)beta\.html$/i.test(location.pathname||'');}
+  if(!enabled||window.__WM_FS_AUDIT_INSTALLED_V618)return;
+  if(!window.db){
+    window.__WM_FS_AUDIT_WAITING_V637=(window.__WM_FS_AUDIT_WAITING_V637||0)+1;
+    if(window.__WM_FS_AUDIT_WAITING_V637<=40){
+      setTimeout(installFirestoreAuditV618,250);
+    }else if(typeof window.wmTraceV617==='function'){
+      window.wmTraceV617('FIRESTORE_AUDIT_ATTACH_TIMEOUT',{attempts:window.__WM_FS_AUDIT_WAITING_V637});
+    }
+    return;
+  }
   window.__WM_FS_AUDIT_INSTALLED_V618=true;
+  window.__WM_FS_AUDIT_ATTACHED_AT_V637=new Date().toISOString();
 
   var audit=window.WM_FIRESTORE_AUDIT_V618={
     startedAt:new Date().toISOString(), estimatedReads:0, writes:0, deletes:0,
@@ -9650,7 +9663,7 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
 
   function summary(){
     var a=window.WM_FIRESTORE_AUDIT_V618||{};
-    return {readsEstimated:a.estimatedReads||0,writes:a.writes||0,deletes:a.deletes||0,queryGets:a.queryGets||0,documentGets:a.documentGets||0,listenerSnapshots:a.listenerSnapshots||0,authCalls:authCount,byCollection:a.byCollection||{},lastFirebaseAt:lastFirebaseAt?new Date(lastFirebaseAt).toISOString():null};
+    return {firestoreAuditInstalled:!!window.__WM_FS_AUDIT_INSTALLED_V618,readsEstimated:a.estimatedReads||0,writes:a.writes||0,deletes:a.deletes||0,queryGets:a.queryGets||0,documentGets:a.documentGets||0,listenerSnapshots:a.listenerSnapshots||0,authCalls:authCount,byCollection:a.byCollection||{},lastFirebaseAt:lastFirebaseAt?new Date(lastFirebaseAt).toISOString():null};
   }
   function fullText(){
     var list=rows(),s=summary();
@@ -9684,7 +9697,7 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
     var legacy=document.getElementById('wmFirestoreAuditV618');if(legacy)legacy.style.display='none';
     var box=ensure(),s=summary(),list=rows(),pre=box.querySelector('#wmFirebaseRowsV620'),sum=box.querySelector('#wmFirebaseSummaryV620');
     var age=lastFirebaseAt?Math.max(0,Math.round((Date.now()-lastFirebaseAt)/1000)):'—';
-    sum.textContent='Reads≈ '+s.readsEstimated+' | Writes '+s.writes+' | Deletes '+s.deletes+' | Auth '+s.authCalls+' | Listener snapshots '+s.listenerSnapshots+' | last Firebase '+age+'s ago';
+    sum.textContent=(s.firestoreAuditInstalled?'Audit מחובר':'Audit לא מחובר')+' | Reads≈ '+(s.firestoreAuditInstalled?s.readsEstimated:'—')+' | Writes '+s.writes+' | Deletes '+s.deletes+' | Auth '+s.authCalls+' | Listener snapshots '+s.listenerSnapshots+' | last Firebase '+age+'s ago';
     pre.textContent=list.slice(-220).map(function(r){return r.time.slice(11,23)+'  '+r.event+'  '+JSON.stringify(r.data);}).join('\n')||'עדיין אין אירועים. עבור באפליקציה ובצע פעולות.';
     pre.scrollTop=pre.scrollHeight;
   }
@@ -9693,8 +9706,9 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
     add('FIREBASE_AUDIT_WINDOW_READY',{version:String(window.APP_VERSION||'unknown'),mode:/(^|\/)beta\.html$/i.test(location.pathname||'')?'automatic-beta':'url-parameter'});
     window.addEventListener('error',function(ev){add('WINDOW_ERROR',{message:String(ev.message||''),file:String(ev.filename||''),line:ev.lineno||0,column:ev.colno||0,error:String(ev.error&&ev.error.stack||ev.error||'')});});
     window.addEventListener('unhandledrejection',function(ev){add('UNHANDLED_REJECTION',{reason:String(ev.reason&&ev.reason.stack||ev.reason||'')});});
-    add('FIREBASE_AUDIT_CONNECTION_CHECK',{dbAvailable:!!window.db,authAvailable:!!window.auth,firestoreAuditInstalled:!!window.__WM_FS_AUDIT_INSTALLED_V618,authWrapped:!!(window.auth&&window.auth.__auditV620)});
-    if(!window.db||!window.__WM_FS_AUDIT_INSTALLED_V618)add('FIREBASE_AUDIT_INSTALL_ERROR',{reason:'Firestore audit layer was not attached to the live db instance'});
+    add('FIREBASE_AUDIT_CONNECTION_CHECK',{dbAvailable:!!window.db,authAvailable:!!window.auth,firestoreAuditInstalled:!!window.__WM_FS_AUDIT_INSTALLED_V618,firestoreAuditAttachedAt:window.__WM_FS_AUDIT_ATTACHED_AT_V637||null,authWrapped:!!(window.auth&&window.auth.__auditV620)});
+    if(window.db&&window.__WM_FS_AUDIT_INSTALLED_V618)add('FIREBASE_AUDIT_ATTACHED',{projectId:(window.firebaseConfig&&window.firebaseConfig.projectId)||'work-monitor-a3bb9',attachedAt:window.__WM_FS_AUDIT_ATTACHED_AT_V637||null});
+    else add('FIREBASE_AUDIT_INSTALL_ERROR',{reason:'Firestore audit layer was not attached to the live db instance'});
     if(!window.auth)add('FIREBASE_AUDIT_INSTALL_ERROR',{reason:'Firebase Auth instance is unavailable'});
     setInterval(function(){wrapAuth();render();},800);
   }
@@ -9706,6 +9720,13 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
   if(typeof old!=='function'||old.__v620Wrapped)return;
   var wrapped=function(){
     var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+    if(!rows.some(function(r){return String(r.version||r.id||'')==='6.37-beta';}))rows.unshift({version:'6.37-beta',title:'תיקון חיבור אוטומטי של Firebase Audit',createdAt:'2026-07-27',items:[
+      'חלון ה-Audit בבטא מחבר כעת אוטומטית את שכבת המעקב למופע Firestore האמיתי, ללא צורך בפרמטר בכתובת.',
+      'נוסף ניסיון חוזר בטוח כאשר db עדיין לא מוכן בזמן טעינת הסקריפט.',
+      'הלוג מציג FIREBASE_AUDIT_ATTACHED וזמן חיבור כאשר ההתקנה הצליחה.',
+      'כאשר שכבת המעקב אינה מחוברת, מספר הקריאות אינו מוצג כאפס מטעה אלא כמצב לא מחובר.',
+      'הגרסה היציבה 6.33 והקבצים הרגילים לא שונו.'
+    ]});
     if(!rows.some(function(r){return String(r.version||r.id||'')==='6.21-beta';}))rows.unshift({version:'6.21-beta',title:'תיקון חיבור חלון בדיקת Firebase',createdAt:'2026-07-26',items:[
       'תוקן חיבור חלון ה-Audit למופעי db ו-auth האמיתיים שבהם האפליקציה משתמשת.',
       'קריאות Firestore, מאזינים, כתיבות, מחיקות ופעולות Firebase Auth נלכדות כעת ישירות בשכבת Firebase.',
