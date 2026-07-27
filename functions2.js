@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.27 STABLE - centralized changelog completion and local-cache synchronization.
+File version: 6.29 STABLE - fix Fiber/RF price-list switching cache.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -4545,6 +4545,8 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"6.29", title:"תיקון מעבר בין מחירון סיב למחירון RF", items:["תוקן מטמון המחירון כך שהוא נשמר בנפרד לפי סוג ההתקנה שנבחר: סיב או RF.","בלחיצה על RF נטענים ומוצגים בפועל רק פריטי מחירון RF, ולא נשארים פריטי הסיב עם כותרת RF.","בחזרה לסיב נטענים שוב פריטי הסיב המתאימים.","גם מטמון תבניות ההתקנה הופרד לפי סיב/RF כדי למנוע הצגת תבניות מהסוג הקודם.","לא שונו Firestore, שמירת עבודות, לוח השנה, דוחות, חיפוש או יתר לוגיקת האפליקציה."], date:d},
+      {version:"6.28", title:"טעינת חודש היסטורי מלא ותיקון חודש גבול 730 ימים", items:["מעבר בלוח השנה לחודש שמתחיל לפני גבול 730 הימים טוען מ-Firestore רק את אותו חודש בשלמותו.","חודש שבו גבול 730 הימים עובר באמצע החודש אינו מוצג עוד כחצי חודש; כל החודש נלקח מהשאילתה ההיסטורית הממוקדת.","פתיחת דוח לחודש היסטורי מרעננת תמיד את אותו חודש מ-Firestore ומעדכנת את המטמון ההיסטורי המשותף.","עבודה שנוספה ממכשיר אחר לחודש ישן תופיע לאחר כניסה לאותו חודש או טעינת הדוח, ללא listener על כל ההיסטוריה.","חלון השנתיים החי, החיפוש ושאר לוגיקת האפליקציה לא שונו."], date:d},
       {version:"6.27", title:"גרסה יציבה — תיקון מלא של מה חדש", items:["כל רשומות מה חדש מ-5.97 ועד 6.27 רוכזו במקור מרכזי אחד בקוד.","עובד רגיל אינו בודק ואינו מנסה להשלים גרסאות ב-Firestore בזמן עליית האפליקציה.","חלון מה חדש נפתח מיד מהמטמון המקומי או מרשימת ברירת המחדל שבקוד.","בעת פתיחת מה חדש נבדק מסמך סטטוס קטן; רשימת Firestore המלאה נטענת רק אם מנהל שינה את הרשימה וה-revision השתנה.","רק מנהל מחובר משלים ל-Firestore גרסאות חסרות, בלי לדרוס עריכות או גרסאות שהוסתרו דרך הממשק.","הוספה, עריכה או הסתרה דרך ממשק המנהל מעדכנות revision ומרעננות את המטמון המקומי."], date:d},
       {version:"6.26-beta", title:"תיקון נתיב הכניסה האמיתי והסרת GET כפול", items:["תוקנה פונקציית loadMonth המקורית שמופעלת בפועל מתוך showWorker בזמן הכניסה.","הוסרה ממנה שאילתת workEntries מלאה לפי workerId שהכפילה את קריאות הפתיחה.","הפונקציה ממתינה למטמון השנתיים של ה-listener המרכזי וקוראת ממנו בלבד.","מעבר חודשים נשאר מהזיכרון וחיפוש היסטוריה מלא נשאר רק בפעולת חיפוש מפורשת."], date:d},
       {version:"6.25-beta", title:"הסרת הקריאה האחרונה המיותרת בכניסה", items:["נתיב טעינת החודש הישן אינו מבצע יותר שאילתת workEntries מלאה בזמן הכניסה.","ה-listener היחיד של מטמון השנתיים הוא מקור האמת לעדכונים חיים ממכשירים אחרים.","מעבר בין חודשים ממשיך לעבוד מהזיכרון ללא קריאות Firestore נוספות.","חיפוש מפורש ללא טווח תאריכים ממשיך לטעון היסטוריה מלאה לפי דרישת המשתמש."], date:d},
@@ -9719,21 +9721,26 @@ VERSION 6.22 BETA - FIRESTORE READ DEDUPLICATION
   if(window.__wmReadDedupV622Installed)return;
   window.__wmReadDedupV622Installed=true;
 
-  var staticCache={workerId:'',priceReady:false,templatesReady:false,pricePromise:null,templatesPromise:null};
+  // v6.29: cache price lists and templates per selected installation kind.
+  // Previously the cache only remembered that something had loaded, so switching
+  // Fiber -> RF changed the title but reused the already-loaded Fiber arrays.
+  var staticCache={workerId:'',priceKind:'',templatesKind:'',priceReady:false,templatesReady:false,pricePromise:null,templatesPromise:null};
   function workerIdV622(){try{return viewedWorker&&viewedWorker.id?String(viewedWorker.id):'';}catch(e){return '';}}
+  function installKindV629(){return String(window.installKindV411||'fiber').toLowerCase()==='rf'?'rf':'fiber';}
   function resetForWorkerV622(){
     var id=workerIdV622();
-    if(staticCache.workerId!==id){staticCache.workerId=id;staticCache.priceReady=false;staticCache.templatesReady=false;staticCache.pricePromise=null;staticCache.templatesPromise=null;}
+    if(staticCache.workerId!==id){staticCache={workerId:id,priceKind:'',templatesKind:'',priceReady:false,templatesReady:false,pricePromise:null,templatesPromise:null};}
   }
 
   var originalLoadPriceListV622=window.loadPriceList||(typeof loadPriceList==='function'?loadPriceList:null);
   if(typeof originalLoadPriceListV622==='function'){
     var cachedLoadPriceListV622=async function(force){
       resetForWorkerV622();
-      if(force===true)staticCache.priceReady=false;
-      if(staticCache.priceReady&&Array.isArray(priceList)&&priceList.length)return priceList;
+      var kind=installKindV629();
+      if(force===true||staticCache.priceKind!==kind){staticCache.priceReady=false;staticCache.pricePromise=null;}
+      if(staticCache.priceReady&&staticCache.priceKind===kind&&Array.isArray(priceList))return priceList;
       if(staticCache.pricePromise)return staticCache.pricePromise;
-      staticCache.pricePromise=Promise.resolve(originalLoadPriceListV622.apply(this,arguments)).then(function(result){staticCache.priceReady=true;return result||priceList;}).finally(function(){staticCache.pricePromise=null;});
+      staticCache.pricePromise=Promise.resolve(originalLoadPriceListV622.apply(this,arguments)).then(function(result){staticCache.priceReady=true;staticCache.priceKind=kind;return result||priceList;}).finally(function(){staticCache.pricePromise=null;});
       return staticCache.pricePromise;
     };
     window.loadPriceList=cachedLoadPriceListV622;try{loadPriceList=cachedLoadPriceListV622;}catch(e){}
@@ -9743,10 +9750,11 @@ VERSION 6.22 BETA - FIRESTORE READ DEDUPLICATION
   if(typeof originalLoadTemplatesV622==='function'){
     var cachedLoadTemplatesV622=async function(force){
       resetForWorkerV622();
-      if(force===true)staticCache.templatesReady=false;
-      if(staticCache.templatesReady&&Array.isArray(templates))return templates;
+      var kind=installKindV629();
+      if(force===true||staticCache.templatesKind!==kind){staticCache.templatesReady=false;staticCache.templatesPromise=null;}
+      if(staticCache.templatesReady&&staticCache.templatesKind===kind&&Array.isArray(templates))return templates;
       if(staticCache.templatesPromise)return staticCache.templatesPromise;
-      staticCache.templatesPromise=Promise.resolve(originalLoadTemplatesV622.apply(this,arguments)).then(function(result){staticCache.templatesReady=true;return result||templates;}).finally(function(){staticCache.templatesPromise=null;});
+      staticCache.templatesPromise=Promise.resolve(originalLoadTemplatesV622.apply(this,arguments)).then(function(result){staticCache.templatesReady=true;staticCache.templatesKind=kind;return result||templates;}).finally(function(){staticCache.templatesPromise=null;});
       return staticCache.templatesPromise;
     };
     window.loadTemplates=cachedLoadTemplatesV622;try{loadTemplates=cachedLoadTemplatesV622;}catch(e){}
@@ -9921,4 +9929,139 @@ VERSION 6.26 BETA - ACTUAL LOGIN LOADER FIX
     wrapped.__v626Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
   }
   try{window.APP_VERSION=APP_VERSION;if(typeof setAppVersionUI==='function')setAppVersionUI();}catch(e){}
+})();
+
+/*
+===============================================================================
+VERSION 6.28 STABLE - COMPLETE HISTORICAL MONTH LOADING
+-------------------------------------------------------------------------------
+1. A calendar month is considered historical when its first day is before the
+   rolling 730-day cutoff, including the month that crosses the cutoff boundary.
+2. Entering a historical/boundary month refreshes exactly that full month from
+   Firestore, so the calendar never shows only the recent half of the month.
+3. Historical settlement reports always refresh the requested full month from
+   Firestore and update the shared historical-month cache.
+4. The two-year live listener remains unchanged and no full-history listener or
+   full-history query was added.
+===============================================================================
+*/
+(function(){
+  'use strict';
+  if(window.__wmHistoricalMonthV628Installed)return;
+  window.__wmHistoricalMonthV628Installed=true;
+
+  var state=window.WM_DATA_CACHE_V604=window.WM_DATA_CACHE_V604||{};
+  var historicalLoadsV628=Object.create(null);
+
+  function padV628(n){return String(n).padStart(2,'0');}
+  function monthRangeV628(value){
+    var d=value instanceof Date?value:new Date(String(value||'')+'T12:00:00');
+    if(!(d instanceof Date)||isNaN(d.getTime()))return null;
+    var y=d.getFullYear(),m=d.getMonth(),key=y+'-'+padV628(m+1);
+    return {key:key,start:key+'-01',end:key+'-'+padV628(new Date(y,m+1,0).getDate())};
+  }
+  function activeWorkerV628(){try{return viewedWorker&&viewedWorker.id?String(viewedWorker.id):'';}catch(e){return '';}}
+  function isHistoricalOrBoundaryV628(range){return !!(range&&state.cutoff&&String(range.start)<String(state.cutoff));}
+  function mergeAllV628(){
+    var map=Object.create(null),out=[];
+    function add(e){if(!e||!e.id||map[e.id])return;map[e.id]=true;out.push(e);}
+    (Array.isArray(state.entries)?state.entries:[]).forEach(add);
+    if(state.historicalMonths)Object.keys(state.historicalMonths).forEach(function(k){(state.historicalMonths[k]||[]).forEach(add);});
+    return out;
+  }
+
+  async function loadHistoricalMonthFreshV628(value){
+    var range=monthRangeV628(value),workerId=activeWorkerV628();
+    if(!range||!workerId)return [];
+    var promiseKey=workerId+'_'+range.key;
+    if(historicalLoadsV628[promiseKey])return historicalLoadsV628[promiseKey];
+    historicalLoadsV628[promiseKey]=(async function(){
+      var snap=await db.collection('workEntries')
+        .where('workerId','==',workerId)
+        .where('date','>=',range.start)
+        .where('date','<=',range.end)
+        .get();
+      var rows=snap.docs.map(function(doc){return Object.assign({id:doc.id},doc.data()||{});});
+      if(!state.historicalMonths)state.historicalMonths=Object.create(null);
+      state.historicalMonths[range.key]=rows.slice();
+      state.historicalLoads=Number(state.historicalLoads||0)+1;
+      window.workerAllEntriesV511=mergeAllV628();
+      return rows;
+    })().finally(function(){delete historicalLoadsV628[promiseKey];});
+    return historicalLoadsV628[promiseKey];
+  }
+  window.loadHistoricalMonthFreshV628=loadHistoricalMonthFreshV628;
+  // Keep the established public name useful for search/navigation, but make it fresh.
+  window.loadHistoricalMonthV604=loadHistoricalMonthFreshV628;
+
+  // v6.28: the existing central refresh classifies by month end. Temporarily move
+  // the cutoff beyond the displayed month so a boundary month uses its full
+  // historical bucket instead of the partial 730-day listener bucket.
+  var baseRefreshV628=window.wmRefreshFromCacheV610;
+  if(typeof baseRefreshV628==='function'&&!baseRefreshV628.__historicalBoundaryV628){
+    var refreshV628=function(options){
+      var range=null;try{range=monthRangeV628(calendarDate);}catch(e){}
+      if(!isHistoricalOrBoundaryV628(range)||!state.historicalMonths||!Array.isArray(state.historicalMonths[range.key])){
+        return baseRefreshV628.apply(this,arguments);
+      }
+      var realCutoff=state.cutoff;
+      try{
+        state.cutoff='9999-12-31';
+        return baseRefreshV628.apply(this,arguments);
+      }finally{state.cutoff=realCutoff;}
+    };
+    refreshV628.__historicalBoundaryV628=true;
+    refreshV628.__baseV628=baseRefreshV628;
+    window.wmRefreshFromCacheV610=refreshV628;
+  }
+
+  // v6.28: after the normal month metadata/cache path finishes, refresh one exact
+  // historical month from Firestore. Months fully inside 730 days remain RAM-only.
+  var baseLoadMonthV628=window.loadMonth;
+  if(typeof baseLoadMonthV628==='function'&&!baseLoadMonthV628.__historicalMonthV628){
+    var loadMonthV628=async function(){
+      var result=await baseLoadMonthV628.apply(this,arguments);
+      var range=monthRangeV628(calendarDate);
+      if(isHistoricalOrBoundaryV628(range)){
+        await loadHistoricalMonthFreshV628(calendarDate);
+        if(typeof window.wmRefreshFromCacheV610==='function')window.wmRefreshFromCacheV610({reason:'historical-month-v6.28'});
+      }
+      return result;
+    };
+    loadMonthV628.__historicalMonthV628=true;
+    loadMonthV628.__baseV628=baseLoadMonthV628;
+    window.loadMonth=loadMonthV628;try{loadMonth=loadMonthV628;}catch(e){}
+  }
+
+  // v6.28: a requested historical report is an explicit refresh action. Always
+  // read that complete month from Firestore, including the cutoff boundary month.
+  var baseSettlementV628=window.loadSettlementEntriesV547;
+  window.loadSettlementEntriesV547=async function(month){
+    var range=monthRangeV628(String(month||'')+'-01');
+    if(!range||!isHistoricalOrBoundaryV628(range)){
+      return typeof baseSettlementV628==='function'?baseSettlementV628.apply(this,arguments):[];
+    }
+    var rows=await loadHistoricalMonthFreshV628(range.start);
+    return rows.filter(function(entry){
+      var date=String((entry&&entry.date)||'');
+      if(date<range.start||date>range.end)return false;
+      try{if(typeof isDoneEntryForSettlementV547==='function')return isDoneEntryForSettlementV547(entry);}catch(e){}
+      var status=String((entry&&(entry.entryStatus||entry.status))||'done').toLowerCase();
+      return status!=='planned'&&status!=='not_done'&&status!=='cancelled';
+    });
+  };
+  try{loadSettlementEntriesV547=window.loadSettlementEntriesV547;}catch(e){}
+
+  // Search-result navigation older than the live window also receives a fresh
+  // month before opening the target entry on the calendar.
+  var baseNavigateV628=window.navigateToEntryV599||window.navigateToEntry;
+  if(typeof baseNavigateV628==='function'&&!baseNavigateV628.__historicalFreshV628){
+    var navigateV628=async function(entryId,entryDate){
+      var range=monthRangeV628(entryDate);
+      if(isHistoricalOrBoundaryV628(range))await loadHistoricalMonthFreshV628(entryDate);
+      return baseNavigateV628.apply(this,arguments);
+    };
+    navigateV628.__historicalFreshV628=true;
+    window.navigateToEntryV599=navigateV628;window.navigateToEntryV598=navigateV628;window.navigateToEntry=navigateV628;window.openSmartEntryV584=navigateV628;
+  }
 })();
