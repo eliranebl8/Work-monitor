@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript continuation file.
-File version: 6.32 STABLE - live historical work, vacation and day-lock synchronization.
+File version: 6.33 STABLE - reliable direct historical vacation and day-lock synchronization.
 Loaded after functions1.js and functions2.js. New additive functionality belongs here.
 APP_VERSION remains defined only in functions1.js.
 */
@@ -47,6 +47,7 @@ VERSION 6.31 STABLE - LIVE SYNC FOR THE DISPLAYED HISTORICAL MONTH
   var listenerGeneration=0;
   var activeDayOffUnsubscribe=null;
   var activeDayOffWorkerId='';
+  var activeDayOffRange=null;
   var activeDayOffFirstPromise=null;
   var activeDayOffFirstResolved=false;
   var dayOffListenerGeneration=0;
@@ -98,33 +99,37 @@ VERSION 6.31 STABLE - LIVE SYNC FOR THE DISPLAYED HISTORICAL MONTH
     try{if(typeof renderStats==='function')renderStats();}catch(e){}
     try{if(typeof renderSmartDashboard==='function')renderSmartDashboard();}catch(e){}
   }
-  function refreshHistoricalDayMetadataV632(rows,reason){
+  function refreshHistoricalDayMetadataV633(rows,range,reason){
     rows=Array.isArray(rows)?rows:[];
-    try{
-      if(typeof window.wmInvalidateVacationDaysV623==='function'){
-        window.wmInvalidateVacationDaysV623();
-      }
-    }catch(e){console.warn('v6.32 day-off cache invalidation failed',e);}
+    range=range||activeDayOffRange||null;
+    if(!range)return Promise.resolve();
 
-    // Seed the shared workerDaysOff cache with the listener snapshot so the
-    // existing vacation/lock loaders filter locally without another Firestore GET.
+    // v6.33: listener data is now the direct source of truth for the displayed
+    // historical month. Do not call legacy vacation/lock loaders here: they own
+    // additional private caches and could race in a stale GET after this snapshot.
+    try{
+      window.vacationDaysV437=Array.from(new Set(rows.filter(function(d){
+        d=d||{}; var date=String(d.date||'');
+        return (d.type==='vacation'||!d.type) && d.active!==false && date>=range.start && date<=range.end;
+      }).map(function(d){return String(d.date||'');}))).sort();
+      window.vacationDaysLoadedForV437=activeDayOffWorkerId+'_'+range.key;
+    }catch(e){console.error('v6.33 direct vacation snapshot apply failed',e);}
+
+    try{
+      if(typeof window.wmApplyHistoricalDayLocksV633==='function'){
+        window.wmApplyHistoricalDayLocksV633(rows,range.start,range.end,activeDayOffWorkerId);
+      }
+    }catch(e){console.error('v6.33 direct lock snapshot apply failed',e);}
+
+    // Keep shared caches aligned for validators and any later non-live consumer,
+    // but never reload from them while this historical listener is active.
     try{
       var shared=window.WM_DAYOFF_DOCS_CACHE_V624=window.WM_DAYOFF_DOCS_CACHE_V624||{};
-      shared.workerId=activeDayOffWorkerId;
-      shared.docs=rows.slice();
-      shared.promise=null;
-    }catch(e){console.warn('v6.32 shared day-off cache seed failed',e);}
+      shared.workerId=activeDayOffWorkerId; shared.docs=rows.slice(); shared.promise=null;
+    }catch(e){}
 
-    return Promise.resolve().then(async function(){
-      try{
-        if(typeof window.loadVacationDaysV437==='function')await window.loadVacationDaysV437();
-        else if(typeof window.loadVacationDaysV489==='function')await window.loadVacationDaysV489();
-      }catch(e){console.error('v6.32 vacation snapshot apply failed',e);}
-      try{
-        if(typeof window.loadDayLocksV585==='function')await window.loadDayLocksV585();
-      }catch(e){console.error('v6.32 lock snapshot apply failed',e);}
-      refreshDisplayedMonthV631(reason||'historical-day-metadata-v6.32');
-    });
+    refreshDisplayedMonthV631(reason||'historical-day-metadata-v6.33');
+    return Promise.resolve();
   }
 
   function stopHistoricalDayOffListenerV632(reason){
@@ -134,6 +139,7 @@ VERSION 6.31 STABLE - LIVE SYNC FOR THE DISPLAYED HISTORICAL MONTH
     }
     activeDayOffUnsubscribe=null;
     activeDayOffWorkerId='';
+    activeDayOffRange=null;
     activeDayOffFirstPromise=null;
     activeDayOffFirstResolved=false;
     state.historicalDayOffLiveWorker='';
@@ -141,9 +147,9 @@ VERSION 6.31 STABLE - LIVE SYNC FOR THE DISPLAYED HISTORICAL MONTH
   }
   window.stopHistoricalDayOffListenerV632=stopHistoricalDayOffListenerV632;
 
-  function attachHistoricalDayOffListenerV632(workerId){
+  function attachHistoricalDayOffListenerV632(workerId,range){
     if(!workerId)return Promise.resolve([]);
-    if(activeDayOffUnsubscribe&&activeDayOffWorkerId===workerId){
+    if(activeDayOffUnsubscribe&&activeDayOffWorkerId===workerId&&activeDayOffRange&&range&&activeDayOffRange.key===range.key){
       if(activeDayOffFirstResolved){
         var cached=window.WM_DAYOFF_DOCS_CACHE_V624;
         return Promise.resolve(cached&&Array.isArray(cached.docs)?cached.docs:[]);
@@ -154,6 +160,7 @@ VERSION 6.31 STABLE - LIVE SYNC FOR THE DISPLAYED HISTORICAL MONTH
     stopHistoricalDayOffListenerV632('switch-worker');
     var myGeneration=dayOffListenerGeneration;
     activeDayOffWorkerId=workerId;
+    activeDayOffRange=range||null;
     state.historicalDayOffLiveWorker=workerId;
 
     activeDayOffFirstPromise=new Promise(function(resolve,reject){
@@ -165,7 +172,7 @@ VERSION 6.31 STABLE - LIVE SYNC FOR THE DISPLAYED HISTORICAL MONTH
           var rows=snapshot.docs.map(function(doc){return Object.assign({id:doc.id},doc.data()||{});});
           state.historicalDayOffLastSnapshotAt=Date.now();
           state.historicalDayOffLastCount=rows.length;
-          refreshHistoricalDayMetadataV632(rows,'historical-dayoff-snapshot-v6.32').then(function(){
+          refreshHistoricalDayMetadataV633(rows,activeDayOffRange,'historical-dayoff-snapshot-v6.33').then(function(){
             if(!settled){settled=true;activeDayOffFirstResolved=true;resolve(rows);}
           }).catch(function(error){
             if(!settled){settled=true;reject(error);}
@@ -261,7 +268,7 @@ VERSION 6.31 STABLE - LIVE SYNC FOR THE DISPLAYED HISTORICAL MONTH
       try{
         await Promise.all([
           attachHistoricalListenerV631(range,workerId),
-          attachHistoricalDayOffListenerV632(workerId)
+          attachHistoricalDayOffListenerV632(workerId,range)
         ]);
       }catch(error){
         // Fallback to the established exact-month GET only if the live listener
@@ -285,6 +292,25 @@ VERSION 6.31 STABLE - LIVE SYNC FOR THE DISPLAYED HISTORICAL MONTH
   // destroys Firestore listeners automatically, but this keeps lifecycle clear.
   window.addEventListener('pagehide',function(){stopHistoricalListenerV631('pagehide');});
   window.addEventListener('beforeunload',function(){stopHistoricalListenerV631('beforeunload');});
+
+  // v6.33 release entry.
+  var oldRowsV633=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof oldRowsV633==='function'&&!oldRowsV633.__v633Wrapped){
+    var rowsV633=function(){
+      var rows=[];try{rows=oldRowsV633.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.33';})){
+        rows.unshift({version:'6.33',title:'סנכרון יציב לחופש ולנעילות בחודשים שמעל שנתיים',createdAt:'2026-07-27',items:[
+          'תמונת workerDaysOff של החודש ההיסטורי מוחלת ישירות על ימי החופש ועל מערך הנעילות.',
+          'הוסרו טעינות חוזרות דרך שכבות מטמון ישנות שיכלו לדרוס שינוי חדש ממכשיר אחר.',
+          'הוספה, ביטול חופש, נעילה ופתיחת יום בחודש שמעל שנתיים מתעדכנים בזמן אמת וביציבות.',
+          'המאזין נשאר זמני ונסגר במעבר לחודש אחר, בחזרה לטווח 730 הימים או בסגירת האפליקציה.'
+        ]});
+      }
+      return rows;
+    };
+    rowsV633.__v633Wrapped=true; window.requiredChangelogRows=rowsV633;
+    try{requiredChangelogRows=rowsV633;}catch(e){}
+  }
 
   // v6.32 release entry. Existing Firestore/admin edits remain authoritative;
   // this local row is only added when the version does not already exist.
