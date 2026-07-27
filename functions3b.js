@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript continuation file.
-File version: 6.36 BETA - fail-open IndexedDB startup and permanent beta diagnostics.
+File version: 6.39 BETA - local-first IndexedDB startup with bounded wait and permanent beta diagnostics.
 Loaded after functions1.js and functions2.js. New additive functionality belongs here.
 APP_VERSION remains defined only in functions1.js.
 */
@@ -538,18 +538,27 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
     if(typeof original!=='function'||original.__indexedDbV635)return;
     var wrapped=async function(){
       var workerId=activeWorkerIdV635();
-      // v6.36 BETA: IndexedDB is never allowed to block application startup.
-      // Restore runs in parallel; the existing Firestore flow continues immediately.
+      // v6.39 BETA: give IndexedDB a short, bounded head start so cached work
+      // can be painted before the unchanged 730-day Firestore listener attaches.
+      // A failure or timeout always falls through to the normal Firestore path.
       if(workerId){
-        Promise.race([
-          restoreWorkerV635(workerId),
-          new Promise(function(resolve){setTimeout(function(){resolve(null);},1800);})
-        ]).catch(function(error){
-          status.phase='המטמון המקומי דולג';
-          status.error=error&&error.message?error.message:String(error);
+        try{
+          var restoreResult=await Promise.race([
+            restoreWorkerV635(workerId),
+            new Promise(function(resolve){setTimeout(function(){resolve({__wmTimeout:true});},900);})
+          ]);
+          if(restoreResult&&restoreResult.__wmTimeout){
+            status.phase='המטמון המקומי מתעכב · ממשיך לענן';status.source='Firestore fallback';
+            try{window.wmTraceV617&&window.wmTraceV617('BETA_639_INDEXEDDB_TIMEOUT',{workerId:workerId,timeoutMs:900});}catch(e){}
+          }else{
+            try{window.wmTraceV617&&window.wmTraceV617('BETA_639_INDEXEDDB_READY',{workerId:workerId,docs:Array.isArray(state.entries)?state.entries.length:0});}catch(e){}
+          }
           renderStatusV635();
-          try{window.wmTraceV617&&window.wmTraceV617('BETA_INDEXEDDB_RESTORE_SKIPPED',{error:status.error});}catch(e){}
-        });
+        }catch(error){
+          status.phase='המטמון המקומי דולג';status.source='Firestore fallback';
+          status.error=error&&error.message?error.message:String(error);renderStatusV635();
+          try{window.wmTraceV617&&window.wmTraceV617('BETA_639_INDEXEDDB_SKIPPED',{error:status.error});}catch(e){}
+        }
       }
       try{return await original.apply(this,arguments);}catch(error){
         try{window.wmTraceV617&&window.wmTraceV617('BETA_LOAD_MONTH_ERROR',{error:String(error&&error.stack||error)});}catch(e){}
