@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript continuation file.
-File version: 6.39 BETA - local-first IndexedDB startup with bounded wait and permanent beta diagnostics.
+File version: 6.40 BETA - fully non-blocking IndexedDB restore plus startup loading watchdog and permanent beta diagnostics.
 Loaded after functions1.js and functions2.js. New additive functionality belongs here.
 APP_VERSION remains defined only in functions1.js.
 */
@@ -538,27 +538,16 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
     if(typeof original!=='function'||original.__indexedDbV635)return;
     var wrapped=async function(){
       var workerId=activeWorkerIdV635();
-      // v6.39 BETA: give IndexedDB a short, bounded head start so cached work
-      // can be painted before the unchanged 730-day Firestore listener attaches.
-      // A failure or timeout always falls through to the normal Firestore path.
+      // v6.40 BETA: IndexedDB is fire-and-forget. The local cache path must
+      // never delay loadMonth or keep the worker loading overlay visible.
       if(workerId){
-        try{
-          var restoreResult=await Promise.race([
-            restoreWorkerV635(workerId),
-            new Promise(function(resolve){setTimeout(function(){resolve({__wmTimeout:true});},900);})
-          ]);
-          if(restoreResult&&restoreResult.__wmTimeout){
-            status.phase='המטמון המקומי מתעכב · ממשיך לענן';status.source='Firestore fallback';
-            try{window.wmTraceV617&&window.wmTraceV617('BETA_639_INDEXEDDB_TIMEOUT',{workerId:workerId,timeoutMs:900});}catch(e){}
-          }else{
-            try{window.wmTraceV617&&window.wmTraceV617('BETA_639_INDEXEDDB_READY',{workerId:workerId,docs:Array.isArray(state.entries)?state.entries.length:0});}catch(e){}
-          }
-          renderStatusV635();
-        }catch(error){
+        Promise.resolve().then(function(){return restoreWorkerV635(workerId);}).then(function(){
+          try{window.wmTraceV617&&window.wmTraceV617('BETA_640_INDEXEDDB_BACKGROUND_DONE',{workerId:workerId,docs:Array.isArray(state.entries)?state.entries.length:0});}catch(e){}
+        }).catch(function(error){
           status.phase='המטמון המקומי דולג';status.source='Firestore fallback';
           status.error=error&&error.message?error.message:String(error);renderStatusV635();
-          try{window.wmTraceV617&&window.wmTraceV617('BETA_639_INDEXEDDB_SKIPPED',{error:status.error});}catch(e){}
-        }
+          try{window.wmTraceV617&&window.wmTraceV617('BETA_640_INDEXEDDB_BACKGROUND_ERROR',{error:status.error});}catch(e){}
+        });
       }
       try{return await original.apply(this,arguments);}catch(error){
         try{window.wmTraceV617&&window.wmTraceV617('BETA_LOAD_MONTH_ERROR',{error:String(error&&error.stack||error)});}catch(e){}
@@ -567,6 +556,21 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
     };
     wrapped.__indexedDbV635=true;wrapped.__baseV635=original;
     window.loadMonth=wrapped;try{loadMonth=wrapped;}catch(e){}
+  }
+  function installStartupWatchdogV640(){
+    if(window.__wmStartupWatchdogV640)return;
+    window.__wmStartupWatchdogV640=true;
+    setTimeout(function(){
+      var overlay=document.getElementById('workerLoadingOverlayV427');
+      var bodyActive=!!(document.body&&document.body.classList.contains('worker-loading-active-v427'));
+      var visible=false;
+      try{visible=!!(overlay&&(bodyActive||getComputedStyle(overlay).display!=='none')&&getComputedStyle(overlay).visibility!=='hidden');}catch(e){}
+      if(!visible)return;
+      try{if(typeof hideWorkerLoading427==='function')hideWorkerLoading427();}catch(e){}
+      try{document.body.classList.remove('worker-loading-active-v427','worker-main-loading-v428');}catch(e){}
+      try{overlay.style.display='none';}catch(e){}
+      try{window.wmTraceV617&&window.wmTraceV617('BETA_640_LOADING_WATCHDOG_RELEASED',{afterMs:8000});}catch(e){}
+    },8000);
   }
   function observeSnapshotsV635(){
     setInterval(function(){
@@ -594,7 +598,7 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
     databaseName:DB_NAME
   };
 
-  function bootV635(){renderStatusV635();wrapLoadMonthV635();observeSnapshotsV635();var id=activeWorkerIdV635();if(id)restoreWorkerV635(id);}
+  function bootV635(){installStartupWatchdogV640();renderStatusV635();wrapLoadMonthV635();observeSnapshotsV635();var id=activeWorkerIdV635();if(id)Promise.resolve().then(function(){return restoreWorkerV635(id);}).catch(function(error){try{window.wmTraceV617&&window.wmTraceV617('BETA_640_BOOT_CACHE_ERROR',{error:String(error&&error.stack||error)});}catch(e){}});}
   function traceV636(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
   traceV636('BETA_636_SCRIPT_READY',{indexedDB:!!window.indexedDB,readyState:document.readyState});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){traceV636('BETA_636_DOM_READY',{});setTimeout(function(){try{bootV635();traceV636('BETA_636_CACHE_BOOT_CALLED',{});}catch(error){traceV636('BETA_636_CACHE_BOOT_ERROR',{error:String(error&&error.stack||error)});}},1100);});else setTimeout(function(){try{bootV635();traceV636('BETA_636_CACHE_BOOT_CALLED',{});}catch(error){traceV636('BETA_636_CACHE_BOOT_ERROR',{error:String(error&&error.stack||error)});}},400);
