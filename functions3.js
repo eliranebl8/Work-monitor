@@ -1,10 +1,24 @@
 /*
 Work Monitor app - JavaScript continuation file.
-File version: 6.31 STABLE - temporary live listener for the displayed historical month.
+File version: 6.32 STABLE - live historical work, vacation and day-lock synchronization.
 Loaded after functions1.js and functions2.js. New additive functionality belongs here.
 APP_VERSION remains defined only in functions1.js.
 */
 
+/*
+===============================================================================
+VERSION 6.32 STABLE - LIVE VACATION AND DAY-LOCK SYNC FOR HISTORICAL MONTHS
+-------------------------------------------------------------------------------
+1. While a historical/boundary month is displayed, a temporary workerDaysOff
+   listener is opened for the active worker alongside the workEntries listener.
+2. Its snapshot refreshes the shared day-off cache, vacation markers and day
+   locks before repainting the calendar/day/dashboard.
+3. Moving to another historical month reuses the same worker listener; returning
+   inside the 730-day window closes it completely.
+4. No composite workerDaysOff index is required: the listener filters by workerId
+   and the displayed month is filtered locally by the existing loaders.
+===============================================================================
+*/
 /*
 ===============================================================================
 VERSION 6.31 STABLE - LIVE SYNC FOR THE DISPLAYED HISTORICAL MONTH
@@ -31,6 +45,11 @@ VERSION 6.31 STABLE - LIVE SYNC FOR THE DISPLAYED HISTORICAL MONTH
   var activeFirstPromise=null;
   var activeFirstResolved=false;
   var listenerGeneration=0;
+  var activeDayOffUnsubscribe=null;
+  var activeDayOffWorkerId='';
+  var activeDayOffFirstPromise=null;
+  var activeDayOffFirstResolved=false;
+  var dayOffListenerGeneration=0;
 
   function padV631(n){return String(n).padStart(2,'0');}
   function dateStrV631(d){return d.getFullYear()+'-'+padV631(d.getMonth()+1)+'-'+padV631(d.getDate());}
@@ -79,8 +98,91 @@ VERSION 6.31 STABLE - LIVE SYNC FOR THE DISPLAYED HISTORICAL MONTH
     try{if(typeof renderStats==='function')renderStats();}catch(e){}
     try{if(typeof renderSmartDashboard==='function')renderSmartDashboard();}catch(e){}
   }
+  function refreshHistoricalDayMetadataV632(rows,reason){
+    rows=Array.isArray(rows)?rows:[];
+    try{
+      if(typeof window.wmInvalidateVacationDaysV623==='function'){
+        window.wmInvalidateVacationDaysV623();
+      }
+    }catch(e){console.warn('v6.32 day-off cache invalidation failed',e);}
+
+    // Seed the shared workerDaysOff cache with the listener snapshot so the
+    // existing vacation/lock loaders filter locally without another Firestore GET.
+    try{
+      var shared=window.WM_DAYOFF_DOCS_CACHE_V624=window.WM_DAYOFF_DOCS_CACHE_V624||{};
+      shared.workerId=activeDayOffWorkerId;
+      shared.docs=rows.slice();
+      shared.promise=null;
+    }catch(e){console.warn('v6.32 shared day-off cache seed failed',e);}
+
+    return Promise.resolve().then(async function(){
+      try{
+        if(typeof window.loadVacationDaysV437==='function')await window.loadVacationDaysV437();
+        else if(typeof window.loadVacationDaysV489==='function')await window.loadVacationDaysV489();
+      }catch(e){console.error('v6.32 vacation snapshot apply failed',e);}
+      try{
+        if(typeof window.loadDayLocksV585==='function')await window.loadDayLocksV585();
+      }catch(e){console.error('v6.32 lock snapshot apply failed',e);}
+      refreshDisplayedMonthV631(reason||'historical-day-metadata-v6.32');
+    });
+  }
+
+  function stopHistoricalDayOffListenerV632(reason){
+    dayOffListenerGeneration++;
+    if(typeof activeDayOffUnsubscribe==='function'){
+      try{activeDayOffUnsubscribe();}catch(e){console.warn('v6.32 workerDaysOff listener unsubscribe failed',e);}
+    }
+    activeDayOffUnsubscribe=null;
+    activeDayOffWorkerId='';
+    activeDayOffFirstPromise=null;
+    activeDayOffFirstResolved=false;
+    state.historicalDayOffLiveWorker='';
+    state.historicalDayOffLiveReason=reason||'';
+  }
+  window.stopHistoricalDayOffListenerV632=stopHistoricalDayOffListenerV632;
+
+  function attachHistoricalDayOffListenerV632(workerId){
+    if(!workerId)return Promise.resolve([]);
+    if(activeDayOffUnsubscribe&&activeDayOffWorkerId===workerId){
+      if(activeDayOffFirstResolved){
+        var cached=window.WM_DAYOFF_DOCS_CACHE_V624;
+        return Promise.resolve(cached&&Array.isArray(cached.docs)?cached.docs:[]);
+      }
+      return activeDayOffFirstPromise||Promise.resolve([]);
+    }
+
+    stopHistoricalDayOffListenerV632('switch-worker');
+    var myGeneration=dayOffListenerGeneration;
+    activeDayOffWorkerId=workerId;
+    state.historicalDayOffLiveWorker=workerId;
+
+    activeDayOffFirstPromise=new Promise(function(resolve,reject){
+      var settled=false;
+      activeDayOffUnsubscribe=db.collection('workerDaysOff')
+        .where('workerId','==',workerId)
+        .onSnapshot({includeMetadataChanges:true},function(snapshot){
+          if(myGeneration!==dayOffListenerGeneration)return;
+          var rows=snapshot.docs.map(function(doc){return Object.assign({id:doc.id},doc.data()||{});});
+          state.historicalDayOffLastSnapshotAt=Date.now();
+          state.historicalDayOffLastCount=rows.length;
+          refreshHistoricalDayMetadataV632(rows,'historical-dayoff-snapshot-v6.32').then(function(){
+            if(!settled){settled=true;activeDayOffFirstResolved=true;resolve(rows);}
+          }).catch(function(error){
+            if(!settled){settled=true;reject(error);}
+          });
+        },function(error){
+          if(myGeneration!==dayOffListenerGeneration)return;
+          console.error('v6.32 historical workerDaysOff listener failed',error);
+          if(!settled){settled=true;reject(error);}
+        });
+    });
+    return activeDayOffFirstPromise;
+  }
+  window.attachHistoricalDayOffListenerV632=attachHistoricalDayOffListenerV632;
+
   function stopHistoricalListenerV631(reason){
     listenerGeneration++;
+    stopHistoricalDayOffListenerV632(reason||'historical-stop');
     if(typeof activeUnsubscribe==='function'){
       try{activeUnsubscribe();}catch(e){console.warn('v6.31 historical listener unsubscribe failed',e);}
     }
@@ -157,7 +259,10 @@ VERSION 6.31 STABLE - LIVE SYNC FOR THE DISPLAYED HISTORICAL MONTH
 
       var result=await normalLoadMonthV631.apply(this,arguments);
       try{
-        await attachHistoricalListenerV631(range,workerId);
+        await Promise.all([
+          attachHistoricalListenerV631(range,workerId),
+          attachHistoricalDayOffListenerV632(workerId)
+        ]);
       }catch(error){
         // Fallback to the established exact-month GET only if the live listener
         // could not start, so historical navigation still remains usable.
@@ -180,6 +285,33 @@ VERSION 6.31 STABLE - LIVE SYNC FOR THE DISPLAYED HISTORICAL MONTH
   // destroys Firestore listeners automatically, but this keeps lifecycle clear.
   window.addEventListener('pagehide',function(){stopHistoricalListenerV631('pagehide');});
   window.addEventListener('beforeunload',function(){stopHistoricalListenerV631('beforeunload');});
+
+  // v6.32 release entry. Existing Firestore/admin edits remain authoritative;
+  // this local row is only added when the version does not already exist.
+  var oldRowsV632=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof oldRowsV632==='function'&&!oldRowsV632.__v632Wrapped){
+    var rowsV632=function(){
+      var rows=[];try{rows=oldRowsV632.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.32';})){
+        rows.unshift({
+          version:'6.32',
+          title:'סנכרון חי לימי חופש ולנעילות בחודשים היסטוריים',
+          createdAt:'2026-07-27',
+          items:[
+            'בחודש היסטורי פתוח נוסף listener זמני ל-workerDaysOff עבור העובד המחובר, לצד listener העבודות.',
+            'סימון או ביטול יום חופש ממכשיר אחד מופיעים מיד במכשיר השני ומרעננים את הלוח, היום והדשבורד.',
+            'נעילה או פתיחה של יום בחודש היסטורי מסתנכרנות מיד בין המכשירים.',
+            'תמונת ה-listener מוזרמת למטמון המשותף ולכן אין GET נוסף ל-workerDaysOff בכל שינוי.',
+            'בחזרה לטווח 730 הימים או בסגירת האפליקציה המאזין ההיסטורי נסגר לחלוטין.'
+          ]
+        });
+      }
+      return rows;
+    };
+    rowsV632.__v632Wrapped=true;
+    window.requiredChangelogRows=rowsV632;
+    try{requiredChangelogRows=rowsV632;}catch(e){}
+  }
 
   // Add the release entry without changing the existing changelog source file.
   var oldRowsV631=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
