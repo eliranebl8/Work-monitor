@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript continuation file.
-File version: 6.35 BETA - persistent IndexedDB cache foundation.
+File version: 6.36 BETA - fail-open IndexedDB startup and permanent beta diagnostics.
 Loaded after functions1.js and functions2.js. New additive functionality belongs here.
 APP_VERSION remains defined only in functions1.js.
 */
@@ -448,7 +448,7 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
   }
   async function writeSnapshotV635(workerId,entries){
     var database=await openDbV635();
-    var row={workerId:workerId,cutoff:String(state.cutoff||cutoffV635()),entries:Array.isArray(entries)?entries:[],savedAt:new Date().toISOString(),schemaVersion:1,appVersion:String(window.APP_VERSION||'6.35-beta')};
+    var row={workerId:workerId,cutoff:String(state.cutoff||cutoffV635()),entries:Array.isArray(entries)?entries:[],savedAt:new Date().toISOString(),schemaVersion:1,appVersion:String(window.APP_VERSION||'6.36-beta')};
     await new Promise(function(resolve,reject){
       var tx=database.transaction(STORE,'readwrite');
       tx.objectStore(STORE).put(row);
@@ -538,8 +538,23 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
     if(typeof original!=='function'||original.__indexedDbV635)return;
     var wrapped=async function(){
       var workerId=activeWorkerIdV635();
-      if(workerId)await restoreWorkerV635(workerId);
-      return original.apply(this,arguments);
+      // v6.36 BETA: IndexedDB is never allowed to block application startup.
+      // Restore runs in parallel; the existing Firestore flow continues immediately.
+      if(workerId){
+        Promise.race([
+          restoreWorkerV635(workerId),
+          new Promise(function(resolve){setTimeout(function(){resolve(null);},1800);})
+        ]).catch(function(error){
+          status.phase='המטמון המקומי דולג';
+          status.error=error&&error.message?error.message:String(error);
+          renderStatusV635();
+          try{window.wmTraceV617&&window.wmTraceV617('BETA_INDEXEDDB_RESTORE_SKIPPED',{error:status.error});}catch(e){}
+        });
+      }
+      try{return await original.apply(this,arguments);}catch(error){
+        try{window.wmTraceV617&&window.wmTraceV617('BETA_LOAD_MONTH_ERROR',{error:String(error&&error.stack||error)});}catch(e){}
+        throw error;
+      }
     };
     wrapped.__indexedDbV635=true;wrapped.__baseV635=original;
     window.loadMonth=wrapped;try{loadMonth=wrapped;}catch(e){}
@@ -571,8 +586,10 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
   };
 
   function bootV635(){renderStatusV635();wrapLoadMonthV635();observeSnapshotsV635();var id=activeWorkerIdV635();if(id)restoreWorkerV635(id);}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(bootV635,1100);});else setTimeout(bootV635,400);
-  window.addEventListener('load',function(){setTimeout(function(){wrapLoadMonthV635();},1500);});
+  function traceV636(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
+  traceV636('BETA_636_SCRIPT_READY',{indexedDB:!!window.indexedDB,readyState:document.readyState});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){traceV636('BETA_636_DOM_READY',{});setTimeout(function(){try{bootV635();traceV636('BETA_636_CACHE_BOOT_CALLED',{});}catch(error){traceV636('BETA_636_CACHE_BOOT_ERROR',{error:String(error&&error.stack||error)});}},1100);});else setTimeout(function(){try{bootV635();traceV636('BETA_636_CACHE_BOOT_CALLED',{});}catch(error){traceV636('BETA_636_CACHE_BOOT_ERROR',{error:String(error&&error.stack||error)});}},400);
+  window.addEventListener('load',function(){traceV636('BETA_636_WINDOW_LOAD',{});setTimeout(function(){try{wrapLoadMonthV635();}catch(error){traceV636('BETA_636_WRAP_ERROR',{error:String(error&&error.stack||error)});}},1500);});
 
   // Local beta changelog entry. Admin Firestore records remain authoritative.
   var oldRowsV635=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
@@ -589,4 +606,22 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
     };
     rowsV635.__v635Wrapped=true;window.requiredChangelogRows=rowsV635;try{requiredChangelogRows=rowsV635;}catch(e){}
   }
+})();
+
+
+/* VERSION 6.36 BETA - fail-open startup and permanent diagnostics */
+(function(){
+  var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof old!=='function'||old.__v636Wrapped)return;
+  var wrapped=function(){
+    var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+    if(!rows.some(function(r){return String(r.version||r.id||'')==='6.36-beta';}))rows.unshift({version:'6.36-beta',title:'תיקון תקיעת הבטא וחלון Debug קבוע',createdAt:'2026-07-27',items:[
+      'IndexedDB אינו חוסם עוד את עליית האפליקציה; שחזור המטמון מתבצע במקביל ועם timeout בטוח.',
+      'אם המטמון המקומי נכשל, האפליקציה ממשיכה אוטומטית למסלול Firestore הרגיל.',
+      'חלון Firebase Debug נפתח אוטומטית ב-beta.html ללא פרמטר בכתובת.',
+      'נוספו כפתורי העתקה, ניקוי ומזעור וכן רישום שגיאות JavaScript ו-Promise לא מטופלות.'
+    ]});
+    return rows;
+  };
+  wrapped.__v636Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
 })();
