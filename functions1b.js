@@ -1,9 +1,9 @@
 /* 
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
-Upload index.html, styles.css, functions1.js and functions2.js to the same GitHub folder.
+Upload index.html, styles.css, functions1.js, functions2.js and functions3.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 6.26 BETA - fixed the actual legacy login loadMonth and removed its full workEntries GET.
-This is the stable core file. Future functional changes should be added to functions2.js.
+File version: 6.35 BETA - persistent IndexedDB cache foundation; stable 6.33 files remain untouched.
+This is the stable core file. New additive functionality should be added to functions3.js; edit existing functions in place.
 APP_VERSION remains the single version source here; only its version line should be updated in future releases.
 
 
@@ -198,7 +198,7 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "6.26-beta";
+const APP_VERSION = "6.35-beta";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
