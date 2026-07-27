@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.29 STABLE - fix Fiber/RF price-list switching cache.
+File version: 6.30 STABLE - fix vacation-day cancellation cache refresh.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -2161,7 +2161,10 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
 
     window.vacationDaysV437=safeArr(window.vacationDaysV437).filter(function(d){return d!==date;});
     window.vacationDaysLoadedForV437='';
-    await loadVacationDaysV487().catch(function(){});
+    // v6.30: clear all workerDaysOff cache layers before reloading the month.
+    try{if(typeof window.wmInvalidateVacationDaysV623==='function')window.wmInvalidateVacationDaysV623();}catch(e){}
+    try{if(typeof window.wmInvalidateDayOffCacheV630==='function')window.wmInvalidateDayOffCacheV630();}catch(e){}
+    await loadVacationDaysV487(true).catch(function(){});
     await refreshAfterVacation();
   }
   window.cancelVacationDayV437=cancelVacationDay;
@@ -4545,6 +4548,7 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"6.30", title:"תיקון ביטול יום חופש בחודשים היסטוריים", items:["תוקן מצב שבו ביטול יום חופש נכתב ל-Firestore אך היום נשאר מסומן בגלל מטמון workerDaysOff ישן בזיכרון.","לאחר ביטול יום חופש כל שכבות המטמון של ימי החופש והנעילות מתנקות לפני טעינת החודש מחדש.","הכפתור ביטול יום חופש עובד גם בחודשים ישנים שמחוץ לטווח 730 הימים.","לא שונו עבודות, מחירונים, דוחות, חיפוש, נעילות או יתר לוגיקת האפליקציה."], date:d},
       {version:"6.29", title:"תיקון מעבר בין מחירון סיב למחירון RF", items:["תוקן מטמון המחירון כך שהוא נשמר בנפרד לפי סוג ההתקנה שנבחר: סיב או RF.","בלחיצה על RF נטענים ומוצגים בפועל רק פריטי מחירון RF, ולא נשארים פריטי הסיב עם כותרת RF.","בחזרה לסיב נטענים שוב פריטי הסיב המתאימים.","גם מטמון תבניות ההתקנה הופרד לפי סיב/RF כדי למנוע הצגת תבניות מהסוג הקודם.","לא שונו Firestore, שמירת עבודות, לוח השנה, דוחות, חיפוש או יתר לוגיקת האפליקציה."], date:d},
       {version:"6.28", title:"טעינת חודש היסטורי מלא ותיקון חודש גבול 730 ימים", items:["מעבר בלוח השנה לחודש שמתחיל לפני גבול 730 הימים טוען מ-Firestore רק את אותו חודש בשלמותו.","חודש שבו גבול 730 הימים עובר באמצע החודש אינו מוצג עוד כחצי חודש; כל החודש נלקח מהשאילתה ההיסטורית הממוקדת.","פתיחת דוח לחודש היסטורי מרעננת תמיד את אותו חודש מ-Firestore ומעדכנת את המטמון ההיסטורי המשותף.","עבודה שנוספה ממכשיר אחר לחודש ישן תופיע לאחר כניסה לאותו חודש או טעינת הדוח, ללא listener על כל ההיסטוריה.","חלון השנתיים החי, החיפוש ושאר לוגיקת האפליקציה לא שונו."], date:d},
       {version:"6.27", title:"גרסה יציבה — תיקון מלא של מה חדש", items:["כל רשומות מה חדש מ-5.97 ועד 6.27 רוכזו במקור מרכזי אחד בקוד.","עובד רגיל אינו בודק ואינו מנסה להשלים גרסאות ב-Firestore בזמן עליית האפליקציה.","חלון מה חדש נפתח מיד מהמטמון המקומי או מרשימת ברירת המחדל שבקוד.","בעת פתיחת מה חדש נבדק מסמך סטטוס קטן; רשימת Firestore המלאה נטענת רק אם מנהל שינה את הרשימה וה-revision השתנה.","רק מנהל מחובר משלים ל-Firestore גרסאות חסרות, בלי לדרוס עריכות או גרסאות שהוסתרו דרך הממשק.","הוספה, עריכה או הסתרה דרך ממשק המנהל מעדכנות revision ומרעננות את המטמון המקומי."], date:d},
@@ -9770,8 +9774,30 @@ VERSION 6.22 BETA - FIRESTORE READ DEDUPLICATION
     dayOffCache.promise=window.wmGetAllDayOffDocsV624(id).then(function(rows){dayOffCache.docs=rows;return rows;}).finally(function(){dayOffCache.promise=null;});
     return dayOffCache.promise;
   }
+  // v6.30: keep every vacation-day cache layer in sync after add/cancel.
+  // The v6.22 closure previously kept its own stale copy even after the shared
+  // workerDaysOff cache had been invalidated, so a cancelled historical vacation
+  // day immediately reappeared from RAM and looked as if the button did nothing.
+  var previousVacationInvalidatorV630=window.wmInvalidateVacationDaysV623;
+  window.wmInvalidateVacationDaysV623=function(){
+    dayOffCache.docs=null;
+    dayOffCache.promise=null;
+    if(typeof previousVacationInvalidatorV630==='function'){
+      try{previousVacationInvalidatorV630();}catch(e){}
+    }
+  };
+  window.wmInvalidateDayOffCacheV630=function(){
+    dayOffCache.docs=null;
+    dayOffCache.promise=null;
+    try{var c=window.WM_DAYOFF_DOCS_CACHE_V624;if(c){c.docs=null;c.promise=null;}}catch(e){}
+  };
+
   async function cachedVacationDaysV622(force){
-    if(force===true)dayOffCache.docs=null;
+    if(force===true){
+      dayOffCache.docs=null;
+      dayOffCache.promise=null;
+      try{var c=window.WM_DAYOFF_DOCS_CACHE_V624;if(c){c.docs=null;c.promise=null;}}catch(e){}
+    }
     var r=monthRangeV622(),docs=await allDayOffDocsV622();
     window.vacationDaysV437=Array.from(new Set(docs.filter(function(d){var date=String(d.date||'');return (d.type==='vacation'||!d.type)&&d.active!==false&&date>=r.start&&date<=r.end;}).map(function(d){return String(d.date||'');}))).sort();
     window.vacationDaysLoadedForV437=workerIdV622()+'_'+r.start.slice(0,7);
