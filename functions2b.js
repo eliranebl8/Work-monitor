@@ -1,6 +1,6 @@
-/*
+/* File version: 6.47 BETA - active workEntries loader restores IndexedDB and uses createdAt/updatedAt delta listeners.
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.46 BETA - active-listener IndexedDB saving retained for the local-first restore test; stable files untouched.
+File version: 6.47 BETA - IndexedDB restore plus delta-only workEntries listeners; stable files untouched.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -11,7 +11,7 @@ CHANGELOG 6.01 - פיצול קובץ JavaScript
 4. index.html טוען את functions1.js ולאחריו את functions2.js לפי סדר התלויות.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions2b = "6.46-beta";
+window.WM_LOADED_FILE_VERSIONS.functions2b = "6.47-beta";
 
 
 (function(){
@@ -9176,14 +9176,74 @@ VERSION 6.13 BETA - SAFE SNAPSHOT MERGE + MONTH HEADER SYNCHRONIZATION
     return listenerPromiseV613;
   }
 
-  // Final loadMonth route for v6.13: persistent cache first, then safe differential listener.
+  // v6.47 BETA: cache-first workEntries route. When IndexedDB has a complete
+  // snapshot, do not attach the two-year listener again. Attach only two small
+  // delta listeners: newly created documents and documents edited after savedAt.
+  function timestampV647(value){
+    var ms=Date.parse(String(value||''));
+    if(!Number.isFinite(ms))return null;
+    try{return firebase.firestore.Timestamp.fromMillis(ms);}catch(e){return null;}
+  }
+  function mergeDeltaDocV647(doc){
+    if(!doc||!doc.id)return;
+    var map=Object.create(null);
+    (Array.isArray(state.entries)?state.entries:[]).forEach(function(row){if(row&&row.id)map[row.id]=row;});
+    map[doc.id]=Object.assign({id:doc.id},doc.data()||{});
+    state.entries=Object.keys(map).map(function(id){return map[id];});
+  }
+  function startDeltaListenersV647(workerId,savedAt){
+    if(listenerWorkerV613===workerId&&listenerPromiseV613)return listenerPromiseV613;
+    stopOldListenerV613();listenerWorkerV613=workerId;
+    listenerPromiseV613=new Promise(function(resolve,reject){
+      var since=timestampV647(savedAt);
+      if(!since){reject(new Error('invalid IndexedDB savedAt for delta listener'));return;}
+      var settled=0,failed=false,unsubs=[];
+      function trace(name,data){try{window.wmTraceV617&&window.wmTraceV617(name,data||{});}catch(e){}}
+      function finishOne(){settled++;if(settled>=2&&!failed)resolve(state.entries);}
+      function attach(field){
+        var firstForField=true;
+        var q=db.collection('workEntries').where('workerId','==',workerId).where(field,'>',since);
+        var unsub=q.onSnapshot({includeMetadataChanges:true},function(snap){
+          var changes=[];try{changes=snap.docChanges();}catch(e){}
+          changes.forEach(function(ch){if(ch.type!=='removed')mergeDeltaDocV647(ch.doc);});
+          state.workerId=workerId;window.workerAllEntriesV511=state.entries.slice();renderV613();
+          trace('FIRESTORE_DELTA_SNAPSHOT',{workerId:workerId,field:field,docs:snap.docs.length,changes:changes.length,fromCache:!!(snap.metadata&&snap.metadata.fromCache)});
+          if(changes.length){
+            var api=window.WM_BETA_LOCAL_CACHE_V635;
+            if(api&&typeof api.persistRows==='function')Promise.resolve(api.persistRows(workerId,state.entries.slice())).catch(function(){});
+          }
+          if(firstForField){firstForField=false;finishOne();}
+        },function(err){failed=true;reject(err);});
+        unsubs.push(unsub);
+      }
+      try{
+        trace('FIRESTORE_LISTENER_DELTA_MODE',{workerId:workerId,savedAt:String(savedAt),fields:['createdAt','updatedAt']});
+        attach('createdAt');attach('updatedAt');
+        state.unsubscribe=function(){unsubs.forEach(function(fn){try{fn();}catch(e){}});};
+      }catch(e){failed=true;reject(e);}
+    });
+    return listenerPromiseV613;
+  }
+
   window.loadMonth=async function(){
     if(!viewedWorker||!viewedWorker.id)return;
-    try{await loadPriceList();}catch(e){console.warn('v6.13 price list load skipped',e);}
-    try{await loadTemplates();}catch(e){console.warn('v6.13 templates load skipped',e);}
+    try{await loadPriceList();}catch(e){console.warn('v6.47 price list load skipped',e);}
+    try{await loadTemplates();}catch(e){console.warn('v6.47 templates load skipped',e);}
     var workerId=String(viewedWorker.id),cutoff=cutoffV613();state.workerId=workerId;state.cutoff=cutoff;
-    await hydrateV613(workerId,cutoff);renderV613();
-    try{await startListenerV613(workerId,cutoff);}catch(e){if(!Array.isArray(state.entries)||!state.entries.length)throw e;}
+    var restored=null,api=window.WM_BETA_LOCAL_CACHE_V635;
+    try{if(api&&typeof api.restore==='function')restored=await api.restore(workerId);}catch(e){restored=null;}
+    if(restored&&Array.isArray(restored.entries)&&restored.entries.length&&restored.savedAt){
+      state.entries=restored.entries.slice();window.workerAllEntriesV511=state.entries.slice();renderV613();
+      try{window.wmTraceV617&&window.wmTraceV617('CACHE_SKIP_FULL_WORKENTRIES_LOAD',{workerId:workerId,docs:state.entries.length,savedAt:String(restored.savedAt)});}catch(e){}
+      try{window.wmTraceV617&&window.wmTraceV617('CACHE_NO_FULL_DOWNLOAD',{workerId:workerId,cutoff:cutoff});}catch(e){}
+      try{await startDeltaListenersV647(workerId,restored.savedAt);}catch(deltaError){
+        try{window.wmTraceV617&&window.wmTraceV617('FIRESTORE_DELTA_FALLBACK_FULL',{workerId:workerId,error:String(deltaError&&deltaError.message||deltaError)});}catch(e){}
+        await startListenerV613(workerId,cutoff);
+      }
+    }else{
+      await hydrateV613(workerId,cutoff);renderV613();
+      try{await startListenerV613(workerId,cutoff);}catch(e){if(!Array.isArray(state.entries)||!state.entries.length)throw e;}
+    }
     renderV613();
   };
   try{loadMonth=window.loadMonth;}catch(e){}
