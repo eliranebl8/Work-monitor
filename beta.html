@@ -1,4 +1,4 @@
-<!-- File version: 6.40 BETA - non-blocking IndexedDB startup and loading watchdog; stable 6.33 remains untouched. -->
+<!-- File version: 6.44 BETA - runtime file audit markers and admin cache reset controls; stable 6.33 remains untouched. -->
 <!DOCTYPE html
 <!-- File version: 5.89 - Chrome-stable SVG password visibility icons -->
 
@@ -143,6 +143,18 @@
   <textarea id="securityRulesPreviewV45" readonly style="direction:ltr;text-align:left;min-height:210px;font-family:monospace;font-size:12px"></textarea>
   <div id="securityToolsMsgV169"></div>
 </div>
+
+<div id="adminLocalCacheToolsV644" class="card">
+  <div class="cal-head"><h2>🧪 כלי בדיקות מטמון מקומי</h2></div>
+  <p>הכפתורים מוחקים רק מידע מקומי במכשיר. הם אינם מוחקים עבודות או נתונים מ-Firebase.</p>
+  <div class="actions">
+    <button class="btn-yellow" type="button" onclick="clearAdminDataCacheV644()">🧹 נקה מטמון נתונים</button>
+    <button class="btn-danger" type="button" onclick="fullAdminLocalResetV644()">📱 איפוס מקומי מלא</button>
+  </div>
+  <p class="muted">נקה מטמון נתונים: IndexedDB, מטמון Firestore ו-Cache Storage. איפוס מלא מוחק בנוסף localStorage ו-sessionStorage ועלול לנתק מהחשבון.</p>
+  <div id="adminLocalCacheMsgV644"></div>
+</div>
+
 <div id="adminDataToolsPrimary" class="card">
   <div class="cal-head"><h2>📦 ייצוא, גיבוי, שחזור ותבניות</h2></div>
   <p>כלי ניהול מתקדמים: ייצוא אדמין מלא לאקסל, גיבוי מלא, שחזור מלא ותבניות התקנה מוכנות.</p>
@@ -888,9 +900,13 @@
   </div>
 </div>
 
-<script src="./functions1b.js?v=6.43-beta"></script>
-<script src="./functions2b.js?v=6.43-beta"></script>
-<script src="./functions3b.js?v=6.43-beta"></script>
+<script>
+window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
+window.WM_LOADED_FILE_VERSIONS.html = "6.44-beta";
+</script>
+<script src="./functions1b.js?v=6.44-beta"></script>
+<script src="./functions2b.js?v=6.44-beta"></script>
+<script src="./functions3b.js?v=6.44-beta"></script>
 </body>
 
 
