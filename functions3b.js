@@ -1,9 +1,12 @@
 /*
 Work Monitor app - JavaScript continuation file.
-File version: 6.43 BETA - IndexedDB writer used directly by the original workEntries listener; failed external hook removed.
+File version: 6.44 BETA - runtime file verification, audit-integrated IndexedDB diagnostics and admin cache reset controls.
 Loaded after functions1.js and functions2.js. New additive functionality belongs here.
 APP_VERSION remains defined only in functions1.js.
 */
+window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.44-beta";
+
 
 /*
 ===============================================================================
@@ -456,7 +459,7 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
     var safeEntries=Array.isArray(entries)?entries:[];
     traceV641('BETA_643_IDB_SAVE_START',{workerId:workerId,docs:safeEntries.length});
     var database=await openDbV635();
-    var row={workerId:workerId,cutoff:String(state.cutoff||cutoffV635()),entries:safeEntries,savedAt:new Date().toISOString(),schemaVersion:1,appVersion:String(window.APP_VERSION||'6.43-beta')};
+    var row={workerId:workerId,cutoff:String(state.cutoff||cutoffV635()),entries:safeEntries,savedAt:new Date().toISOString(),schemaVersion:1,appVersion:String(window.APP_VERSION||'6.44-beta')};
     await new Promise(function(resolve,reject){
       var tx=database.transaction(STORE,'readwrite');
       tx.objectStore(STORE).put(row);
@@ -594,6 +597,11 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
     persist:function(){var id=activeWorkerIdV635();return id?writeSnapshotV635(id,state.entries||[]):Promise.resolve(null);},
     // v6.43 BETA: the original workEntries listener passes the exact snapshot rows here.
     persistRows:function(workerId,entries){return workerId&&Array.isArray(entries)&&entries.length?writeSnapshotV635(String(workerId),entries):Promise.resolve(null);},
+    closeDatabase:async function(){
+      try{var database=dbPromise?await dbPromise:null;if(database&&typeof database.close==='function')database.close();}catch(e){}
+      dbPromise=null;
+      return true;
+    },
     reset:resetCurrentWorkerV635,
     getStatus:function(){return Object.assign({},status);},
     databaseName:DB_NAME
@@ -656,4 +664,141 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
     return rows;
   };
   wrapped.__v636Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+})();
+
+
+/* ======================================================================
+VERSION 6.44 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
+1. Every beta file publishes its own runtime version marker.
+2. The Firebase Audit log now receives a BOOT_FILE_VERSIONS row after all scripts load.
+3. IndexedDB/cache events are copied into the same audit log for one-file diagnosis.
+4. Admin-only buttons can clear app data caches or perform a full local reset.
+====================================================================== */
+(function installBetaDiagnosticsAndAdminResetV644(){
+  'use strict';
+  if(window.__wmBetaDiagnosticsV644)return;
+  window.__wmBetaDiagnosticsV644=true;
+  var EXPECTED='6.44-beta';
+
+  function trace(event,data){
+    try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
+  }
+  function fileVersions(){
+    var v=window.WM_LOADED_FILE_VERSIONS||{};
+    return {
+      html:String(v.html||'MISSING'),
+      functions1b:String(v.functions1b||'MISSING'),
+      functions2b:String(v.functions2b||'MISSING'),
+      functions3b:String(v.functions3b||'MISSING'),
+      appVersion:String(window.APP_VERSION||'MISSING')
+    };
+  }
+  function emitFileAudit(){
+    var v=fileVersions();
+    v.expected=EXPECTED;
+    v.allMatch=[v.html,v.functions1b,v.functions2b,v.functions3b,v.appVersion].every(function(x){return x===EXPECTED;});
+    trace('BOOT_FILE_VERSIONS',v);
+    if(!v.allMatch)trace('BOOT_FILE_VERSION_MISMATCH',v);
+    window.WM_BETA_FILE_AUDIT_V644=v;
+  }
+
+  function deleteDatabase(name){
+    return new Promise(function(resolve){
+      try{
+        var req=indexedDB.deleteDatabase(name);
+        req.onsuccess=function(){resolve({name:name,deleted:true});};
+        req.onerror=function(){resolve({name:name,deleted:false,error:String(req.error&&req.error.message||req.error||'delete error')});};
+        req.onblocked=function(){resolve({name:name,deleted:false,blocked:true});};
+      }catch(e){resolve({name:name,deleted:false,error:String(e&&e.message||e)});}
+    });
+  }
+  async function indexedDbNames(){
+    try{
+      if(indexedDB.databases){
+        var rows=await indexedDB.databases();
+        return rows.map(function(x){return x&&x.name;}).filter(Boolean);
+      }
+    }catch(e){}
+    var own=(window.WM_BETA_LOCAL_CACHE_V635&&window.WM_BETA_LOCAL_CACHE_V635.databaseName)||'work-monitor-beta-cache-v635';
+    return [own];
+  }
+  async function clearIndexedDbV644(){
+    trace('ADMIN_CACHE_INDEXEDDB_START',{});
+    try{if(window.WM_BETA_LOCAL_CACHE_V635&&typeof window.WM_BETA_LOCAL_CACHE_V635.closeDatabase==='function')await window.WM_BETA_LOCAL_CACHE_V635.closeDatabase();}catch(e){trace('ADMIN_CACHE_INDEXEDDB_CLOSE_ERROR',{error:String(e&&e.message||e)});}
+    var names=await indexedDbNames();
+    var targets=names.filter(function(name){return /work.?monitor|firestore|firebase/i.test(String(name||''));});
+    if(!targets.length)targets=names;
+    var results=[];
+    for(var i=0;i<targets.length;i++)results.push(await deleteDatabase(targets[i]));
+    trace('ADMIN_CACHE_INDEXEDDB_DONE',{targets:targets,results:results});
+    return results;
+  }
+  async function clearCacheStorageV644(){
+    trace('ADMIN_CACHE_STORAGE_START',{});
+    var deleted=[];
+    try{
+      if(window.caches){
+        var keys=await caches.keys();
+        for(var i=0;i<keys.length;i++)if(await caches.delete(keys[i]))deleted.push(keys[i]);
+      }
+      trace('ADMIN_CACHE_STORAGE_DONE',{deleted:deleted});
+    }catch(e){trace('ADMIN_CACHE_STORAGE_ERROR',{error:String(e&&e.message||e)});}
+    return deleted;
+  }
+  async function stopFirestoreV644(){
+    trace('ADMIN_CACHE_FIRESTORE_STOP_START',{});
+    try{if(window.db&&typeof db.disableNetwork==='function')await db.disableNetwork();}catch(e){trace('ADMIN_CACHE_FIRESTORE_DISABLE_ERROR',{error:String(e&&e.message||e)});}
+    try{if(window.db&&typeof db.terminate==='function')await db.terminate();trace('ADMIN_CACHE_FIRESTORE_STOP_DONE',{});}catch(e){trace('ADMIN_CACHE_FIRESTORE_STOP_ERROR',{error:String(e&&e.message||e)});}
+  }
+  function confirmAction(text){return window.confirm(text);}
+  function setMsg(text,isError){
+    var el=document.getElementById('adminLocalCacheMsgV644');
+    if(el){el.textContent=text;el.className=isError?'danger':'success';}
+  }
+  async function clearDataCacheV644(){
+    if(!confirmAction('הפעולה תמחק מהמכשיר את IndexedDB, מטמון Firestore ו-Cache Storage ותטען את האפליקציה מחדש. הנתונים ב-Firebase לא יימחקו. להמשיך?'))return;
+    setMsg('מנקה מטמון מקומי...');trace('ADMIN_CACHE_CLEAR_START',{mode:'data-cache'});
+    try{
+      await stopFirestoreV644();
+      await clearIndexedDbV644();
+      await clearCacheStorageV644();
+      trace('ADMIN_CACHE_CLEAR_DONE',{mode:'data-cache'});
+      setMsg('המטמון נמחק. האפליקציה נטענת מחדש...');
+      setTimeout(function(){location.reload();},700);
+    }catch(e){trace('ADMIN_CACHE_CLEAR_ERROR',{mode:'data-cache',error:String(e&&e.message||e)});setMsg('ניקוי המטמון נכשל: '+String(e&&e.message||e),true);}
+  }
+  async function fullLocalResetV644(){
+    if(!confirmAction('איפוס מקומי מלא ידמה ככל האפשר מכשיר חדש: מטמונים, IndexedDB, localStorage ו-sessionStorage יימחקו. ייתכן שתנותק מהחשבון. הנתונים ב-Firebase לא יימחקו. להמשיך?'))return;
+    setMsg('מבצע איפוס מקומי מלא...');trace('ADMIN_CACHE_CLEAR_START',{mode:'full-local-reset'});
+    try{
+      await stopFirestoreV644();
+      await clearIndexedDbV644();
+      await clearCacheStorageV644();
+      try{localStorage.clear();trace('ADMIN_CACHE_LOCAL_STORAGE_CLEARED',{});}catch(e){trace('ADMIN_CACHE_LOCAL_STORAGE_ERROR',{error:String(e&&e.message||e)});}
+      try{sessionStorage.clear();}catch(e){}
+      trace('ADMIN_CACHE_CLEAR_DONE',{mode:'full-local-reset'});
+      setTimeout(function(){location.href='beta.html?firebaseDebug=1&fresh='+Date.now();},500);
+    }catch(e){trace('ADMIN_CACHE_CLEAR_ERROR',{mode:'full-local-reset',error:String(e&&e.message||e)});setMsg('האיפוס נכשל: '+String(e&&e.message||e),true);}
+  }
+  window.clearAdminDataCacheV644=clearDataCacheV644;
+  window.fullAdminLocalResetV644=fullLocalResetV644;
+  window.getBetaFileVersionsV644=fileVersions;
+
+  function boot(){setTimeout(emitFileAudit,80);}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+
+  var oldRows=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof oldRows==='function'&&!oldRows.__v644Wrapped){
+    var wrapped=function(){
+      var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.44-beta';}))rows.unshift({version:'6.44-beta',title:'בדיקת גרסאות קבצים ואיפוס מטמון באדמין',createdAt:'2026-07-28',items:[
+        'כל אחד מקובצי הבטא מפרסם בלוג את הגרסה המדויקת שנטענה בפועל מהשרת.',
+        'חלון Firebase Audit מציג BOOT_FILE_VERSIONS ומזהה אוטומטית קובץ חסר או גרסה שאינה תואמת.',
+        'אירועי IndexedDB והמטמון נכנסים כעת לאותו לוג שמועתק מחלון הבדיקה.',
+        'נוספו באדמין כפתורי נקה מטמון נתונים ואיפוס מקומי מלא לצורך בדיקת פתיחה כמו במכשיר חדש.'
+      ]});
+      return rows;
+    };
+    wrapped.__v644Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
 })();
