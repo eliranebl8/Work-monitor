@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript continuation file.
-File version: 6.42 BETA - direct workEntries listener hook with explicit IndexedDB save audit traces; startup remains Firestore-first.
+File version: 6.43 BETA - IndexedDB writer used directly by the original workEntries listener; failed external hook removed.
 Loaded after functions1.js and functions2.js. New additive functionality belongs here.
 APP_VERSION remains defined only in functions1.js.
 */
@@ -426,11 +426,11 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
   function traceV641(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
   function openDbV635(){
     if(dbPromise)return dbPromise;
-    traceV641('BETA_641_IDB_OPEN_START',{database:DB_NAME,version:DB_VERSION});
+    traceV641('BETA_643_IDB_OPEN_START',{database:DB_NAME,version:DB_VERSION});
     dbPromise=new Promise(function(resolve,reject){
       if(!window.indexedDB){
         var unsupported=new Error('IndexedDB אינו נתמך בדפדפן הזה');
-        traceV641('BETA_641_IDB_OPEN_ERROR',{error:unsupported.message});
+        traceV641('BETA_643_IDB_OPEN_ERROR',{error:unsupported.message});
         reject(unsupported);return;
       }
       var request=indexedDB.open(DB_NAME,DB_VERSION);
@@ -438,8 +438,8 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
         var database=event.target.result;
         if(!database.objectStoreNames.contains(STORE))database.createObjectStore(STORE,{keyPath:'workerId'});
       };
-      request.onsuccess=function(){traceV641('BETA_641_IDB_OPEN_SUCCESS',{database:DB_NAME,version:DB_VERSION});resolve(request.result);};
-      request.onerror=function(){var error=request.error||new Error('פתיחת IndexedDB נכשלה');traceV641('BETA_641_IDB_OPEN_ERROR',{error:String(error&&error.message||error)});reject(error);};
+      request.onsuccess=function(){traceV641('BETA_643_IDB_OPEN_SUCCESS',{database:DB_NAME,version:DB_VERSION});resolve(request.result);};
+      request.onerror=function(){var error=request.error||new Error('פתיחת IndexedDB נכשלה');traceV641('BETA_643_IDB_OPEN_ERROR',{error:String(error&&error.message||error)});reject(error);};
     });
     return dbPromise;
   }
@@ -454,9 +454,9 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
   }
   async function writeSnapshotV635(workerId,entries){
     var safeEntries=Array.isArray(entries)?entries:[];
-    traceV641('BETA_641_IDB_SAVE_START',{workerId:workerId,docs:safeEntries.length});
+    traceV641('BETA_643_IDB_SAVE_START',{workerId:workerId,docs:safeEntries.length});
     var database=await openDbV635();
-    var row={workerId:workerId,cutoff:String(state.cutoff||cutoffV635()),entries:safeEntries,savedAt:new Date().toISOString(),schemaVersion:1,appVersion:String(window.APP_VERSION||'6.42-beta')};
+    var row={workerId:workerId,cutoff:String(state.cutoff||cutoffV635()),entries:safeEntries,savedAt:new Date().toISOString(),schemaVersion:1,appVersion:String(window.APP_VERSION||'6.43-beta')};
     await new Promise(function(resolve,reject){
       var tx=database.transaction(STORE,'readwrite');
       tx.objectStore(STORE).put(row);
@@ -466,7 +466,7 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
     });
     status.lastSavedAt=row.savedAt;status.localDocs=row.entries.length;status.phase='המטמון המקומי מעודכן';status.source='Firestore → IndexedDB';status.error='';
     renderStatusV635();
-    traceV641('BETA_641_IDB_SAVE_SUCCESS',{workerId:workerId,docs:row.entries.length,savedAt:row.savedAt});
+    traceV641('BETA_643_IDB_SAVE_SUCCESS',{workerId:workerId,docs:row.entries.length,savedAt:row.savedAt});
     return row;
   }
   async function deleteSnapshotV635(workerId){
@@ -524,7 +524,7 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
       if(!workerId||state.workerId!==workerId||!Array.isArray(state.entries))return;
       var signature=workerId+'|'+String(state.snapshotCount||0)+'|'+state.entries.length+'|'+String(state.cutoff||'');
       if(signature===lastPersistSignature)return;
-      try{await writeSnapshotV635(workerId,state.entries);lastPersistSignature=signature;}catch(error){status.phase='שמירת המטמון נכשלה';status.error=error&&error.message?error.message:String(error);renderStatusV635();traceV641('BETA_641_IDB_SAVE_ERROR',{workerId:workerId,error:String(error&&error.message||error)});console.warn('[WM 6.41 BETA] persist failed',error);}
+      try{await writeSnapshotV635(workerId,state.entries);lastPersistSignature=signature;}catch(error){status.phase='שמירת המטמון נכשלה';status.error=error&&error.message?error.message:String(error);renderStatusV635();traceV641('BETA_643_IDB_SAVE_ERROR',{workerId:workerId,error:String(error&&error.message||error)});console.warn('[WM 6.43 BETA] persist failed',error);}
     },350);
   }
   function renderStatusV635(){
@@ -592,7 +592,7 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
   window.WM_BETA_LOCAL_CACHE_V635={
     restore:restoreWorkerV635,
     persist:function(){var id=activeWorkerIdV635();return id?writeSnapshotV635(id,state.entries||[]):Promise.resolve(null);},
-    // v6.42 BETA: direct listener hook passes the exact snapshot rows here.
+    // v6.43 BETA: the original workEntries listener passes the exact snapshot rows here.
     persistRows:function(workerId,entries){return workerId&&Array.isArray(entries)&&entries.length?writeSnapshotV635(String(workerId),entries):Promise.resolve(null);},
     reset:resetCurrentWorkerV635,
     getStatus:function(){return Object.assign({},status);},
@@ -610,6 +610,12 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
   if(typeof oldRowsV635==='function'&&!oldRowsV635.__v635Wrapped){
     var rowsV635=function(){
       var rows=[];try{rows=oldRowsV635.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.43-beta';}))rows.unshift({version:'6.43-beta',title:'שמירת IndexedDB מתוך המאזין המקורי',createdAt:'2026-07-28',items:[
+        'קריאת השמירה הועברה ישירות לתוך callback המקורי של מאזין workEntries ב-functions2b.js.',
+        'הוסר מנגנון העטיפה החיצוני של 6.42 שלא התחבר בפועל למאזין הקיים.',
+        'כל snapshot לא-ריק נשמר ל-IndexedDB גם כאשר הוא מגיע מהמטמון הפנימי של Firestore.',
+        'נוספו אירועי BETA_643 מפורשים לקריאה, פתיחה, שמירה, הצלחה ושגיאה.'
+      ]});
       if(!rows.some(function(r){return String(r.version||r.id||'')==='6.42-beta';}))rows.unshift({version:'6.42-beta',title:'חיבור ישיר של מאזין העבודות לשמירת IndexedDB',createdAt:'2026-07-28',items:[
         'נוסף hook ישיר ל-onSnapshot של workEntries, כך שכל snapshot לא-ריק מועבר מיד לשמירת IndexedDB.',
         'השמירה פועלת גם כאשר תמונת המצב הראשונה מגיעה מהמטמון הפנימי של Firestore עם fromCache=true.',
@@ -650,90 +656,4 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
     return rows;
   };
   wrapped.__v636Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
-})();
-
-
-/*
-===============================================================================
-VERSION 6.42 BETA - DIRECT WORKENTRIES LISTENER → INDEXEDDB SAVE HOOK
--------------------------------------------------------------------------------
-1. Decorates Firestore workEntries query objects after the existing audit layer.
-2. Wraps the real onSnapshot callback and sends every non-empty snapshot directly
-   to the beta IndexedDB writer, including an initial fromCache=true snapshot.
-3. Does not delay, replace or alter the original listener callback and therefore
-   keeps startup Firestore-first and fail-open.
-===============================================================================
-*/
-(function(){
-  'use strict';
-  if(window.__wmDirectWorkEntriesIdbHookV642Installed)return;
-  window.__wmDirectWorkEntriesIdbHookV642Installed=true;
-
-  var decorated=typeof WeakSet==='function'?new WeakSet():null;
-  function trace(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
-  function isWorkEntriesPath(path){return String(path||'').split('/')[0]==='workEntries';}
-  function decorate(query,path){
-    if(!query||!isWorkEntriesPath(path))return query;
-    if(decorated&&decorated.has(query))return query;
-    if(decorated)decorated.add(query);
-
-    ['where','orderBy','limit','limitToLast','startAt','startAfter','endAt','endBefore'].forEach(function(name){
-      if(typeof query[name]!=='function')return;
-      var original=query[name];
-      try{
-        query[name]=function(){return decorate(original.apply(this,arguments),path);};
-      }catch(e){trace('BETA_642_HOOK_WRAP_ERROR',{method:name,error:String(e&&e.message||e)});}
-    });
-
-    if(typeof query.onSnapshot==='function'){
-      var originalListen=query.onSnapshot;
-      try{
-        query.onSnapshot=function(){
-          var self=this,args=Array.prototype.slice.call(arguments),nextIndex=0;
-          if(args[0]&&typeof args[0]==='object'&&typeof args[0]!=='function')nextIndex=1;
-          var originalNext=args[nextIndex];
-          if(typeof originalNext==='function'){
-            args[nextIndex]=function(snapshot){
-              try{
-                var rows=(snapshot&&snapshot.docs?snapshot.docs:[]).map(function(doc){return Object.assign({id:doc.id},doc.data()||{});});
-                var workerId='';
-                try{workerId=viewedWorker&&viewedWorker.id?String(viewedWorker.id):String((window.WM_DATA_CACHE_V604&&window.WM_DATA_CACHE_V604.workerId)||'');}catch(e){}
-                var meta={workerId:workerId,docs:rows.length,fromCache:!!(snapshot&&snapshot.metadata&&snapshot.metadata.fromCache),pending:!!(snapshot&&snapshot.metadata&&snapshot.metadata.hasPendingWrites)};
-                trace('BETA_642_WORKENTRIES_CACHE_HOOK',meta);
-                if(workerId&&rows.length&&window.WM_BETA_LOCAL_CACHE_V635&&typeof window.WM_BETA_LOCAL_CACHE_V635.persistRows==='function'){
-                  window.WM_BETA_LOCAL_CACHE_V635.persistRows(workerId,rows).catch(function(error){
-                    trace('BETA_642_IDB_SAVE_ERROR',{workerId:workerId,docs:rows.length,error:String(error&&error.message||error)});
-                  });
-                }else if(!rows.length){
-                  trace('BETA_642_IDB_SAVE_SKIPPED',{reason:'empty-snapshot',workerId:workerId});
-                }else{
-                  trace('BETA_642_IDB_SAVE_SKIPPED',{reason:'writer-not-ready',workerId:workerId,docs:rows.length});
-                }
-              }catch(error){trace('BETA_642_HOOK_ERROR',{error:String(error&&error.stack||error)});}
-              return originalNext.apply(this,arguments);
-            };
-          }
-          return originalListen.apply(self,args);
-        };
-      }catch(e){trace('BETA_642_HOOK_WRAP_ERROR',{method:'onSnapshot',error:String(e&&e.message||e)});}
-    }
-    return query;
-  }
-
-  function install(){
-    if(!window.db||typeof window.db.collection!=='function'){
-      setTimeout(install,100);
-      return;
-    }
-    if(window.db.collection.__wmV642Wrapped)return;
-    var originalCollection=window.db.collection;
-    var wrapped=function(){
-      var q=originalCollection.apply(this,arguments);
-      var path=q&&q.path?q.path:String(arguments[0]||'');
-      return decorate(q,path);
-    };
-    wrapped.__wmV642Wrapped=true;
-    try{window.db.collection=wrapped;trace('BETA_642_DIRECT_HOOK_INSTALLED',{collection:'workEntries'});}catch(error){trace('BETA_642_HOOK_INSTALL_ERROR',{error:String(error&&error.message||error)});}
-  }
-  install();
 })();
