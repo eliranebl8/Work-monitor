@@ -1,6 +1,7 @@
-/* File version: 6.49 BETA - existing runtime logic retained; soft-delete/cache integration loaded from functions3b.js.
+/* File version: 6.50-beta - synchronization stabilization fixes. */
+/* File version: 6.50 BETA - existing runtime logic retained; soft-delete/cache integration loaded from functions3b.js.
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.49 BETA - workEntries delta sync retained while priceList cache-first sync is added; stable files untouched.
+File version: 6.50 BETA - workEntries delta sync retained while priceList cache-first sync is added; stable files untouched.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -11,7 +12,7 @@ CHANGELOG 6.01 - פיצול קובץ JavaScript
 4. index.html טוען את functions1.js ולאחריו את functions2.js לפי סדר התלויות.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions2b = "6.49-beta";
+window.WM_LOADED_FILE_VERSIONS.functions2b = "6.50-beta";
 
 
 (function(){
@@ -2010,10 +2011,10 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
     var out=[];
     try{
       var snap=await db.collection('workEntries').where('workerId','==',workerId).where('date','==',date).get();
-      snap.docs.forEach(function(d){out.push({id:d.id,ref:d.ref,data:d.data()});});
+      snap.docs.forEach(function(d){var data=d.data()||{}; if(data.isDeleted===true||data.active===false)return; out.push({id:d.id,ref:d.ref,data:data});});
     }catch(e){
       out=safeArr(typeof monthEntries!=='undefined'?monthEntries:[])
-        .filter(function(x){return x&&x.workerId===workerId&&x.date===date;})
+        .filter(function(x){return x&&x.workerId===workerId&&x.date===date&&x.isDeleted!==true&&x.active!==false;})
         .map(function(x){return {id:x.id,ref:x.id?db.collection('workEntries').doc(x.id):null,data:x};});
     }
     return out;
@@ -2031,14 +2032,14 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
         <div class="vacation-delete-card-v473" role="dialog" aria-modal="true">\
           <div class="vacation-delete-head-v473"><div class="vacation-delete-title-v473">⚠️ סימון יום חופש ימחק נתונים</div></div>\
           <div class="vacation-delete-body-v473">\
-            <div class="vacation-delete-text-v473">בתאריך <b>'+heDateSafe(date)+'</b> קיימים נתונים. אם תאשר — כל הרשומות של היום הזה יימחקו לצמיתות, והיום יישמר כיום חופש ב-Firestore בלבד.</div>\
+            <div class="vacation-delete-text-v473">בתאריך <b>'+heDateSafe(date)+'</b> קיימים נתונים. אם תאשר — כל הרשומות הפעילות של היום הזה יסומנו כמחוקות ויסונכרנו לכל המכשירים, והיום יישמר כיום חופש ב-Firestore בלבד.</div>\
             <div class="vacation-delete-grid-v473">\
               <div class="vacation-delete-stat-v473">בוצעו בפועל<b>'+done.length+'</b></div>\
               <div class="vacation-delete-stat-v473">מתוזמנות / עתידיות<b>'+planned.length+'</b></div>\
               <div class="vacation-delete-stat-v473">סה״כ רשומות<b>'+entries.length+'</b></div>\
               <div class="vacation-delete-stat-v473">כסף שיימחק<b>'+moneySafe(total)+'</b></div>\
             </div>\
-            <div class="vacation-delete-alert-v473">אישור הפעולה ימחק את כל הנתונים של היום הזה. אי אפשר לשחזר בלי גיבוי.</div>\
+            <div class="vacation-delete-alert-v473">אישור הפעולה יסיר את הרשומות הפעילות מהמערכת באמצעות מחיקה מסונכרנת, וישמור את היום כיום חופש.</div>\
             <div class="vacation-delete-list-v473">'+(rows||'<div>אין פירוט רשומות</div>')+'</div>\
           </div>\
           <div class="vacation-delete-actions-v473">\
@@ -2054,10 +2055,19 @@ CHANGELOG 4.89 - ביטול יום חופש אמיתי מול Firestore
     });
   }
   async function deleteEntries(entries){
+    // v6.50: vacation cleanup must remain a synchronized soft delete.
     if(!entries.length)return 0;
     var deleted=0,batch=db.batch();
-    entries.forEach(function(x){var ref=x.ref||(x.id?db.collection('workEntries').doc(x.id):null); if(ref){batch.delete(ref); deleted++;}});
-    if(deleted) await batch.commit();
+    entries.forEach(function(x){
+      var data=x.data||x||{};
+      if(data.isDeleted===true||data.active===false)return;
+      var ref=x.ref||(x.id?db.collection('workEntries').doc(x.id):null);
+      if(ref){
+        batch.set(ref,{isDeleted:true,active:false,deletedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+        deleted++;
+      }
+    });
+    if(deleted){await batch.commit();try{window.wmTraceV617&&window.wmTraceV617('VACATION_SOFT_DELETE_APPLIED',{count:deleted});}catch(e){}}
     return deleted;
   }
   async function saveDayOffFirestore(workerId,date,deletedCount,deletedAmount){
