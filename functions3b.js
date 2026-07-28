@@ -1,11 +1,12 @@
-/* File version: 6.49 BETA - workerDaysOff/installTemplates IndexedDB delta sync and synchronized soft delete.
+/* File version: 6.50-beta - synchronization stabilization fixes. */
+/* File version: 6.50 BETA - workerDaysOff/installTemplates IndexedDB delta sync and synchronized soft delete.
 Work Monitor app - JavaScript continuation file.
-File version: 6.49 BETA - priceList cache-first synchronization diagnostics and changelog support.
+File version: 6.50 BETA - priceList cache-first synchronization diagnostics and changelog support.
 Loaded after functions1.js and functions2.js. New additive functionality belongs here.
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.49-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.50-beta";
 
 
 /*
@@ -678,7 +679,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.49-beta';
+  var EXPECTED='6.50-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -855,7 +856,7 @@ VERSION 6.46 BETA - LOCAL-FIRST INDEXEDDB RESTORE TEST
 
 /*
 ===============================================================================
-VERSION 6.49 BETA - PRICELIST INDEXEDDB CACHE + DELTA SYNC
+VERSION 6.50 BETA - PRICELIST INDEXEDDB CACHE + DELTA SYNC
 -------------------------------------------------------------------------------
 1. The worker price list is restored from a dedicated IndexedDB snapshot before
    the original full Firestore query runs.
@@ -902,7 +903,7 @@ VERSION 6.49 BETA - PRICELIST INDEXEDDB CACHE + DELTA SYNC
   }
   async function writeRow(rows){
     var dbi=await openDb();
-    var row={key:KEY,rows:Array.isArray(rows)?rows:[],savedAt:new Date().toISOString(),appVersion:String(window.APP_VERSION||'6.49-beta'),schemaVersion:1};
+    var row={key:KEY,rows:Array.isArray(rows)?rows:[],savedAt:new Date().toISOString(),appVersion:String(window.APP_VERSION||'6.50-beta'),schemaVersion:1};
     await new Promise(function(resolve,reject){var tx=dbi.transaction(STORE,'readwrite');tx.objectStore(STORE).put(row);tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error);};tx.onabort=function(){reject(tx.error);};});
     currentSavedAt=row.savedAt;
     trace('PRICE_LIST_IDB_SAVE_SUCCESS',{docs:row.rows.length,savedAt:row.savedAt});
@@ -982,14 +983,14 @@ VERSION 6.49 BETA - PRICELIST INDEXEDDB CACHE + DELTA SYNC
     window.loadPriceList=cachedLoadPriceListV648;
     try{loadPriceList=cachedLoadPriceListV648;}catch(e){}
   }
-  trace('PRICE_LIST_CACHE_MODULE_READY',{version:'6.49-beta'});
+  trace('PRICE_LIST_CACHE_MODULE_READY',{version:'6.50-beta'});
 
   var oldRows=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
   if(typeof oldRows==='function'&&!oldRows.__v648Wrapped){
     var wrapped=function(){
       var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){rows=[];}
-      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.49-beta';}))rows.unshift({
-        version:'6.49-beta',title:'מטמון מקומי וסנכרון שינויים למחירון',createdAt:'2026-07-28',items:[
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.50-beta';}))rows.unshift({
+        version:'6.50-beta',title:'מטמון מקומי וסנכרון שינויים למחירון',createdAt:'2026-07-28',items:[
           'המחירון נשמר במסד IndexedDB מקומי נפרד ומוצג ממנו בהפעלות הבאות.',
           'כאשר קיים snapshot תקין, האפליקציה מדלגת על הורדת כל מסמכי priceList בזמן העלייה.',
           'שינויים חדשים במחירון מתקבלים באמצעות מאזיני createdAt ו-updatedAt בלבד ונמזגים למטמון המקומי.',
@@ -1005,7 +1006,7 @@ VERSION 6.49 BETA - PRICELIST INDEXEDDB CACHE + DELTA SYNC
 
 /*
 ===============================================================================
-VERSION 6.49 BETA - LOCAL DAY-OFF/TEMPLATE CACHE + SYNCHRONIZED SOFT DELETE
+VERSION 6.50 BETA - LOCAL DAY-OFF/TEMPLATE CACHE + SYNCHRONIZED SOFT DELETE
 -------------------------------------------------------------------------------
 1. workerDaysOff and installTemplates are restored from IndexedDB and only
    createdAt/updatedAt deltas are synchronized after the first successful seed.
@@ -1033,10 +1034,26 @@ VERSION 6.49 BETA - LOCAL DAY-OFF/TEMPLATE CACHE + SYNCHRONIZED SOFT DELETE
     });return dbPromise;
   }
   async function read(key){var x=await openDb();return new Promise(function(res,rej){var r=x.transaction(STORE,'readonly').objectStore(STORE).get(key);r.onsuccess=function(){res(r.result||null);};r.onerror=function(){rej(r.error);};});}
-  async function write(key,rows){var x=await openDb(),row={key:key,rows:rows,savedAt:new Date().toISOString(),appVersion:'6.49-beta',schemaVersion:2};await new Promise(function(res,rej){var t=x.transaction(STORE,'readwrite');t.objectStore(STORE).put(row);t.oncomplete=res;t.onerror=function(){rej(t.error);};});return row;}
+  async function write(key,rows){var x=await openDb(),row={key:key,rows:rows,savedAt:new Date().toISOString(),appVersion:'6.50-beta',schemaVersion:2};await new Promise(function(res,rej){var t=x.transaction(STORE,'readwrite');t.objectStore(STORE).put(row);t.oncomplete=res;t.onerror=function(){rej(t.error);};});return row;}
   function visible(rows){return (rows||[]).filter(function(x){return x&&x.isDeleted!==true;});}
   function merge(rows,snap){var m={};(rows||[]).forEach(function(x){if(x&&x.id)m[x.id]=x;});snap.docChanges().forEach(function(c){var d=Object.assign({id:c.doc.id},c.doc.data()||{});if(c.type==='removed'||d.isDeleted===true)delete m[c.doc.id];else m[c.doc.id]=d;});return Object.keys(m).map(function(k){return m[k];});}
   function workerId(){try{return viewedWorker&&viewedWorker.id?String(viewedWorker.id):'';}catch(e){return '';}}
+  function applyDayoffUiV650(rows,id){
+    rows=visible(rows); id=String(id||workerId());
+    try{
+      var d=(typeof calendarDate!=='undefined'&&calendarDate)?new Date(calendarDate):new Date();
+      var y=d.getFullYear(),m=d.getMonth(),start=y+'-'+String(m+1).padStart(2,'0')+'-01',end=y+'-'+String(m+1).padStart(2,'0')+'-'+String(new Date(y,m+1,0).getDate()).padStart(2,'0');
+      window.vacationDaysV437=Array.from(new Set(rows.filter(function(x){var dt=String(x.date||'');return x.isDeleted!==true&&x.active!==false&&(x.type==='vacation'||!x.type)&&dt>=start&&dt<=end;}).map(function(x){return String(x.date||'');}))).sort();
+      window.vacationDaysLoadedForV437=id+'_'+y+'-'+String(m+1).padStart(2,'0');
+      if(typeof window.wmApplyHistoricalDayLocksV633==='function')window.wmApplyHistoricalDayLocksV633(rows,start,end,id);
+      try{if(typeof renderCalendar==='function')renderCalendar();}catch(e){}
+      try{if(typeof renderDay==='function')renderDay();}catch(e){}
+      try{if(typeof renderStats==='function')renderStats();}catch(e){}
+      try{if(typeof renderSmartDashboard==='function')renderSmartDashboard();}catch(e){}
+      trace('DAYOFF_UI_REFRESH',{workerId:id,docs:rows.length,vacations:window.vacationDaysV437.length});
+      trace('LOCK_UI_REFRESH',{workerId:id,locked:rows.filter(function(x){return x.locked===true&&x.isDeleted!==true;}).length});
+    }catch(e){trace('DAYOFF_UI_REFRESH_ERROR',{error:String(e&&e.message||e)});}
+  }
 
   async function startCollection(cfg){
     var key=typeof cfg.key==='function'?cfg.key():cfg.key;if(!key)return null;
@@ -1070,12 +1087,15 @@ VERSION 6.49 BETA - LOCAL DAY-OFF/TEMPLATE CACHE + SYNCHRONIZED SOFT DELETE
   window.wmGetAllDayOffDocsV624=async function(id,force){
     id=String(id||workerId());var key='workerDaysOff:'+id;
     if(force===true&&states[key]){states[key].ready=false;}
-    try{var st=await startCollection({key:function(){return key;},prefix:'DAYSOFF_CACHE',fullQuery:function(){return db.collection('workerDaysOff').where('workerId','==',id).get();},deltaQuery:function(f,t){return db.collection('workerDaysOff').where('workerId','==',id).where(f,'>',t);},apply:function(rows){var c=window.WM_DAYOFF_DOCS_CACHE_V624=window.WM_DAYOFF_DOCS_CACHE_V624||{};c.workerId=id;c.docs=visible(rows);c.promise=null;}});return visible(st.rows);}catch(e){trace('DAYSOFF_CACHE_FALLBACK',{error:String(e&&e.message||e)});return originalDayOffGet?originalDayOffGet(id,force):[];}
+    try{var st=await startCollection({key:function(){return key;},prefix:'DAYSOFF_CACHE',fullQuery:function(){return db.collection('workerDaysOff').where('workerId','==',id).get();},deltaQuery:function(f,t){return db.collection('workerDaysOff').where('workerId','==',id).where(f,'>',t);},apply:function(rows){var c=window.WM_DAYOFF_DOCS_CACHE_V624=window.WM_DAYOFF_DOCS_CACHE_V624||{};c.workerId=id;c.docs=visible(rows);c.promise=null;applyDayoffUiV650(c.docs,id);}});return visible(st.rows);}catch(e){trace('DAYSOFF_CACHE_FALLBACK',{error:String(e&&e.message||e)});return originalDayOffGet?originalDayOffGet(id,force):[];}
   };
 
   var originalLoadTemplates=window.loadTemplates||(typeof loadTemplates==='function'?loadTemplates:null);
+  var templateLoadPromiseV650=null;
   async function loadTemplatesV649(force){
-    try{var st=await startCollection({key:'installTemplates',prefix:'TEMPLATES_CACHE',fullQuery:function(){return db.collection('installTemplates').get();},deltaQuery:function(f,t){return db.collection('installTemplates').where(f,'>',t);},apply:function(rows){var id=workerId();templates=visible(rows).filter(function(t){return t.active!==false;}).filter(function(t){return !t.ownerWorkerId||t.ownerWorkerId===id||(window.session&&session.role==='admin');}).sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''));});window.templates=templates;try{renderTemplateSelect();}catch(e){}}});return visible(st.rows);}catch(e){trace('TEMPLATES_CACHE_FALLBACK',{error:String(e&&e.message||e)});return originalLoadTemplates?originalLoadTemplates(force):[];}
+    if(templateLoadPromiseV650)return templateLoadPromiseV650;
+    templateLoadPromiseV650=(async function(){try{var st=await startCollection({key:'installTemplates',prefix:'TEMPLATES_CACHE',fullQuery:function(){return db.collection('installTemplates').get();},deltaQuery:function(f,t){return db.collection('installTemplates').where(f,'>',t);},apply:function(rows){var id=workerId();templates=visible(rows).filter(function(t){return t.active!==false;}).filter(function(t){return !t.ownerWorkerId||t.ownerWorkerId===id||(window.session&&session.role==='admin');}).sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''));});window.templates=templates;try{renderTemplateSelect();}catch(e){}}});return visible(st.rows);}catch(e){trace('TEMPLATES_CACHE_FALLBACK',{error:String(e&&e.message||e)});return originalLoadTemplates?originalLoadTemplates(force):[];}})();
+    try{return await templateLoadPromiseV650;}finally{templateLoadPromiseV650=null;}
   }
   window.loadTemplates=loadTemplatesV649;try{loadTemplates=loadTemplatesV649;}catch(e){}
 
@@ -1104,8 +1124,13 @@ VERSION 6.49 BETA - LOCAL DAY-OFF/TEMPLATE CACHE + SYNCHRONIZED SOFT DELETE
 
   // All existing search/render paths consume these arrays; sanitize before input/click searches.
   document.addEventListener('click',purgeDeletedEverywhere,true);document.addEventListener('input',purgeDeletedEverywhere,true);
-  trace('LOCAL_COLLECTION_CACHE_V649_READY',{version:'6.49-beta'});
+  trace('LOCAL_COLLECTION_CACHE_V649_READY',{version:'6.50-beta'});
 
   var oldRows=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
   if(typeof oldRows==='function'&&!oldRows.__v649Wrapped){var wrapped=function(){var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){}if(!rows.some(function(r){return String(r.version||r.id||'')==='6.49-beta';}))rows.unshift({version:'6.49-beta',title:'ימי חופש ותבניות מקומיים עם מחיקה מסונכרנת',createdAt:'2026-07-28',items:['workerDaysOff ו-installTemplates נטענים מ-IndexedDB ובהפעלות הבאות מסתנכרנים רק מסמכים חדשים או מעודכנים.','כל מחיקה באוספי העבודה, המחירון, התבניות וימי החופש נכתבת כ-Soft Delete עם isDeleted, deletedAt ו-updatedAt כדי להגיע לכל המכשירים.','רשומות מחוקות מוסרות מהמטמון, מהמסך, מהחיפוש, מהסיכומים, מהתבניות, מימי החופש ומנעילות הימים.','נשמר fallback לטעינה המלאה אם המטמון חסר או נכשל, ונוספו אירועי Audit ייעודיים לכל שלב.']});return rows;};wrapped.__v649Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}}
+
+
+  var oldRows650=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof oldRows650==='function'&&!oldRows650.__v650Wrapped){var wrapped650=function(){var rows=[];try{rows=oldRows650.apply(this,arguments)||[];}catch(e){}if(!rows.some(function(r){return String(r.version||r.id||'')==='6.50-beta';}))rows.unshift({version:'6.50-beta',title:'ייצוב סנכרון מחיקות, ימי חופש ונעילות',createdAt:'2026-07-28',items:['סימון יום חופש משתמש מעכשיו במחיקה רכה מסונכרנת ואינו מבצע batch.delete פיזי.','עבודות מחוקות אינן נספרות בבדיקת יום, ואינן מוצגות בחיפוש לקוח, היסטוריה, חיפוש וסיכומים.','דלתאות workerDaysOff מעדכנות מיד את ימי החופש, הנעילות, לוח השנה והיום הנבחר בכל מכשיר.','נמנעה טעינה כפולה מקבילה של installTemplates ונוספו אירועי Audit ייעודיים.']});return rows;};wrapped650.__v650Wrapped=true;window.requiredChangelogRows=wrapped650;try{requiredChangelogRows=wrapped650;}catch(e){}}
+  trace('SYNC_STABILIZATION_V650_READY',{version:'6.50-beta'});
 })();
