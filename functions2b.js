@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.43 BETA - original workEntries listener now directly saves each snapshot to IndexedDB; stable files untouched.
+File version: 6.44 BETA - direct listener saving retained; runtime file marker and audit-visible cache diagnostics added; stable files untouched.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -10,6 +10,9 @@ CHANGELOG 6.01 - פיצול קובץ JavaScript
 3. functions2.js מכיל את יתרת הקוד וכל שינוי פונקציונלי עתידי יתווסף אליו.
 4. index.html טוען את functions1.js ולאחריו את functions2.js לפי סדר התלויות.
 */
+window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
+window.WM_LOADED_FILE_VERSIONS.functions2b = "6.44-beta";
+
 
 (function(){
   try{ if(typeof setAppVersionUI === "function") setAppVersionUI(); }catch(e){}
@@ -8039,20 +8042,20 @@ VERSION 6.04 BETA - TWO-YEAR MEMORY DATA MANAGER
               pending:!!(snap.metadata&&snap.metadata.hasPendingWrites),
               snapshotNumber:state.snapshotCount
             };
-            try{window.wmTraceV617&&window.wmTraceV617('BETA_643_WORKENTRIES_DIRECT_SAVE_CALL',snapshotMetaV643);}catch(_traceErrorV643){}
+            try{window.wmTraceV617&&window.wmTraceV617('CACHE_IDB_DIRECT_SAVE_CALL',snapshotMetaV643);}catch(_traceErrorV643){}
             try{
               var cacheApiV643=window.WM_BETA_LOCAL_CACHE_V635;
               if(cacheApiV643&&typeof cacheApiV643.persistRows==='function'&&rowsForIndexedDb.length){
                 Promise.resolve(cacheApiV643.persistRows(String(workerId),rowsForIndexedDb)).then(function(row){
-                  try{window.wmTraceV617&&window.wmTraceV617('BETA_643_WORKENTRIES_DIRECT_SAVE_DONE',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,savedAt:row&&row.savedAt?row.savedAt:''});}catch(_doneTraceV643){}
+                  try{window.wmTraceV617&&window.wmTraceV617('CACHE_IDB_DIRECT_SAVE_DONE',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,savedAt:row&&row.savedAt?row.savedAt:''});}catch(_doneTraceV643){}
                 }).catch(function(error){
-                  try{window.wmTraceV617&&window.wmTraceV617('BETA_643_WORKENTRIES_DIRECT_SAVE_ERROR',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,error:String(error&&error.message||error)});}catch(_errorTraceV643){}
+                  try{window.wmTraceV617&&window.wmTraceV617('CACHE_IDB_DIRECT_SAVE_ERROR',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,error:String(error&&error.message||error)});}catch(_errorTraceV643){}
                 });
               }else{
-                try{window.wmTraceV617&&window.wmTraceV617('BETA_643_WORKENTRIES_DIRECT_SAVE_SKIPPED',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,reason:rowsForIndexedDb.length?'writer-not-ready':'empty-snapshot'});}catch(_skipTraceV643){}
+                try{window.wmTraceV617&&window.wmTraceV617('CACHE_IDB_DIRECT_SAVE_SKIPPED',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,reason:rowsForIndexedDb.length?'writer-not-ready':'empty-snapshot'});}catch(_skipTraceV643){}
               }
             }catch(errorV643){
-              try{window.wmTraceV617&&window.wmTraceV617('BETA_643_WORKENTRIES_DIRECT_SAVE_ERROR',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,error:String(errorV643&&errorV643.message||errorV643)});}catch(_outerTraceV643){}
+              try{window.wmTraceV617&&window.wmTraceV617('CACHE_IDB_DIRECT_SAVE_ERROR',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,error:String(errorV643&&errorV643.message||errorV643)});}catch(_outerTraceV643){}
             }
           })();
 
@@ -9663,7 +9666,7 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
   function rows(){try{return JSON.parse(sessionStorage.getItem(KEY)||'[]');}catch(e){return [];}}
   function save(list){try{if(list.length>MAX)list=list.slice(list.length-MAX);sessionStorage.setItem(KEY,JSON.stringify(list));}catch(e){}}
   function add(event,data){var list=rows();list.push({time:now(),event:String(event),data:safe(data||{})});save(list);render();}
-  function isFirebaseEvent(event){return /^FIRESTORE_|^AUTH_/.test(String(event||''));}
+  function isFirebaseEvent(event){return /^(FIRESTORE_|AUTH_|BOOT_|CACHE_|ADMIN_CACHE_|BETA_64)/.test(String(event||''));}
 
   var oldTrace=window.wmTraceV617;
   window.wmTraceV617=function(event,data){
