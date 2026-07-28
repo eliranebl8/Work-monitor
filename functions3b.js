@@ -1,4 +1,4 @@
-/* File version: 6.50-beta - synchronization stabilization fixes. */
+/* File version: 6.51-beta - synchronization stabilization fixes. */
 /* File version: 6.50 BETA - workerDaysOff/installTemplates IndexedDB delta sync and synchronized soft delete.
 Work Monitor app - JavaScript continuation file.
 File version: 6.50 BETA - priceList cache-first synchronization diagnostics and changelog support.
@@ -6,7 +6,7 @@ Loaded after functions1.js and functions2.js. New additive functionality belongs
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.50-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.51-beta";
 
 
 /*
@@ -531,8 +531,12 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
       try{await writeSnapshotV635(workerId,state.entries);lastPersistSignature=signature;}catch(error){status.phase='שמירת המטמון נכשלה';status.error=error&&error.message?error.message:String(error);renderStatusV635();traceV641('BETA_643_IDB_SAVE_ERROR',{workerId:workerId,error:String(error&&error.message||error)});console.warn('[WM 6.43 BETA] persist failed',error);}
     },350);
   }
+  function betaDebugEnabledV651(){
+    try{var p=new URLSearchParams(location.search);return p.get('firebaseDebug')==='1'||p.get('firestoreDebug')==='1'||p.get('cacheDebug')==='1';}catch(e){return false;}
+  }
   function renderStatusV635(){
     if(!document.body)return;
+    if(!betaDebugEnabledV651()){var old=document.getElementById('wmBetaPersistentCacheV635');if(old)old.remove();return;}
     var box=document.getElementById('wmBetaPersistentCacheV635');
     if(!box){
       box=document.createElement('button');box.type='button';box.id='wmBetaPersistentCacheV635';
@@ -679,7 +683,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.50-beta';
+  var EXPECTED='6.51-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -778,7 +782,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
       try{localStorage.clear();trace('ADMIN_CACHE_LOCAL_STORAGE_CLEARED',{});}catch(e){trace('ADMIN_CACHE_LOCAL_STORAGE_ERROR',{error:String(e&&e.message||e)});}
       try{sessionStorage.clear();}catch(e){}
       trace('ADMIN_CACHE_CLEAR_DONE',{mode:'full-local-reset'});
-      setTimeout(function(){location.href='beta.html?firebaseDebug=1&fresh='+Date.now();},500);
+      setTimeout(function(){location.href='beta.html?fresh='+Date.now();},500);
     }catch(e){trace('ADMIN_CACHE_CLEAR_ERROR',{mode:'full-local-reset',error:String(e&&e.message||e)});setMsg('האיפוס נכשל: '+String(e&&e.message||e),true);}
   }
   window.clearAdminDataCacheV644=clearDataCacheV644;
@@ -903,7 +907,7 @@ VERSION 6.50 BETA - PRICELIST INDEXEDDB CACHE + DELTA SYNC
   }
   async function writeRow(rows){
     var dbi=await openDb();
-    var row={key:KEY,rows:Array.isArray(rows)?rows:[],savedAt:new Date().toISOString(),appVersion:String(window.APP_VERSION||'6.50-beta'),schemaVersion:1};
+    var row={key:KEY,rows:Array.isArray(rows)?rows:[],savedAt:new Date().toISOString(),appVersion:String(window.APP_VERSION||'6.51-beta'),schemaVersion:1};
     await new Promise(function(resolve,reject){var tx=dbi.transaction(STORE,'readwrite');tx.objectStore(STORE).put(row);tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error);};tx.onabort=function(){reject(tx.error);};});
     currentSavedAt=row.savedAt;
     trace('PRICE_LIST_IDB_SAVE_SUCCESS',{docs:row.rows.length,savedAt:row.savedAt});
@@ -983,14 +987,14 @@ VERSION 6.50 BETA - PRICELIST INDEXEDDB CACHE + DELTA SYNC
     window.loadPriceList=cachedLoadPriceListV648;
     try{loadPriceList=cachedLoadPriceListV648;}catch(e){}
   }
-  trace('PRICE_LIST_CACHE_MODULE_READY',{version:'6.50-beta'});
+  trace('PRICE_LIST_CACHE_MODULE_READY',{version:'6.51-beta'});
 
   var oldRows=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
   if(typeof oldRows==='function'&&!oldRows.__v648Wrapped){
     var wrapped=function(){
       var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){rows=[];}
-      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.50-beta';}))rows.unshift({
-        version:'6.50-beta',title:'מטמון מקומי וסנכרון שינויים למחירון',createdAt:'2026-07-28',items:[
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.51-beta';}))rows.unshift({
+        version:'6.51-beta',title:'מטמון מקומי וסנכרון שינויים למחירון',createdAt:'2026-07-28',items:[
           'המחירון נשמר במסד IndexedDB מקומי נפרד ומוצג ממנו בהפעלות הבאות.',
           'כאשר קיים snapshot תקין, האפליקציה מדלגת על הורדת כל מסמכי priceList בזמן העלייה.',
           'שינויים חדשים במחירון מתקבלים באמצעות מאזיני createdAt ו-updatedAt בלבד ונמזגים למטמון המקומי.',
@@ -1034,7 +1038,7 @@ VERSION 6.50 BETA - LOCAL DAY-OFF/TEMPLATE CACHE + SYNCHRONIZED SOFT DELETE
     });return dbPromise;
   }
   async function read(key){var x=await openDb();return new Promise(function(res,rej){var r=x.transaction(STORE,'readonly').objectStore(STORE).get(key);r.onsuccess=function(){res(r.result||null);};r.onerror=function(){rej(r.error);};});}
-  async function write(key,rows){var x=await openDb(),row={key:key,rows:rows,savedAt:new Date().toISOString(),appVersion:'6.50-beta',schemaVersion:2};await new Promise(function(res,rej){var t=x.transaction(STORE,'readwrite');t.objectStore(STORE).put(row);t.oncomplete=res;t.onerror=function(){rej(t.error);};});return row;}
+  async function write(key,rows){var x=await openDb(),row={key:key,rows:rows,savedAt:new Date().toISOString(),appVersion:'6.51-beta',schemaVersion:2};await new Promise(function(res,rej){var t=x.transaction(STORE,'readwrite');t.objectStore(STORE).put(row);t.oncomplete=res;t.onerror=function(){rej(t.error);};});return row;}
   function visible(rows){return (rows||[]).filter(function(x){return x&&x.isDeleted!==true;});}
   function merge(rows,snap){var m={};(rows||[]).forEach(function(x){if(x&&x.id)m[x.id]=x;});snap.docChanges().forEach(function(c){var d=Object.assign({id:c.doc.id},c.doc.data()||{});if(c.type==='removed'||d.isDeleted===true)delete m[c.doc.id];else m[c.doc.id]=d;});return Object.keys(m).map(function(k){return m[k];});}
   function workerId(){try{return viewedWorker&&viewedWorker.id?String(viewedWorker.id):'';}catch(e){return '';}}
@@ -1124,13 +1128,47 @@ VERSION 6.50 BETA - LOCAL DAY-OFF/TEMPLATE CACHE + SYNCHRONIZED SOFT DELETE
 
   // All existing search/render paths consume these arrays; sanitize before input/click searches.
   document.addEventListener('click',purgeDeletedEverywhere,true);document.addEventListener('input',purgeDeletedEverywhere,true);
-  trace('LOCAL_COLLECTION_CACHE_V649_READY',{version:'6.50-beta'});
+  trace('LOCAL_COLLECTION_CACHE_V649_READY',{version:'6.51-beta'});
 
   var oldRows=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
   if(typeof oldRows==='function'&&!oldRows.__v649Wrapped){var wrapped=function(){var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){}if(!rows.some(function(r){return String(r.version||r.id||'')==='6.49-beta';}))rows.unshift({version:'6.49-beta',title:'ימי חופש ותבניות מקומיים עם מחיקה מסונכרנת',createdAt:'2026-07-28',items:['workerDaysOff ו-installTemplates נטענים מ-IndexedDB ובהפעלות הבאות מסתנכרנים רק מסמכים חדשים או מעודכנים.','כל מחיקה באוספי העבודה, המחירון, התבניות וימי החופש נכתבת כ-Soft Delete עם isDeleted, deletedAt ו-updatedAt כדי להגיע לכל המכשירים.','רשומות מחוקות מוסרות מהמטמון, מהמסך, מהחיפוש, מהסיכומים, מהתבניות, מימי החופש ומנעילות הימים.','נשמר fallback לטעינה המלאה אם המטמון חסר או נכשל, ונוספו אירועי Audit ייעודיים לכל שלב.']});return rows;};wrapped.__v649Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}}
 
 
   var oldRows650=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
-  if(typeof oldRows650==='function'&&!oldRows650.__v650Wrapped){var wrapped650=function(){var rows=[];try{rows=oldRows650.apply(this,arguments)||[];}catch(e){}if(!rows.some(function(r){return String(r.version||r.id||'')==='6.50-beta';}))rows.unshift({version:'6.50-beta',title:'ייצוב סנכרון מחיקות, ימי חופש ונעילות',createdAt:'2026-07-28',items:['סימון יום חופש משתמש מעכשיו במחיקה רכה מסונכרנת ואינו מבצע batch.delete פיזי.','עבודות מחוקות אינן נספרות בבדיקת יום, ואינן מוצגות בחיפוש לקוח, היסטוריה, חיפוש וסיכומים.','דלתאות workerDaysOff מעדכנות מיד את ימי החופש, הנעילות, לוח השנה והיום הנבחר בכל מכשיר.','נמנעה טעינה כפולה מקבילה של installTemplates ונוספו אירועי Audit ייעודיים.']});return rows;};wrapped650.__v650Wrapped=true;window.requiredChangelogRows=wrapped650;try{requiredChangelogRows=wrapped650;}catch(e){}}
-  trace('SYNC_STABILIZATION_V650_READY',{version:'6.50-beta'});
+  if(typeof oldRows650==='function'&&!oldRows650.__v650Wrapped){var wrapped650=function(){var rows=[];try{rows=oldRows650.apply(this,arguments)||[];}catch(e){}if(!rows.some(function(r){return String(r.version||r.id||'')==='6.51-beta';}))rows.unshift({version:'6.51-beta',title:'ייצוב סנכרון מחיקות, ימי חופש ונעילות',createdAt:'2026-07-28',items:['סימון יום חופש משתמש מעכשיו במחיקה רכה מסונכרנת ואינו מבצע batch.delete פיזי.','עבודות מחוקות אינן נספרות בבדיקת יום, ואינן מוצגות בחיפוש לקוח, היסטוריה, חיפוש וסיכומים.','דלתאות workerDaysOff מעדכנות מיד את ימי החופש, הנעילות, לוח השנה והיום הנבחר בכל מכשיר.','נמנעה טעינה כפולה מקבילה של installTemplates ונוספו אירועי Audit ייעודיים.']});return rows;};wrapped650.__v650Wrapped=true;window.requiredChangelogRows=wrapped650;try{requiredChangelogRows=wrapped650;}catch(e){}}
+  trace('SYNC_STABILIZATION_V650_READY',{version:'6.51-beta'});
+})();
+
+
+/* ============================================================================
+VERSION 6.51 BETA - QUIET BETA MODE + COMPLETE ADMIN CHANGELOG
+- Firebase Audit and the local-cache badge are hidden by default.
+- Diagnostics appear only with ?firebaseDebug=1 (legacy cacheDebug/firestoreDebug remain supported).
+- Completes the in-app/admin changelog for 6.41-beta through 6.51-beta.
+============================================================================ */
+(function installQuietBetaAndCompleteChangelogV651(){
+  'use strict';
+  function add(rows,version,title,items){
+    if(!rows.some(function(r){return String(r.version||r.id||'')===version;}))rows.unshift({version:version,title:title,createdAt:'2026-07-28',items:items});
+  }
+  var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof old==='function'&&!old.__v651Wrapped){
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      add(rows,'6.41-beta','בדיקת שמירה בטוחה ל-IndexedDB',['הפעלת הבטא נשארה Firestore-first ללא קריאה מהמטמון בזמן העלייה.','לאחר snapshot מאומת של workEntries הנתונים נשמרו ל-IndexedDB ברקע.','נוספו אירועי Audit לפתיחת בסיס הנתונים ולשמירה.']);
+      add(rows,'6.42-beta','חיבור ישיר של מאזין העבודות לשמירת IndexedDB',['נוסף hook ישיר ל-onSnapshot של workEntries.','כל snapshot לא-ריק מועבר לשמירת IndexedDB.','נוספו אירועי Audit ייעודיים לחיבור ולשמירה.']);
+      add(rows,'6.43-beta','שמירת IndexedDB מתוך המאזין המקורי',['השמירה הועברה ל-callback המקורי של מאזין workEntries.','הוסר נתיב עטיפה שלא התחבר למאזין הפעיל.','נוספו אירועי פתיחה, שמירה, הצלחה ושגיאה.']);
+      add(rows,'6.44-beta','בדיקת גרסאות קבצים ואיפוס מטמון באדמין',['כל קובץ בטא מפרסם את גרסתו בזמן ריצה.','נוסף BOOT_FILE_VERSIONS לזיהוי חוסר התאמה בין קבצים.','נוספו לאדמין כלי ניקוי מטמון ואיפוס מקומי מלא.']);
+      add(rows,'6.45-beta','שמירת IndexedDB מתוך המאזין הפעיל',['שמירת workEntries חוברה למאזין הפעיל בפועל.','נמנעה שמירה כפולה ונוספו אירועי CACHE_IDB_ACTIVE_LISTENER_SAVE.','אירועי IndexedDB אוחדו בחלון ה-Audit.']);
+      add(rows,'6.46-beta','שחזור Local-First מ-IndexedDB',['בפתיחה חוזרת משוחזרת תמונת השנתיים של העובד מ-IndexedDB.','המסך יכול להציג נתונים מקומיים לפני סיום בדיקת Firestore.','נשמר fallback בטוח למסלול Firestore במקרה כשל.']);
+      add(rows,'6.47-beta','סנכרון workEntries דיפרנציאלי',['כאשר קיים מטמון תקין מדלגים על הורדת כל workEntries.','נפתחים מאזינים רק למסמכים שנוצרו או עודכנו אחרי זמן השמירה.','נוספו סימוני CACHE_NO_FULL_DOWNLOAD ו-FIRESTORE_LISTENER_DELTA_MODE.']);
+      add(rows,'6.48-beta','מטמון דיפרנציאלי לאוספים קבועים',['הוכנה שכבת IndexedDB משותפת לאוספים קבועים.','טעינה חוזרת משתמשת בנתונים המקומיים ומאזיני createdAt/updatedAt מביאים רק שינויים.','נשמר fallback לטעינה מלאה כאשר אין מטמון תקין.']);
+      add(rows,'6.49-beta','ימי חופש ותבניות מקומיים עם מחיקה מסונכרנת',['workerDaysOff ו-installTemplates נטענים מ-IndexedDB ובהמשך מקבלים דלתאות בלבד.','מחיקות באוספים המסונכרנים נכתבות כ-Soft Delete.','רשומות מחוקות מוסרות מהמטמון, מהמסך ומהחיפושים.']);
+      add(rows,'6.50-beta','ייצוב סנכרון מחיקות, ימי חופש ונעילות',['סימון וביטול יום חופש מסתנכרנים בין מכשירים.','עבודות מחוקות אינן מוצגות או נספרות.','דלתאות workerDaysOff מרעננות מיד ימי חופש, נעילות ולוח שנה.','נמנעה טעינה כפולה של תבניות התקנה.']);
+      add(rows,'6.51-beta','מצב בטא שקט והשלמת מה חדש',['חלון Firebase Audit מוסתר כברירת מחדל ומופיע רק עם ?firebaseDebug=1.','מחוון המטמון הקטן בתחתית מוסתר גם הוא ללא פרמטר דיבאג.','הושלמו במסך מה חדש כל הרשומות מ-6.41-beta ועד 6.51-beta עבור האדמין והעובדים.','בדיקות המטמון, הדלתאות והסנכרון נשארו פעילות ברקע ללא שינוי.']);
+      return rows;
+    };
+    wrapped.__v651Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  try{window.wmTraceV617&&window.wmTraceV617('QUIET_BETA_V651_READY',{debug:(new URLSearchParams(location.search)).get('firebaseDebug')==='1'});}catch(e){}
 })();
