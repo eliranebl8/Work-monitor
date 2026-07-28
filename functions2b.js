@@ -1,4 +1,4 @@
-/* File version: 6.50-beta - synchronization stabilization fixes. */
+/* File version: 6.51-beta - synchronization stabilization fixes. */
 /* File version: 6.50 BETA - existing runtime logic retained; soft-delete/cache integration loaded from functions3b.js.
 Work Monitor app - JavaScript extensions and future changes.
 File version: 6.50 BETA - workEntries delta sync retained while priceList cache-first sync is added; stable files untouched.
@@ -12,7 +12,7 @@ CHANGELOG 6.01 - פיצול קובץ JavaScript
 4. index.html טוען את functions1.js ולאחריו את functions2.js לפי סדר התלויות.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions2b = "6.50-beta";
+window.WM_LOADED_FILE_VERSIONS.functions2b = "6.51-beta";
 
 
 (function(){
@@ -9605,7 +9605,7 @@ VERSION 6.18 BETA - FIRESTORE REQUEST AUDIT
   var enabled=false;
   try{
     var params=new URLSearchParams(location.search);
-    enabled=params.get('cacheDebug')==='1'||params.get('firestoreDebug')==='1'||params.get('firebaseDebug')==='1'||/(^|\/)beta\.html$/i.test(location.pathname||'');
+    enabled=params.get('cacheDebug')==='1'||params.get('firestoreDebug')==='1'||params.get('firebaseDebug')==='1';
   }catch(e){enabled=/(^|\/)beta\.html$/i.test(location.pathname||'');}
   if(!enabled||window.__WM_FS_AUDIT_INSTALLED_V618)return;
   if(!window.db){
@@ -9731,7 +9731,7 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
 (function installFirebaseAuditWindowV620(){
   'use strict';
   var enabled=false;
-  try{var p=new URLSearchParams(location.search);enabled=p.get('firebaseDebug')==='1'||p.get('firestoreDebug')==='1'||p.get('cacheDebug')==='1'||/(^|\/)beta\.html$/i.test(location.pathname||'');}catch(e){enabled=/(^|\/)beta\.html$/i.test(location.pathname||'');}
+  try{var p=new URLSearchParams(location.search);enabled=p.get('firebaseDebug')==='1'||p.get('firestoreDebug')==='1'||p.get('cacheDebug')==='1';}catch(e){enabled=false;}
   if(!enabled||window.__WM_FIREBASE_WINDOW_V620)return;
   window.__WM_FIREBASE_WINDOW_V620=true;
 
@@ -9825,7 +9825,7 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
   }
   function start(){
     wrapAuth();ensure();
-    add('FIREBASE_AUDIT_WINDOW_READY',{version:String(window.APP_VERSION||'unknown'),mode:/(^|\/)beta\.html$/i.test(location.pathname||'')?'automatic-beta':'url-parameter'});
+    add('FIREBASE_AUDIT_WINDOW_READY',{version:String(window.APP_VERSION||'unknown'),mode:'url-parameter'});
     window.addEventListener('error',function(ev){add('WINDOW_ERROR',{message:String(ev.message||''),file:String(ev.filename||''),line:ev.lineno||0,column:ev.colno||0,error:String(ev.error&&ev.error.stack||ev.error||'')});});
     window.addEventListener('unhandledrejection',function(ev){add('UNHANDLED_REJECTION',{reason:String(ev.reason&&ev.reason.stack||ev.reason||'')});});
     add('FIREBASE_AUDIT_CONNECTION_CHECK',{dbAvailable:!!window.db,authAvailable:!!window.auth,firestoreAuditInstalled:!!window.__WM_FS_AUDIT_INSTALLED_V618,firestoreAuditAttachedAt:window.__WM_FS_AUDIT_ATTACHED_AT_V637||null,authWrapped:!!(window.auth&&window.auth.__auditV620)});
