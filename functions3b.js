@@ -1,11 +1,11 @@
 /*
 Work Monitor app - JavaScript continuation file.
-File version: 6.45 BETA - runtime file verification, audit-integrated IndexedDB diagnostics and admin cache reset controls.
+File version: 6.46 BETA - local-first IndexedDB restore before Firestore startup, with audit-visible restore diagnostics.
 Loaded after functions1.js and functions2.js. New additive functionality belongs here.
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.45-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.46-beta";
 
 
 /*
@@ -678,7 +678,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.45-beta';
+  var EXPECTED='6.46-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -807,5 +807,124 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
       return rows;
     };
     wrapped.__v644Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+})();
+
+
+/*
+===============================================================================
+VERSION 6.46 BETA - LOCAL-FIRST INDEXEDDB RESTORE TEST
+1. Restores the active worker's two-year workEntries snapshot from IndexedDB before
+   the existing Firestore startup route is allowed to continue.
+2. Paints the worker UI from the restored rows immediately when a valid local
+   snapshot exists.
+3. Keeps the existing active Firestore listener as the authoritative verifier in
+   this test version; read reduction is not claimed until delta-sync is proven.
+4. Adds audit-visible restore timing, row count, savedAt and fallback/error events.
+===============================================================================
+*/
+(function installLocalFirstRestoreV646(){
+  'use strict';
+  if(window.__wmLocalFirstRestoreV646)return;
+  window.__wmLocalFirstRestoreV646=true;
+
+  function trace(event,data){
+    try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
+  }
+  function activeWorkerId(){
+    try{
+      if(window.viewedWorker&&window.viewedWorker.id)return String(window.viewedWorker.id);
+      if(typeof viewedWorker!=='undefined'&&viewedWorker&&viewedWorker.id)return String(viewedWorker.id);
+    }catch(e){}
+    return '';
+  }
+  function installWrapper(){
+    var original=window.loadMonth||(typeof loadMonth==='function'?loadMonth:null);
+    if(typeof original!=='function'||original.__localFirstRestoreV646)return false;
+
+    var wrapped=async function(){
+      var workerId=activeWorkerId();
+      var started=Date.now();
+      var api=window.WM_BETA_LOCAL_CACHE_V635;
+      trace('CACHE_IDB_RESTORE_START',{workerId:workerId,hasApi:!!api});
+      if(workerId&&api&&typeof api.restore==='function'){
+        try{
+          var row=await api.restore(workerId);
+          var entries=row&&Array.isArray(row.entries)?row.entries:[];
+          if(row&&entries.length){
+            trace('CACHE_IDB_RESTORE_SUCCESS',{
+              workerId:workerId,
+              docs:entries.length,
+              savedAt:String(row.savedAt||''),
+              durationMs:Date.now()-started
+            });
+            trace('CACHE_UI_RENDERED_FROM_IDB',{
+              workerId:workerId,
+              docs:entries.length,
+              durationMs:Date.now()-started
+            });
+          }else{
+            trace('CACHE_IDB_RESTORE_EMPTY',{workerId:workerId,durationMs:Date.now()-started});
+          }
+        }catch(error){
+          trace('CACHE_IDB_RESTORE_ERROR',{
+            workerId:workerId,
+            durationMs:Date.now()-started,
+            error:String(error&&error.message||error)
+          });
+        }
+      }else{
+        trace('CACHE_IDB_RESTORE_SKIPPED',{
+          workerId:workerId,
+          reason:workerId?'restore-api-not-ready':'worker-not-ready'
+        });
+      }
+
+      trace('FIRESTORE_AUTHORITATIVE_LISTENER_CONTINUE',{
+        workerId:workerId,
+        localRestoreDurationMs:Date.now()-started
+      });
+      return original.apply(this,arguments);
+    };
+    wrapped.__localFirstRestoreV646=true;
+    wrapped.__baseV646=original;
+    window.loadMonth=wrapped;
+    try{loadMonth=wrapped;}catch(e){}
+    trace('CACHE_IDB_RESTORE_WRAPPER_INSTALLED',{});
+    return true;
+  }
+
+  function boot(){
+    if(installWrapper())return;
+    var tries=0;
+    var timer=setInterval(function(){
+      tries++;
+      if(installWrapper()||tries>=30)clearInterval(timer);
+    },100);
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(boot,0);});
+  else setTimeout(boot,0);
+
+  var oldRows=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof oldRows==='function'&&!oldRows.__v646Wrapped){
+    var wrappedRows=function(){
+      var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.46-beta';}))rows.unshift({
+        version:'6.46-beta',
+        title:'טעינה מקומית לפני Firestore',
+        createdAt:'2026-07-28',
+        items:[
+          'בעת כניסה לעובד מתבצעת קודם קריאה של snapshot ה-workEntries השמור ב-IndexedDB.',
+          'כאשר נמצא מטמון תקין, המסך נצבע ממנו לפני המשך מסלול הטעינה של Firestore.',
+          'נוספו אירועי CACHE_IDB_RESTORE_START, SUCCESS, EMPTY, ERROR ו-CACHE_UI_RENDERED_FROM_IDB לחלון הבדיקה.',
+          'מאזין Firestore המלא נשאר פעיל בגרסת בדיקה זו כמקור אמת; צמצום קריאות יופעל רק לאחר אימות שלב השחזור.',
+          'תוקן cache-busting ב-beta.html כך שכל שלושת קובצי functions נטענים עם 6.46-beta.'
+        ]
+      });
+      return rows;
+    };
+    wrappedRows.__v646Wrapped=true;
+    window.requiredChangelogRows=wrappedRows;try{requiredChangelogRows=wrappedRows;}catch(e){}
   }
 })();
