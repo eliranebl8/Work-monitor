@@ -1,11 +1,11 @@
 /*
 Work Monitor app - JavaScript continuation file.
-File version: 6.44 BETA - runtime file verification, audit-integrated IndexedDB diagnostics and admin cache reset controls.
+File version: 6.45 BETA - runtime file verification, audit-integrated IndexedDB diagnostics and admin cache reset controls.
 Loaded after functions1.js and functions2.js. New additive functionality belongs here.
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.44-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.45-beta";
 
 
 /*
@@ -429,11 +429,11 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
   function traceV641(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
   function openDbV635(){
     if(dbPromise)return dbPromise;
-    traceV641('BETA_643_IDB_OPEN_START',{database:DB_NAME,version:DB_VERSION});
+    traceV641('CACHE_IDB_OPEN_START',{database:DB_NAME,version:DB_VERSION});
     dbPromise=new Promise(function(resolve,reject){
       if(!window.indexedDB){
         var unsupported=new Error('IndexedDB אינו נתמך בדפדפן הזה');
-        traceV641('BETA_643_IDB_OPEN_ERROR',{error:unsupported.message});
+        traceV641('CACHE_IDB_OPEN_ERROR',{error:unsupported.message});
         reject(unsupported);return;
       }
       var request=indexedDB.open(DB_NAME,DB_VERSION);
@@ -441,8 +441,8 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
         var database=event.target.result;
         if(!database.objectStoreNames.contains(STORE))database.createObjectStore(STORE,{keyPath:'workerId'});
       };
-      request.onsuccess=function(){traceV641('BETA_643_IDB_OPEN_SUCCESS',{database:DB_NAME,version:DB_VERSION});resolve(request.result);};
-      request.onerror=function(){var error=request.error||new Error('פתיחת IndexedDB נכשלה');traceV641('BETA_643_IDB_OPEN_ERROR',{error:String(error&&error.message||error)});reject(error);};
+      request.onsuccess=function(){traceV641('CACHE_IDB_OPEN_SUCCESS',{database:DB_NAME,version:DB_VERSION});resolve(request.result);};
+      request.onerror=function(){var error=request.error||new Error('פתיחת IndexedDB נכשלה');traceV641('CACHE_IDB_OPEN_ERROR',{error:String(error&&error.message||error)});reject(error);};
     });
     return dbPromise;
   }
@@ -457,9 +457,9 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
   }
   async function writeSnapshotV635(workerId,entries){
     var safeEntries=Array.isArray(entries)?entries:[];
-    traceV641('BETA_643_IDB_SAVE_START',{workerId:workerId,docs:safeEntries.length});
+    traceV641('CACHE_IDB_SAVE_START',{workerId:workerId,docs:safeEntries.length});
     var database=await openDbV635();
-    var row={workerId:workerId,cutoff:String(state.cutoff||cutoffV635()),entries:safeEntries,savedAt:new Date().toISOString(),schemaVersion:1,appVersion:String(window.APP_VERSION||'6.44-beta')};
+    var row={workerId:workerId,cutoff:String(state.cutoff||cutoffV635()),entries:safeEntries,savedAt:new Date().toISOString(),schemaVersion:1,appVersion:String(window.APP_VERSION||'6.45-beta')};
     await new Promise(function(resolve,reject){
       var tx=database.transaction(STORE,'readwrite');
       tx.objectStore(STORE).put(row);
@@ -469,7 +469,7 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
     });
     status.lastSavedAt=row.savedAt;status.localDocs=row.entries.length;status.phase='המטמון המקומי מעודכן';status.source='Firestore → IndexedDB';status.error='';
     renderStatusV635();
-    traceV641('BETA_643_IDB_SAVE_SUCCESS',{workerId:workerId,docs:row.entries.length,savedAt:row.savedAt});
+    traceV641('CACHE_IDB_SAVE_SUCCESS',{workerId:workerId,docs:row.entries.length,savedAt:row.savedAt});
     return row;
   }
   async function deleteSnapshotV635(workerId){
@@ -668,7 +668,7 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
 
 
 /* ======================================================================
-VERSION 6.44 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
+VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
 1. Every beta file publishes its own runtime version marker.
 2. The Firebase Audit log now receives a BOOT_FILE_VERSIONS row after all scripts load.
 3. IndexedDB/cache events are copied into the same audit log for one-file diagnosis.
@@ -678,7 +678,7 @@ VERSION 6.44 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.44-beta';
+  var EXPECTED='6.45-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -791,6 +791,13 @@ VERSION 6.44 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   if(typeof oldRows==='function'&&!oldRows.__v644Wrapped){
     var wrapped=function(){
       var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.45-beta';}))rows.unshift({version:'6.45-beta',title:'שמירת IndexedDB מתוך המאזין הפעיל',createdAt:'2026-07-28',items:[
+        'שמירת workEntries חוברה ישירות למאזין startListenerV613 שפועל בפועל בזמן הריצה.',
+        'הוסר נתיב השמירה מהמאזין הישן כדי למנוע בדיקות מטעות ושמירה כפולה בעתיד.',
+        'נוספו אירועי CACHE_IDB_ACTIVE_LISTENER_SAVE_CALL, DONE, SKIPPED ו-ERROR לחלון Firebase Audit.',
+        'אירועי פתיחת ושמירת IndexedDB קיבלו שמות קבועים שאינם תלויים במספר גרסה.',
+        'בדיקת גרסאות הקבצים וכפתורי ניקוי המטמון באדמין נשמרו ללא שינוי.'
+      ]});
       if(!rows.some(function(r){return String(r.version||r.id||'')==='6.44-beta';}))rows.unshift({version:'6.44-beta',title:'בדיקת גרסאות קבצים ואיפוס מטמון באדמין',createdAt:'2026-07-28',items:[
         'כל אחד מקובצי הבטא מפרסם בלוג את הגרסה המדויקת שנטענה בפועל מהשרת.',
         'חלון Firebase Audit מציג BOOT_FILE_VERSIONS ומזהה אוטומטית קובץ חסר או גרסה שאינה תואמת.',
