@@ -1,11 +1,11 @@
-/* File version: 6.47 BETA - cache API/audit support for delta-only workEntries synchronization.
+/* File version: 6.48 BETA - priceList IndexedDB cache and delta-only synchronization.
 Work Monitor app - JavaScript continuation file.
-File version: 6.47 BETA - delta-only synchronization diagnostics and changelog support.
+File version: 6.48 BETA - priceList cache-first synchronization diagnostics and changelog support.
 Loaded after functions1.js and functions2.js. New additive functionality belongs here.
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.47-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.48-beta";
 
 
 /*
@@ -678,7 +678,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.47-beta';
+  var EXPECTED='6.48-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -849,5 +849,156 @@ VERSION 6.46 BETA - LOCAL-FIRST INDEXEDDB RESTORE TEST
     };
     wrappedRows.__v647Wrapped=true;
     window.requiredChangelogRows=wrappedRows;try{requiredChangelogRows=wrappedRows;}catch(e){}
+  }
+})();
+
+
+/*
+===============================================================================
+VERSION 6.48 BETA - PRICELIST INDEXEDDB CACHE + DELTA SYNC
+-------------------------------------------------------------------------------
+1. The worker price list is restored from a dedicated IndexedDB snapshot before
+   the original full Firestore query runs.
+2. When a valid snapshot exists, the 309-document startup download is skipped.
+3. Two Firestore listeners receive only price documents created or updated after
+   the local savedAt value and merge them into the local snapshot.
+4. The existing full loader remains the safe first-launch/fallback path.
+5. Stable 6.33 files are untouched.
+===============================================================================
+*/
+(function installPriceListCacheV648(){
+  'use strict';
+  if(window.__wmPriceListCacheV648Installed)return;
+  window.__wmPriceListCacheV648Installed=true;
+
+  var DB_NAME='work_monitor_beta_static_cache';
+  var DB_VERSION=1;
+  var STORE='collectionSnapshots';
+  var KEY='priceList';
+  var dbPromise=null;
+  var listenersStarted=false;
+  var listenerUnsubs=[];
+  var localRows=[];
+  var currentSavedAt='';
+  var loadPromise=null;
+  var originalLoad=window.loadPriceList||(typeof loadPriceList==='function'?loadPriceList:null);
+
+  function trace(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
+  function openDb(){
+    if(dbPromise)return dbPromise;
+    trace('PRICE_LIST_IDB_OPEN_START',{database:DB_NAME,version:DB_VERSION});
+    dbPromise=new Promise(function(resolve,reject){
+      if(!window.indexedDB){reject(new Error('IndexedDB is unavailable'));return;}
+      var req=indexedDB.open(DB_NAME,DB_VERSION);
+      req.onupgradeneeded=function(ev){var dbi=ev.target.result;if(!dbi.objectStoreNames.contains(STORE))dbi.createObjectStore(STORE,{keyPath:'key'});};
+      req.onsuccess=function(){trace('PRICE_LIST_IDB_OPEN_SUCCESS',{database:DB_NAME,version:DB_VERSION});resolve(req.result);};
+      req.onerror=function(){reject(req.error||new Error('priceList IndexedDB open failed'));};
+    });
+    return dbPromise;
+  }
+  async function readRow(){
+    var dbi=await openDb();
+    return new Promise(function(resolve,reject){var tx=dbi.transaction(STORE,'readonly'),req=tx.objectStore(STORE).get(KEY);req.onsuccess=function(){resolve(req.result||null);};req.onerror=function(){reject(req.error);};});
+  }
+  async function writeRow(rows){
+    var dbi=await openDb();
+    var row={key:KEY,rows:Array.isArray(rows)?rows:[],savedAt:new Date().toISOString(),appVersion:String(window.APP_VERSION||'6.48-beta'),schemaVersion:1};
+    await new Promise(function(resolve,reject){var tx=dbi.transaction(STORE,'readwrite');tx.objectStore(STORE).put(row);tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error);};tx.onabort=function(){reject(tx.error);};});
+    currentSavedAt=row.savedAt;
+    trace('PRICE_LIST_IDB_SAVE_SUCCESS',{docs:row.rows.length,savedAt:row.savedAt});
+    return row;
+  }
+  function normalize(rows){
+    var map={};
+    (Array.isArray(rows)?rows:[]).forEach(function(item){
+      if(!item||!item.id)return;
+      var x=Object.assign({},item,{inputMode:item.inputMode||'qty'});
+      map[String(x.id)]=x;
+    });
+    localRows=Object.keys(map).map(function(id){return map[id];});
+    var unique={};
+    localRows.filter(function(x){return x.active!==false;}).forEach(function(item){
+      var key=String(item.name||'').trim()+'|'+Number(item.price||0)+'|'+String(item.inputMode||'qty');
+      if(!unique[key])unique[key]=item;
+    });
+    priceList=Object.keys(unique).map(function(k){return unique[k];}).sort(function(a,b){return Number(a.order||0)-Number(b.order||0);});
+    window.priceList=priceList;
+    return priceList;
+  }
+  function firestoreValueToPlain(doc){return Object.assign({id:doc.id},doc.data()||{});}
+  function mergeDocs(snapshot,source){
+    var map={};localRows.forEach(function(r){if(r&&r.id)map[String(r.id)]=r;});
+    snapshot.docChanges().forEach(function(ch){
+      var id=String(ch.doc.id);
+      if(ch.type==='removed')delete map[id];else map[id]=firestoreValueToPlain(ch.doc);
+    });
+    normalize(Object.keys(map).map(function(id){return map[id];}));
+    trace('PRICE_LIST_DELTA_APPLIED',{source:source,changes:snapshot.docChanges().length,docs:localRows.length,fromCache:!!snapshot.metadata.fromCache});
+    if(snapshot.metadata.fromCache===false){writeRow(localRows).catch(function(err){trace('PRICE_LIST_IDB_SAVE_ERROR',{error:String(err&&err.message||err)});});}
+  }
+  function startDeltaListeners(savedAt){
+    if(listenersStarted||!savedAt||!window.db||!window.firebase||!firebase.firestore)return;
+    listenersStarted=true;
+    var ts=firebase.firestore.Timestamp.fromDate(new Date(savedAt));
+    trace('PRICE_LIST_DELTA_LISTENER_MODE',{savedAt:savedAt,fields:['createdAt','updatedAt']});
+    ['createdAt','updatedAt'].forEach(function(field){
+      var unsub=db.collection('priceList').where(field,'>',ts).onSnapshot({includeMetadataChanges:true},function(snap){mergeDocs(snap,field);},function(err){
+        trace('PRICE_LIST_DELTA_LISTENER_ERROR',{field:field,error:String(err&&err.message||err)});
+      });
+      listenerUnsubs.push(unsub);
+    });
+  }
+  async function cachedLoadPriceListV648(force){
+    if(loadPromise)return loadPromise;
+    loadPromise=(async function(){
+      if(force===true){
+        trace('PRICE_LIST_CACHE_FORCE_FULL_LOAD',{});
+        var forced=await originalLoad.apply(this,arguments);normalize(Array.isArray(priceList)?priceList:[]);await writeRow(localRows);startDeltaListeners(currentSavedAt);return forced||priceList;
+      }
+      try{
+        trace('PRICE_LIST_IDB_RESTORE_START',{});
+        var row=await readRow();
+        if(row&&Array.isArray(row.rows)&&row.rows.length){
+          currentSavedAt=String(row.savedAt||'');
+          normalize(row.rows);
+          trace('PRICE_LIST_IDB_RESTORE_SUCCESS',{docs:row.rows.length,savedAt:currentSavedAt});
+          trace('PRICE_LIST_SKIP_FULL_DOWNLOAD',{docs:row.rows.length,savedAt:currentSavedAt});
+          startDeltaListeners(currentSavedAt);
+          return priceList;
+        }
+        trace('PRICE_LIST_IDB_CACHE_MISS',{});
+      }catch(err){trace('PRICE_LIST_IDB_RESTORE_ERROR',{error:String(err&&err.message||err)});}
+      var result=await originalLoad.apply(this,arguments);
+      normalize(Array.isArray(priceList)?priceList:[]);
+      try{await writeRow(localRows);}catch(err2){trace('PRICE_LIST_IDB_SAVE_ERROR',{error:String(err2&&err2.message||err2)});}
+      startDeltaListeners(currentSavedAt);
+      trace('PRICE_LIST_FULL_LOAD_SEEDED_CACHE',{docs:localRows.length});
+      return result||priceList;
+    }).call(this).finally(function(){loadPromise=null;});
+    return loadPromise;
+  }
+
+  if(typeof originalLoad==='function'){
+    window.loadPriceList=cachedLoadPriceListV648;
+    try{loadPriceList=cachedLoadPriceListV648;}catch(e){}
+  }
+  trace('PRICE_LIST_CACHE_MODULE_READY',{version:'6.48-beta'});
+
+  var oldRows=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof oldRows==='function'&&!oldRows.__v648Wrapped){
+    var wrapped=function(){
+      var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.48-beta';}))rows.unshift({
+        version:'6.48-beta',title:'מטמון מקומי וסנכרון שינויים למחירון',createdAt:'2026-07-28',items:[
+          'המחירון נשמר במסד IndexedDB מקומי נפרד ומוצג ממנו בהפעלות הבאות.',
+          'כאשר קיים snapshot תקין, האפליקציה מדלגת על הורדת כל מסמכי priceList בזמן העלייה.',
+          'שינויים חדשים במחירון מתקבלים באמצעות מאזיני createdAt ו-updatedAt בלבד ונמזגים למטמון המקומי.',
+          'בהפעלה הראשונה או במקרה של מטמון חסר נשמר fallback בטוח לטעינה המלאה הקיימת.',
+          'נוספו אירועי Audit ייעודיים לבדיקת שחזור, דילוג על הורדה מלאה, דלתא ושמירה מקומית.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v648Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
   }
 })();
