@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.44 BETA - direct listener saving retained; runtime file marker and audit-visible cache diagnostics added; stable files untouched.
+File version: 6.45 BETA - direct listener saving retained; runtime file marker and audit-visible cache diagnostics added; stable files untouched.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -11,7 +11,7 @@ CHANGELOG 6.01 - פיצול קובץ JavaScript
 4. index.html טוען את functions1.js ולאחריו את functions2.js לפי סדר התלויות.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions2b = "6.44-beta";
+window.WM_LOADED_FILE_VERSIONS.functions2b = "6.45-beta";
 
 
 (function(){
@@ -8030,34 +8030,8 @@ VERSION 6.04 BETA - TWO-YEAR MEMORY DATA MANAGER
           window.workerAllEntriesV511=allLoadedEntries();
           debug(first?'initial-two-year-load':'cache-snapshot-update',{docs:state.entries.length,fromCache:!!(snap.metadata&&snap.metadata.fromCache),pending:!!(snap.metadata&&snap.metadata.hasPendingWrites)});
 
-          // v6.43 BETA: save the exact snapshot from the real, existing
-          // workEntries listener. This is intentionally inside the original
-          // callback—no wrappers, monkey patches or secondary listeners.
-          (function persistRealWorkEntriesSnapshotV643(){
-            var rowsForIndexedDb=state.entries.slice();
-            var snapshotMetaV643={
-              workerId:String(workerId||''),
-              docs:rowsForIndexedDb.length,
-              fromCache:!!(snap.metadata&&snap.metadata.fromCache),
-              pending:!!(snap.metadata&&snap.metadata.hasPendingWrites),
-              snapshotNumber:state.snapshotCount
-            };
-            try{window.wmTraceV617&&window.wmTraceV617('CACHE_IDB_DIRECT_SAVE_CALL',snapshotMetaV643);}catch(_traceErrorV643){}
-            try{
-              var cacheApiV643=window.WM_BETA_LOCAL_CACHE_V635;
-              if(cacheApiV643&&typeof cacheApiV643.persistRows==='function'&&rowsForIndexedDb.length){
-                Promise.resolve(cacheApiV643.persistRows(String(workerId),rowsForIndexedDb)).then(function(row){
-                  try{window.wmTraceV617&&window.wmTraceV617('CACHE_IDB_DIRECT_SAVE_DONE',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,savedAt:row&&row.savedAt?row.savedAt:''});}catch(_doneTraceV643){}
-                }).catch(function(error){
-                  try{window.wmTraceV617&&window.wmTraceV617('CACHE_IDB_DIRECT_SAVE_ERROR',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,error:String(error&&error.message||error)});}catch(_errorTraceV643){}
-                });
-              }else{
-                try{window.wmTraceV617&&window.wmTraceV617('CACHE_IDB_DIRECT_SAVE_SKIPPED',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,reason:rowsForIndexedDb.length?'writer-not-ready':'empty-snapshot'});}catch(_skipTraceV643){}
-              }
-            }catch(errorV643){
-              try{window.wmTraceV617&&window.wmTraceV617('CACHE_IDB_DIRECT_SAVE_ERROR',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,error:String(errorV643&&errorV643.message||errorV643)});}catch(_outerTraceV643){}
-            }
-          })();
+          // v6.45 BETA: the obsolete listener path intentionally does not persist.
+          // The active v6.13/v6.15 listener below is now the single IndexedDB save source.
 
           renderCurrentMonth();
           if(first){first=false;resolve(state.entries);}
@@ -9163,7 +9137,38 @@ VERSION 6.13 BETA - SAFE SNAPSHOT MERGE + MONTH HEADER SYNCHRONIZATION
           state.v615LastSnapshot={fromCache:fromCache,pending:hasPendingWrites,docs:snap.docs.length,changes:changeCount,before:beforeCount,after:state.entries.length,time:new Date().toLocaleTimeString('he-IL')};
           try{console.log('[WM 6.15 SNAPSHOT]',state.v615LastSnapshot);}catch(e){}
           state.workerId=workerId;state.cutoff=cutoff;window.workerAllEntriesV511=state.entries.slice();
-          renderV613();persistV613();
+          renderV613();
+
+          // v6.45 BETA: persist from the listener that is actually active at runtime.
+          // This avoids saving from an older ensureCache listener that later versions replace.
+          (function persistActiveWorkEntriesSnapshotV645(){
+            var rowsV645=Array.isArray(state.entries)?state.entries.slice():[];
+            var metaV645={
+              workerId:String(workerId||''),
+              docs:rowsV645.length,
+              fromCache:fromCache,
+              pending:hasPendingWrites,
+              changes:changeCount,
+              source:String(state.lastEvent||'')
+            };
+            try{window.wmTraceV617&&window.wmTraceV617('CACHE_IDB_ACTIVE_LISTENER_SAVE_CALL',metaV645);}catch(_traceCallV645){}
+            try{
+              var apiV645=window.WM_BETA_LOCAL_CACHE_V635;
+              if(apiV645&&typeof apiV645.persistRows==='function'&&rowsV645.length){
+                Promise.resolve(apiV645.persistRows(String(workerId),rowsV645)).then(function(rowV645){
+                  try{window.wmTraceV617&&window.wmTraceV617('CACHE_IDB_ACTIVE_LISTENER_SAVE_DONE',{workerId:String(workerId||''),docs:rowsV645.length,savedAt:rowV645&&rowV645.savedAt?rowV645.savedAt:''});}catch(_traceDoneV645){}
+                }).catch(function(errorV645){
+                  try{window.wmTraceV617&&window.wmTraceV617('CACHE_IDB_ACTIVE_LISTENER_SAVE_ERROR',{workerId:String(workerId||''),docs:rowsV645.length,error:String(errorV645&&errorV645.message||errorV645)});}catch(_traceErrorV645){}
+                });
+              }else{
+                try{window.wmTraceV617&&window.wmTraceV617('CACHE_IDB_ACTIVE_LISTENER_SAVE_SKIPPED',{workerId:String(workerId||''),docs:rowsV645.length,reason:rowsV645.length?'writer-not-ready':'empty-snapshot'});}catch(_traceSkipV645){}
+                // Preserve the existing v6.13 writer as a safe fallback when functions3b has not initialized yet.
+                Promise.resolve(persistV613()).catch(function(){});
+              }
+            }catch(errorOuterV645){
+              try{window.wmTraceV617&&window.wmTraceV617('CACHE_IDB_ACTIVE_LISTENER_SAVE_ERROR',{workerId:String(workerId||''),docs:rowsV645.length,error:String(errorOuterV645&&errorOuterV645.message||errorOuterV645)});}catch(_traceOuterV645){}
+            }
+          })();
           if(first){first=false;resolve(state.entries);}
         },function(err){if(first){first=false;reject(err);}else console.error('v6.13 listener failed',err);});
       }catch(e){first=false;reject(e);}
