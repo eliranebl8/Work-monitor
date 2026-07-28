@@ -1,8 +1,9 @@
-/* File version: 6.49 BETA - version/changelog integration for local collection cache and synchronized soft delete.
+/* File version: 6.50-beta - synchronization stabilization fixes. */
+/* File version: 6.50 BETA - version/changelog integration for local collection cache and synchronized soft delete.
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css, functions1.js, functions2.js and functions3.js to the same GitHub folder.
 Version source remains APP_VERSION inside this file.
-File version: 6.49 BETA - priceList cache-first delta test; stable 6.33 files remain untouched.
+File version: 6.50 BETA - priceList cache-first delta test; stable 6.33 files remain untouched.
 This is the stable core file. New additive functionality should be added to functions3.js; edit existing functions in place.
 APP_VERSION remains the single version source here; only its version line should be updated in future releases.
 
@@ -198,9 +199,9 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "6.49-beta";
+const APP_VERSION = "6.50-beta";
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions1b = "6.49-beta";
+window.WM_LOADED_FILE_VERSIONS.functions1b = "6.50-beta";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -1204,7 +1205,7 @@ async function checkRecentCustomer(inputId, resultId){
 
     const all=snap.docs
       .map(d=>({id:d.id,...d.data()}))
-      .filter(e=>e.workerId===viewedWorker.id)
+      .filter(e=>e.workerId===viewedWorker.id && e.isDeleted!==true && e.active!==false)
       .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
 
     // v5.69: מפרידים רשומות not_done כדי שלא יוצגו כעבודה רגילה עם ₪0 בבדיקת לקוח חוזר.
@@ -1443,7 +1444,7 @@ async function loadClientHistory(){
       .get();
     const entries=snap.docs
       .map(d=>({id:d.id,...d.data()}))
-      .filter(e=>e.workerId===viewedWorker.id && String(e.customerNumber||"")===num)
+      .filter(e=>e.workerId===viewedWorker.id && String(e.customerNumber||"")===num && e.isDeleted!==true && e.active!==false)
       .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
     if(!entries.length){box.innerHTML="<p class='muted'>לא נמצאה היסטוריה ללקוח הזה.</p>";return}
     const total=entries.reduce((s,e)=>s+Number(e.amount||0),0);
@@ -1630,7 +1631,7 @@ function getFilteredEntriesWithoutAddressV597(){
   const date=val("searchDate");
   const month=val("searchMonth");
   const scope=getSearchDateScopeV507();
-  let arr=Array.isArray(window.searchBaseEntriesV507) ? window.searchBaseEntriesV507.slice() : [...monthEntries];
+  let arr=(Array.isArray(window.searchBaseEntriesV507) ? window.searchBaseEntriesV507.slice() : [...monthEntries]).filter(e=>e&&e.isDeleted!==true&&e.active!==false);
   if(customer) arr=arr.filter(e=>String(e.customerNumber||"").includes(customer));
   if(type) arr=arr.filter(e=>e.workType===type);
   if(!scope || scope.mode==="currentMonth"){
@@ -1719,7 +1720,7 @@ function getFilteredEntries(){
   const date=val("searchDate");
   const month=val("searchMonth");
   const scope=getSearchDateScopeV507();
-  let arr=Array.isArray(window.searchBaseEntriesV507) ? window.searchBaseEntriesV507.slice() : [...monthEntries];
+  let arr=(Array.isArray(window.searchBaseEntriesV507) ? window.searchBaseEntriesV507.slice() : [...monthEntries]).filter(e=>e&&e.isDeleted!==true&&e.active!==false);
 
   if(customer) arr=arr.filter(e=>String(e.customerNumber||"").includes(customer));
   if(address) arr=arr.filter(e=>String(e.address||"").toLowerCase().includes(address));
