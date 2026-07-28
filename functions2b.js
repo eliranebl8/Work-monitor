@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.45 BETA - direct listener saving retained; runtime file marker and audit-visible cache diagnostics added; stable files untouched.
+File version: 6.46 BETA - active-listener IndexedDB saving retained for the local-first restore test; stable files untouched.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -11,7 +11,7 @@ CHANGELOG 6.01 - פיצול קובץ JavaScript
 4. index.html טוען את functions1.js ולאחריו את functions2.js לפי סדר התלויות.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions2b = "6.45-beta";
+window.WM_LOADED_FILE_VERSIONS.functions2b = "6.46-beta";
 
 
 (function(){
