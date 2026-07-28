@@ -1,6 +1,6 @@
-/* File version: 6.48 BETA - workEntries delta sync retained; priceList cache module loaded from functions3b.
+/* File version: 6.49 BETA - existing runtime logic retained; soft-delete/cache integration loaded from functions3b.js.
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.48 BETA - workEntries delta sync retained while priceList cache-first sync is added; stable files untouched.
+File version: 6.49 BETA - workEntries delta sync retained while priceList cache-first sync is added; stable files untouched.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -11,7 +11,7 @@ CHANGELOG 6.01 - פיצול קובץ JavaScript
 4. index.html טוען את functions1.js ולאחריו את functions2.js לפי סדר התלויות.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions2b = "6.48-beta";
+window.WM_LOADED_FILE_VERSIONS.functions2b = "6.49-beta";
 
 
 (function(){
