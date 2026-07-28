@@ -1,6 +1,6 @@
 /*
 Work Monitor app - JavaScript extensions and future changes.
-File version: 6.40 BETA - beta changelog for non-blocking local cache startup and loading watchdog; stable files untouched.
+File version: 6.43 BETA - original workEntries listener now directly saves each snapshot to IndexedDB; stable files untouched.
 Loaded after functions1.js. All future functional JavaScript changes should be added here.
 Do not move or duplicate APP_VERSION; its single source remains in functions1.js.
 
@@ -8026,6 +8026,36 @@ VERSION 6.04 BETA - TWO-YEAR MEMORY DATA MANAGER
           state.initialDocs=state.entries.length;
           window.workerAllEntriesV511=allLoadedEntries();
           debug(first?'initial-two-year-load':'cache-snapshot-update',{docs:state.entries.length,fromCache:!!(snap.metadata&&snap.metadata.fromCache),pending:!!(snap.metadata&&snap.metadata.hasPendingWrites)});
+
+          // v6.43 BETA: save the exact snapshot from the real, existing
+          // workEntries listener. This is intentionally inside the original
+          // callback—no wrappers, monkey patches or secondary listeners.
+          (function persistRealWorkEntriesSnapshotV643(){
+            var rowsForIndexedDb=state.entries.slice();
+            var snapshotMetaV643={
+              workerId:String(workerId||''),
+              docs:rowsForIndexedDb.length,
+              fromCache:!!(snap.metadata&&snap.metadata.fromCache),
+              pending:!!(snap.metadata&&snap.metadata.hasPendingWrites),
+              snapshotNumber:state.snapshotCount
+            };
+            try{window.wmTraceV617&&window.wmTraceV617('BETA_643_WORKENTRIES_DIRECT_SAVE_CALL',snapshotMetaV643);}catch(_traceErrorV643){}
+            try{
+              var cacheApiV643=window.WM_BETA_LOCAL_CACHE_V635;
+              if(cacheApiV643&&typeof cacheApiV643.persistRows==='function'&&rowsForIndexedDb.length){
+                Promise.resolve(cacheApiV643.persistRows(String(workerId),rowsForIndexedDb)).then(function(row){
+                  try{window.wmTraceV617&&window.wmTraceV617('BETA_643_WORKENTRIES_DIRECT_SAVE_DONE',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,savedAt:row&&row.savedAt?row.savedAt:''});}catch(_doneTraceV643){}
+                }).catch(function(error){
+                  try{window.wmTraceV617&&window.wmTraceV617('BETA_643_WORKENTRIES_DIRECT_SAVE_ERROR',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,error:String(error&&error.message||error)});}catch(_errorTraceV643){}
+                });
+              }else{
+                try{window.wmTraceV617&&window.wmTraceV617('BETA_643_WORKENTRIES_DIRECT_SAVE_SKIPPED',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,reason:rowsForIndexedDb.length?'writer-not-ready':'empty-snapshot'});}catch(_skipTraceV643){}
+              }
+            }catch(errorV643){
+              try{window.wmTraceV617&&window.wmTraceV617('BETA_643_WORKENTRIES_DIRECT_SAVE_ERROR',{workerId:String(workerId||''),docs:rowsForIndexedDb.length,error:String(errorV643&&errorV643.message||errorV643)});}catch(_outerTraceV643){}
+            }
+          })();
+
           renderCurrentMonth();
           if(first){first=false;resolve(state.entries);}
         },function(err){
