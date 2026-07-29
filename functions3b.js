@@ -1,4 +1,4 @@
-/* File version: 6.56-beta - worker-login cache isolation; current loadMonth is resolved dynamically and stale worker data is blocked. */
+/* File version: 6.58-beta - worker-login cache isolation; current loadMonth is resolved dynamically and stale worker data is blocked. */
 /* File version: 6.50 BETA - workerDaysOff/installTemplates IndexedDB delta sync and synchronized soft delete.
 Work Monitor app - JavaScript continuation file.
 File version: 6.50 BETA - priceList cache-first synchronization diagnostics and changelog support.
@@ -6,7 +6,7 @@ Loaded after functions1.js and functions2.js. New additive functionality belongs
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.56-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.58-beta";
 
 
 /*
@@ -683,7 +683,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.56-beta';
+  var EXPECTED='6.58-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -1104,20 +1104,72 @@ VERSION 6.50 BETA - LOCAL DAY-OFF/TEMPLATE CACHE + SYNCHRONIZED SOFT DELETE
   window.loadTemplates=loadTemplatesV649;try{loadTemplates=loadTemplatesV649;}catch(e){}
 
   function purgeDeletedEverywhere(){
-    function clean(a){return visible(Array.isArray(a)?a:[]);}try{window.workerAllEntriesV511=clean(window.workerAllEntriesV511);}catch(e){}
+    var tombstones={};
+    function scan(a){(Array.isArray(a)?a:[]).forEach(function(x){if(x&&x.deletedEntryId)tombstones[String(x.deletedEntryId)]=true;});}
+    try{scan(window.workerAllEntriesV511);scan(monthEntries);var st=window.WM_DATA_CACHE_V604;if(st){scan(st.entries);if(st.historicalMonths)Object.keys(st.historicalMonths).forEach(function(k){scan(st.historicalMonths[k]);});}}catch(e){}
+    function clean(a){return visible(Array.isArray(a)?a:[]).filter(function(x){return !x||!tombstones[String(x.id||'')];});}
+    try{window.workerAllEntriesV511=clean(window.workerAllEntriesV511);}catch(e){}
     try{monthEntries=clean(monthEntries);}catch(e){}try{templates=clean(templates);}catch(e){}try{priceList=clean(priceList);}catch(e){}
     try{var s=window.WM_DATA_CACHE_V604;if(s){s.entries=clean(s.entries);if(s.historicalMonths)Object.keys(s.historicalMonths).forEach(function(k){s.historicalMonths[k]=clean(s.historicalMonths[k]);});}}catch(e){}
     try{var c=window.WM_DAYOFF_DOCS_CACHE_V624;if(c&&Array.isArray(c.docs))c.docs=clean(c.docs);}catch(e){}
   }
   var oldRefresh=window.wmRefreshFromCacheV610;if(typeof oldRefresh==='function'){window.wmRefreshFromCacheV610=function(){purgeDeletedEverywhere();return oldRefresh.apply(this,arguments);};}
 
-  async function softDelete(collection,id,extra){
+  function deleteDebugContextV658(collection,id,entry,data){
+    var authUser=null;try{authUser=auth&&auth.currentUser;}catch(e){}
+    var sessionObj=null;try{sessionObj=window.session||session||null;}catch(e){}
+    var viewed=null;try{viewed=window.viewedWorker||viewedWorker||null;}catch(e){}
+    var cache=null;try{cache=window.WM_DATA_CACHE_V604||null;}catch(e){}
+    return {
+      version:'6.58-beta',collection:collection,id:id,
+      authUid:authUser&&authUser.uid||'',authEmail:authUser&&authUser.email||'',
+      sessionRole:sessionObj&&sessionObj.role||'',sessionWorkerId:sessionObj&&sessionObj.workerId||'',
+      viewedWorkerId:viewed&&viewed.id||'',cacheWorkerId:cache&&cache.workerId||'',
+      entryFound:!!entry,entryWorkerId:entry&&entry.workerId||'',entryStatus:entry&&(entry.entryStatus||entry.status)||'',
+      entryIsDeleted:entry&&entry.isDeleted===true,entryActive:entry&&entry.active,
+      payloadFields:Object.keys(data||{}),online:navigator.onLine!==false
+    };
+  }
+  async function softDelete(collection,id,extra,entry){
     var data=Object.assign({},extra||{},{isDeleted:true,active:false,deletedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
-    await db.collection(collection).doc(id).set(data,{merge:true});trace('SOFT_DELETE_APPLIED',{collection:collection,id:id});
+    var ctx=deleteDebugContextV658(collection,id,entry,data);
+    trace('SOFT_DELETE_V658_START',ctx);
+    try{
+      await db.collection(collection).doc(id).set(data,{merge:true});
+      trace('SOFT_DELETE_V658_FIRESTORE_SUCCESS',Object.assign({},ctx,{result:'set-merge-success'}));
+      return true;
+    }catch(err){
+      trace('SOFT_DELETE_V658_FIRESTORE_ERROR',Object.assign({},ctx,{errorCode:err&&err.code||'',errorMessage:String(err&&err.message||err)}));
+      throw err;
+    }
   }
   window.wmSoftDeleteV649=softDelete;
 
-  window.deleteEntry=async function(id){if(!id||!confirm('למחוק את העבודה?'))return;await softDelete('workEntries',id);try{window.wmRemoveEntryFromCacheV610&&window.wmRemoveEntryFromCacheV610(id);window.wmRefreshFromCacheV610&&window.wmRefreshFromCacheV610({toast:'העבודה נמחקה וסונכרנה ✅'});}catch(e){}};try{deleteEntry=window.deleteEntry;}catch(e){}
+  window.deleteEntry=async function(id){
+    if(!id||!confirm('למחוק את העבודה?'))return;
+    var entry=null;try{entry=(window.workerAllEntriesV511||[]).find(function(x){return x&&x.id===id;})||(monthEntries||[]).find(function(x){return x&&x.id===id;});}catch(e){}
+    trace('DELETE_ENTRY_V658_REQUEST',deleteDebugContextV658('workEntries',id,entry,{}));
+    try{
+      await softDelete('workEntries',id,null,entry);
+      trace('DELETE_ENTRY_V658_BEFORE_LOCAL_PURGE',deleteDebugContextV658('workEntries',id,entry,{}));
+      try{
+        window.wmRemoveEntryFromCacheV610&&window.wmRemoveEntryFromCacheV610(id);
+        purgeDeletedEverywhere();
+        trace('DELETE_ENTRY_V658_LOCAL_PURGE_SUCCESS',{id:id,monthEntriesCount:Array.isArray(monthEntries)?monthEntries.length:null,allEntriesCount:Array.isArray(window.workerAllEntriesV511)?window.workerAllEntriesV511.length:null});
+        window.wmRefreshFromCacheV610&&window.wmRefreshFromCacheV610({messageHtml:'<div class="notice">העבודה נמחקה בהצלחה ✅</div>',toast:'העבודה נמחקה וסונכרנה ✅'});
+        trace('DELETE_ENTRY_V658_UI_REFRESH_SUCCESS',{id:id});
+      }catch(localErr){
+        trace('DELETE_ENTRY_V658_LOCAL_PURGE_ERROR',{id:id,errorMessage:String(localErr&&localErr.message||localErr)});
+      }
+    }catch(err){
+      trace('DELETE_ENTRY_V658_ABORTED_NO_HARD_DELETE',Object.assign(deleteDebugContextV658('workEntries',id,entry,{}),{errorCode:err&&err.code||'',errorMessage:String(err&&err.message||err)}));
+      try{
+        var msg=document.getElementById('entryMsg');
+        if(msg)msg.innerHTML='<p class="danger">המחיקה הרכה נחסמה ולא בוצעה. העתק את לוג הבדיקה.</p>';
+      }catch(_e){}
+      alert('המחיקה הרכה נחסמה ולא בוצעה. לא בוצעה מחיקה פיזית. העתק את לוג הבדיקה ושלח אותו.');
+    }
+  };try{deleteEntry=window.deleteEntry;}catch(e){}
   window.deleteTemplate=async function(id){if(!id||!confirm('למחוק את התבנית?'))return;await softDelete('installTemplates',id);var st=states.installTemplates;if(st){st.rows=st.rows.filter(function(x){return x.id!==id;});await write('installTemplates',st.rows);};await loadTemplatesV649();try{loadTemplatesAdmin&&loadTemplatesAdmin();}catch(e){}};try{deleteTemplate=window.deleteTemplate;}catch(e){}
 
   // Catch legacy physical-delete buttons/functions for synchronized collections.
@@ -1185,7 +1237,7 @@ VERSION 6.53 BETA - SAFE WORKER CONTEXT SWITCH + CACHE/DELTA COMPLETION
 ============================================================================ */
 (function installCacheDeltaCompletionV652(){
   'use strict';
-  var VERSION='6.56-beta';
+  var VERSION='6.58-beta';
   function trace(name,data){try{window.wmTraceV617&&window.wmTraceV617(name,Object.assign({version:VERSION},data||{}));}catch(e){}}
   function byId(id){return document.getElementById(id);}
   function escV652(v){try{return typeof window.esc==='function'?window.esc(v):String(v||'');}catch(e){return String(v||'');}}
@@ -1311,8 +1363,8 @@ VERSION 6.53 BETA - SAFE WORKER CONTEXT SWITCH + CACHE/DELTA COMPLETION
     if(typeof old!=='function'||old.__v654Wrapped)return;
     var wrapped=function(){
       var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
-      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.56-beta';})) rows.unshift({
-        version:'6.56-beta', title:'חסימת טעינה אמיתית כשקובצי הבטא אינם באותה גרסה', createdAt:'2026-07-29', items:[
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.58-beta';})) rows.unshift({
+        version:'6.58-beta', title:'חסימת טעינה אמיתית כשקובצי הבטא אינם באותה גרסה', createdAt:'2026-07-29', items:[
           'כל שלושת קובצי JavaScript נבדקים לפני שקוד האפליקציה מתחיל לרוץ.',
           'כאשר HTML או אחד מקובצי JavaScript שייכים לגרסה אחרת, המערכת נשארת חסומה ומציגה הודעת תחזוקה.',
           'כפתור הרענון מנקה Cache Storage ו-Service Workers ומבקש מחדש את קובצי הגרסה העדכנית.'
@@ -1399,7 +1451,7 @@ VERSION 6.56 BETA - STRICT WORKER LOGIN CACHE ISOLATION
 
       viewedWorker=worker;window.viewedWorker=worker;
       calendarDate=typeof initialCalendarDateV594==='function'?initialCalendarDateV594():new Date();
-      selectedDate=null;selectedType=null;monthEntries=[];window.workerAllEntriesV511=[];
+      selectedDate=(typeof formatDate==='function'?formatDate(calendarDate):null);selectedType=null;monthEntries=[];window.workerAllEntriesV511=[];
       try{if($('helloTitle'))text('helloTitle','שלום '+(worker.name||''));}catch(e){}
       try{if($('selfGoalMonth'))$('selfGoalMonth').value=currentCalendarMonthKeyV556();}catch(e){}
       try{if($('selfMonthlyGoal'))$('selfMonthlyGoal').value=getWorkerGoalForMonthV556();}catch(e){}
@@ -1451,8 +1503,8 @@ VERSION 6.56 BETA - STRICT WORKER LOGIN CACHE ISOLATION
   if(typeof oldRows==='function'&&!oldRows.__v656Wrapped){
     var wrapped=function(){
       var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){rows=[];}
-      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.56-beta';}))rows.unshift({
-        version:'6.56-beta',title:'בידוד מלא של נתוני עובדים בהחלפת משתמש',createdAt:'2026-07-29',items:[
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.58-beta';}))rows.unshift({
+        version:'6.58-beta',title:'תיקון פתיחה שקטה, בחירת היום ומחיקת מתוזמנות',createdAt:'2026-07-29',items:[
           'תהליך הכניסה משתמש תמיד ב-loadMonth העדכני ולא בהפניה ישנה שנשמרה בזמן טעינת הקבצים.',
           'לפני טעינת עובד חדש נמחקים מהזיכרון בלבד העבודות, הסכומים, לוח השנה ותוצאות החיפוש של העובד הקודם.',
           'מסך העובד נחשף רק לאחר שמזהה המטמון הפעיל תואם ל-workerId של המשתמש המחובר.',
