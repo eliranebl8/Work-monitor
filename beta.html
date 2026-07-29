@@ -1,4 +1,4 @@
-<!-- File version: 6.56-beta - worker-login cache isolation plus reliable asynchronous version guard; all beta files must match before app opens. -->
+<!-- File version: 6.58-beta - worker-login cache isolation plus reliable asynchronous version guard; all beta files must match before app opens. -->
 <!-- File version: 6.50 BETA - local workerDaysOff/installTemplates cache and synchronized soft delete; stable 6.33 untouched. -->
 <!DOCTYPE html
 <!-- File version: 5.89 - Chrome-stable SVG password visibility icons -->
@@ -8,13 +8,13 @@
 <meta charset="UTF-8"/>
 <!-- VERSION 6.52 BETA: block the application until HTML + all JavaScript files prove they are the same version. -->
 <style id="wmVersionGateStyleV652">
-  html.wm-version-checking body > *:not(#wmVersionGateV652){visibility:hidden!important;}
-  #wmVersionGateV652{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:24px;background:#f3f5f8;font-family:Arial,sans-serif;direction:rtl;text-align:center;visibility:visible!important;}
+  #wmVersionGateV652{position:fixed;inset:0;z-index:2147483647;display:none;align-items:center;justify-content:center;padding:24px;background:#f3f5f8;font-family:Arial,sans-serif;direction:rtl;text-align:center;visibility:visible!important;}
   #wmVersionGateV652 .wm-gate-card{width:min(520px,100%);background:#fff;border-radius:18px;padding:28px;box-shadow:0 12px 40px rgba(0,0,0,.16);}
   #wmVersionGateV652 h1{margin:0 0 12px;font-size:25px;color:#263238;}
   #wmVersionGateV652 p{margin:8px 0;color:#546e7a;line-height:1.55;}
   #wmVersionGateV652 .wm-gate-spinner{width:38px;height:38px;margin:0 auto 18px;border:4px solid #dfe5ea;border-top-color:#1976d2;border-radius:50%;animation:wmGateSpinV652 .8s linear infinite;}
   #wmVersionGateV652 button{display:none;margin:18px auto 0;border:0;border-radius:10px;padding:12px 22px;background:#1976d2;color:#fff;font-size:16px;font-weight:700;cursor:pointer;}
+  #wmVersionGateV652.wm-version-error{display:flex;}
   #wmVersionGateV652.wm-version-error button{display:block;}
   #wmVersionGateV652.wm-version-error .wm-gate-spinner{display:none;}
   @keyframes wmGateSpinV652{to{transform:rotate(360deg)}}
@@ -22,9 +22,9 @@
 <script>
 (function(){
   'use strict';
-  var EXPECTED='6.56-beta';
+  var EXPECTED='6.58-beta';
   var FILES=['functions1b.js','functions2b.js','functions3b.js'];
-  document.documentElement.classList.add('wm-version-checking');
+  /* v6.57: version gate stays invisible during a valid check; it appears only on a real mismatch. */
   window.WM_EXPECTED_BETA_VERSION=EXPECTED;
   window.WM_LOADED_FILE_VERSIONS=window.WM_LOADED_FILE_VERSIONS||{};
 
@@ -88,7 +88,6 @@
       finalDetails.allMatch=[finalDetails.html,finalDetails.functions1b,finalDetails.functions2b,finalDetails.functions3b,finalDetails.appVersion].every(function(v){return v===EXPECTED;});
       if(!finalDetails.allMatch)return showError(finalDetails);
       try{console.info('WORK_MONITOR_VERSION_MATCH',finalDetails);}catch(e){}
-      document.documentElement.classList.remove('wm-version-checking');
       var el=gate();if(el)el.remove();
       return true;
     }catch(err){
