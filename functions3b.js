@@ -1,4 +1,4 @@
-/* File version: 6.51-beta - synchronization stabilization fixes. */
+/* File version: 6.52-beta - cache/delta fixes for admin changelog, admin templates and cross-device settlement reports. */
 /* File version: 6.50 BETA - workerDaysOff/installTemplates IndexedDB delta sync and synchronized soft delete.
 Work Monitor app - JavaScript continuation file.
 File version: 6.50 BETA - priceList cache-first synchronization diagnostics and changelog support.
@@ -6,7 +6,7 @@ Loaded after functions1.js and functions2.js. New additive functionality belongs
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.51-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.52-beta";
 
 
 /*
@@ -683,7 +683,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.51-beta';
+  var EXPECTED='6.52-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -1171,4 +1171,132 @@ VERSION 6.51 BETA - QUIET BETA MODE + COMPLETE ADMIN CHANGELOG
     wrapped.__v651Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
   }
   try{window.wmTraceV617&&window.wmTraceV617('QUIET_BETA_V651_READY',{debug:(new URLSearchParams(location.search)).get('firebaseDebug')==='1'});}catch(e){}
+})();
+
+
+/* ============================================================================
+VERSION 6.52 BETA - CACHE/DELTA COMPLETION FOR CHANGELOG, TEMPLATES AND REPORTS
+- Admin templates render from the existing installTemplates IndexedDB/delta state.
+- Monthly settlement documents use a local IndexedDB cache and refresh only the
+  single workers/{workerId}/monthlySettlements/{YYYY-MM} document.
+- Missing changelog versions are written individually by admin and merged into
+  the local changelog cache; no full appChangelog download is introduced here.
+- Stable 6.33 remains untouched.
+============================================================================ */
+(function installCacheDeltaCompletionV652(){
+  'use strict';
+  var VERSION='6.52-beta';
+  function trace(name,data){try{window.wmTraceV617&&window.wmTraceV617(name,Object.assign({version:VERSION},data||{}));}catch(e){}}
+  function byId(id){return document.getElementById(id);}
+  function escV652(v){try{return typeof window.esc==='function'?window.esc(v):String(v||'');}catch(e){return String(v||'');}}
+  function currentWorkerId(){try{return String((window.viewedWorker&&viewedWorker.id)||'');}catch(e){return '';}}
+  function currentMonth(){var el=byId('settlementMonthV547');return String((el&&el.value)||'').slice(0,7);}
+
+  /* ---- tiny dedicated IndexedDB store for settlement documents ---- */
+  var DB_NAME='workMonitorAuxCacheV652',STORE='settlements',DB_VERSION=1,dbPromise=null;
+  function openDb(){
+    if(dbPromise)return dbPromise;
+    dbPromise=new Promise(function(resolve,reject){
+      try{
+        var req=indexedDB.open(DB_NAME,DB_VERSION);
+        req.onupgradeneeded=function(){var d=req.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'key'});};
+        req.onsuccess=function(){resolve(req.result);};req.onerror=function(){reject(req.error||new Error('IndexedDB open failed'));};
+      }catch(e){reject(e);}
+    });
+    return dbPromise;
+  }
+  async function cacheGet(key){try{var d=await openDb();return await new Promise(function(resolve,reject){var tx=d.transaction(STORE,'readonly'),r=tx.objectStore(STORE).get(key);r.onsuccess=function(){resolve(r.result||null);};r.onerror=function(){reject(r.error);};});}catch(e){trace('SETTLEMENT_CACHE_READ_ERROR',{error:String(e&&e.message||e)});return null;}}
+  async function cachePut(key,data){try{var d=await openDb();await new Promise(function(resolve,reject){var tx=d.transaction(STORE,'readwrite');tx.objectStore(STORE).put({key:key,data:data||{},savedAt:Date.now()});tx.oncomplete=function(){resolve();};tx.onerror=function(){reject(tx.error);};});trace('SETTLEMENT_CACHE_SAVE',{key:key});}catch(e){trace('SETTLEMENT_CACHE_SAVE_ERROR',{error:String(e&&e.message||e)});}}
+  function settlementKey(workerId,month){return 'settlement:'+String(workerId||'')+':'+String(month||'');}
+  function stampValue(v){if(!v)return 0;try{if(typeof v.toMillis==='function')return v.toMillis();if(v.seconds)return Number(v.seconds)*1000;return new Date(v).getTime()||0;}catch(e){return 0;}}
+  function applySettlementToVisibleForm(data,month){
+    try{
+      if(currentMonth()!==String(month||''))return;
+      data=data||{};
+      if(typeof setSettlementIncomeBreakdownV549==='function')setSettlementIncomeBreakdownV549(data);
+      var equipment=byId('settlementEquipmentV547'),fine=byId('settlementFineV547'),notes=byId('settlementNotesV547');
+      if(equipment)equipment.value=data.equipmentDeduction||'';
+      if(fine)fine.value=(data.fineDeduction!==undefined?data.fineDeduction:(data.fineAmount||''))||'';
+      if(notes)notes.value=data.notes||'';
+      if(typeof setSettlementDeductionsV547==='function')setSettlementDeductionsV547(data.deductions||[]);
+      if(typeof renderSettlementReportV547==='function')renderSettlementReportV547();
+      var msg=byId('settlementMsgV547');if(msg)msg.innerHTML="<div class='notice'>הדוח עודכן וסונכרן מהמכשיר השני ✅</div>";
+    }catch(e){trace('SETTLEMENT_REMOTE_APPLY_ERROR',{error:String(e&&e.message||e)});}
+  }
+
+  var originalReadSettlement=window.readSavedSettlementV548||(typeof readSavedSettlementV548==='function'?readSavedSettlementV548:null);
+  async function readSavedSettlementCachedV652(month){
+    var workerId=currentWorkerId(),m=String(month||'').slice(0,7),key=settlementKey(workerId,m);
+    if(!workerId||!m)return {exists:false,data:{},readError:null};
+    var cached=await cacheGet(key);
+    var cachedResult=cached?{exists:true,data:cached.data||{},readError:null,fromLocalCache:true}:{exists:false,data:{},readError:null};
+    var refresh=(async function(){
+      try{
+        var ref=db.collection('workers').doc(workerId).collection('monthlySettlements').doc(m);
+        var doc=await ref.get();
+        if(!doc.exists)return {exists:false,data:{},readError:null};
+        var remote=doc.data()||{},oldStamp=stampValue(cached&&cached.data&&cached.data.updatedAt),newStamp=stampValue(remote.updatedAt);
+        await cachePut(key,remote);
+        if(cached&&JSON.stringify(remote)!==JSON.stringify(cached.data||{})&&(newStamp>=oldStamp||!oldStamp))applySettlementToVisibleForm(remote,m);
+        trace('SETTLEMENT_SINGLE_DOC_SYNC',{workerId:workerId,month:m,changed:!cached||JSON.stringify(remote)!==JSON.stringify(cached.data||{})});
+        return {exists:true,data:remote,readError:null};
+      }catch(e){trace('SETTLEMENT_SINGLE_DOC_SYNC_ERROR',{workerId:workerId,month:m,error:String(e&&e.message||e)});return {exists:!!cached,data:(cached&&cached.data)||{},readError:e};}
+    })();
+    if(cached){refresh.catch(function(){});trace('SETTLEMENT_CACHE_HIT',{workerId:workerId,month:m});return cachedResult;}
+    trace('SETTLEMENT_CACHE_MISS',{workerId:workerId,month:m});return refresh;
+  }
+  window.readSavedSettlementV548=readSavedSettlementCachedV652;try{readSavedSettlementV548=readSavedSettlementCachedV652;}catch(e){}
+
+  var originalSaveSettlement=window.saveMonthlySettlementV547||(typeof saveMonthlySettlementV547==='function'?saveMonthlySettlementV547:null);
+  if(typeof originalSaveSettlement==='function'){
+    var saveWrapped=async function(){
+      var result=await originalSaveSettlement.apply(this,arguments),workerId=currentWorkerId(),m=currentMonth();
+      if(workerId&&m){
+        try{var doc=await db.collection('workers').doc(workerId).collection('monthlySettlements').doc(m).get();if(doc.exists)await cachePut(settlementKey(workerId,m),doc.data()||{});}catch(e){trace('SETTLEMENT_POST_SAVE_CACHE_ERROR',{error:String(e&&e.message||e)});}
+      }
+      return result;
+    };
+    window.saveMonthlySettlementV547=saveWrapped;try{saveMonthlySettlementV547=saveWrapped;}catch(e){}
+  }
+
+  /* ---- Admin templates: render from the already-active cache/delta loader ---- */
+  function renderAdminTemplatesV652(){
+    var rows=[];try{rows=(window.templates||templates||[]).filter(function(t){return t&&t.active!==false&&!t.isDeleted;});}catch(e){}
+    ['templatesAdmin','templatesAdminTop'].forEach(function(id){
+      var box=byId(id);if(!box)return;box.innerHTML=rows.length?'':"<p class='muted'>אין תבניות עדיין.</p>";
+      rows.forEach(function(t){var div=document.createElement('div');div.className='item';div.innerHTML='<div><div class="item-title">⚡ '+escV652(t.name||'')+'</div><div class="item-sub">'+(t.items||[]).map(function(i){return escV652(i.name||'')+' × '+Number(i.quantity||0);}).join('<br>')+'</div></div><div class="actions"><button class="btn-red" onclick="deleteTemplate(\''+String(t.id||'').replace(/'/g,"\\'")+'\')">מחק</button></div>';box.appendChild(div);});
+    });
+    trace('ADMIN_TEMPLATES_RENDER_FROM_CACHE',{count:rows.length});
+  }
+  window.loadTemplatesAdmin=async function(){
+    try{if(typeof window.loadTemplates==='function')await window.loadTemplates();else if(typeof loadTemplates==='function')await loadTemplates();}catch(e){trace('ADMIN_TEMPLATES_CACHE_LOAD_ERROR',{error:String(e&&e.message||e)});}
+    renderAdminTemplatesV652();return (window.templates||[]);
+  };
+  try{loadTemplatesAdmin=window.loadTemplatesAdmin;}catch(e){}
+
+  /* ---- Changelog: seed only missing documents and merge them into local cache ---- */
+  function isAdmin(){try{return !!(window.session&&session.role==='admin');}catch(e){return false;}}
+  function changelogId(v){return 'v_'+String(v||'').replace(/^v/i,'').replace(/[^0-9A-Za-z_\-.]/g,'_').replaceAll('.','_');}
+  function readLocalRows(){try{var x=JSON.parse(localStorage.getItem('wm_changelog_cache_v627')||'[]');return Array.isArray(x)?x:[];}catch(e){return [];}}
+  function writeLocalRows(rows){try{localStorage.setItem('wm_changelog_cache_v627',JSON.stringify(rows||[]));}catch(e){}}
+  async function ensureMissingChangelogV652(){
+    if(!isAdmin())return;
+    var required=[];try{required=(window.requiredChangelogRows||requiredChangelogRows)()||[];}catch(e){}
+    var local=readLocalRows(),map={};local.forEach(function(r){map[String(r.version||'')]=true;});
+    var missing=required.filter(function(r){return r&&r.version&&!map[String(r.version)];});
+    if(!missing.length){trace('CHANGELOG_DELTA_NO_MISSING',{localCount:local.length});return;}
+    var batch=db.batch();
+    missing.forEach(function(r,i){batch.set(db.collection('appChangelog').doc(changelogId(r.version)),{version:r.version,title:r.title||'',date:r.date||r.createdAt||'',items:r.items||[],active:r.active!==false,order:Number(r.order||((i+1)*10)),source:'admin-missing-delta-v6.52',seedVersion:VERSION,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:false});});
+    await batch.commit();
+    var merged=missing.concat(local).filter(function(r,index,arr){return arr.findIndex(function(x){return String(x.version||'')===String(r.version||'');})===index;});writeLocalRows(merged);
+    try{await db.doc('settings/changelogStatus').set({latestVersion:VERSION,revision:firebase.firestore.FieldValue.increment(1),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});}catch(e){}
+    trace('CHANGELOG_MISSING_DELTA_SEEDED',{count:missing.length,versions:missing.map(function(r){return r.version;})});
+  }
+  window.ensureMissingChangelogV652=ensureMissingChangelogV652;
+  var oldShowAdmin=window.showAdmin;
+  if(typeof oldShowAdmin==='function'&&!oldShowAdmin.__v652Wrapped){var showAdminV652=async function(){var r=await oldShowAdmin.apply(this,arguments);try{await ensureMissingChangelogV652();}catch(e){trace('CHANGELOG_MISSING_DELTA_ERROR',{error:String(e&&e.message||e)});}try{await window.loadTemplatesAdmin();}catch(e){}return r;};showAdminV652.__v652Wrapped=true;window.showAdmin=showAdminV652;try{showAdmin=showAdminV652;}catch(e){}}
+
+  var oldRows=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof oldRows==='function'&&!oldRows.__v652Wrapped){var wrapped=function(){var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){}if(!rows.some(function(r){return String(r.version||r.id||'')===VERSION;}))rows.unshift({version:VERSION,title:'השלמת Cache/Delta למה חדש, תבניות ודוחות',createdAt:'2026-07-29',items:['מסך התבניות באדמין מציג את נתוני installTemplates מתוך IndexedDB ומקבל בהמשך רק דלתאות createdAt/updatedAt.','דוח ההתחשבנות נשמר במטמון IndexedDB מקומי ומסתנכרן בין מכשירים באמצעות קריאה ממוקדת למסמך החודשי היחיד בלבד.','גרסאות חסרות במה חדש נכתבות על ידי האדמין כמסמכים חסרים בלבד ומתמזגות למטמון המקומי, בלי להוסיף הורדה מלאה חדשה של appChangelog.','היציבה 6.33 וכל יתר מנגנוני העבודה נשארו ללא שינוי.']});return rows;};wrapped.__v652Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){} }
+  trace('CACHE_DELTA_COMPLETION_V652_READY');
 })();
