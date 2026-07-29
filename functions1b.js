@@ -1,4 +1,4 @@
-/* File version: 6.52-beta - cache/delta fixes for admin changelog, admin templates and cross-device settlement reports. */
+/* File version: 6.53-beta - cache/delta fixes for admin changelog, admin templates and cross-device settlement reports. */
 /* File version: 6.50 BETA - version/changelog integration for local collection cache and synchronized soft delete.
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css, functions1.js, functions2.js and functions3.js to the same GitHub folder.
@@ -199,9 +199,9 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "6.52-beta";
+const APP_VERSION = "6.53-beta";
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions1b = "6.52-beta";
+window.WM_LOADED_FILE_VERSIONS.functions1b = "6.53-beta";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -6257,10 +6257,12 @@ async function logout(){
   window.__isLoggingOutV180 = true;
   try{ localStorage.removeItem("workSession"); }catch(e){}
   session = null;
+  try{ prepareWorkerContextSwitchV653('__logged_out__'); }catch(e){}
   viewedWorker = null;
   selectedDate = null;
   selectedType = null;
   monthEntries = [];
+  window.workerAllEntriesV511 = [];
   try{ clearLoginFields(); }catch(e){}
   try{ hideAll(); show("workerLoginView"); hide("logoutBtn"); text("userLine","לא מחובר"); clearLastLoginTopV518(); }catch(e){}
 
@@ -6290,8 +6292,52 @@ function renderStats(){
   if($("paceLine")) text("paceLine", goal ? (left<=0 ? "מעולה — היעד הושג." : `חסר ליעד: ${money(left)}.`) : "לא הוגדר יעד חודשי.");
 }
 
+// VERSION 6.53 BETA: מעבר בין עובדים חייב למחוק מיד את מצב העובד הקודם.
+// בלי הניקוי הזה, ה-UI עלול לצייר את נתוני העובד הקודם עד שהמטמון/דלתא של העובד החדש מסיימים להיטען.
+function prepareWorkerContextSwitchV653(nextWorkerId){
+  const nextId=String(nextWorkerId||'');
+  const previousId=viewedWorker&&viewedWorker.id?String(viewedWorker.id):'';
+  const cache=window.WM_DATA_CACHE_V604||null;
+  const cacheWorkerId=cache&&cache.workerId?String(cache.workerId):'';
+  if(!nextId || (previousId===nextId && (!cacheWorkerId || cacheWorkerId===nextId))) return false;
+
+  // עצירת כל listener של העובד הקודם לפני החלפת הזהות הפעילה.
+  try{ if(cache&&typeof cache.unsubscribe==='function') cache.unsubscribe(); }catch(e){ console.warn('v6.53 cache unsubscribe failed',e); }
+  try{ if(typeof window.stopHistoricalMonthListenerV631==='function') window.stopHistoricalMonthListenerV631('worker-switch-v6.53'); }catch(e){ console.warn('v6.53 historical listener stop failed',e); }
+
+  // ביטול כל טעינה ישנה וניקוי מוחלט של הנתונים בזיכרון בלבד. IndexedDB נשאר שמור בנפרד לכל עובד.
+  if(cache){
+    cache.unsubscribe=null;
+    cache.readyPromise=null;
+    cache.workerId='';
+    cache.cutoff='';
+    cache.entries=[];
+    cache.historicalMonths=Object.create(null);
+    cache.snapshotCount=0;
+    cache.historicalLoads=0;
+    cache.initialDocs=0;
+    cache.lastEvent='worker-context-reset-v6.53';
+  }
+  viewedWorker=null;
+  monthEntries=[];
+  window.workerAllEntriesV511=[];
+  selectedDate=null;
+  selectedType=null;
+
+  // אין מציגים אפילו לרגע כרטיסים/סכומים של העובד הקודם.
+  try{ if(typeof showWorkerLoading427==='function') showWorkerLoading427(); }catch(e){}
+  try{
+    ['monthTotal','dayTotal','goalTotal','leftTotal'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='—';});
+    var dayList=document.getElementById('dayEntries');if(dayList)dayList.innerHTML='';
+  }catch(e){}
+  try{ window.wmTraceV617&&window.wmTraceV617('WORKER_CONTEXT_RESET_V653',{previousWorkerId:previousId,cacheWorkerId:cacheWorkerId,nextWorkerId:nextId}); }catch(e){}
+  return true;
+}
+window.prepareWorkerContextSwitchV653=prepareWorkerContextSwitchV653;
+
 // פתיחת עובד מוגנת ממרוץ בין refresh/logout.
 async function showWorkerById(id){
+  prepareWorkerContextSwitchV653(id);
   const token = nextNavTokenV180();
   window.__isLoggingOutV180 = false;
   try{
