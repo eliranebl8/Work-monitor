@@ -1,4 +1,4 @@
-/* File version: 6.52-beta - cache/delta fixes for admin changelog, admin templates and cross-device settlement reports. */
+/* File version: 6.54-beta - cache/delta fixes for admin changelog, admin templates and cross-device settlement reports. */
 /* File version: 6.50 BETA - workerDaysOff/installTemplates IndexedDB delta sync and synchronized soft delete.
 Work Monitor app - JavaScript continuation file.
 File version: 6.50 BETA - priceList cache-first synchronization diagnostics and changelog support.
@@ -6,7 +6,7 @@ Loaded after functions1.js and functions2.js. New additive functionality belongs
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.52-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.54-beta";
 
 
 /*
@@ -683,7 +683,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.52-beta';
+  var EXPECTED='6.54-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -1175,7 +1175,7 @@ VERSION 6.51 BETA - QUIET BETA MODE + COMPLETE ADMIN CHANGELOG
 
 
 /* ============================================================================
-VERSION 6.52 BETA - CACHE/DELTA COMPLETION FOR CHANGELOG, TEMPLATES AND REPORTS
+VERSION 6.53 BETA - SAFE WORKER CONTEXT SWITCH + CACHE/DELTA COMPLETION
 - Admin templates render from the existing installTemplates IndexedDB/delta state.
 - Monthly settlement documents use a local IndexedDB cache and refresh only the
   single workers/{workerId}/monthlySettlements/{YYYY-MM} document.
@@ -1185,7 +1185,7 @@ VERSION 6.52 BETA - CACHE/DELTA COMPLETION FOR CHANGELOG, TEMPLATES AND REPORTS
 ============================================================================ */
 (function installCacheDeltaCompletionV652(){
   'use strict';
-  var VERSION='6.52-beta';
+  var VERSION='6.54-beta';
   function trace(name,data){try{window.wmTraceV617&&window.wmTraceV617(name,Object.assign({version:VERSION},data||{}));}catch(e){}}
   function byId(id){return document.getElementById(id);}
   function escV652(v){try{return typeof window.esc==='function'?window.esc(v):String(v||'');}catch(e){return String(v||'');}}
@@ -1286,7 +1286,7 @@ VERSION 6.52 BETA - CACHE/DELTA COMPLETION FOR CHANGELOG, TEMPLATES AND REPORTS
     var missing=required.filter(function(r){return r&&r.version&&!map[String(r.version)];});
     if(!missing.length){trace('CHANGELOG_DELTA_NO_MISSING',{localCount:local.length});return;}
     var batch=db.batch();
-    missing.forEach(function(r,i){batch.set(db.collection('appChangelog').doc(changelogId(r.version)),{version:r.version,title:r.title||'',date:r.date||r.createdAt||'',items:r.items||[],active:r.active!==false,order:Number(r.order||((i+1)*10)),source:'admin-missing-delta-v6.52',seedVersion:VERSION,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:false});});
+    missing.forEach(function(r,i){batch.set(db.collection('appChangelog').doc(changelogId(r.version)),{version:r.version,title:r.title||'',date:r.date||r.createdAt||'',items:r.items||[],active:r.active!==false,order:Number(r.order||((i+1)*10)),source:'admin-missing-delta-v6.53',seedVersion:VERSION,createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:false});});
     await batch.commit();
     var merged=missing.concat(local).filter(function(r,index,arr){return arr.findIndex(function(x){return String(x.version||'')===String(r.version||'');})===index;});writeLocalRows(merged);
     try{await db.doc('settings/changelogStatus').set({latestVersion:VERSION,revision:firebase.firestore.FieldValue.increment(1),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});}catch(e){}
@@ -1297,6 +1297,30 @@ VERSION 6.52 BETA - CACHE/DELTA COMPLETION FOR CHANGELOG, TEMPLATES AND REPORTS
   if(typeof oldShowAdmin==='function'&&!oldShowAdmin.__v652Wrapped){var showAdminV652=async function(){var r=await oldShowAdmin.apply(this,arguments);try{await ensureMissingChangelogV652();}catch(e){trace('CHANGELOG_MISSING_DELTA_ERROR',{error:String(e&&e.message||e)});}try{await window.loadTemplatesAdmin();}catch(e){}return r;};showAdminV652.__v652Wrapped=true;window.showAdmin=showAdminV652;try{showAdmin=showAdminV652;}catch(e){}}
 
   var oldRows=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
-  if(typeof oldRows==='function'&&!oldRows.__v652Wrapped){var wrapped=function(){var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){}if(!rows.some(function(r){return String(r.version||r.id||'')===VERSION;}))rows.unshift({version:VERSION,title:'השלמת Cache/Delta למה חדש, תבניות ודוחות',createdAt:'2026-07-29',items:['מסך התבניות באדמין מציג את נתוני installTemplates מתוך IndexedDB ומקבל בהמשך רק דלתאות createdAt/updatedAt.','דוח ההתחשבנות נשמר במטמון IndexedDB מקומי ומסתנכרן בין מכשירים באמצעות קריאה ממוקדת למסמך החודשי היחיד בלבד.','גרסאות חסרות במה חדש נכתבות על ידי האדמין כמסמכים חסרים בלבד ומתמזגות למטמון המקומי, בלי להוסיף הורדה מלאה חדשה של appChangelog.','היציבה 6.33 וכל יתר מנגנוני העבודה נשארו ללא שינוי.']});return rows;};wrapped.__v652Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){} }
+  if(typeof oldRows==='function'&&!oldRows.__v652Wrapped){var wrapped=function(){var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){}if(!rows.some(function(r){return String(r.version||r.id||'')===VERSION;}))rows.unshift({version:VERSION,title:'מעבר בטוח בין עובדים וסנכרון Cache/Delta',createdAt:'2026-07-29',items:['במעבר בין משתמשים נעצרים מיד מאזיני העובד הקודם ונמחקים מהזיכרון לוח השנה, הסכומים והעבודות שלו לפני טעינת העובד החדש.','IndexedDB נשאר מופרד לפי workerId, ולכן כל עובד נטען מהמטמון האישי שלו וממשיך לקבל דלתאות בלבד.','מסך התבניות באדמין מציג את נתוני installTemplates מתוך IndexedDB ומקבל בהמשך רק דלתאות createdAt/updatedAt.','דוח ההתחשבנות נשמר במטמון IndexedDB מקומי ומסתנכרן בין מכשירים באמצעות קריאה ממוקדת למסמך החודשי היחיד בלבד.','גרסאות חסרות במה חדש נכתבות כמסמכים חסרים בלבד ומתמזגות למטמון המקומי.','היציבה 6.33 נשארה ללא שינוי.']});return rows;};wrapped.__v652Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){} }
   trace('CACHE_DELTA_COMPLETION_V652_READY');
+})();
+
+
+/* VERSION 6.54 BETA - PRE-EXECUTION MIXED-FILE GUARD
+   The HTML verifies all three JavaScript source files before executing any app code.
+   If one file is missing or has another version, the app remains blocked behind maintenance mode. */
+(function addRequiredChangelogV654(){
+  function install(){
+    var old=window.requiredChangelogRows;
+    if(typeof old!=='function'||old.__v654Wrapped)return;
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.54-beta';})) rows.unshift({
+        version:'6.54-beta', title:'חסימת טעינה אמיתית כשקובצי הבטא אינם באותה גרסה', createdAt:'2026-07-29', items:[
+          'כל שלושת קובצי JavaScript נבדקים לפני שקוד האפליקציה מתחיל לרוץ.',
+          'כאשר HTML או אחד מקובצי JavaScript שייכים לגרסה אחרת, המערכת נשארת חסומה ומציגה הודעת תחזוקה.',
+          'כפתור הרענון מנקה Cache Storage ו-Service Workers ומבקש מחדש את קובצי הגרסה העדכנית.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v654Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  install();setTimeout(install,0);
 })();
