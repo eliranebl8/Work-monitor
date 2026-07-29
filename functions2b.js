@@ -1,4 +1,4 @@
-/* File version: 6.55-beta - reliable asynchronous pre-execution version guard; existing cache/delta and worker-switch fixes retained. */
+/* File version: 6.56-beta - worker-login cache isolation; current loadMonth is resolved dynamically and stale worker data is blocked. */
 /* File version: 6.50 BETA - existing runtime logic retained; soft-delete/cache integration loaded from functions3b.js.
 Work Monitor app - JavaScript extensions and future changes.
 File version: 6.50 BETA - workEntries delta sync retained while priceList cache-first sync is added; stable files untouched.
@@ -12,7 +12,7 @@ CHANGELOG 6.01 - פיצול קובץ JavaScript
 4. index.html טוען את functions1.js ולאחריו את functions2.js לפי סדר התלויות.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions2b = "6.55-beta";
+window.WM_LOADED_FILE_VERSIONS.functions2b = "6.56-beta";
 
 
 (function(){
