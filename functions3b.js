@@ -1,4 +1,4 @@
-/* File version: 6.59-beta - worker-login cache isolation; current loadMonth is resolved dynamically and stale worker data is blocked. */
+/* File version: 6.60-beta - bounded cache cleanup, locked reset flow and guaranteed worker-login binding. */
 /* File version: 6.50 BETA - workerDaysOff/installTemplates IndexedDB delta sync and synchronized soft delete.
 Work Monitor app - JavaScript continuation file.
 File version: 6.50 BETA - priceList cache-first synchronization diagnostics and changelog support.
@@ -6,7 +6,7 @@ Loaded after functions1.js and functions2.js. New additive functionality belongs
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.59-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.60-beta";
 
 
 /*
@@ -683,7 +683,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.59-beta';
+  var EXPECTED='6.60-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -1539,5 +1539,171 @@ VERSION 6.56 BETA - STRICT WORKER LOGIN CACHE ISOLATION
     wrapped.__v659DeleteRoute=true;
     window.requiredChangelogRows=wrapped;
     try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+})();
+
+
+/*
+===============================================================================
+VERSION 6.60 BETA - CACHE RESET RECOVERY AND GUARANTEED WORKER LOGIN
+-------------------------------------------------------------------------------
+1. Worker login is bound with a real DOM listener and no longer depends on an
+   inline onclick global lookup that may silently fail after a cache reset.
+2. Every login stage is written to Firebase Audit, including missing runtime
+   dependencies and synchronous errors before the first Firebase operation.
+3. Cache cleanup has bounded timeouts for database enumeration/deletion and
+   continues safely when Chrome reports a blocked IndexedDB connection.
+4. The interface is locked during cleanup so logout or a second cleanup cannot
+   race against Firestore termination and IndexedDB deletion.
+5. Data-cache cleanup preserves Firebase Auth; full local reset signs out.
+===============================================================================
+*/
+(function installCacheResetAndLoginRecoveryV660(){
+  'use strict';
+  if(window.__wmCacheResetAndLoginRecoveryV660)return;
+  window.__wmCacheResetAndLoginRecoveryV660=true;
+
+  function trace(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
+  function errText(e){return String(e&&((e.code?e.code+': ':'')+(e.message||''))||e||'unknown error');}
+  function timeout(promise,ms,label,fallback){
+    return Promise.race([
+      Promise.resolve(promise),
+      new Promise(function(resolve){setTimeout(function(){trace('ADMIN_CACHE_TIMEOUT_V660',{stage:label,timeoutMs:ms});resolve(fallback);},ms);})
+    ]);
+  }
+  function setBusy(busy,message){
+    window.__wmAdminCacheBusyV660=!!busy;
+    document.documentElement.classList.toggle('wm-cache-reset-busy-v660',!!busy);
+    var ids=['clearAdminDataCacheBtnV660','fullAdminLocalResetBtnV660','logoutBtn'];
+    ids.forEach(function(id){var el=document.getElementById(id);if(el)el.disabled=!!busy;});
+    var msg=document.getElementById('adminLocalCacheMsgV644');
+    if(msg&&message)msg.textContent=message;
+    var overlay=document.getElementById('wmCacheResetOverlayV660');
+    if(busy&&!overlay){
+      overlay=document.createElement('div');overlay.id='wmCacheResetOverlayV660';
+      overlay.style.cssText='position:fixed;inset:0;z-index:2147483646;background:rgba(15,23,42,.72);display:flex;align-items:center;justify-content:center;padding:24px;direction:rtl;font-family:Arial,sans-serif';
+      overlay.innerHTML='<div style="background:#fff;border-radius:16px;padding:24px;max-width:420px;width:100%;text-align:center;box-shadow:0 16px 45px rgba(0,0,0,.35)"><div style="font-size:34px;margin-bottom:10px">🧹</div><strong style="font-size:19px">'+String(message||'מנקה מטמון מקומי...')+'</strong><p style="color:#64748b;margin:10px 0 0">אין לסגור את החלון או ללחוץ על כפתורים עד לטעינה מחדש.</p></div>';
+      document.body.appendChild(overlay);
+    }else if(!busy&&overlay){overlay.remove();}
+  }
+  async function closeKnownDatabases(){
+    var closers=[];
+    try{if(window.WM_BETA_LOCAL_CACHE_V635&&typeof window.WM_BETA_LOCAL_CACHE_V635.closeDatabase==='function')closers.push(window.WM_BETA_LOCAL_CACHE_V635.closeDatabase());}catch(e){trace('ADMIN_CACHE_INDEXEDDB_CLOSE_ERROR_V660',{error:errText(e)});}
+    try{if(window.WM_LOCAL_COLLECTION_CACHE_V648&&typeof window.WM_LOCAL_COLLECTION_CACHE_V648.closeDatabase==='function')closers.push(window.WM_LOCAL_COLLECTION_CACHE_V648.closeDatabase());}catch(e){trace('ADMIN_CACHE_INDEXEDDB_CLOSE_ERROR_V660',{error:errText(e)});}
+    await timeout(Promise.allSettled(closers),2500,'close-known-databases',[]);
+  }
+  async function databaseNames(){
+    var rows=[];
+    try{
+      if(indexedDB&&typeof indexedDB.databases==='function')rows=await timeout(indexedDB.databases(),2500,'indexeddb-databases',[]);
+    }catch(e){trace('ADMIN_CACHE_INDEXEDDB_ENUM_ERROR_V660',{error:errText(e)});}
+    var names=(Array.isArray(rows)?rows:[]).map(function(x){return x&&x.name;}).filter(Boolean);
+    ['work_monitor_beta_cache','work-monitor-beta-cache-v635','firebaseLocalStorageDb'].forEach(function(n){if(names.indexOf(n)<0)names.push(n);});
+    return names.filter(function(n){return /work.?monitor|firestore|firebase/i.test(String(n||''));});
+  }
+  function deleteDb(name){
+    return new Promise(function(resolve){
+      var done=false;
+      function finish(result){if(done)return;done=true;resolve(result);}
+      try{
+        var req=indexedDB.deleteDatabase(name);
+        req.onsuccess=function(){finish({name:name,deleted:true});};
+        req.onerror=function(){finish({name:name,deleted:false,error:errText(req.error)});};
+        req.onblocked=function(){trace('ADMIN_CACHE_INDEXEDDB_BLOCKED_V660',{name:name});};
+        setTimeout(function(){finish({name:name,deleted:false,timeout:true});},3500);
+      }catch(e){finish({name:name,deleted:false,error:errText(e)});}
+    });
+  }
+  async function clearIndexedDb(){
+    trace('ADMIN_CACHE_INDEXEDDB_START_V660',{});
+    await closeKnownDatabases();
+    var names=await databaseNames(),results=[];
+    for(var i=0;i<names.length;i++)results.push(await deleteDb(names[i]));
+    trace('ADMIN_CACHE_INDEXEDDB_DONE_V660',{targets:names,results:results});
+    return results;
+  }
+  async function clearCacheStorage(){
+    var deleted=[];trace('ADMIN_CACHE_STORAGE_START_V660',{});
+    try{var keys=window.caches?await timeout(caches.keys(),2500,'cache-storage-keys',[]):[];for(var i=0;i<keys.length;i++)if(await timeout(caches.delete(keys[i]),2000,'cache-delete-'+keys[i],false))deleted.push(keys[i]);}
+    catch(e){trace('ADMIN_CACHE_STORAGE_ERROR_V660',{error:errText(e)});}
+    trace('ADMIN_CACHE_STORAGE_DONE_V660',{deleted:deleted});return deleted;
+  }
+  async function stopFirestore(){
+    trace('ADMIN_CACHE_FIRESTORE_STOP_START_V660',{});
+    try{if(window.db&&typeof db.disableNetwork==='function')await timeout(db.disableNetwork(),2500,'firestore-disable-network',null);}catch(e){trace('ADMIN_CACHE_FIRESTORE_DISABLE_ERROR_V660',{error:errText(e)});}
+    try{if(window.db&&typeof db.terminate==='function')await timeout(db.terminate(),3500,'firestore-terminate',null);}catch(e){trace('ADMIN_CACHE_FIRESTORE_STOP_ERROR_V660',{error:errText(e)});}
+    trace('ADMIN_CACHE_FIRESTORE_STOP_DONE_V660',{});
+  }
+  function reloadFresh(mode){
+    var u=new URL(location.href);u.searchParams.set('cacheReset',String(Date.now()));u.searchParams.set('resetMode',mode);location.replace(u.toString());
+  }
+  async function runReset(mode){
+    if(window.__wmAdminCacheBusyV660)return;
+    var full=mode==='full-local-reset';
+    var question=full?'האיפוס ימחק את כל המטמון המקומי, localStorage ו-sessionStorage וינתק מהחשבון. הנתונים ב-Firebase לא יימחקו. להמשיך?':'הפעולה תמחק רק מטמוני נתונים מקומיים ותשמור את ההתחברות. הנתונים ב-Firebase לא יימחקו. להמשיך?';
+    if(!window.confirm(question))return;
+    setBusy(true,full?'מבצע איפוס מקומי מלא...':'מנקה מטמון נתונים...');
+    trace('ADMIN_CACHE_CLEAR_START_V660',{mode:mode});
+    try{
+      if(full){try{if(window.auth&&typeof auth.signOut==='function')await timeout(auth.signOut(),3000,'auth-signout',null);}catch(e){trace('ADMIN_CACHE_AUTH_SIGNOUT_ERROR_V660',{error:errText(e)});}}
+      await stopFirestore();
+      await clearIndexedDb();
+      await clearCacheStorage();
+      if(full){try{localStorage.clear();}catch(e){}try{sessionStorage.clear();}catch(e){}}
+      trace('ADMIN_CACHE_CLEAR_DONE_V660',{mode:mode});
+      reloadFresh(mode);
+    }catch(e){
+      trace('ADMIN_CACHE_CLEAR_ERROR_V660',{mode:mode,error:errText(e)});
+      setBusy(false,'ניקוי המטמון נכשל: '+errText(e));
+    }
+  }
+  window.clearAdminDataCacheV660=function(){return runReset('data-cache');};
+  window.fullAdminLocalResetV660=function(){return runReset('full-local-reset');};
+
+  function bindWorkerLogin(){
+    var btn=document.getElementById('workerLoginBtnV660')||document.querySelector('#workerLoginView button.btn-green');
+    if(!btn){trace('WORKER_LOGIN_BIND_MISSING_V660',{});return;}
+    if(btn.__wmBoundV660)return;
+    btn.__wmBoundV660=true;btn.removeAttribute('onclick');
+    btn.addEventListener('click',async function(ev){
+      ev.preventDefault();ev.stopPropagation();
+      var username=(document.getElementById('workerUsername')||{}).value||'';
+      trace('WORKER_LOGIN_CLICK_V660',{usernamePresent:!!String(username).trim(),passwordPresent:!!((document.getElementById('workerPassword')||{}).value)});
+      var fn=window.workerLogin;
+      if(typeof fn!=='function'){
+        trace('WORKER_LOGIN_FUNCTION_MISSING_V660',{type:typeof fn});
+        var msg=document.getElementById('workerLoginMsg');if(msg)msg.textContent='מנגנון הכניסה לא נטען. יש לרענן את הדף.';return;
+      }
+      btn.disabled=true;
+      try{
+        trace('WORKER_LOGIN_FUNCTION_START_V660',{authAvailable:!!window.auth,dbAvailable:!!window.db,firebaseAvailable:!!window.firebase});
+        await fn.call(window);
+        trace('WORKER_LOGIN_FUNCTION_DONE_V660',{role:window.session&&window.session.role||'',workerId:window.session&&window.session.workerId||''});
+      }catch(e){
+        trace('WORKER_LOGIN_FUNCTION_ERROR_V660',{error:errText(e),stack:String(e&&e.stack||'').slice(0,1000)});
+        var msg2=document.getElementById('workerLoginMsg');if(msg2)msg2.textContent='שגיאה בכניסה: '+errText(e);
+      }finally{btn.disabled=false;}
+    },true);
+    ['workerUsername','workerPassword'].forEach(function(id){var el=document.getElementById(id);if(el&&!el.__wmEnterV660){el.__wmEnterV660=true;el.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();btn.click();}});}});
+    trace('WORKER_LOGIN_BOUND_V660',{buttonId:btn.id||''});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(bindWorkerLogin,0);});else setTimeout(bindWorkerLogin,0);
+  window.addEventListener('pageshow',function(){setTimeout(bindWorkerLogin,0);});
+
+  var previous=window.requiredChangelogRows;
+  if(typeof previous==='function'&&!previous.__v660CacheLogin){
+    var wrapped=function(){
+      var rows=previous.apply(this,arguments)||[];
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.60-beta';}))rows.unshift({
+        version:'6.60-beta',title:'תיקון כניסה אחרי ניקוי מטמון',createdAt:'2026-07-30',items:[
+          'כפתור כניסת העובד מחובר כעת באמצעות מאזין DOM יציב ואינו תלוי ב-onclick הישן.',
+          'נוספו אירועי Audit לכל שלב בלחיצה ובפונקציית הכניסה, עוד לפני הקריאה הראשונה ל-Firebase.',
+          'ניקוי IndexedDB קיבל זמני קצוב, טיפול בחסימה וסגירת חיבורים ידועים כדי שלא ייתקע באמצע.',
+          'הממשק ננעל בזמן ניקוי כדי למנוע התנתקות או לחיצה כפולה בזמן ש-Firestore נסגר.',
+          'ניקוי מטמון נתונים שומר את Auth; איפוס מקומי מלא מנתק ומוחק גם localStorage ו-sessionStorage.'
+        ]
+      });return rows;
+    };
+    wrapped.__v660CacheLogin=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
   }
 })();
