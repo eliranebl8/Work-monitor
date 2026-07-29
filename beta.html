@@ -1,4 +1,4 @@
-<!-- File version: 6.51-beta -->
+<!-- File version: 6.52-beta - strict mixed-file startup guard; all beta files must match before app opens. -->
 <!-- File version: 6.50 BETA - local workerDaysOff/installTemplates cache and synchronized soft delete; stable 6.33 untouched. -->
 <!DOCTYPE html
 <!-- File version: 5.89 - Chrome-stable SVG password visibility icons -->
@@ -6,6 +6,43 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8"/>
+<!-- VERSION 6.52 BETA: block the application until HTML + all JavaScript files prove they are the same version. -->
+<style id="wmVersionGateStyleV652">
+  html.wm-version-checking body > *:not(#wmVersionGateV652){visibility:hidden!important;}
+  #wmVersionGateV652{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:24px;background:#f3f5f8;font-family:Arial,sans-serif;direction:rtl;text-align:center;visibility:visible!important;}
+  #wmVersionGateV652 .wm-gate-card{width:min(520px,100%);background:#fff;border-radius:18px;padding:28px;box-shadow:0 12px 40px rgba(0,0,0,.16);}
+  #wmVersionGateV652 h1{margin:0 0 12px;font-size:25px;color:#263238;}
+  #wmVersionGateV652 p{margin:8px 0;color:#546e7a;line-height:1.55;}
+  #wmVersionGateV652 .wm-gate-spinner{width:38px;height:38px;margin:0 auto 18px;border:4px solid #dfe5ea;border-top-color:#1976d2;border-radius:50%;animation:wmGateSpinV652 .8s linear infinite;}
+  #wmVersionGateV652 button{display:none;margin:18px auto 0;border:0;border-radius:10px;padding:12px 22px;background:#1976d2;color:#fff;font-size:16px;font-weight:700;cursor:pointer;}
+  #wmVersionGateV652.wm-version-error button{display:block;}
+  #wmVersionGateV652.wm-version-error .wm-gate-spinner{display:none;}
+  @keyframes wmGateSpinV652{to{transform:rotate(360deg)}}
+</style>
+<script>
+(function(){
+  'use strict';
+  var EXPECTED='6.52-beta';
+  document.documentElement.classList.add('wm-version-checking');
+  window.WM_EXPECTED_BETA_VERSION=EXPECTED;
+  window.WM_LOADED_FILE_VERSIONS=window.WM_LOADED_FILE_VERSIONS||{};
+  window.WM_FORCE_FRESH_RELOAD_V652=async function(){
+    try{if('caches' in window){var names=await caches.keys();await Promise.all(names.map(function(n){return caches.delete(n);}));}}catch(e){}
+    try{if(navigator.serviceWorker){var regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(function(r){return r.unregister();}));}}catch(e){}
+    var u=new URL(location.href);u.searchParams.set('_fresh',Date.now());location.replace(u.toString());
+  };
+  window.WM_VERIFY_BETA_FILES_V652=function(){
+    var v=window.WM_LOADED_FILE_VERSIONS||{};
+    var actual={html:v.html,functions1b:v.functions1b,functions2b:v.functions2b,functions3b:v.functions3b,appVersion:window.APP_VERSION};
+    var ok=Object.keys(actual).every(function(k){return String(actual[k]||'MISSING')===EXPECTED;});
+    var gate=document.getElementById('wmVersionGateV652');
+    if(ok){document.documentElement.classList.remove('wm-version-checking');if(gate)gate.remove();return true;}
+    if(gate){gate.classList.add('wm-version-error');var title=gate.querySelector('h1'),text=gate.querySelector('[data-gate-text]');if(title)title.textContent='המערכת נמצאת בתחזוקה';if(text)text.textContent='נטענו קבצים מגרסאות שונות. כדי למנוע שגיאות, האפליקציה נעצרה עד שכל קובצי גרסה '+EXPECTED+' ייטענו יחד.';}
+    try{console.error('WORK_MONITOR_VERSION_MISMATCH',{expected:EXPECTED,actual:actual});}catch(e){}
+    return false;
+  };
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>מעקב עבודה</title>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -903,11 +940,12 @@
 
 <script>
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.html = "6.51-beta";
+window.WM_LOADED_FILE_VERSIONS.html = "6.52-beta";
 </script>
-<script src="./functions1b.js?v=6.51-beta"></script>
-<script src="./functions2b.js?v=6.51-beta"></script>
-<script src="./functions3b.js?v=6.51-beta"></script>
+<script src="./functions1b.js?v=6.52-beta"></script>
+<script src="./functions2b.js?v=6.52-beta"></script>
+<script src="./functions3b.js?v=6.52-beta"></script>
+<script>window.WM_VERIFY_BETA_FILES_V652&&window.WM_VERIFY_BETA_FILES_V652();</script>
 </body>
 
 
