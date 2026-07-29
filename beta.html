@@ -1,4 +1,4 @@
-<!-- File version: 6.53-beta - strict mixed-file startup guard; all beta files must match before app opens. -->
+<!-- File version: 6.54-beta - strict mixed-file startup guard; all beta files must match before app opens. -->
 <!-- File version: 6.50 BETA - local workerDaysOff/installTemplates cache and synchronized soft delete; stable 6.33 untouched. -->
 <!DOCTYPE html
 <!-- File version: 5.89 - Chrome-stable SVG password visibility icons -->
@@ -22,24 +22,52 @@
 <script>
 (function(){
   'use strict';
-  var EXPECTED='6.53-beta';
+  var EXPECTED='6.54-beta';
+  var FILES=['functions1b.js','functions2b.js','functions3b.js'];
   document.documentElement.classList.add('wm-version-checking');
   window.WM_EXPECTED_BETA_VERSION=EXPECTED;
   window.WM_LOADED_FILE_VERSIONS=window.WM_LOADED_FILE_VERSIONS||{};
+  function gate(){return document.getElementById('wmVersionGateV652');}
+  function showError(details){
+    var el=gate();
+    if(el){el.classList.add('wm-version-error');var h=el.querySelector('h1'),t=el.querySelector('[data-gate-text]');if(h)h.textContent='המערכת נמצאת בתחזוקה';if(t)t.textContent='נטענו קבצים מגרסאות שונות או שקובץ חדש עדיין לא הגיע לשרת. האפליקציה נעצרה כדי למנוע הצגת נתונים שגויים. לחץ על רענון בעוד מספר דקות.';}
+    try{console.error('WORK_MONITOR_VERSION_MISMATCH',details||{});}catch(e){}
+    return false;
+  }
   window.WM_FORCE_FRESH_RELOAD_V652=async function(){
     try{if('caches' in window){var names=await caches.keys();await Promise.all(names.map(function(n){return caches.delete(n);}));}}catch(e){}
     try{if(navigator.serviceWorker){var regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(function(r){return r.unregister();}));}}catch(e){}
     var u=new URL(location.href);u.searchParams.set('_fresh',Date.now());location.replace(u.toString());
   };
-  window.WM_VERIFY_BETA_FILES_V652=function(){
+  function sourceVersion(file,text){
+    var key=file.replace('.js','');
+    var rx=new RegExp('WM_LOADED_FILE_VERSIONS\\.'+key+'\\s*=\\s*["\\\']([^"\\\']+)["\\\']');
+    var m=text.match(rx);return m&&m[1]||'MISSING';
+  }
+  window.WM_PREFLIGHT_AND_LOAD_BETA=function(){
+    var token=Date.now(), details={html:EXPECTED,expected:EXPECTED}, urls=[];
+    try{
+      for(var i=0;i<FILES.length;i++){
+        var file=FILES[i],url='./'+file+'?versionCheck='+encodeURIComponent(EXPECTED)+'&t='+token;
+        var xhr=new XMLHttpRequest();xhr.open('GET',url,false);xhr.setRequestHeader('Cache-Control','no-cache');xhr.send(null);
+        if(xhr.status<200||xhr.status>=300)throw new Error(file+' HTTP '+xhr.status);
+        details[file.replace('.js','')]=sourceVersion(file,xhr.responseText||'');urls.push(url);
+        if(file==='functions1b.js'){var m=(xhr.responseText||'').match(/const\s+APP_VERSION\s*=\s*["']([^"']+)["']/);details.appVersion=m&&m[1]||'MISSING';}
+      }
+      details.allMatch=[details.html,details.functions1b,details.functions2b,details.functions3b,details.appVersion].every(function(v){return v===EXPECTED;});
+      if(!details.allMatch)return showError(details);
+      window.WM_LOADED_FILE_VERSIONS.html=EXPECTED;
+      for(var j=0;j<urls.length;j++)document.write('<script src="'+urls[j].replace(/&/g,'&amp;')+'"><\\/script>');
+      document.write('<script>window.WM_FINISH_BETA_VERSION_GATE&&window.WM_FINISH_BETA_VERSION_GATE();<\\/script>');
+      return true;
+    }catch(err){details.error=String(err&&err.message||err);return showError(details);}
+  };
+  window.WM_FINISH_BETA_VERSION_GATE=function(){
     var v=window.WM_LOADED_FILE_VERSIONS||{};
-    var actual={html:v.html,functions1b:v.functions1b,functions2b:v.functions2b,functions3b:v.functions3b,appVersion:window.APP_VERSION};
-    var ok=Object.keys(actual).every(function(k){return String(actual[k]||'MISSING')===EXPECTED;});
-    var gate=document.getElementById('wmVersionGateV652');
-    if(ok){document.documentElement.classList.remove('wm-version-checking');if(gate)gate.remove();return true;}
-    if(gate){gate.classList.add('wm-version-error');var title=gate.querySelector('h1'),text=gate.querySelector('[data-gate-text]');if(title)title.textContent='המערכת נמצאת בתחזוקה';if(text)text.textContent='נטענו קבצים מגרסאות שונות. כדי למנוע שגיאות, האפליקציה נעצרה עד שכל קובצי גרסה '+EXPECTED+' ייטענו יחד.';}
-    try{console.error('WORK_MONITOR_VERSION_MISMATCH',{expected:EXPECTED,actual:actual});}catch(e){}
-    return false;
+    var d={html:v.html,functions1b:v.functions1b,functions2b:v.functions2b,functions3b:v.functions3b,appVersion:window.APP_VERSION,expected:EXPECTED};
+    d.allMatch=[d.html,d.functions1b,d.functions2b,d.functions3b,d.appVersion].every(function(x){return x===EXPECTED;});
+    if(!d.allMatch)return showError(d);
+    document.documentElement.classList.remove('wm-version-checking');var el=gate();if(el)el.remove();return true;
   };
 })();
 </script>
@@ -86,6 +114,14 @@
 <link rel="stylesheet" href="./styles.css"/>
 </head>
 <body class="app-booting-v433 app-booting-v434">
+<div id="wmVersionGateV652" role="alert" aria-live="assertive">
+  <div class="wm-gate-card">
+    <div class="wm-gate-spinner" aria-hidden="true"></div>
+    <h1>בודק את גרסת המערכת</h1>
+    <p data-gate-text>מוודא שכל קובצי האפליקציה שייכים לאותה גרסה לפני פתיחת המערכת.</p>
+    <button type="button" onclick="WM_FORCE_FRESH_RELOAD_V652()">רענון והורדת הגרסה החדשה</button>
+  </div>
+</div>
 <div class="app">
 <div class="top"><div class="brand"><div class="logo">₪</div><div>מעקב עבודה<br><span id="userLine" class="muted" style="font-size:13px">טוען נתונים</span><div class="app-version-mini" title="גרסת האפליקציה">v<span data-app-version></span></div><div id="lastLoginLineV518" class="last-login-line-v518 hidden"></div></div></div><button id="logoutBtn" class="btn-light hidden" onclick="logout()">יציאה</button></div>
 
@@ -938,14 +974,7 @@
   </div>
 </div>
 
-<script>
-window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.html = "6.53-beta";
-</script>
-<script src="./functions1b.js?v=6.53-beta"></script>
-<script src="./functions2b.js?v=6.53-beta"></script>
-<script src="./functions3b.js?v=6.53-beta"></script>
-<script>window.WM_VERIFY_BETA_FILES_V652&&window.WM_VERIFY_BETA_FILES_V652();</script>
+<script>window.WM_PREFLIGHT_AND_LOAD_BETA&&window.WM_PREFLIGHT_AND_LOAD_BETA();</script>
 </body>
 
 
