@@ -1,4 +1,4 @@
-<!-- File version: 6.59-beta - worker-login cache isolation plus reliable asynchronous version guard; all beta files must match before app opens. -->
+<!-- File version: 6.60-beta - reliable worker login after cache reset, bounded cache cleanup and full diagnostics. -->
 <!-- File version: 6.50 BETA - local workerDaysOff/installTemplates cache and synchronized soft delete; stable 6.33 untouched. -->
 <!DOCTYPE html
 <!-- File version: 5.89 - Chrome-stable SVG password visibility icons -->
@@ -22,7 +22,7 @@
 <script>
 (function(){
   'use strict';
-  var EXPECTED='6.59-beta';
+  var EXPECTED='6.60-beta';
   var FILES=['functions1b.js','functions2b.js','functions3b.js'];
   /* v6.57: version gate stays invisible during a valid check; it appears only on a real mismatch. */
   window.WM_EXPECTED_BETA_VERSION=EXPECTED;
@@ -167,7 +167,7 @@
 <h1 class="big-title">כניסת עובד</h1><p style="text-align:center">הכנס שם משתמש וסיסמה שקיבלת מהמנהל.</p>
 <input id="workerUsername" placeholder="שם משתמש" autocomplete="off"><div class="password-field-v585"><input id="workerPassword" type="password" placeholder="סיסמה" autocomplete="new-password"><button class="password-eye-v585" type="button" aria-label="הצג סיסמה" aria-pressed="false" title="הצג סיסמה" onclick="togglePasswordVisibilityV585('workerPassword',this)"><svg class="password-eye-svg-v589" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.75"></circle></svg></button></div>
 <label class="checkline"><input id="rememberMe" type="checkbox"> השאר אותי מחובר</label>
-<button class="btn-green" onclick="workerLogin()">כניסה</button>
+<button class="btn-green" id="workerLoginBtnV660">כניסה</button>
 <button class="btn-light" onclick="showRegister()">הרשמה לעובד חדש</button>
 <p id="workerLoginMsg" class="danger"></p>
 <div id="secretTap" class="secret" onclick="secretTap()"></div>
@@ -248,8 +248,8 @@
   <div class="cal-head"><h2>🧪 כלי בדיקות מטמון מקומי</h2></div>
   <p>הכפתורים מוחקים רק מידע מקומי במכשיר. הם אינם מוחקים עבודות או נתונים מ-Firebase.</p>
   <div class="actions">
-    <button class="btn-yellow" type="button" onclick="clearAdminDataCacheV644()">🧹 נקה מטמון נתונים</button>
-    <button class="btn-danger" type="button" onclick="fullAdminLocalResetV644()">📱 איפוס מקומי מלא</button>
+    <button class="btn-yellow" type="button" id="clearAdminDataCacheBtnV660" onclick="clearAdminDataCacheV660()">🧹 נקה מטמון נתונים</button>
+    <button class="btn-danger" type="button" id="fullAdminLocalResetBtnV660" onclick="fullAdminLocalResetV660()">📱 איפוס מקומי מלא</button>
   </div>
   <p class="muted">נקה מטמון נתונים: IndexedDB, מטמון Firestore ו-Cache Storage. איפוס מלא מוחק בנוסף localStorage ו-sessionStorage ועלול לנתק מהחשבון.</p>
   <div id="adminLocalCacheMsgV644"></div>
