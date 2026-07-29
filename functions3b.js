@@ -1,4 +1,4 @@
-/* File version: 6.58-beta - worker-login cache isolation; current loadMonth is resolved dynamically and stale worker data is blocked. */
+/* File version: 6.59-beta - worker-login cache isolation; current loadMonth is resolved dynamically and stale worker data is blocked. */
 /* File version: 6.50 BETA - workerDaysOff/installTemplates IndexedDB delta sync and synchronized soft delete.
 Work Monitor app - JavaScript continuation file.
 File version: 6.50 BETA - priceList cache-first synchronization diagnostics and changelog support.
@@ -6,7 +6,7 @@ Loaded after functions1.js and functions2.js. New additive functionality belongs
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.58-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.59-beta";
 
 
 /*
@@ -683,7 +683,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.58-beta';
+  var EXPECTED='6.59-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -1121,7 +1121,7 @@ VERSION 6.50 BETA - LOCAL DAY-OFF/TEMPLATE CACHE + SYNCHRONIZED SOFT DELETE
     var viewed=null;try{viewed=window.viewedWorker||viewedWorker||null;}catch(e){}
     var cache=null;try{cache=window.WM_DATA_CACHE_V604||null;}catch(e){}
     return {
-      version:'6.58-beta',collection:collection,id:id,
+      version:'6.59-beta',collection:collection,id:id,
       authUid:authUser&&authUser.uid||'',authEmail:authUser&&authUser.email||'',
       sessionRole:sessionObj&&sessionObj.role||'',sessionWorkerId:sessionObj&&sessionObj.workerId||'',
       viewedWorkerId:viewed&&viewed.id||'',cacheWorkerId:cache&&cache.workerId||'',
@@ -1145,7 +1145,7 @@ VERSION 6.50 BETA - LOCAL DAY-OFF/TEMPLATE CACHE + SYNCHRONIZED SOFT DELETE
   }
   window.wmSoftDeleteV649=softDelete;
 
-  window.deleteEntry=async function(id){
+  window.wmDeleteEntryV659=async function(id){
     if(!id||!confirm('למחוק את העבודה?'))return;
     var entry=null;try{entry=(window.workerAllEntriesV511||[]).find(function(x){return x&&x.id===id;})||(monthEntries||[]).find(function(x){return x&&x.id===id;});}catch(e){}
     trace('DELETE_ENTRY_V658_REQUEST',deleteDebugContextV658('workEntries',id,entry,{}));
@@ -1169,7 +1169,9 @@ VERSION 6.50 BETA - LOCAL DAY-OFF/TEMPLATE CACHE + SYNCHRONIZED SOFT DELETE
       }catch(_e){}
       alert('המחיקה הרכה נחסמה ולא בוצעה. לא בוצעה מחיקה פיזית. העתק את לוג הבדיקה ושלח אותו.');
     }
-  };try{deleteEntry=window.deleteEntry;}catch(e){}
+  };
+  window.deleteEntry=window.wmDeleteEntryV659;
+  try{deleteEntry=window.wmDeleteEntryV659;}catch(e){}
   window.deleteTemplate=async function(id){if(!id||!confirm('למחוק את התבנית?'))return;await softDelete('installTemplates',id);var st=states.installTemplates;if(st){st.rows=st.rows.filter(function(x){return x.id!==id;});await write('installTemplates',st.rows);};await loadTemplatesV649();try{loadTemplatesAdmin&&loadTemplatesAdmin();}catch(e){}};try{deleteTemplate=window.deleteTemplate;}catch(e){}
 
   // Catch legacy physical-delete buttons/functions for synchronized collections.
@@ -1237,7 +1239,7 @@ VERSION 6.53 BETA - SAFE WORKER CONTEXT SWITCH + CACHE/DELTA COMPLETION
 ============================================================================ */
 (function installCacheDeltaCompletionV652(){
   'use strict';
-  var VERSION='6.58-beta';
+  var VERSION='6.59-beta';
   function trace(name,data){try{window.wmTraceV617&&window.wmTraceV617(name,Object.assign({version:VERSION},data||{}));}catch(e){}}
   function byId(id){return document.getElementById(id);}
   function escV652(v){try{return typeof window.esc==='function'?window.esc(v):String(v||'');}catch(e){return String(v||'');}}
@@ -1515,5 +1517,27 @@ VERSION 6.56 BETA - STRICT WORKER LOGIN CACHE ISOLATION
       return rows;
     };
     wrapped.__v656Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+})();
+
+
+/* v6.59-beta: route every legacy delete button through the diagnosed synchronized soft-delete handler. */
+(function(){
+  var previous=window.requiredChangelogRows;
+  if(typeof previous==='function'&&!previous.__v659DeleteRoute){
+    var wrapped=function(){
+      var rows=previous.apply(this,arguments)||[];
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.59-beta';})) rows.unshift({
+        version:'6.59-beta',title:'איחוד מסלול המחיקה הרכה',createdAt:'2026-07-29',items:[
+          'כל כפתורי המחיקה הישנים מנותבים לפונקציית המחיקה הרכה המאובחנת.',
+          'בוטלה האפשרות שהפונקציה הישנה תבצע delete פיזי ישירות על workEntries.',
+          'נוספו אירועי Audit שמציגים בעלות הרשומה, המשתמש המחובר ותוצאת הרשאות Firestore.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v659DeleteRoute=true;
+    window.requiredChangelogRows=wrapped;
+    try{requiredChangelogRows=wrapped;}catch(e){}
   }
 })();
