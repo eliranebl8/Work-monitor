@@ -1,4 +1,4 @@
-/* File version: 6.58-beta - worker-login cache isolation; current loadMonth is resolved dynamically and stale worker data is blocked. */
+/* File version: 6.59-beta - worker-login cache isolation; current loadMonth is resolved dynamically and stale worker data is blocked. */
 /* File version: 6.50 BETA - version/changelog integration for local collection cache and synchronized soft delete.
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css, functions1.js, functions2.js and functions3.js to the same GitHub folder.
@@ -199,9 +199,9 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "6.58-beta";
+const APP_VERSION = "6.59-beta";
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions1b = "6.58-beta";
+window.WM_LOADED_FILE_VERSIONS.functions1b = "6.59-beta";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -2173,7 +2173,7 @@ function setType(type,clear=true){
 function renderInstallItems(){const box=$("installItems");box.innerHTML="";priceList.forEach(item=>{const row=document.createElement("div");row.className="item";const mode=item.inputMode||"qty",control=mode==="check"?`<label style="display:flex;align-items:center;gap:8px;font-weight:900"><input id="qty_${item.id}" type="checkbox" onchange="updateInstallPreview()" style="width:24px;height:24px;margin:0"> בוצע</label>`:`<input class="qty" id="qty_${item.id}" type="number" min="0" placeholder="כמות" oninput="updateInstallPreview()">`;row.innerHTML=`<div><div class="item-title">${esc(item.name)}</div><div class="item-sub">מחיר: ${money(item.price)} · ${mode==="check"?"סימון כן/לא":"כמות מספרית"}</div></div>${control}`;box.appendChild(row)});updateInstallPreview()}function updateInstallPreview(){let total=0;priceList.forEach(p=>{const el=$("qty_"+p.id);let q=0;if(el)q=(p.inputMode||"qty")==="check"?(el.checked?1:0):Number(el.value||0);if(q>0)total+=q*Number(p.price||0)});$("installPreview").textContent="סה״כ התקנה: "+money(total)}
 async function addService(){const customerNumber=val("sCustomer"),address=val("sAddress"),notes=val("sNotes"),isReturnCall=$("sReturnCall")&&$("sReturnCall").checked;const amount=isReturnCall?0:SERVICE_PRICE;if(!customerNumber||!/^\d+$/.test(customerNumber))return $("entryMsg").innerHTML="<p class='danger'>חובה למלא מספר לקוח בספרות בלבד.</p>";if(!address)return $("entryMsg").innerHTML="<p class='danger'>חובה למלא כתובת.</p>";await db.collection("workEntries").add({workerId:viewedWorker.id,workerName:viewedWorker.name,authUid:viewedWorker.authUid||currentAuthUid(),date:selectedDate,workType:"service",description:isReturnCall?"קריאת שירות חוזרת":"קריאת שירות",customerNumber,address,notes,isReturnCall,amount,createdAt:firebase.firestore.FieldValue.serverTimestamp()});$("sCustomer").value="";$("sAddress").value="";$("sNotes").value="";if($("sReturnCall"))$("sReturnCall").checked=false;updateServicePreview();showEntryFeedbackV41("service", amount);await loadMonth()}
 async function addInstall(){const customerNumber=val("iCustomer"),address=val("iAddress"),notes=val("iNotes");if(!customerNumber||!/^\d+$/.test(customerNumber))return $("entryMsg").innerHTML="<p class='danger'>חובה למלא מספר לקוח בספרות בלבד.</p>";if(!address)return $("entryMsg").innerHTML="<p class='danger'>חובה למלא כתובת.</p>";let items=[],total=0;priceList.forEach(p=>{const el=$("qty_"+p.id);let q=0;if(el)q=(p.inputMode||"qty")==="check"?(el.checked?1:0):Number(el.value||0);if(q>0){items.push({id:p.id,name:p.name,price:Number(p.price||0),quantity:q,inputMode:p.inputMode||"qty",total:q*Number(p.price||0)});total+=q*Number(p.price||0)}});if(!items.length)return $("entryMsg").innerHTML="<p class='danger'>חובה לבחור לפחות פריט אחד.</p>";await db.collection("workEntries").add({workerId:viewedWorker.id,workerName:viewedWorker.name,authUid:viewedWorker.authUid||currentAuthUid(),date:selectedDate,workType:"install",description:"התקנה",customerNumber,address,notes,items,amount:total,createdAt:firebase.firestore.FieldValue.serverTimestamp()});$("iCustomer").value="";$("iAddress").value="";$("iNotes").value="";if($("iCustomerHistory"))$("iCustomerHistory").innerHTML="";showEntryFeedbackV41("install", total);await loadMonth()}
-async function deleteEntry(id){if(!confirm("למחוק את העבודה?"))return;await db.collection("workEntries").doc(id).delete();await loadMonth()}function changeMonth(delta){calendarDate=new Date(calendarDate.getFullYear(),calendarDate.getMonth()+delta,1);selectedDate=null;selectedType=null;loadMonth()}
+async function deleteEntry(id){if(typeof window.wmDeleteEntryV659==="function")return window.wmDeleteEntryV659(id);try{window.wmTraceV617&&window.wmTraceV617("DELETE_ENTRY_V659_HANDLER_MISSING",{id:id||""});}catch(e){}alert("מנגנון המחיקה הרכה עדיין לא נטען. לא בוצעה מחיקה.")}function changeMonth(delta){calendarDate=new Date(calendarDate.getFullYear(),calendarDate.getMonth()+delta,1);selectedDate=null;selectedType=null;loadMonth()}
 
 async function loadTemplates(){
   try{
