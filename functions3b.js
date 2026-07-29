@@ -1,4 +1,4 @@
-/* File version: 6.55-beta - reliable asynchronous pre-execution version guard; existing cache/delta and worker-switch fixes retained. */
+/* File version: 6.56-beta - worker-login cache isolation; current loadMonth is resolved dynamically and stale worker data is blocked. */
 /* File version: 6.50 BETA - workerDaysOff/installTemplates IndexedDB delta sync and synchronized soft delete.
 Work Monitor app - JavaScript continuation file.
 File version: 6.50 BETA - priceList cache-first synchronization diagnostics and changelog support.
@@ -6,7 +6,7 @@ Loaded after functions1.js and functions2.js. New additive functionality belongs
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.55-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.56-beta";
 
 
 /*
@@ -683,7 +683,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.55-beta';
+  var EXPECTED='6.56-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -1185,7 +1185,7 @@ VERSION 6.53 BETA - SAFE WORKER CONTEXT SWITCH + CACHE/DELTA COMPLETION
 ============================================================================ */
 (function installCacheDeltaCompletionV652(){
   'use strict';
-  var VERSION='6.55-beta';
+  var VERSION='6.56-beta';
   function trace(name,data){try{window.wmTraceV617&&window.wmTraceV617(name,Object.assign({version:VERSION},data||{}));}catch(e){}}
   function byId(id){return document.getElementById(id);}
   function escV652(v){try{return typeof window.esc==='function'?window.esc(v):String(v||'');}catch(e){return String(v||'');}}
@@ -1311,8 +1311,8 @@ VERSION 6.53 BETA - SAFE WORKER CONTEXT SWITCH + CACHE/DELTA COMPLETION
     if(typeof old!=='function'||old.__v654Wrapped)return;
     var wrapped=function(){
       var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
-      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.55-beta';})) rows.unshift({
-        version:'6.55-beta', title:'חסימת טעינה אמיתית כשקובצי הבטא אינם באותה גרסה', createdAt:'2026-07-29', items:[
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.56-beta';})) rows.unshift({
+        version:'6.56-beta', title:'חסימת טעינה אמיתית כשקובצי הבטא אינם באותה גרסה', createdAt:'2026-07-29', items:[
           'כל שלושת קובצי JavaScript נבדקים לפני שקוד האפליקציה מתחיל לרוץ.',
           'כאשר HTML או אחד מקובצי JavaScript שייכים לגרסה אחרת, המערכת נשארת חסומה ומציגה הודעת תחזוקה.',
           'כפתור הרענון מנקה Cache Storage ו-Service Workers ומבקש מחדש את קובצי הגרסה העדכנית.'
@@ -1323,4 +1323,145 @@ VERSION 6.53 BETA - SAFE WORKER CONTEXT SWITCH + CACHE/DELTA COMPLETION
     wrapped.__v654Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
   }
   install();setTimeout(install,0);
+})();
+
+
+/* =====================================================================
+VERSION 6.56 BETA - STRICT WORKER LOGIN CACHE ISOLATION
+-----------------------------------------------------------------------
+1. The old v4.28 worker loader captured an obsolete loadMonth function.
+2. On logout/login it could therefore skip the current Cache/Delta route and
+   leave the previous worker's workEntries visible in memory.
+3. This final override resolves window.loadMonth dynamically on every login,
+   resets the previous in-memory worker context first, and exposes workerView
+   only after WM_DATA_CACHE_V604.workerId matches the newly logged-in worker.
+4. IndexedDB remains separated by workerId and is not deleted.
+===================================================================== */
+(function installWorkerLoginIsolationV656(){
+  'use strict';
+  if(window.__wmWorkerLoginIsolationV656Installed)return;
+  window.__wmWorkerLoginIsolationV656Installed=true;
+
+  function trace(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
+  function stale(token){try{return typeof isStaleNavV180==='function'&&isStaleNavV180(token);}catch(e){return false;}}
+  function currentToken(){try{return typeof nextNavTokenV180==='function'?nextNavTokenV180():Date.now();}catch(e){return Date.now();}}
+  function loading(message){
+    try{
+      document.body.classList.add('worker-main-loading-v428');
+      if(typeof hideAll==='function')hideAll();
+      if(typeof show==='function')show('startupView');
+      if(typeof show==='function')show('logoutBtn');
+      if(typeof text==='function')text('userLine','טוען נתונים');
+      var title=document.querySelector('#startupView .big-title');if(title)title.textContent='טוען נתונים';
+      var sub=document.querySelector('#startupView .startup-sub');if(sub)sub.textContent=message||'מכין את סביבת העבודה שלך...';
+    }catch(e){}
+  }
+  function clearVisibleWorkerData(){
+    try{monthEntries=[];}catch(e){}
+    try{window.workerAllEntriesV511=[];}catch(e){}
+    try{window.searchBaseEntriesV507=null;}catch(e){}
+    try{selectedDate=null;selectedType=null;}catch(e){}
+    try{
+      ['monthTotal','dayTotal','goalTotal','leftTotal'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent='—';});
+      var day=document.getElementById('dayEntries');if(day)day.innerHTML='';
+      var cal=document.getElementById('calendar');if(cal)cal.innerHTML='';
+    }catch(e){}
+  }
+  function reveal(worker){
+    document.body.classList.remove('worker-main-loading-v428','worker-loading-active-v427');
+    try{if(typeof hideWorkerLoading427==='function')hideWorkerLoading427();}catch(e){}
+    if(typeof hideAll==='function')hideAll();
+    if(typeof show==='function')show('workerView');
+    if(typeof show==='function')show('logoutBtn');
+    if(typeof text==='function')text('userLine',(worker.name||'עובד')+' · '+((window.session&&session.role==='admin')?'צפייה כמנהל':'עובד'));
+    try{if(typeof cleanVisibleSlashN==='function')cleanVisibleSlashN();}catch(e){}
+  }
+
+  window.showWorker=async function(worker,token){
+    token=token||currentToken();
+    window.__isLoggingOutV180=false;
+    if(!worker||!worker.id)return;
+    var workerId=String(worker.id);
+    var previousId='';try{previousId=viewedWorker&&viewedWorker.id?String(viewedWorker.id):'';}catch(e){}
+
+    loading('מחליף משתמש וטוען את הנתונים המתאימים...');
+    try{
+      // Always reset the previous runtime state before assigning the new worker.
+      try{if(typeof prepareWorkerContextSwitchV653==='function')prepareWorkerContextSwitchV653(workerId);}catch(e){}
+      clearVisibleWorkerData();
+      if(stale(token))return;
+
+      if(typeof assertWorkerCanViewV177==='function'){
+        var gate=await assertWorkerCanViewV177(worker);
+        if(stale(token)||!gate||!gate.ok)return;
+        worker=gate.worker;workerId=String(worker.id);
+      }
+
+      viewedWorker=worker;window.viewedWorker=worker;
+      calendarDate=typeof initialCalendarDateV594==='function'?initialCalendarDateV594():new Date();
+      selectedDate=null;selectedType=null;monthEntries=[];window.workerAllEntriesV511=[];
+      try{if($('helloTitle'))text('helloTitle','שלום '+(worker.name||''));}catch(e){}
+      try{if($('selfGoalMonth'))$('selfGoalMonth').value=currentCalendarMonthKeyV556();}catch(e){}
+      try{if($('selfMonthlyGoal'))$('selfMonthlyGoal').value=getWorkerGoalForMonthV556();}catch(e){}
+      try{if($('selfNewPassword'))$('selfNewPassword').value='';}catch(e){}
+      try{await loadSettings();}catch(e){console.warn('v6.56 loadSettings skipped',e);}
+      if(stale(token))return;
+
+      loading('טוען מטמון אישי ושינויים חדשים...');
+      var liveLoader=window.loadMonth;
+      if(typeof liveLoader!=='function')throw new Error('מנגנון טעינת הנתונים העדכני אינו זמין');
+      await liveLoader.call(window,token);
+      if(stale(token))return;
+
+      var cache=window.WM_DATA_CACHE_V604||{};
+      if(String(cache.workerId||'')!==workerId){
+        trace('WORKER_CACHE_ID_MISMATCH_V656',{previousWorkerId:previousId,requestedWorkerId:workerId,cacheWorkerId:String(cache.workerId||'')});
+        // One controlled retry through the current loader; never reveal stale rows.
+        clearVisibleWorkerData();
+        await liveLoader.call(window,token);
+        if(stale(token))return;
+        cache=window.WM_DATA_CACHE_V604||{};
+      }
+      if(String(cache.workerId||'')!==workerId){
+        clearVisibleWorkerData();
+        throw new Error('הנתונים של המשתמש החדש עדיין לא נטענו. יש לנסות להיכנס שוב.');
+      }
+
+      // Filter defensively even if a malformed cache ever contains mixed rows.
+      if(Array.isArray(cache.entries))cache.entries=cache.entries.filter(function(row){return !row||!row.workerId||String(row.workerId)===workerId;});
+      window.workerAllEntriesV511=Array.isArray(cache.entries)?cache.entries.slice():[];
+      try{if(typeof window.wmRefreshFromCacheV610==='function')window.wmRefreshFromCacheV610({reason:'worker-login-isolation-v6.56'});}
+      catch(e){try{renderCalendar();renderDay();renderStats();if(typeof renderSmartDashboard==='function')renderSmartDashboard();}catch(_e){}}
+
+      trace('WORKER_LOGIN_CACHE_READY_V656',{previousWorkerId:previousId,workerId:workerId,cacheWorkerId:String(cache.workerId||''),docs:Array.isArray(cache.entries)?cache.entries.length:0});
+      reveal(worker);
+    }catch(error){
+      clearVisibleWorkerData();
+      document.body.classList.remove('worker-main-loading-v428','worker-loading-active-v427');
+      try{if(typeof hideWorkerLoading427==='function')hideWorkerLoading427();}catch(e){}
+      trace('WORKER_LOGIN_CACHE_ERROR_V656',{workerId:workerId,error:String(error&&error.message||error)});
+      console.error('showWorker v6.56 failed',error);
+      try{if(typeof hideAll==='function')hideAll();if(typeof show==='function')show('workerLoginView');if(typeof hide==='function')hide('logoutBtn');if(typeof text==='function')text('userLine','לא מחובר');}catch(e){}
+      try{alert('שגיאה בטעינת נתוני העובד: '+String(error&&error.message||error));}catch(e){}
+    }
+  };
+  try{showWorker=window.showWorker;}catch(e){}
+
+  var oldRows=window.requiredChangelogRows;
+  if(typeof oldRows==='function'&&!oldRows.__v656Wrapped){
+    var wrapped=function(){
+      var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.56-beta';}))rows.unshift({
+        version:'6.56-beta',title:'בידוד מלא של נתוני עובדים בהחלפת משתמש',createdAt:'2026-07-29',items:[
+          'תהליך הכניסה משתמש תמיד ב-loadMonth העדכני ולא בהפניה ישנה שנשמרה בזמן טעינת הקבצים.',
+          'לפני טעינת עובד חדש נמחקים מהזיכרון בלבד העבודות, הסכומים, לוח השנה ותוצאות החיפוש של העובד הקודם.',
+          'מסך העובד נחשף רק לאחר שמזהה המטמון הפעיל תואם ל-workerId של המשתמש המחובר.',
+          'נוספה בדיקת הגנה שמסננת כל רשומה שאינה שייכת לעובד הפעיל, בלי למחוק את מטמוני IndexedDB של עובדים אחרים.',
+          'הסנכרון נשאר Cache/Delta ואינו חוזר להורדה מלאה בכל כניסה.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v656Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
 })();
