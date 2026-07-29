@@ -1,4 +1,4 @@
-/* File version: 6.59-beta - worker-login cache isolation; current loadMonth is resolved dynamically and stale worker data is blocked. */
+/* File version: 6.60-beta - login recovery diagnostics and cache-reset-safe bootstrap. */
 /* File version: 6.50 BETA - version/changelog integration for local collection cache and synchronized soft delete.
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css, functions1.js, functions2.js and functions3.js to the same GitHub folder.
@@ -199,9 +199,9 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "6.59-beta";
+const APP_VERSION = "6.60-beta";
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions1b = "6.59-beta";
+window.WM_LOADED_FILE_VERSIONS.functions1b = "6.60-beta";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
