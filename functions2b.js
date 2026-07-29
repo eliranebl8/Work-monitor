@@ -1,4 +1,4 @@
-/* File version: 6.51-beta - synchronization stabilization fixes. */
+/* File version: 6.52-beta - unified beta file version and mixed-cache startup protection. */
 /* File version: 6.50 BETA - existing runtime logic retained; soft-delete/cache integration loaded from functions3b.js.
 Work Monitor app - JavaScript extensions and future changes.
 File version: 6.50 BETA - workEntries delta sync retained while priceList cache-first sync is added; stable files untouched.
@@ -12,7 +12,7 @@ CHANGELOG 6.01 - פיצול קובץ JavaScript
 4. index.html טוען את functions1.js ולאחריו את functions2.js לפי סדר התלויות.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions2b = "6.51-beta";
+window.WM_LOADED_FILE_VERSIONS.functions2b = "6.52-beta";
 
 
 (function(){
