@@ -1,4 +1,4 @@
-/* File version: 6.54-beta - cache/delta fixes for admin changelog, admin templates and cross-device settlement reports. */
+/* File version: 6.55-beta - reliable asynchronous pre-execution version guard; existing cache/delta and worker-switch fixes retained. */
 /* File version: 6.50 BETA - workerDaysOff/installTemplates IndexedDB delta sync and synchronized soft delete.
 Work Monitor app - JavaScript continuation file.
 File version: 6.50 BETA - priceList cache-first synchronization diagnostics and changelog support.
@@ -6,7 +6,7 @@ Loaded after functions1.js and functions2.js. New additive functionality belongs
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.54-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.55-beta";
 
 
 /*
@@ -683,7 +683,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.54-beta';
+  var EXPECTED='6.55-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -1185,7 +1185,7 @@ VERSION 6.53 BETA - SAFE WORKER CONTEXT SWITCH + CACHE/DELTA COMPLETION
 ============================================================================ */
 (function installCacheDeltaCompletionV652(){
   'use strict';
-  var VERSION='6.54-beta';
+  var VERSION='6.55-beta';
   function trace(name,data){try{window.wmTraceV617&&window.wmTraceV617(name,Object.assign({version:VERSION},data||{}));}catch(e){}}
   function byId(id){return document.getElementById(id);}
   function escV652(v){try{return typeof window.esc==='function'?window.esc(v):String(v||'');}catch(e){return String(v||'');}}
@@ -1311,8 +1311,8 @@ VERSION 6.53 BETA - SAFE WORKER CONTEXT SWITCH + CACHE/DELTA COMPLETION
     if(typeof old!=='function'||old.__v654Wrapped)return;
     var wrapped=function(){
       var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
-      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.54-beta';})) rows.unshift({
-        version:'6.54-beta', title:'חסימת טעינה אמיתית כשקובצי הבטא אינם באותה גרסה', createdAt:'2026-07-29', items:[
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.55-beta';})) rows.unshift({
+        version:'6.55-beta', title:'חסימת טעינה אמיתית כשקובצי הבטא אינם באותה גרסה', createdAt:'2026-07-29', items:[
           'כל שלושת קובצי JavaScript נבדקים לפני שקוד האפליקציה מתחיל לרוץ.',
           'כאשר HTML או אחד מקובצי JavaScript שייכים לגרסה אחרת, המערכת נשארת חסומה ומציגה הודעת תחזוקה.',
           'כפתור הרענון מנקה Cache Storage ו-Service Workers ומבקש מחדש את קובצי הגרסה העדכנית.'
