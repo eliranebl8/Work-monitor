@@ -1,4 +1,4 @@
-<!-- File version: 6.60-beta - reliable worker login after cache reset, bounded cache cleanup and full diagnostics. -->
+<!-- File version: 6.76-beta - template editor now uses the same active/type/dedup price-list filter as the installation form. -->
 <!-- File version: 6.50 BETA - local workerDaysOff/installTemplates cache and synchronized soft delete; stable 6.33 untouched. -->
 <!DOCTYPE html
 <!-- File version: 5.89 - Chrome-stable SVG password visibility icons -->
@@ -20,9 +20,17 @@
   @keyframes wmGateSpinV652{to{transform:rotate(360deg)}}
 </style>
 <script>
+/*
+ * v6.66-beta: חלון Firebase Audit פעיל גם בדפדפן שבו אי אפשר לערוך URL.
+ * שנה רק בין true ל-false. התמיכה ב-?firebaseDebug=1 נשארה פעילה כרגיל.
+ */
+const WM_FIREBASE_AUDIT_DEBUG = false;
+window.WM_FIREBASE_AUDIT_DEBUG = WM_FIREBASE_AUDIT_DEBUG;
+</script>
+<script>
 (function(){
   'use strict';
-  var EXPECTED='6.60-beta';
+  var EXPECTED='6.76-beta';
   var FILES=['functions1b.js','functions2b.js','functions3b.js'];
   /* v6.57: version gate stays invisible during a valid check; it appears only on a real mismatch. */
   window.WM_EXPECTED_BETA_VERSION=EXPECTED;
@@ -522,6 +530,19 @@
       </div>
       <button class="btn-green" onclick="saveWorkerSelfSettings()">שמור הגדרות אישיות</button>
       <div id="selfSettingsMsg"></div>
+
+      <!-- v6.66-beta: מנהל תבניות קומפקטי עם מחיקה מיידית מהמסך. -->
+      <div id="workerTemplateManagerV661" class="worker-template-manager-v661">
+        <div class="worker-template-manager-head-v661">
+          <div>
+            <h3>🧩 ניהול התבניות שלי</h3>
+            <p class="muted">לחץ על העיפרון כדי לערוך שם, להוסיף או להסיר פריטים ולשנות כמויות.</p>
+          </div>
+          <button type="button" class="template-refresh-icon-v662" onclick="refreshWorkerTemplateManagerV661(true)" title="רענן" aria-label="רענן">↻</button>
+        </div>
+        <div id="workerTemplateManagerListV661" class="worker-template-scroll-v662"><p class="muted">התבניות ייטענו לאחר הכניסה.</p></div>
+        <div id="workerTemplateManagerMsgV661"></div>
+      </div>
     </div>
   </div>
 
