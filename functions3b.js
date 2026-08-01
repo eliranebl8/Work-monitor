@@ -1,4 +1,4 @@
-/* File version: 6.60-beta - bounded cache cleanup, locked reset flow and guaranteed worker-login binding. */
+/* File version: 6.76-beta - template editor price items filtered exactly like the active Fiber/RF price list. */
 /* File version: 6.50 BETA - workerDaysOff/installTemplates IndexedDB delta sync and synchronized soft delete.
 Work Monitor app - JavaScript continuation file.
 File version: 6.50 BETA - priceList cache-first synchronization diagnostics and changelog support.
@@ -6,7 +6,7 @@ Loaded after functions1.js and functions2.js. New additive functionality belongs
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.60-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.76-beta";
 
 
 /*
@@ -404,9 +404,12 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
   if(window.__wmBetaPersistentCacheV635Installed)return;
   window.__wmBetaPersistentCacheV635Installed=true;
 
+  // VERSION 6.72 BETA: this is the single authoritative schema version for work_monitor_beta_cache.
+  // Version 2 contains both the original workerSnapshots store and the collections store used by templates.
   var DB_NAME='work_monitor_beta_cache';
-  var DB_VERSION=1;
+  var DB_VERSION=2;
   var STORE='workerSnapshots';
+  var SHARED_COLLECTIONS_STORE_V672='collections';
   var state=window.WM_DATA_CACHE_V604=window.WM_DATA_CACHE_V604||{};
   var dbPromise=null;
   var restoredWorker='';
@@ -441,6 +444,7 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
       request.onupgradeneeded=function(event){
         var database=event.target.result;
         if(!database.objectStoreNames.contains(STORE))database.createObjectStore(STORE,{keyPath:'workerId'});
+        if(!database.objectStoreNames.contains(SHARED_COLLECTIONS_STORE_V672))database.createObjectStore(SHARED_COLLECTIONS_STORE_V672,{keyPath:'key'});
       };
       request.onsuccess=function(){traceV641('CACHE_IDB_OPEN_SUCCESS',{database:DB_NAME,version:DB_VERSION});resolve(request.result);};
       request.onerror=function(){var error=request.error||new Error('פתיחת IndexedDB נכשלה');traceV641('CACHE_IDB_OPEN_ERROR',{error:String(error&&error.message||error)});reject(error);};
@@ -532,7 +536,7 @@ VERSION 6.35 BETA - PERSISTENT INDEXEDDB CACHE FOUNDATION
     },350);
   }
   function betaDebugEnabledV651(){
-    try{var p=new URLSearchParams(location.search);return p.get('firebaseDebug')==='1'||p.get('firestoreDebug')==='1'||p.get('cacheDebug')==='1';}catch(e){return false;}
+    try{var p=new URLSearchParams(location.search);return window.WM_FIREBASE_AUDIT_DEBUG===true||p.get('firebaseDebug')==='1'||p.get('firestoreDebug')==='1'||p.get('cacheDebug')==='1';}catch(e){return window.WM_FIREBASE_AUDIT_DEBUG===true;}
   }
   function renderStatusV635(){
     if(!document.body)return;
@@ -683,7 +687,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.60-beta';
+  var EXPECTED='6.76-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -1095,10 +1099,39 @@ VERSION 6.50 BETA - LOCAL DAY-OFF/TEMPLATE CACHE + SYNCHRONIZED SOFT DELETE
   };
 
   var originalLoadTemplates=window.loadTemplates||(typeof loadTemplates==='function'?loadTemplates:null);
-  var templateLoadPromiseV650=null;
+  var templateLoadPromiseV650=null,activeTemplateStateKeyV673='';
+  function stopOtherTemplateStatesV673(keepKey){
+    Object.keys(states).forEach(function(k){
+      if(k.indexOf('installTemplates:')!==0||k===keepKey)return;
+      var st=states[k];
+      (st&&Array.isArray(st.listeners)?st.listeners:[]).forEach(function(unsub){try{unsub&&unsub();}catch(e){}});
+      if(st)st.listeners=[];
+    });
+  }
   async function loadTemplatesV649(force){
+    var id=String(workerId()||''),key=id?'installTemplates:'+id:'';
+    if(!id){templates=[];window.templates=[];try{renderTemplateSelect();}catch(e){}return [];}
+    if(activeTemplateStateKeyV673!==key){stopOtherTemplateStatesV673(key);activeTemplateStateKeyV673=key;templateLoadPromiseV650=null;}
+    if(force===true&&states[key]){(states[key].listeners||[]).forEach(function(u){try{u&&u();}catch(e){}});states[key].listeners=[];states[key].ready=false;}
     if(templateLoadPromiseV650)return templateLoadPromiseV650;
-    templateLoadPromiseV650=(async function(){try{var st=await startCollection({key:'installTemplates',prefix:'TEMPLATES_CACHE',fullQuery:function(){return db.collection('installTemplates').get();},deltaQuery:function(f,t){return db.collection('installTemplates').where(f,'>',t);},apply:function(rows){var id=workerId();templates=visible(rows).filter(function(t){return t.active!==false;}).filter(function(t){return !t.ownerWorkerId||t.ownerWorkerId===id||(window.session&&session.role==='admin');}).sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''));});window.templates=templates;try{renderTemplateSelect();}catch(e){}}});return visible(st.rows);}catch(e){trace('TEMPLATES_CACHE_FALLBACK',{error:String(e&&e.message||e)});return originalLoadTemplates?originalLoadTemplates(force):[];}})();
+    templateLoadPromiseV650=(async function(){try{
+      var requestedWorker=id;
+      var st=await startCollection({
+        key:key,
+        prefix:'TEMPLATES_CACHE',
+        fullQuery:function(){return db.collection('installTemplates').where('ownerWorkerId','==',requestedWorker).get();},
+        deltaQuery:function(field,timestamp){return db.collection('installTemplates').where('ownerWorkerId','==',requestedWorker).where(field,'>',timestamp);},
+        apply:function(rows){
+          if(String(workerId()||'')!==requestedWorker){trace('TEMPLATES_CACHE_STALE_WORKER_V673',{requestedWorker:requestedWorker,currentWorker:String(workerId()||'')});return;}
+          templates=visible(rows).filter(function(t){return t.active!==false&&!t.isDeleted&&String(t.ownerWorkerId||'')===requestedWorker;}).sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''),'he');});
+          window.templates=templates;
+          try{renderTemplateSelect();}catch(e){}
+          try{window.refreshWorkerTemplateManagerV661&&window.refreshWorkerTemplateManagerV661(false);}catch(e){}
+        }
+      });
+      trace('TEMPLATES_WORKER_SCOPE_V673_READY',{workerId:requestedWorker,key:key,docs:visible(st.rows).length});
+      return visible(st.rows);
+    }catch(e){trace('TEMPLATES_CACHE_FALLBACK',{workerId:id,error:String(e&&e.message||e)});return originalLoadTemplates?originalLoadTemplates(force):[];}})();
     try{return await templateLoadPromiseV650;}finally{templateLoadPromiseV650=null;}
   }
   window.loadTemplates=loadTemplatesV649;try{loadTemplates=loadTemplatesV649;}catch(e){}
@@ -1705,5 +1738,1249 @@ VERSION 6.60 BETA - CACHE RESET RECOVERY AND GUARANTEED WORKER LOGIN
       });return rows;
     };
     wrapped.__v660CacheLogin=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+})();
+
+
+/*
+===============================================================================
+VERSION 6.61 BETA - SAFE CACHE RECOVERY + PER-WORKER TEMPLATE MANAGEMENT
+-------------------------------------------------------------------------------
+1. Replaces the dangerous v6.60 reset buttons with a safe cleanup flow that
+   never terminates Firestore and never deletes Firebase/Auth IndexedDB.
+2. Adds a startup health watchdog. If Firebase boot remains stuck, a recovery
+   panel appears with retry, diagnostic-log copy and Chrome site-data guidance.
+3. Adds a worker settings manager for that worker's own installation templates:
+   rename, duplicate, delete one and delete all with explicit confirmations.
+4. All template actions keep ownerWorkerId and refresh the existing cached list.
+===============================================================================
+*/
+(function installSafeRecoveryAndWorkerTemplatesV661(){
+  'use strict';
+  if(window.__wmSafeRecoveryTemplatesV661)return;
+  window.__wmSafeRecoveryTemplatesV661=true;
+
+  function trace(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
+  function errText(e){return String(e&&((e.code?e.code+': ':'')+(e.message||''))||e||'unknown error');}
+  function currentWorkerId(){
+    try{return String((window.viewedWorker&&viewedWorker.id)||(window.session&&session.workerId)||(window.session&&session.worker&&session.worker.id)||'');}catch(e){return '';}
+  }
+  function myTemplates(){
+    var id=currentWorkerId(), rows=[];
+    try{rows=(window.templates||templates||[]).filter(function(t){return t&&t.active!==false&&!t.isDeleted&&String(t.ownerWorkerId||'')===id;});}catch(e){}
+    return rows.sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''),'he');});
+  }
+  function msg(text,bad){var el=document.getElementById('workerTemplateManagerMsgV661');if(el)el.innerHTML='<div class="'+(bad?'paywall':'notice')+'">'+String(text||'')+'</div>';}
+  function escHtml(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+  // v6.76: the template editor uses the same rules as the active installation price list.
+  function normalizeTemplateKindV676(v){return String(v||'fiber').toLowerCase()==='rf'?'rf':'fiber';}
+  function priceItemKindV676(item){return normalizeTemplateKindV676(item&&(item.priceType||item.installKind||item.category||'fiber'));}
+  function templateKindV676(t){
+    return normalizeTemplateKindV676(t&&(t.installKind||t.priceType||t.templateKind||((t.items||[])[0]&&((t.items||[])[0].installKind||(t.items||[])[0].priceType||(t.items||[])[0].category))||'fiber'));
+  }
+  function priceSignatureV676(item,forcedKind){
+    return String(item&&item.name||'').trim()+'|'+Number(item&&item.price||0)+'|'+String(item&&item.inputMode||'qty')+'|'+normalizeTemplateKindV676(forcedKind||priceItemKindV676(item));
+  }
+  function templatePriceRowsV662(t){
+    var kind=templateKindV676(t),oldItems=Array.isArray(t.items)?t.items:[],byId={},bySignature={};
+    oldItems.forEach(function(i){
+      var id=String(i&&i.id||'');if(id)byId[id]=i;
+      var sig=priceSignatureV676(i,kind);if(!bySignature[sig])bySignature[sig]=i;
+    });
+    var source=[];try{source=(window.priceList||priceList||[]);}catch(e){}
+    var unique={};
+    source.filter(function(p){return p&&p.active!==false&&!p.isDeleted&&priceItemKindV676(p)===kind;}).forEach(function(p){
+      var sig=priceSignatureV676(p,kind);if(!unique[sig])unique[sig]=p;
+    });
+    var rows=Object.values(unique).sort(function(a,b){return Number(a.order||0)-Number(b.order||0);});
+    // Keep selected legacy items visible once when the active price list no longer contains them.
+    oldItems.forEach(function(i){var sig=priceSignatureV676(i,kind);if(!unique[sig]){unique[sig]=i;rows.push(i);}});
+    return rows.map(function(p){
+      var id=String(p&&p.id||''),sig=priceSignatureV676(p,kind),old=byId[id]||bySignature[sig]||{},mode=p.inputMode||old.inputMode||'qty',qty=Number(old.quantity||0);
+      return {id:p.id||old.id||sig,name:p.name||old.name||'',price:Number(p.price!=null?p.price:old.price||0),inputMode:mode,quantity:qty,priceType:kind,installKind:kind};
+    });
+  }
+  function renderTemplateEditorV662(t){
+    var rows=templatePriceRowsV662(t);
+    return '<div class="worker-template-editor-v662" id="templateEditor_'+escHtml(t.id)+'">'+
+      '<label class="template-name-label-v662">שם התבנית<input id="templateName_'+escHtml(t.id)+'" value="'+escHtml(t.name||'')+'"></label>'+
+      '<div class="template-items-scroll-v662">'+rows.map(function(p){var id=String(t.id)+'_'+String(p.id||p.name||'').replace(/[^a-zA-Z0-9_-]/g,'_');var checked=Number(p.quantity||0)>0;var ctl=(p.inputMode==='check')?'<input type="checkbox" id="tplQty_'+id+'" '+(checked?'checked':'')+'>':'<input type="number" min="0" step="1" id="tplQty_'+id+'" value="'+(Number(p.quantity||0)||'')+'" placeholder="0">';return '<div class="template-edit-item-v662" data-item-id="'+escHtml(p.id)+'" data-item-name="'+escHtml(p.name)+'" data-price="'+Number(p.price||0)+'" data-mode="'+escHtml(p.inputMode)+'"><div><b>'+escHtml(p.name)+'</b><small>'+Number(p.price||0).toLocaleString('he-IL')+' ₪</small></div>'+ctl+'</div>';}).join('')+'</div>'+
+      '<div class="template-editor-actions-v662"><button type="button" class="btn-green" onclick="saveMyTemplateEditV662(\''+String(t.id).replace(/'/g,"\\'")+'\')">שמור שינויים</button><button type="button" class="btn-light" onclick="toggleMyTemplateEditorV662(\''+String(t.id).replace(/'/g,"\\'")+'\')">ביטול</button></div></div>';
+  }
+
+  window.refreshWorkerTemplateManagerV661=async function(force){
+    var box=document.getElementById('workerTemplateManagerListV661');if(!box)return;
+    box.innerHTML='<p class="muted">טוען תבניות...</p>';
+    try{
+      if(typeof window.loadTemplatesV649==='function')await window.loadTemplatesV649(force===true);
+      else if(typeof window.loadTemplates==='function')await window.loadTemplates(force===true);
+      var rows=myTemplates();
+      if(!rows.length){box.innerHTML='<div class="hint-card">אין לך תבניות אישיות עדיין.</div>';return;}
+      box.innerHTML=rows.map(function(t){
+        var count=Array.isArray(t.items)?t.items.length:0,id=String(t.id).replace(/'/g,"\\'");
+        return '<div class="worker-template-row-v661" data-template-id="'+escHtml(t.id)+'"><div class="worker-template-main-v662"><div><div class="item-title">'+escHtml(t.name||'ללא שם')+'</div><div class="item-sub">'+count+' פריטים</div></div><div class="worker-template-row-actions-v661"><button type="button" class="template-icon-btn-v662" onclick="toggleMyTemplateEditorV662(\''+id+'\')" title="עריכת התבנית" aria-label="עריכת התבנית">✎</button><button type="button" class="template-icon-btn-v662 template-delete-v662" onclick="deleteMyTemplateV661(\''+id+'\')" title="מחיקת התבנית" aria-label="מחיקת התבנית">🗑</button></div></div><div class="template-editor-host-v662" id="templateEditorHost_'+escHtml(t.id)+'"></div></div>';
+      }).join('');
+      trace('WORKER_TEMPLATE_MANAGER_RENDER_V662',{workerId:currentWorkerId(),count:rows.length});
+    }catch(e){box.innerHTML='<div class="paywall">שגיאה בטעינת תבניות: '+escHtml(errText(e))+'</div>';trace('WORKER_TEMPLATE_MANAGER_ERROR_V662',{error:errText(e)});}
+  };
+
+  function findMine(id){return myTemplates().find(function(t){return String(t.id)===String(id);});}
+  async function refreshAll(){
+    try{if(typeof window.wmInvalidateStaticCacheV622==='function')window.wmInvalidateStaticCacheV622();}catch(e){}
+    try{if(typeof window.loadTemplatesV649==='function')await window.loadTemplatesV649(true);else if(typeof window.loadTemplates==='function')await window.loadTemplates(true);}catch(e){}
+    try{window.renderTemplateSelect&&window.renderTemplateSelect();}catch(e){}
+    try{window.loadTemplatesAdmin&&window.loadTemplatesAdmin();}catch(e){}
+    await window.refreshWorkerTemplateManagerV661(false);
+  }
+  window.toggleMyTemplateEditorV662=function(id){
+    var host=document.getElementById('templateEditorHost_'+id);if(!host)return;var t=findMine(id);if(!t)return msg('התבנית לא נמצאה או שאינה שייכת לעובד המחובר.',true);
+    var wasOpen=!!host.innerHTML;document.querySelectorAll('.template-editor-host-v662').forEach(function(x){x.innerHTML='';});
+    if(!wasOpen){host.innerHTML=renderTemplateEditorV662(t);setTimeout(function(){var n=document.getElementById('templateName_'+id);if(n)n.focus();},0);}
+  };
+  window.saveMyTemplateEditV662=async function(id){
+    var t=findMine(id);if(!t)return msg('התבנית לא נמצאה או שאינה שייכת לעובד המחובר.',true);
+    var nameEl=document.getElementById('templateName_'+id),name=String(nameEl&&nameEl.value||'').trim();if(!name)return msg('שם התבנית לא יכול להיות ריק.',true);
+    var host=document.getElementById('templateEditorHost_'+id),items=[];
+    (host?host.querySelectorAll('.template-edit-item-v662'):[]).forEach(function(row){var input=row.querySelector('input'),mode=row.dataset.mode||'qty',q=mode==='check'?(input&&input.checked?1:0):Number(input&&input.value||0);if(q>0)items.push({id:row.dataset.itemId,name:row.dataset.itemName,price:Number(row.dataset.price||0),quantity:q,inputMode:mode,total:q*Number(row.dataset.price||0)});});
+    if(!items.length)return msg('חובה להשאיר לפחות פריט אחד בתבנית.',true);
+    try{await db.collection('installTemplates').doc(id).update({name:name,items:items,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});trace('WORKER_TEMPLATE_FULL_EDIT_V662',{id:id,workerId:currentWorkerId(),items:items.length});msg('התבנית עודכנה ✅');await refreshAll();}catch(e){msg('שגיאה בעדכון התבנית: '+errText(e),true);}
+  };
+  window.deleteMyTemplateV661=async function(id){
+    var t=findMine(id);if(!t)return msg('התבנית לא נמצאה או שאינה שייכת לעובד המחובר.',true);
+    if(!confirm('למחוק את התבנית "'+(t.name||'')+'"?'))return;
+    try{if(typeof window.softDelete==='function')await window.softDelete('installTemplates',id);else await db.collection('installTemplates').doc(id).update({active:false,isDeleted:true,deletedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});trace('WORKER_TEMPLATE_DELETE_V662',{id:id,workerId:currentWorkerId()});msg('התבנית נמחקה ✅');await refreshAll();}catch(e){msg('שגיאה במחיקה: '+errText(e),true);}
+  };
+
+  // Safe replacement for v6.60 cleanup: never terminate Firestore or delete Firebase databases.
+  async function clearSafeCustomCache(full){
+    if(!confirm(full?'האיפוס הבטוח ימחק מטמוני אפליקציה, localStorage ו-sessionStorage וינתק מהחשבון. נתוני Firebase לא יימחקו. להמשיך?':'הניקוי הבטוח ימחק רק מטמוני Work Monitor ו-Cache Storage. הוא לא ימחק את מטמון Firebase הפעיל. להמשיך?'))return;
+    trace('SAFE_CACHE_CLEAR_START_V661',{full:!!full});
+    try{
+      if(full&&window.auth&&typeof auth.signOut==='function')try{await auth.signOut();}catch(e){}
+      var known=['work_monitor_beta_cache','work-monitor-beta-cache-v635','work_monitor_local_collection_cache_v648'];
+      for(var i=0;i<known.length;i++)try{indexedDB.deleteDatabase(known[i]);}catch(e){}
+      if(window.caches)try{var keys=await caches.keys();for(var j=0;j<keys.length;j++)await caches.delete(keys[j]);}catch(e){}
+      if(full){try{localStorage.clear();}catch(e){}try{sessionStorage.clear();}catch(e){}}
+      trace('SAFE_CACHE_CLEAR_DONE_V661',{full:!!full});
+      location.replace(location.pathname+'?safeReset='+Date.now());
+    }catch(e){trace('SAFE_CACHE_CLEAR_ERROR_V661',{error:errText(e)});alert('הניקוי נכשל: '+errText(e));}
+  }
+  window.clearAdminDataCacheV660=function(){return clearSafeCustomCache(false);};
+  window.fullAdminLocalResetV660=function(){return clearSafeCustomCache(true);};
+
+  function recoveryPanel(){
+    if(document.getElementById('wmStartupRecoveryV661'))return;
+    var el=document.createElement('div');el.id='wmStartupRecoveryV661';el.className='wm-startup-recovery-v661';
+    el.innerHTML='<div class="wm-startup-recovery-card-v661"><h2>⚠️ החיבור מתעכב</h2><p>הנתונים בענן בטוחים. אפשר לנסות שוב או להעתיק לוג. אם Chrome ממשיך להיתקע, יש לנקות את נתוני האתר דרך הגדרות Chrome.</p><div class="actions"><button class="btn-green" onclick="location.reload()">נסה שוב</button><button class="btn-light" onclick="copyFirebaseAuditV661()">העתק לוג</button><button class="btn-yellow" onclick="this.closest(\'.wm-startup-recovery-v661\').remove()">המשך להמתין</button></div></div>';
+    document.body.appendChild(el);trace('STARTUP_HEALTH_TIMEOUT_V661',{online:navigator.onLine,auth:!!window.auth,db:!!window.db});
+  }
+  window.copyFirebaseAuditV661=async function(){var text='';try{text=(window.WM_FIREBASE_AUDIT_LOG||window.wmFirebaseAuditLog||[]).map(function(x){return typeof x==='string'?x:JSON.stringify(x);}).join('\n');}catch(e){}if(!text)text='Work Monitor '+(window.APP_VERSION||'')+'\nURL: '+location.href+'\nOnline: '+navigator.onLine;try{await navigator.clipboard.writeText(text);alert('הלוג הועתק');}catch(e){prompt('העתק את הלוג',text);}};
+  setTimeout(function(){
+    try{
+      var startup=document.getElementById('startupView');var worker=document.getElementById('workerView');var admin=document.getElementById('adminView');
+      var stillBooting=startup&&!startup.classList.contains('hidden')&&(!worker||worker.classList.contains('hidden'))&&(!admin||admin.classList.contains('hidden'));
+      if(stillBooting)recoveryPanel();
+    }catch(e){}
+  },15000);
+
+  document.addEventListener('click',function(e){var btn=e.target&&e.target.closest&&e.target.closest('[data-worker-tab="settings"]');if(btn)setTimeout(function(){window.refreshWorkerTemplateManagerV661(false);},80);},true);
+  setTimeout(function(){if(document.querySelector('[data-worker-pane="settings"].active'))window.refreshWorkerTemplateManagerV661(false);},2500);
+
+  var previous=window.requiredChangelogRows;
+  if(typeof previous==='function'&&!previous.__v661SafeRecoveryTemplates){
+    var wrapped=function(){var rows=previous.apply(this,arguments)||[];if(!rows.some(function(r){return String(r.version||r.id||'')==='6.61-beta';}))rows.unshift({version:'6.61-beta',title:'התאוששות בטוחה וניהול תבניות לעובד',createdAt:'2026-07-30',items:['נוסף מסך ניהול תבניות אישי: שינוי שם, שכפול, מחיקה ומחיקת כל התבניות של העובד.','כפתורי ניקוי המטמון הוחלפו במסלול בטוח שאינו מסיים Firestore ואינו מוחק את מסדי Firebase/Auth בזמן פעילות.','נוסף Health Check באתחול שמציג מסך התאוששות ולוג אם החיבור נשאר תקוע.','בדיקת התאמת גרסאות הקבצים עודכנה ל-6.61-beta.']});return rows;};
+    wrapped.__v661SafeRecoveryTemplates=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+})();
+
+
+/* v6.64-beta: compact scrollable template manager and full inline editing. */
+(function(){
+  var old=window.requiredChangelogRows;
+  if(typeof old==='function'&&!old.__v662Wrapped){
+    var wrapped=function(){var rows=old.apply(this,arguments)||[];if(!rows.some(function(r){return String(r.version||r.id||'')==='6.64-beta';}))rows.unshift({version:'6.64-beta',title:'עריכת תבניות קומפקטית ומלאה',createdAt:'2026-07-30',items:['רשימת התבניות הוכנסה לאזור גלילה קבוע כדי שלא תאריך את עמוד ההגדרות.','הוסרו שכפול ומחיקת כל התבניות ונשארו אייקונים קטנים של עיפרון ופח.','לחיצה על עיפרון פותחת מתחת לתבנית עורך מלא עם שם התבנית, המחירון, הוספה והסרה של פריטים ושינוי כמויות.','שמירה מעדכנת את אותה תבנית ואינה יוצרת עותק חדש.']});return rows;};wrapped.__v662Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+})();
+
+
+/*
+===============================================================================
+VERSION 6.63 BETA - TEMPLATE SAVE OWNER FIX + HTML AUDIT SWITCH
+-------------------------------------------------------------------------------
+1. Fixes "save as template" for a logged-in worker by resolving the active
+   worker from viewedWorker/session instead of relying only on viewedWorker.
+2. The saved document now always receives ownerWorkerId/ownerAuthUid and can
+   therefore appear in the worker's filtered template list immediately.
+3. Adds detailed Audit events around template save, reload and failures.
+4. Firebase Audit can be enabled by WM_FIREBASE_AUDIT_DEBUG in beta.html while
+   all existing URL parameters remain supported.
+===============================================================================
+*/
+(function installTemplateSaveFixV663(){
+  'use strict';
+  if(window.__wmTemplateSaveFixV663)return;
+  window.__wmTemplateSaveFixV663=true;
+
+  function trace(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
+  function activeWorker(){
+    var w=null;
+    try{
+      if(window.viewedWorker&&viewedWorker.id)w=viewedWorker;
+      else if(window.session&&session.worker&&session.worker.id)w=session.worker;
+      else if(window.session&&(session.workerId||session.id))w={
+        id:session.workerId||session.id,
+        name:session.name||session.workerName||session.username||'',
+        username:session.username||'',
+        authUid:session.authUid||session.uid||''
+      };
+    }catch(e){}
+    return w||{};
+  }
+  function currentAuthUidSafe(){
+    try{if(window.auth&&auth.currentUser)return auth.currentUser.uid||'';}catch(e){}
+    try{if(typeof currentAuthUid==='function')return currentAuthUid()||'';}catch(e){}
+    return '';
+  }
+  function kindOf(entry){
+    try{if(typeof kindFromEntryV412==='function')return kindFromEntryV412(entry);}catch(e){}
+    return String(entry&&entry.installKind||entry&&entry.priceType||'fiber');
+  }
+  function kindLabel(kind){
+    try{if(typeof kindLabelV412==='function')return kindLabelV412(kind);}catch(e){}
+    return kind==='rf'?'RF':'סיב';
+  }
+
+  window.saveEntryAsTemplate=async function(id){
+    var entry=null;
+    try{entry=(window.monthEntries||monthEntries||[]).find(function(x){return String(x.id)===String(id);});}catch(e){}
+    if(!entry||entry.workType!=='install'||!Array.isArray(entry.items)||!entry.items.length){alert('אפשר לשמור כתבנית רק התקנה עם פריטים.');return;}
+
+    var worker=activeWorker();
+    var ownerId=String(worker.id||'');
+    var ownerName=String(worker.name||worker.username||'');
+    var ownerUsername=String(worker.username||'');
+    var ownerAuthUid=String(worker.authUid||currentAuthUidSafe()||'');
+    var kind=kindOf(entry);
+    trace('TEMPLATE_SAVE_V663_START',{entryId:id,ownerWorkerId:ownerId,ownerAuthUid:ownerAuthUid,kind:kind,itemCount:entry.items.length});
+
+    if(!ownerId){
+      trace('TEMPLATE_SAVE_V663_ABORT_NO_WORKER',{entryId:id,session:window.session?{workerId:session.workerId||'',role:session.role||'',username:session.username||''}:null});
+      alert('לא ניתן לזהות את העובד המחובר. התבנית לא נשמרה. פתח את חלון ה-Audit ושלח את הלוג.');
+      return;
+    }
+
+    var defaultName=('תבנית '+kindLabel(kind)+' מ-'+(typeof heDate==='function'?heDate(entry.date):entry.date)+' לקוח '+(entry.customerNumber||'')).trim();
+    var name=prompt('שם לתבנית',defaultName);
+    if(name===null)return;
+    name=String(name).trim();
+    if(!name){alert('חובה לתת שם לתבנית');return;}
+
+    var payload={
+      name:name,
+      installKind:kind,
+      priceType:kind,
+      items:entry.items.map(function(i){return {id:i.id,name:i.name,price:Number(i.price||0),quantity:Number(i.quantity||0),inputMode:i.inputMode||'qty',installKind:kind,priceType:kind,total:Number(i.total||0)};}),
+      active:true,
+      isDeleted:false,
+      ownerWorkerId:ownerId,
+      ownerWorkerName:ownerName||'לא ידוע',
+      ownerUsername:ownerUsername,
+      ownerAuthUid:ownerAuthUid,
+      createdByName:ownerName||'לא ידוע',
+      createdByRole:(window.session&&session.role)||'worker',
+      createdFromEntry:String(id),
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    try{
+      var ref=await db.collection('installTemplates').add(payload);
+      trace('TEMPLATE_SAVE_V663_WRITE_OK',{templateId:ref&&ref.id||'',ownerWorkerId:ownerId,name:name});
+      if(typeof window.wmInvalidateStaticCacheV622==='function')try{window.wmInvalidateStaticCacheV622();}catch(e){}
+      if(typeof window.loadTemplates==='function')await window.loadTemplates(true);
+      try{window.renderTemplateSelect&&window.renderTemplateSelect();}catch(e){}
+      try{window.refreshWorkerTemplateManagerV661&&await window.refreshWorkerTemplateManagerV661(true);}catch(e){trace('TEMPLATE_SAVE_V663_MANAGER_REFRESH_ERROR',{error:String(e&&e.message||e)});}
+      var visible=false;
+      try{visible=(window.templates||templates||[]).some(function(t){return String(t.id)===String(ref.id);});}catch(e){}
+      trace('TEMPLATE_SAVE_V663_COMPLETE',{templateId:ref&&ref.id||'',visibleAfterReload:visible,totalTemplates:(window.templates||[]).length||0});
+      alert('התבנית נשמרה ✅ תחת '+kindLabel(kind));
+    }catch(e){
+      trace('TEMPLATE_SAVE_V663_ERROR',{entryId:id,ownerWorkerId:ownerId,error:String(e&&e.message||e),code:e&&e.code||''});
+      alert('שגיאה בשמירת התבנית: '+String(e&&e.message||e));
+    }
+  };
+  try{saveEntryAsTemplate=window.saveEntryAsTemplate;}catch(e){}
+
+  var oldRows=window.requiredChangelogRows;
+  if(typeof oldRows==='function'&&!oldRows.__v663Wrapped){
+    var wrapped=function(){var rows=oldRows.apply(this,arguments)||[];if(!rows.some(function(r){return String(r.version||r.id||'')==='6.64-beta';}))rows.unshift({version:'6.64-beta',title:'תיקון שמירת תבניות ומתג Audit ב-HTML',createdAt:'2026-07-30',items:['תוקנה שמירת תבנית לעובד כאשר viewedWorker אינו מוגדר: העובד מזוהה גם מתוך session ונשמר ownerWorkerId תקין.','לא תוצג עוד הודעת הצלחה לפני שכתיבת התבנית ל-Firestore הסתיימה בפועל.','לאחר השמירה רשימת התבניות והמטמון מתרעננים מיד ונבדקת נראות התבנית החדשה.','נוסף בראש beta.html הקבוע WM_FIREBASE_AUDIT_DEBUG שניתן לשנות בין true ל-false, בלי לבטל את התמיכה ב-firebaseDebug=1 בכתובת.','נוספו אירועי Audit מפורטים לכל שלבי שמירת התבנית.']});return rows;};
+    wrapped.__v663Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+})();
+
+
+/*
+===============================================================================
+VERSION 6.64 BETA - TEMPLATE UI CACHE RECONCILIATION + DIRECT SAVE ROUTE
+-------------------------------------------------------------------------------
+1. Routes every visible "save as template" button through one direct handler,
+   even when an older inline handler was captured before the v6.63 override.
+2. Immediately upserts the new Firestore document into the local templates
+   array and redraws both the install selector and the worker template manager.
+3. A forced template-manager refresh now performs a real Firestore query and
+   reconciles by document id, while filtering soft-deleted/inactive templates.
+4. Edit and delete refreshes use the same reconciled source, preventing an old
+   createdAt listener copy from reviving a stale/deleted template in the UI.
+===============================================================================
+*/
+(function installTemplateReconciliationV664(){
+  'use strict';
+  if(window.__wmTemplateReconciliationV664)return;
+  window.__wmTemplateReconciliationV664=true;
+
+  function trace(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
+  function workerId(){try{return String((window.viewedWorker&&viewedWorker.id)||(window.session&&session.workerId)||(window.session&&session.worker&&session.worker.id)||'');}catch(e){return '';}}
+  function isVisible(t){return !!(t&&t.isDeleted!==true&&t.active!==false);}
+  function belongs(t){var id=workerId();try{return !t.ownerWorkerId||String(t.ownerWorkerId)===id||(window.session&&session.role==='admin');}catch(e){return !t.ownerWorkerId||String(t.ownerWorkerId)===id;}}
+  function sortRows(rows){return rows.sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''),'he');});}
+  function setRuntimeTemplates(rows){
+    var clean=sortRows((Array.isArray(rows)?rows:[]).filter(isVisible).filter(belongs));
+    window.templates=clean;
+    try{templates=clean;}catch(e){}
+    try{window.renderTemplateSelect&&window.renderTemplateSelect();}catch(e){}
+    return clean;
+  }
+  function upsertRuntimeTemplate(row){
+    var all=[];try{all=(window.templates||templates||[]).slice();}catch(e){}
+    all=all.filter(function(x){return String(x&&x.id||'')!==String(row&&row.id||'');});
+    if(isVisible(row)&&belongs(row))all.push(row);
+    return setRuntimeTemplates(all);
+  }
+  var templateQueryInflightV668=null,templateQueryWorkerV668='',templateQueryStartedV668=0;
+  async function queryTemplatesFromServerV664(reason){
+    var requestedWorker=workerId();
+    if(!requestedWorker){trace('TEMPLATE_RECONCILE_V668_SKIP_NO_WORKER',{reason:reason||''});return [];}
+    if(templateQueryInflightV668&&templateQueryWorkerV668===requestedWorker){
+      trace('TEMPLATE_RECONCILE_V668_JOIN_INFLIGHT',{reason:reason||'',workerId:requestedWorker});
+      return templateQueryInflightV668;
+    }
+    templateQueryWorkerV668=requestedWorker;templateQueryStartedV668=Date.now();
+    templateQueryInflightV668=(async function(){
+      trace('TEMPLATE_RECONCILE_V668_START',{reason:reason||'',workerId:requestedWorker});
+      // v6.69: installTemplates now uses the same IndexedDB + createdAt/updatedAt
+      // delta mechanism as days off and locks. Never perform a full collection get here.
+      var rows=[];
+      if(typeof window.loadTemplates==='function')rows=await window.loadTemplates(false);
+      else if(typeof loadTemplates==='function')rows=await loadTemplates(false);
+      var current=workerId();
+      if(current!==requestedWorker){
+        trace('TEMPLATE_DELTA_V669_STALE_IGNORED',{reason:reason||'',requestedWorker:requestedWorker,currentWorker:current,cachedDocs:(rows||[]).length});
+        return [];
+      }
+      var clean=setRuntimeTemplates(rows||[]);
+      trace('TEMPLATE_DELTA_V669_READY',{reason:reason||'',cachedDocs:(rows||[]).length,visibleDocs:clean.length,workerId:requestedWorker,durationMs:Date.now()-templateQueryStartedV668});
+      return clean;
+    })();
+    try{return await templateQueryInflightV668;}
+    finally{if(templateQueryWorkerV668===requestedWorker){templateQueryInflightV668=null;templateQueryWorkerV668='';}}
+  }
+  window.wmReloadTemplatesFromServerV664=queryTemplatesFromServerV664;
+
+  var oldRefresh=window.refreshWorkerTemplateManagerV661;
+  window.refreshWorkerTemplateManagerV661=async function(force){
+    if(force===true){
+      try{await queryTemplatesFromServerV664('manager-force-refresh');}
+      catch(e){trace('TEMPLATE_RECONCILE_V664_ERROR',{reason:'manager-force-refresh',error:String(e&&e.message||e)});}
+    }
+    return oldRefresh?oldRefresh.call(this,false):undefined;
+  };
+
+  function activeWorker(){
+    try{
+      if(window.viewedWorker&&viewedWorker.id)return viewedWorker;
+      if(window.session&&session.worker&&session.worker.id)return session.worker;
+      if(window.session&&(session.workerId||session.id))return {id:session.workerId||session.id,name:session.name||session.workerName||session.username||'',username:session.username||'',authUid:session.authUid||session.uid||''};
+    }catch(e){}
+    return {};
+  }
+  function authUid(){try{return auth&&auth.currentUser&&auth.currentUser.uid||'';}catch(e){return '';}}
+  function entryById(id){try{return (window.monthEntries||monthEntries||[]).find(function(x){return String(x.id)===String(id);});}catch(e){return null;}}
+  function kindOf(e){try{return typeof kindFromEntryV412==='function'?kindFromEntryV412(e):String(e.installKind||e.priceType||'fiber');}catch(x){return String(e.installKind||e.priceType||'fiber');}}
+  function kindLabel(k){try{return typeof kindLabelV412==='function'?kindLabelV412(k):(k==='rf'?'RF':'סיב');}catch(e){return k==='rf'?'RF':'סיב';}}
+
+  window.saveEntryAsTemplateV664=async function(id){
+    var entry=entryById(id);
+    if(!entry||entry.workType!=='install'||!Array.isArray(entry.items)||!entry.items.length){alert('אפשר לשמור כתבנית רק התקנה עם פריטים.');return;}
+    var w=activeWorker(),ownerId=String(w.id||'');
+    if(!ownerId){trace('TEMPLATE_SAVE_V664_ABORT_NO_WORKER',{entryId:id});alert('לא ניתן לזהות את העובד המחובר.');return;}
+    var kind=kindOf(entry);
+    var defaultName=('תבנית '+kindLabel(kind)+' מ-'+(typeof heDate==='function'?heDate(entry.date):entry.date)+' לקוח '+(entry.customerNumber||'')).trim();
+    var name=prompt('שם לתבנית',defaultName);if(name===null)return;name=String(name).trim();if(!name){alert('חובה לתת שם לתבנית');return;}
+    var payload={name:name,installKind:kind,priceType:kind,items:entry.items.map(function(i){return {id:i.id,name:i.name,price:Number(i.price||0),quantity:Number(i.quantity||0),inputMode:i.inputMode||'qty',installKind:kind,priceType:kind,total:Number(i.total||0)};}),active:true,isDeleted:false,ownerWorkerId:ownerId,ownerWorkerName:String(w.name||w.username||'לא ידוע'),ownerUsername:String(w.username||''),ownerAuthUid:String(w.authUid||authUid()||''),createdByName:String(w.name||w.username||'לא ידוע'),createdByRole:(window.session&&session.role)||'worker',createdFromEntry:String(id),createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+    trace('TEMPLATE_SAVE_V664_START',{entryId:id,ownerWorkerId:ownerId,itemCount:payload.items.length});
+    try{
+      var ref=await db.collection('installTemplates').add(payload);
+      var local=Object.assign({id:ref.id},payload,{createdAt:new Date(),updatedAt:new Date()});
+      try{if(typeof window.wmTemplateCacheUpsertV670==='function')await window.wmTemplateCacheUpsertV670(local,'save-v671');}catch(cacheErr){trace('TEMPLATE_CACHE_V670_SAVE_ERROR',{templateId:ref.id,error:String(cacheErr&&cacheErr.message||cacheErr)});}
+      var before=0;try{before=(window.templates||[]).length;}catch(e){}
+      var after=upsertRuntimeTemplate(local).length;
+      try{await window.refreshWorkerTemplateManagerV661(false);}catch(e){}
+      trace('TEMPLATE_SAVE_V664_LOCAL_UPSERT',{templateId:ref.id,before:before,after:after,ownerWorkerId:ownerId});
+      setTimeout(function(){queryTemplatesFromServerV664('post-save-confirm').then(function(){try{window.refreshWorkerTemplateManagerV661(false);}catch(e){}}).catch(function(e){trace('TEMPLATE_SAVE_V664_CONFIRM_ERROR',{templateId:ref.id,error:String(e&&e.message||e)});});},450);
+      trace('TEMPLATE_SAVE_V664_COMPLETE',{templateId:ref.id,name:name});
+      alert('התבנית נשמרה ✅ תחת '+kindLabel(kind));
+    }catch(e){trace('TEMPLATE_SAVE_V664_ERROR',{entryId:id,error:String(e&&e.message||e),code:e&&e.code||''});alert('שגיאה בשמירת התבנית: '+String(e&&e.message||e));}
+  };
+  window.saveEntryAsTemplate=window.saveEntryAsTemplateV664;
+  try{saveEntryAsTemplate=window.saveEntryAsTemplateV664;}catch(e){}
+
+  // Capture the click before legacy inline onclick handlers, so only v6.64 runs.
+  document.addEventListener('click',function(ev){
+    var btn=ev.target&&ev.target.closest&&ev.target.closest('button');if(!btn)return;
+    var raw=String(btn.getAttribute('onclick')||'');
+    if(raw.indexOf('saveEntryAsTemplate(')<0)return;
+    var m=raw.match(/saveEntryAsTemplate\(['\"]([^'\"]+)['\"]\)/);if(!m)return;
+    ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation();
+    trace('TEMPLATE_SAVE_V664_DIRECT_ROUTE',{entryId:m[1]});
+    window.saveEntryAsTemplateV664(m[1]);
+  },true);
+
+  var oldRows=window.requiredChangelogRows;
+  if(typeof oldRows==='function'&&!oldRows.__v664Wrapped){
+    var wrapped=function(){var rows=oldRows.apply(this,arguments)||[];if(!rows.some(function(r){return String(r.version||r.id||'')==='6.64-beta';}))rows.unshift({version:'6.64-beta',title:'תיקון הצגת תבניות לאחר שמירה, עריכה ומחיקה',createdAt:'2026-07-30',items:['כפתור שמור כתבנית מנותב ישירות לפונקציה החדשה גם כאשר נשאר onclick ישן בכרטיס העבודה.','לאחר כתיבה ל-Firestore התבנית מתווספת מיד למערך המקומי, לרשימת הבחירה ולמנהל התבניות.','רענון כפוי של מנהל התבניות מבצע כעת קריאה אמיתית ל-Firestore ומאחד מסמכים לפי המזהה שלהם.','תבניות עם isDeleted=true או active=false מסוננות בכל רענון ואינן חוזרות דרך מאזין createdAt ישן.','נוספו אירועי Audit מפורטים לניתוב, עדכון מקומי ואימות מול השרת.']});return rows;};
+    wrapped.__v664Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+})();
+
+
+/*
+===============================================================================
+VERSION 6.66 BETA - IMMEDIATE TEMPLATE DELETE EVICTION
+-------------------------------------------------------------------------------
+1. A deleted template is removed from runtime arrays and both template UIs
+   immediately, before waiting for Firestore listeners or a manual refresh.
+2. A short tombstone guard prevents createdAt/updatedAt listeners from reviving
+   the soft-deleted document while their pending snapshots settle.
+3. The server reconciliation remains the final source of truth in background.
+===============================================================================
+*/
+(function installImmediateTemplateDeleteV665(){
+  'use strict';
+  if(window.__wmImmediateTemplateDeleteV665)return;
+  window.__wmImmediateTemplateDeleteV665=true;
+  var tombstones=window.__wmTemplateDeleteTombstonesV665=window.__wmTemplateDeleteTombstonesV665||new Set();
+  function trace(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
+  function currentRows(){try{return (window.templates||templates||[]).slice();}catch(e){return [];}}
+  function setRows(rows){
+    var clean=(Array.isArray(rows)?rows:[]).filter(function(t){return t&&t.isDeleted!==true&&t.active!==false&&!tombstones.has(String(t.id||''));});
+    window.templates=clean;try{templates=clean;}catch(e){}
+    try{window.renderTemplateSelect&&window.renderTemplateSelect();}catch(e){}
+    return clean;
+  }
+  function evict(id,reason){
+    id=String(id||'');
+    var before=currentRows().length;
+    tombstones.add(id);
+    var after=setRows(currentRows().filter(function(t){return String(t&&t.id||'')!==id;})).length;
+    try{document.querySelectorAll('[data-template-id="'+CSS.escape(id)+'"]').forEach(function(el){el.remove();});}catch(e){
+      try{document.querySelectorAll('[data-template-id]').forEach(function(el){if(String(el.getAttribute('data-template-id'))===id)el.remove();});}catch(_e){}
+    }
+    var box=document.getElementById('workerTemplateManagerListV661');
+    if(box&&!box.querySelector('[data-template-id]'))box.innerHTML='<div class="hint-card">אין לך תבניות אישיות עדיין.</div>';
+    trace('TEMPLATE_DELETE_V665_EVICT',{templateId:id,reason:reason||'',before:before,after:after});
+  }
+  window.wmEvictDeletedTemplateV665=evict;
+
+  var oldRender=window.renderTemplateSelect;
+  if(typeof oldRender==='function'&&!oldRender.__v665Wrapped){
+    var wrappedRender=function(){setRows(currentRows());return oldRender.apply(this,arguments);};
+    wrappedRender.__v665Wrapped=true;window.renderTemplateSelect=wrappedRender;try{renderTemplateSelect=wrappedRender;}catch(e){}
+  }
+
+  window.deleteMyTemplateV661=async function(id){
+    id=String(id||'');
+    var t=currentRows().find(function(x){return String(x&&x.id||'')===id;});
+    if(!t){alert('התבנית לא נמצאה.');return;}
+    if(!await window.wmConfirmTemplateDeleteV666(String(t.name||'')))return;
+    evict(id,'before-write');
+    try{
+      if(typeof window.softDelete==='function')await window.softDelete('installTemplates',id);
+      else await db.collection('installTemplates').doc(id).update({active:false,isDeleted:true,deletedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      trace('TEMPLATE_DELETE_V665_WRITE_OK',{templateId:id});
+      try{if(typeof window.wmTemplateCacheEvictV670==='function')await window.wmTemplateCacheEvictV670(id,'delete-v671');}catch(cacheErr){trace('TEMPLATE_CACHE_V670_DELETE_ERROR',{templateId:id,error:String(cacheErr&&cacheErr.message||cacheErr)});}
+      try{var m=document.getElementById('workerTemplateManagerMsgV661');if(m)m.innerHTML='<div class="notice">התבנית נמחקה ✅</div>';}catch(e){}
+      [0,80,260,700,1500].forEach(function(ms){setTimeout(function(){evict(id,'listener-guard-'+ms);},ms);});
+      setTimeout(function(){
+        var reload=window.wmReloadTemplatesFromServerV664;
+        if(typeof reload==='function')reload('post-delete-v665').then(function(){evict(id,'server-confirm');try{window.refreshWorkerTemplateManagerV661&&window.refreshWorkerTemplateManagerV661(false);}catch(e){};tombstones.delete(id);}).catch(function(e){trace('TEMPLATE_DELETE_V665_RELOAD_ERROR',{templateId:id,error:String(e&&e.message||e)});});
+        else tombstones.delete(id);
+      },900);
+    }catch(e){
+      tombstones.delete(id);
+      trace('TEMPLATE_DELETE_V665_ERROR',{templateId:id,error:String(e&&e.message||e),code:e&&e.code||''});
+      alert('שגיאה במחיקת התבנית: '+String(e&&e.message||e));
+      try{window.wmReloadTemplatesFromServerV664&&window.wmReloadTemplatesFromServerV664('delete-error-v665');}catch(_e){}
+    }
+  };
+  try{deleteMyTemplateV661=window.deleteMyTemplateV661;}catch(e){}
+
+  var oldDelete=window.deleteTemplate;
+  window.deleteTemplate=async function(id){
+    id=String(id||'');if(!id||!await window.wmConfirmTemplateDeleteV666(''))return;
+    evict(id,'admin-before-write');
+    try{
+      if(typeof window.softDelete==='function')await window.softDelete('installTemplates',id);
+      else await db.collection('installTemplates').doc(id).update({active:false,isDeleted:true,deletedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      [0,100,350,900].forEach(function(ms){setTimeout(function(){evict(id,'admin-listener-guard-'+ms);},ms);});
+      setTimeout(function(){try{window.wmReloadTemplatesFromServerV664&&window.wmReloadTemplatesFromServerV664('admin-post-delete-v665');window.loadTemplatesAdmin&&window.loadTemplatesAdmin();}catch(e){};tombstones.delete(id);},950);
+    }catch(e){tombstones.delete(id);alert('שגיאה במחיקת התבנית: '+String(e&&e.message||e));if(oldDelete)return oldDelete.call(this,id);}
+  };
+  try{deleteTemplate=window.deleteTemplate;}catch(e){}
+
+  var oldRows=window.requiredChangelogRows;
+  if(typeof oldRows==='function'&&!oldRows.__v665Wrapped){
+    var wrapped=function(){var rows=oldRows.apply(this,arguments)||[];if(!rows.some(function(r){return String(r.version||r.id||'')==='6.66-beta';}))rows.unshift({version:'6.66-beta',title:'מחיקת תבנית מיידית וכפתורי Audit קומפקטיים',createdAt:'2026-07-30',items:['תבנית שנמחקת מוסרת מיד ממנהל התבניות ומרשימת הבחירה בלי צורך בלחיצה על רענן.','נוסף מנגנון Tombstone קצר שמונע ממאזיני createdAt ו-updatedAt להחזיר למסך מסמך שנמחק בזמן שה-Snapshot מתעדכן.','לאחר המחיקה מתבצע אימות רקע מול Firestore ומיזוג מחדש לפי מזהה המסמך.','כפתורי חלון Firebase Audit הוקטנו לאייקונים קומפקטיים עם כותרות נגישות להעתקה, ניקוי, מזעור וסגירה.']});return rows;};
+    wrapped.__v665Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+})();
+
+
+/*
+===============================================================================
+VERSION 6.66 BETA - REAL DELETE CONFIRMATION + CLEAN LOGOUT LISTENER SHUTDOWN
+-------------------------------------------------------------------------------
+1. Template deletion uses an in-app two-button confirmation dialog: Delete/Cancel.
+2. Cancel, backdrop tap and the X button never write to Firestore.
+3. Every Firestore onSnapshot unsubscribe is tracked and detached before signOut,
+   preventing expected permission errors from appearing after logout.
+===============================================================================
+*/
+(function installTemplateConfirmAndCleanLogoutV666(){
+  'use strict';
+  if(window.__wmTemplateConfirmAndCleanLogoutV666)return;
+  window.__wmTemplateConfirmAndCleanLogoutV666=true;
+
+  function ensureConfirmUi(){
+    var host=document.getElementById('wmConfirmDeleteV666');
+    if(host)return host;
+    var style=document.createElement('style');
+    style.id='wmConfirmDeleteStyleV666';
+    style.textContent='\
+#wmConfirmDeleteV666{position:fixed;inset:0;z-index:2147483646;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.48);direction:rtl}\
+#wmConfirmDeleteV666.wm-open-v666{display:flex}\
+#wmConfirmDeleteV666 .wm-confirm-card-v666{width:min(92vw,390px);background:#fff;border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.28);padding:20px}\
+#wmConfirmDeleteV666 .wm-confirm-head-v666{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}\
+#wmConfirmDeleteV666 .wm-confirm-title-v666{font-size:19px;font-weight:800}\
+#wmConfirmDeleteV666 .wm-confirm-x-v666{border:0;background:transparent;font-size:25px;line-height:1;cursor:pointer;padding:3px 7px}\
+#wmConfirmDeleteV666 .wm-confirm-text-v666{font-size:15px;line-height:1.55;margin:8px 0 18px;color:#333;overflow-wrap:anywhere}\
+#wmConfirmDeleteV666 .wm-confirm-actions-v666{display:flex;gap:10px}\
+#wmConfirmDeleteV666 .wm-confirm-actions-v666 button{flex:1;min-height:44px;border:0;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer}\
+#wmConfirmDeleteV666 .wm-confirm-cancel-v666{background:#eef1f5;color:#222}\
+#wmConfirmDeleteV666 .wm-confirm-delete-v666{background:#c62828;color:#fff}';
+    document.head.appendChild(style);
+    host=document.createElement('div');
+    host.id='wmConfirmDeleteV666';
+    host.setAttribute('role','dialog');
+    host.setAttribute('aria-modal','true');
+    host.setAttribute('aria-labelledby','wmConfirmDeleteTitleV666');
+    host.innerHTML='<div class="wm-confirm-card-v666"><div class="wm-confirm-head-v666"><div id="wmConfirmDeleteTitleV666" class="wm-confirm-title-v666">מחיקת תבנית</div><button type="button" class="wm-confirm-x-v666" aria-label="סגירה">×</button></div><div class="wm-confirm-text-v666"></div><div class="wm-confirm-actions-v666"><button type="button" class="wm-confirm-cancel-v666">ביטול</button><button type="button" class="wm-confirm-delete-v666">כן, מחק</button></div></div>';
+    document.body.appendChild(host);
+    return host;
+  }
+
+  window.wmConfirmTemplateDeleteV666=function(templateName){
+    return new Promise(function(resolve){
+      var host=ensureConfirmUi();
+      var done=false;
+      var name=String(templateName||'').trim();
+      var text=host.querySelector('.wm-confirm-text-v666');
+      text.textContent=name?'האם למחוק את התבנית "'+name+'"?':'האם למחוק את התבנית?';
+      var cancel=host.querySelector('.wm-confirm-cancel-v666');
+      var del=host.querySelector('.wm-confirm-delete-v666');
+      var close=host.querySelector('.wm-confirm-x-v666');
+      function finish(value){if(done)return;done=true;host.classList.remove('wm-open-v666');document.removeEventListener('keydown',onKey,true);resolve(!!value);}
+      function onKey(e){if(e.key==='Escape'){e.preventDefault();finish(false);}}
+      cancel.onclick=function(){finish(false);};
+      close.onclick=function(){finish(false);};
+      del.onclick=function(){finish(true);};
+      host.onclick=function(e){if(e.target===host)finish(false);};
+      document.addEventListener('keydown',onKey,true);
+      host.classList.add('wm-open-v666');
+      setTimeout(function(){try{cancel.focus();}catch(e){}},0);
+    });
+  };
+
+  // Track every Firestore listener created after scripts finish loading.
+  var active=window.__wmActiveFirestoreUnsubsV666=window.__wmActiveFirestoreUnsubsV666||new Set();
+  function wrapOnSnapshot(proto,label){
+    if(!proto||typeof proto.onSnapshot!=='function'||proto.onSnapshot.__wmTrackedV666)return;
+    var original=proto.onSnapshot;
+    function tracked(){
+      var unsub=original.apply(this,arguments);
+      if(typeof unsub!=='function')return unsub;
+      var closed=false;
+      function wrapped(){if(closed)return;closed=true;active.delete(wrapped);return unsub();}
+      wrapped.__wmListenerLabelV666=label||'';
+      active.add(wrapped);
+      return wrapped;
+    }
+    tracked.__wmTrackedV666=true;
+    tracked.__wmOriginalV666=original;
+    proto.onSnapshot=tracked;
+  }
+  try{
+    var fs=firebase&&firebase.firestore;
+    wrapOnSnapshot(fs&&fs.Query&&fs.Query.prototype,'query');
+    wrapOnSnapshot(fs&&fs.DocumentReference&&fs.DocumentReference.prototype,'document');
+    wrapOnSnapshot(fs&&fs.CollectionReference&&fs.CollectionReference.prototype,'collection');
+  }catch(e){}
+
+  window.wmDetachAllFirestoreListenersV666=function(reason){
+    var list=Array.from(active),detached=0;
+    list.forEach(function(fn){try{fn();detached++;}catch(e){active.delete(fn);}});
+    try{window.stopHistoricalMonthListenerV631&&window.stopHistoricalMonthListenerV631(reason||'logout-v6.66');}catch(e){}
+    try{window.stopHistoricalDayOffListenerV632&&window.stopHistoricalDayOffListenerV632(reason||'logout-v6.66');}catch(e){}
+    try{window.wmTraceV617&&window.wmTraceV617('LOGOUT_LISTENERS_DETACHED_V666',{reason:reason||'',detached:detached,remaining:active.size});}catch(e){}
+    return detached;
+  };
+
+  var oldLogout=window.logout;
+  if(typeof oldLogout==='function'&&!oldLogout.__wmCleanV666){
+    var cleanLogout=async function(){
+      try{window.wmDetachAllFirestoreListenersV666('before-signout-v6.66');}catch(e){}
+      return await oldLogout.apply(this,arguments);
+    };
+    cleanLogout.__wmCleanV666=true;
+    window.logout=cleanLogout;
+    try{logout=cleanLogout;}catch(e){}
+  }
+
+  var oldRows=window.requiredChangelogRows;
+  if(typeof oldRows==='function'&&!oldRows.__v666Wrapped){
+    var wrappedRows=function(){
+      var rows=oldRows.apply(this,arguments)||[];
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.66-beta';})){
+        rows.unshift({version:'6.66-beta',title:'אישור מחיקת תבנית ויציאה נקייה',createdAt:'2026-07-31',items:[
+          'מחיקת תבנית מציגה כעת חלון פנימי עם שני כפתורים ברורים: כן, מחק וביטול.',
+          'לחיצה על ביטול, על X, מחוץ לחלון או על מקש Escape אינה מוחקת ואינה כותבת ל-Firebase.',
+          'כל מאזיני Firestore מנותקים לפני signOut כדי למנוע שגיאות הרשאה מיותרות בלוג לאחר יציאה.',
+          'נוסף אירוע Audit בשם LOGOUT_LISTENERS_DETACHED_V666 לצורך אימות סדר היציאה.'
+        ]});
+      }
+      return rows;
+    };
+    wrappedRows.__v666Wrapped=true;
+    window.requiredChangelogRows=wrappedRows;
+    try{requiredChangelogRows=wrappedRows;}catch(e){}
+  }
+})();
+
+
+/*
+===============================================================================
+VERSION 6.68 BETA - SINGLE-FLIGHT TEMPLATE LOAD + SAFE WORKER SWITCH
+-------------------------------------------------------------------------------
+1. Templates load automatically only when opening "My tools" or Installation.
+2. At most one full installTemplates query can run for the current worker.
+3. Results started for a previous worker are ignored after logout/switch.
+4. Template loading never blocks the worker login flow.
+===============================================================================
+*/
+(function installAutomaticTemplateLoadV668(){
+  'use strict';
+  if(window.__wmAutomaticTemplateLoadV668)return;
+  window.__wmAutomaticTemplateLoadV668=true;
+  var timer=0,lastRequestedAt=0;
+  function trace(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
+  function workerId(){try{return String((window.viewedWorker&&viewedWorker.id)||(window.session&&session.workerId)||(window.session&&session.worker&&session.worker.id)||'');}catch(e){return '';}}
+  function visibleRows(rows){return (Array.isArray(rows)?rows:[]).filter(function(t){return t&&t.active!==false&&t.isDeleted!==true;});}
+  function normalizeRuntime(reason){
+    var rows=[];try{rows=(window.templates||templates||[]).slice();}catch(e){}
+    rows=visibleRows(rows);
+    window.templates=rows;try{templates=rows;}catch(e){}
+    try{window.renderTemplateSelect&&window.renderTemplateSelect();}catch(e){}
+    trace('TEMPLATE_AUTO_V668_NORMALIZE',{reason:reason||'',visibleDocs:rows.length,workerId:workerId()});
+    return rows;
+  }
+  function load(reason){
+    var id=workerId();
+    normalizeRuntime('before-'+(reason||'open'));
+    try{window.refreshWorkerTemplateManagerV661&&window.refreshWorkerTemplateManagerV661(false);}catch(e){}
+    if(!id){trace('TEMPLATE_AUTO_V668_SKIP_NO_WORKER',{reason:reason||''});return Promise.resolve([]);}
+    lastRequestedAt=Date.now();
+    return Promise.resolve().then(function(){
+      if(workerId()!==id)return [];
+      if(typeof window.wmReloadTemplatesFromServerV664==='function')return window.wmReloadTemplatesFromServerV664('auto-open-v668-'+(reason||'unknown'));
+      return [];
+    }).then(function(rows){
+      if(workerId()!==id){trace('TEMPLATE_AUTO_V668_RESULT_IGNORED',{requestedWorker:id,currentWorker:workerId(),reason:reason||''});return [];}
+      normalizeRuntime('after-server-'+(reason||'open'));
+      try{window.refreshWorkerTemplateManagerV661&&window.refreshWorkerTemplateManagerV661(false);}catch(e){}
+      try{window.loadTemplatesAdmin&&window.loadTemplatesAdmin();}catch(e){}
+      trace('TEMPLATE_AUTO_V668_DONE',{reason:reason||'',workerId:id,elapsedMs:Date.now()-lastRequestedAt});
+      return rows||[];
+    }).catch(function(e){trace('TEMPLATE_AUTO_V668_ERROR',{reason:reason||'',workerId:id,error:String(e&&e.message||e)});return [];});
+  }
+  window.wmAutoLoadTemplatesV668=load;
+  function schedule(reason){clearTimeout(timer);timer=setTimeout(function(){load(reason);},120);}
+  document.addEventListener('click',function(ev){
+    var btn=ev.target&&ev.target.closest&&ev.target.closest('button,[role="button"]');if(!btn)return;
+    var text=String(btn.textContent||'').replace(/\s+/g,' ').trim();
+    var id=String(btn.id||'');
+    if(text.indexOf('הכלים שלי')>=0||id==='installBtn'||text==='התקנה')schedule(text||id||'template-open');
+  },true);
+  var oldRows=window.requiredChangelogRows;
+  if(typeof oldRows==='function'&&!oldRows.__v668Wrapped){
+    var wrapped=function(){
+      var rows=oldRows.apply(this,arguments)||[];
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.72-beta';}))rows.unshift({version:'6.72-beta',title:'טעינת תבניות יחידה ומעבר בטוח בין עובדים',createdAt:'2026-07-31',items:[
+        'טעינת התבניות האוטומטית מתבצעת רק בפתיחת הכלים שלי או חלון התקנה, ולא מכל פעולה בהגדרות או במעבר חודש.',
+        'בכל רגע מתבצעת לכל היותר שאילתת installTemplates מלאה אחת; בקשות נוספות מצטרפות לאותה טעינה.',
+        'תוצאה שהתחילה אצל עובד קודם נזרקת לאחר יציאה או מעבר עובד ואינה יכולה לעדכן את המסך של העובד החדש.',
+        'טעינת התבניות פועלת ברקע ואינה חוסמת את תהליך הכניסה לעובד.'
+      ]});
+      return rows;
+    };
+    wrapped.__v668Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+})();
+
+
+/*
+===============================================================================
+VERSION 6.69 BETA - INSTALL TEMPLATES CACHE + DELTA ONLY
+-------------------------------------------------------------------------------
+1. installTemplates restores immediately from IndexedDB.
+2. Only createdAt/updatedAt delta listeners synchronize server changes.
+3. Opening My Tools / Installation and pressing Refresh never runs a full get().
+4. Save/delete update the local runtime immediately; listeners confirm changes.
+===============================================================================
+*/
+(function installTemplateDeltaOnlyV669(){
+  'use strict';
+  if(window.__wmTemplateDeltaOnlyV669)return;
+  window.__wmTemplateDeltaOnlyV669=true;
+  function trace(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
+  function refreshFromDelta(reason){
+    var loader=window.loadTemplates||(typeof loadTemplates==='function'?loadTemplates:null);
+    if(typeof loader!=='function')return Promise.resolve([]);
+    return Promise.resolve(loader(false)).then(function(rows){
+      try{window.refreshWorkerTemplateManagerV661&&window.refreshWorkerTemplateManagerV661(false);}catch(e){}
+      try{window.renderTemplateSelect&&window.renderTemplateSelect();}catch(e){}
+      trace('TEMPLATE_DELTA_V669_REFRESH',{reason:reason||'',docs:Array.isArray(rows)?rows.length:0});
+      return rows||[];
+    });
+  }
+  window.wmReloadTemplatesFromServerV664=function(reason){return refreshFromDelta(reason||'compat-reload');};
+  window.wmRefreshTemplatesDeltaV669=refreshFromDelta;
+  trace('TEMPLATE_DELTA_V669_READY',{mode:'indexeddb-createdAt-updatedAt'});
+
+  var oldRows=window.requiredChangelogRows;
+  if(typeof oldRows==='function'&&!oldRows.__v669Wrapped){
+    var wrapped=function(){
+      var rows=oldRows.apply(this,arguments)||[];
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.72-beta';}))rows.unshift({version:'6.72-beta',title:'תבניות במטמון ודלתאות בלבד',createdAt:'2026-07-31',items:[
+        'installTemplates נטען מיד מ-IndexedDB בדיוק כמו ימי חופש ונעילות ימים.',
+        'לאחר הטעינה המקומית מחוברים מאזיני createdAt ו-updatedAt שמביאים רק תבניות חדשות או תבניות שהשתנו.',
+        'פתיחת הכלים שלי, פתיחת התקנה ולחיצה על רענן אינן מבצעות עוד קריאה מלאה של כל אוסף התבניות.',
+        'שמירה ומחיקה מעדכנות מיד את הרשימה המקומית, והדלתא מאשרת ומסנכרנת את השינוי בין מכשירים.',
+        'מעבר בין עובדים אינו נחסם על ידי טעינת תבניות ואינו מחזיר תוצאה של העובד הקודם.'
+      ]});
+      return rows;
+    };
+    wrapped.__v669Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+})();
+
+
+/*
+===============================================================================
+VERSION 6.70 BETA - STRICT PER-WORKER TEMPLATE ISOLATION
+-------------------------------------------------------------------------------
+1. The visible template array is cleared immediately when the active worker
+   changes, signs out, or starts a new login.
+2. Every template render is rebuilt only from the IndexedDB master cache and is
+   filtered by the current workerId, active and isDeleted fields.
+3. Save and delete mutate the IndexedDB master cache immediately, so Refresh
+   never restores an older template list while waiting for Firestore delta.
+4. Asynchronous results created for a previous worker are ignored.
+===============================================================================
+*/
+(function installStrictWorkerTemplateIsolationV670(){
+  'use strict';
+  if(window.__wmStrictWorkerTemplateIsolationV670)return;
+  window.__wmStrictWorkerTemplateIsolationV670=true;
+
+  var DB_NAME='work_monitor_beta_cache',STORE='collections',KEY='installTemplates';
+  var lastWorkerId='',switchToken=0,watchTimer=0;
+  function trace(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
+  function currentWorkerId(){
+    try{return String((window.viewedWorker&&viewedWorker.id)||(window.session&&session.workerId)||(window.session&&session.worker&&session.worker.id)||'');}
+    catch(e){return '';}
+  }
+  function isAdminWithoutSelectedWorker(){try{return !!(window.session&&session.role==='admin'&&!(window.viewedWorker&&viewedWorker.id));}catch(e){return false;}}
+  function visibleForWorker(rows,id){
+    id=String(id||'');
+    return (Array.isArray(rows)?rows:[]).filter(function(t){
+      if(!t||t.active===false||t.isDeleted===true)return false;
+      var owner=String(t.ownerWorkerId||'');
+      if(isAdminWithoutSelectedWorker())return true;
+      return !!(id&&owner&&owner===id);
+    }).sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''),'he');});
+  }
+  function clearUi(reason){
+    window.templates=[];try{templates=[];}catch(e){}
+    try{var s=document.getElementById('installTemplateSelect');if(s)s.innerHTML='<option value="">בחר תבנית...</option>'; }catch(e){}
+    try{var b=document.getElementById('workerTemplateManagerListV661');if(b)b.innerHTML='<p class="muted">התבניות ייטענו עבור העובד הנוכחי.</p>'; }catch(e){}
+    try{window.renderTemplateSelect&&window.renderTemplateSelect();}catch(e){}
+    trace('TEMPLATE_WORKER_ISOLATION_V670_CLEAR',{reason:reason||'',workerId:currentWorkerId()});
+  }
+  var dbPromiseV671=null;
+  function openRaw(version){return new Promise(function(resolve,reject){
+    try{
+      var r=(typeof version==='number')?indexedDB.open(DB_NAME,version):indexedDB.open(DB_NAME);
+      r.onupgradeneeded=function(ev){var db=ev.target.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'key'});};
+      r.onsuccess=function(){resolve(r.result);};
+      r.onerror=function(){reject(r.error||new Error('IndexedDB open failed'));};
+      r.onblocked=function(){trace('TEMPLATE_CACHE_V671_DB_BLOCKED',{database:DB_NAME,targetVersion:version||'current'});};
+    }catch(e){reject(e);}
+  });}
+  async function ensureStoreV671(){
+    var db=await openRaw();
+    if(db.objectStoreNames.contains(STORE))return db;
+    var nextVersion=Math.max(Number(db.version||1)+1,2);
+    try{db.close();}catch(e){}
+    trace('TEMPLATE_CACHE_V671_SCHEMA_UPGRADE',{database:DB_NAME,targetVersion:nextVersion,missingStore:STORE});
+    db=await openRaw(nextVersion);
+    if(!db.objectStoreNames.contains(STORE)){try{db.close();}catch(e){}throw new Error('IndexedDB store '+STORE+' was not created');}
+    return db;
+  }
+  function openDb(){
+    if(!dbPromiseV671)dbPromiseV671=ensureStoreV671().catch(function(err){dbPromiseV671=null;throw err;});
+    return dbPromiseV671;
+  }
+  async function readMaster(){
+    var db=await openDb();return new Promise(function(resolve,reject){
+      try{var tx=db.transaction(STORE,'readonly'),r=tx.objectStore(STORE).get(KEY);r.onsuccess=function(){resolve(r.result&&Array.isArray(r.result.rows)?r.result.rows:[]);};r.onerror=function(){reject(r.error||tx.error);};}
+      catch(e){dbPromiseV671=null;reject(e);}
+    });
+  }
+  async function writeMaster(rows){
+    var db=await openDb(),record={key:KEY,rows:Array.isArray(rows)?rows:[],savedAt:new Date().toISOString(),appVersion:'6.74-beta',schemaVersion:3};
+    return new Promise(function(resolve,reject){
+      try{var tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(record);tx.oncomplete=function(){resolve(record);};tx.onerror=function(){reject(tx.error||new Error('IndexedDB write failed'));};tx.onabort=function(){reject(tx.error||new Error('IndexedDB write aborted'));};}
+      catch(e){dbPromiseV671=null;reject(e);}
+    });
+  }
+  function applyRows(rows,requestedWorker,reason){
+    var now=currentWorkerId();
+    if(String(requestedWorker||'')!==now){trace('TEMPLATE_WORKER_ISOLATION_V670_STALE',{requestedWorker:requestedWorker||'',currentWorker:now,reason:reason||''});return [];}
+    var clean=visibleForWorker(rows,now);
+    window.templates=clean;try{templates=clean;}catch(e){}
+    try{window.renderTemplateSelect&&window.renderTemplateSelect();}catch(e){}
+    try{window.refreshWorkerTemplateManagerV661&&window.refreshWorkerTemplateManagerV661(false);}catch(e){}
+    trace('TEMPLATE_WORKER_ISOLATION_V670_APPLY',{workerId:now,masterDocs:(rows||[]).length,visibleDocs:clean.length,reason:reason||''});
+    return clean;
+  }
+  async function reloadForCurrentWorker(reason){
+    var requested=currentWorkerId(),token=++switchToken;
+    if(!requested&&!isAdminWithoutSelectedWorker()){clearUi('no-worker-'+(reason||''));return [];}
+    try{
+      var rows=await readMaster();
+      if(token!==switchToken)return [];
+      return applyRows(rows,requested,reason||'reload');
+    }catch(e){trace('TEMPLATE_WORKER_ISOLATION_V670_IDB_ERROR',{reason:reason||'',error:String(e&&e.message||e)});return [];}
+  }
+  async function upsertCache(row,reason){
+    if(!row||!row.id)return [];
+    var runtime=[];try{runtime=Array.isArray(window.templates)?window.templates.slice():[];}catch(e){}
+    runtime=runtime.filter(function(x){return String(x&&x.id||'')!==String(row.id);});runtime.push(row);
+    applyRows(runtime,currentWorkerId(),(reason||'upsert')+'-runtime-first');
+    try{
+      var rows=await readMaster();
+      rows=rows.filter(function(x){return String(x&&x.id||'')!==String(row.id);});rows.push(row);
+      await writeMaster(rows);applyRows(rows,currentWorkerId(),reason||'upsert');
+      trace('TEMPLATE_CACHE_V671_UPSERT',{templateId:String(row.id),workerId:String(row.ownerWorkerId||''),masterDocs:rows.length});
+      return rows;
+    }catch(e){
+      trace('TEMPLATE_CACHE_V671_UPSERT_IDB_ERROR',{templateId:String(row.id),error:String(e&&e.message||e)});
+      return runtime;
+    }
+  }
+  async function evictCache(id,reason){
+    id=String(id||'');var rows=await readMaster(),before=rows.length;
+    rows=rows.filter(function(x){return String(x&&x.id||'')!==id;});
+    await writeMaster(rows);applyRows(rows,currentWorkerId(),reason||'evict');
+    trace('TEMPLATE_CACHE_V670_EVICT',{templateId:id,before:before,after:rows.length});
+    return rows;
+  }
+  window.wmTemplateCacheUpsertV670=upsertCache;
+  window.wmTemplateCacheEvictV670=evictCache;
+  window.wmReloadTemplatesForCurrentWorkerV670=reloadForCurrentWorker;
+
+  var previousLoad=window.loadTemplates||(typeof loadTemplates==='function'?loadTemplates:null);
+  window.loadTemplates=async function(force){
+    var requested=currentWorkerId(),token=++switchToken,rows=[];
+    try{if(typeof previousLoad==='function')rows=await previousLoad.call(this,force===true)||[];}catch(e){trace('TEMPLATE_LOAD_V670_BASE_ERROR',{error:String(e&&e.message||e)});}
+    if(token!==switchToken||requested!==currentWorkerId())return [];
+    // v6.73: the worker-scoped loader is the source of truth, exactly like workerDaysOff/workEntries.
+    // Never overwrite it with the old global installTemplates master cache.
+    return applyRows(rows,requested,'load-v673-worker-scope');
+  };
+  try{loadTemplates=window.loadTemplates;}catch(e){}
+
+  function workerChanged(reason){
+    var id=currentWorkerId();if(id===lastWorkerId)return;
+    var previous=lastWorkerId;lastWorkerId=id;switchToken++;
+    clearUi(reason||'worker-change');
+    if(id||isAdminWithoutSelectedWorker())setTimeout(function(){try{window.loadTemplates(false);}catch(e){trace('TEMPLATE_WORKER_SWITCH_V673_LOAD_ERROR',{error:String(e&&e.message||e)});}},0);
+    trace('TEMPLATE_WORKER_SWITCH_V670',{previousWorker:previous,currentWorker:id,reason:reason||''});
+  }
+  watchTimer=setInterval(function(){workerChanged('state-watch');},120);
+  try{window.addEventListener('beforeunload',function(){clearInterval(watchTimer);});}catch(e){}
+
+  document.addEventListener('click',function(ev){
+    var btn=ev.target&&ev.target.closest&&ev.target.closest('button');if(!btn)return;
+    var id=String(btn.id||''),text=String(btn.textContent||'').replace(/\s+/g,' ').trim();
+    if(id==='logoutBtn'||id==='workerLoginBtnV660'||/יציאה|התנתק/.test(text)){switchToken++;clearUi('auth-action-'+(id||text));}
+  },true);
+
+  var oldRows=window.requiredChangelogRows;
+  if(typeof oldRows==='function'&&!oldRows.__v670Wrapped){
+    var wrapped=function(){
+      var rows=oldRows.apply(this,arguments)||[];
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.72-beta';}))rows.unshift({version:'6.72-beta',title:'הפרדה מלאה של תבניות בין עובדים',createdAt:'2026-07-31',items:[
+        'ביציאה או מעבר עובד רשימת התבניות מתנקה מיד ואינה מציגה עוד תבניות של המשתמש הקודם.',
+        'כל טעינה ורענון מסננים באופן קשיח לפי ownerWorkerId של העובד הפעיל, יחד עם active ו-isDeleted.',
+        'שמירה ומחיקה מעדכנות מיד גם את IndexedDB המקומי, ולכן רענון אינו מחזיר רשימה ישנה.',
+        'תוצאות אסינכרוניות שהתחילו עבור עובד קודם נזרקות ואינן יכולות לצייר נתונים אצל העובד החדש.',
+        'הגרסה נארזה כחבילה מלאה הכוללת beta.html, styles.css ושלושת קובצי JavaScript.'
+      ]});
+      return rows;
+    };
+    wrapped.__v670Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+
+  var oldRowsV671=window.requiredChangelogRows;
+  if(typeof oldRowsV671==='function'&&!oldRowsV671.__v671Wrapped){
+    var wrappedV671=function(){
+      var rows=oldRowsV671.apply(this,arguments)||[];
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.72-beta';}))rows.unshift({version:'6.72-beta',title:'תיקון סופי למטמון התבניות והפרדה בין עובדים',createdAt:'2026-07-31',items:[
+        'תוקן שדרוג IndexedDB כך שהחנות collections נוצרת גם אצל מכשירים שבהם מסד המטמון כבר היה קיים מגרסה קודמת.',
+        'תוקנה המתנה לפעולת עדכון המטמון כדי למנוע UNHANDLED_REJECTION לאחר שמירת או מחיקת תבנית.',
+        'תבנית חדשה נכנסת מיד לרשימה המקומית של העובד הפעיל גם אם IndexedDB נתקל בשגיאה זמנית.',
+        'תבניות ללא ownerWorkerId אינן מוצגות עוד לעובדים; כל עובד רואה רק תבניות ששייכות אליו במפורש.',
+        'נשמרו מנגנון הדלתאות והחיסכון בקריאות Firebase ללא הורדה מלאה של installTemplates.'
+      ]});
+      return rows;
+    };
+    wrappedV671.__v671Wrapped=true;window.requiredChangelogRows=wrappedV671;try{requiredChangelogRows=wrappedV671;}catch(e){}
+  }
+
+  lastWorkerId=currentWorkerId();
+  clearUi('boot-v670');
+  if(lastWorkerId||isAdminWithoutSelectedWorker())reloadForCurrentWorker('boot-v670');
+})();
+
+
+/*
+===============================================================================
+VERSION 6.72 BETA - UNIFIED WORK_MONITOR_BETA_CACHE SCHEMA VERSION
+-------------------------------------------------------------------------------
+1. The main work_monitor_beta_cache opener now uses schema version 2 everywhere.
+2. Its upgrade transaction creates both workerSnapshots and collections stores.
+3. This prevents VersionError when an existing version-2 database was reopened as version 1.
+4. Template cache schema repair remains backward-compatible and no longer blocks startup.
+===============================================================================
+*/
+(function installUnifiedCacheSchemaV672(){
+  'use strict';
+  if(window.__wmUnifiedCacheSchemaV672Installed)return;
+  window.__wmUnifiedCacheSchemaV672Installed=true;
+  try{window.wmTraceV617&&window.wmTraceV617('CACHE_SCHEMA_V672_READY',{database:'work_monitor_beta_cache',version:2,stores:['workerSnapshots','collections']});}catch(e){}
+  var old=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof old==='function'&&!old.__v672Wrapped){
+    var wrapped=function(){
+      var rows=[];try{rows=old.apply(this,arguments)||[];}catch(e){rows=[];}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.72-beta';}))rows.unshift({
+        version:'6.72-beta',title:'איחוד גרסת IndexedDB ותיקון פתיחת המטמון',createdAt:'2026-07-31',items:[
+          'כל פתיחה של work_monitor_beta_cache משתמשת כעת בגרסת מסד 2 ולא מנסה לפתוח מסד קיים בגרסה נמוכה יותר.',
+          'שדרוג המסד יוצר יחד את workerSnapshots ואת collections, ולכן מטמון העבודה ומטמון התבניות יכולים לפעול באותו מסד בבטחה.',
+          'תוקנה שגיאת The requested version (1) is less than the existing version (2) שחסמה את עליית האפליקציה.',
+          'נשמרו טעינת הדלתא, ההפרדה בין עובדים והעדכון המיידי של תבניות ללא הורדות מלאות מיותרות.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v672Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+})();
+
+
+/*
+===============================================================================
+VERSION 6.73 BETA - WORKER-SCOPED TEMPLATE CACHE/DELTA LIFECYCLE
+-------------------------------------------------------------------------------
+Templates now follow the same lifecycle as work entries and worker days off:
+worker-specific IndexedDB key, one initial worker query, worker-filtered deltas,
+listener detach on worker switch, and stale-result protection.
+===============================================================================
+*/
+(function templateWorkerScopeV673(){
+  'use strict';
+  if(window.__wmTemplateWorkerScopeV673)return;window.__wmTemplateWorkerScopeV673=true;
+  try{window.wmTraceV617&&window.wmTraceV617('TEMPLATE_WORKER_SCOPE_V673_INSTALLED',{cacheKey:'installTemplates:<workerId>',filters:['ownerWorkerId','createdAt/updatedAt']});}catch(e){}
+  var oldRows=window.requiredChangelogRows;
+  if(typeof oldRows==='function'&&!oldRows.__v673Wrapped){
+    var wrapped=function(){
+      var rows=oldRows.apply(this,arguments)||[];
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.74-beta';}))rows.unshift({version:'6.74-beta',title:'תבניות מסונכרנות לפי עובד כמו שאר הנתונים',createdAt:'2026-07-31',items:[
+        'לכל עובד נשמר מטמון IndexedDB נפרד של installTemplates תחת מפתח הכולל את workerId.',
+        'בכניסה לעובד מתבצעת טעינה מלאה אחת רק של התבניות שלו, ולאחריה מתקבלות רק דלתאות createdAt ו-updatedAt.',
+        'במעבר או בהתנתקות מאזיני התבניות של העובד הקודם מנותקים, הרשימה מתנקה ותוצאות ישנות אינן יכולות לחזור למסך.',
+        'שמירה, עריכה ומחיקה ממשיכות להתעדכן מיד מקומית ולהסתנכרן בין מכשירים.',
+        'לוגיקת התבניות הותאמה ללוגיקה העובדת של עבודות וימי חופש, בלי לשנות את הגרסה היציבה 6.33.'
+      ]});
+      return rows;
+    };
+    wrapped.__v673Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+})();
+
+
+/*
+===============================================================================
+VERSION 6.74 BETA - NON-BLOCKING WORKER TEMPLATE STARTUP
+-------------------------------------------------------------------------------
+Template loading must never hold the main worker startup screen. Cached rows are
+rendered immediately; Firestore seed/delta work continues in the background.
+===============================================================================
+*/
+(function templateNonBlockingV674(){
+  'use strict';
+  if(window.__wmTemplateNonBlockingV674)return;window.__wmTemplateNonBlockingV674=true;
+  var DB_NAME='work_monitor_beta_cache',DB_VERSION=2,STORE='collections';
+  var generation=0,activeWorker='',unsubs=[],inflight={};
+  function trace(name,data){try{window.wmTraceV617&&window.wmTraceV617(name,data||{});}catch(e){}}
+  function wid(){try{return String((window.viewedWorker&&window.viewedWorker.id)||(window.session&&window.session.workerId)||'');}catch(e){return '';}}
+  function visible(rows){return (Array.isArray(rows)?rows:[]).filter(function(x){return x&&x.isDeleted!==true&&x.active!==false;});}
+  function apply(rows,worker,source){
+    if(wid()!==worker)return false;
+    var clean=visible(rows).filter(function(x){return String(x.ownerWorkerId||'')===worker;}).sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''),'he');});
+    try{templates=clean;}catch(e){}
+    window.templates=clean;
+    try{typeof renderTemplateSelect==='function'&&renderTemplateSelect();}catch(e){}
+    try{window.refreshWorkerTemplateManagerV661&&window.refreshWorkerTemplateManagerV661(false);}catch(e){}
+    trace('TEMPLATES_V674_APPLY',{workerId:worker,docs:clean.length,source:source||''});
+    return true;
+  }
+  function openDb(){return new Promise(function(resolve,reject){
+    var r=indexedDB.open(DB_NAME,DB_VERSION);
+    r.onupgradeneeded=function(){var d=r.result;if(!d.objectStoreNames.contains('workerSnapshots'))d.createObjectStore('workerSnapshots',{keyPath:'workerId'});if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'key'});};
+    r.onsuccess=function(){resolve(r.result);};r.onerror=function(){reject(r.error||new Error('IndexedDB open failed'));};
+  });}
+  async function read(worker){var d=await openDb();return new Promise(function(resolve,reject){try{var q=d.transaction(STORE,'readonly').objectStore(STORE).get('installTemplates:'+worker);q.onsuccess=function(){resolve(q.result||null);};q.onerror=function(){reject(q.error);};}catch(e){reject(e);}});}
+  async function write(worker,rows){var d=await openDb(),rec={key:'installTemplates:'+worker,rows:Array.isArray(rows)?rows:[],savedAt:new Date().toISOString(),appVersion:'6.74-beta',schemaVersion:4};return new Promise(function(resolve,reject){try{var q=d.transaction(STORE,'readwrite').objectStore(STORE).put(rec);q.onsuccess=function(){resolve(rec);};q.onerror=function(){reject(q.error);};}catch(e){reject(e);}});}
+  function stop(){unsubs.splice(0).forEach(function(u){try{u&&u();}catch(e){}});}
+  function merge(base,snap){var m={};(Array.isArray(base)?base:[]).forEach(function(x){if(x&&x.id)m[x.id]=x;});snap.docChanges().forEach(function(ch){var row=Object.assign({id:ch.doc.id},ch.doc.data()||{});if(ch.type==='removed'||row.isDeleted===true||row.active===false)delete m[row.id];else m[row.id]=row;});return Object.keys(m).map(function(k){return m[k];});}
+  async function background(worker,token,force){
+    var key=worker+':'+token;if(inflight[key])return inflight[key];
+    inflight[key]=(async function(){
+      try{
+        var q=db.collection('installTemplates').where('ownerWorkerId','==',worker);
+        var snap=await q.get();
+        if(token!==generation||wid()!==worker)return;
+        var rows=snap.docs.map(function(d){return Object.assign({id:d.id},d.data()||{});});
+        rows=visible(rows).filter(function(x){return String(x.ownerWorkerId||'')===worker;});
+        apply(rows,worker,'firestore-seed');
+        var rec=await write(worker,rows);
+        if(token!==generation||wid()!==worker)return;
+        stop();
+        var ts=firebase.firestore.Timestamp.fromDate(new Date(rec.savedAt));
+        ['createdAt','updatedAt'].forEach(function(field){
+          var uq=db.collection('installTemplates').where('ownerWorkerId','==',worker).where(field,'>',ts);
+          var u=uq.onSnapshot({includeMetadataChanges:true},function(ds){
+            if(token!==generation||wid()!==worker)return;
+            rows=merge(rows,ds);apply(rows,worker,'delta-'+field);
+            if(ds.metadata.fromCache===false)write(worker,rows).catch(function(e){trace('TEMPLATES_V674_IDB_WRITE_ERROR',{error:String(e&&e.message||e)});});
+          },function(e){trace('TEMPLATES_V674_DELTA_ERROR',{workerId:worker,field:field,error:String(e&&e.message||e)});});
+          unsubs.push(u);
+        });
+        trace('TEMPLATES_V674_BACKGROUND_READY',{workerId:worker,docs:rows.length});
+      }catch(e){trace('TEMPLATES_V674_BACKGROUND_ERROR',{workerId:worker,error:String(e&&e.message||e)});}
+      finally{delete inflight[key];}
+    })();
+    return inflight[key];
+  }
+  window.loadTemplates=async function(force){
+    var worker=wid();
+    if(!worker){generation++;activeWorker='';stop();apply([],worker,'no-worker');return [];}
+    if(activeWorker!==worker){generation++;activeWorker=worker;stop();try{templates=[];}catch(e){}window.templates=[];try{renderTemplateSelect();}catch(e){}}
+    var token=generation,rows=[];
+    try{var rec=await Promise.race([read(worker),new Promise(function(resolve){setTimeout(function(){resolve(null);},900);})]);if(rec&&Array.isArray(rec.rows)){rows=rec.rows;apply(rows,worker,'indexeddb');}}catch(e){trace('TEMPLATES_V674_IDB_READ_ERROR',{workerId:worker,error:String(e&&e.message||e)});}
+    // Critical: never await Firestore here. Main startup continues immediately.
+    setTimeout(function(){background(worker,token,force===true);},0);
+    trace('TEMPLATES_V674_NONBLOCKING_RETURN',{workerId:worker,cachedDocs:visible(rows).length});
+    return visible(rows);
+  };
+  try{loadTemplates=window.loadTemplates;}catch(e){}
+  window.addEventListener('beforeunload',stop);
+  trace('TEMPLATES_V674_INSTALLED',{mode:'cache-immediate-firestore-background'});
+
+  var oldRows=window.requiredChangelogRows;
+  if(typeof oldRows==='function'&&!oldRows.__v674Wrapped){
+    var wrapped=function(){var rows=oldRows.apply(this,arguments)||[];if(!rows.some(function(r){return String(r.version||r.id||'')==='6.74-beta';}))rows.unshift({version:'6.74-beta',title:'טעינת תבניות ברקע ללא תקיעת מסך הכניסה',createdAt:'2026-07-31',items:[
+      'טעינת תבניות אינה חוסמת עוד את מסך טוען נתונים גם כאשר Firestore איטי או מחזיר תחילה נתונים מהמטמון.',
+      'התבניות של העובד מוצגות מיד מ-IndexedDB, והשלמת הנתונים מהענן מתבצעת ברקע.',
+      'במעבר עובד מתבטלים מאזינים ותוצאות ישנות, ורק תבניות ownerWorkerId של העובד הפעיל יכולות להצטייר.',
+      'נוסף timeout לקריאת המטמון המקומי וטיפול מלא בשגיאות בלי להשאיר Promise לא מטופל.'
+    ]});return rows;};wrapped.__v674Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+})();
+
+
+/*
+===============================================================================
+VERSION 6.75 BETA - SIMPLE WORKER TEMPLATE LISTENER, NO STARTUP BLOCKING
+-------------------------------------------------------------------------------
+The template subsystem is intentionally reduced to one worker-scoped listener.
+No template query, cache read or listener is awaited by the main app startup.
+Only active, non-deleted templates owned by the current worker are rendered.
+===============================================================================
+*/
+(function templateStableWorkerListenerV675(){
+  'use strict';
+  if(window.__wmTemplateStableWorkerListenerV675)return;
+  window.__wmTemplateStableWorkerListenerV675=true;
+
+  var unsubscribe=null;
+  var activeWorker='';
+  var generation=0;
+  var startupTimer=null;
+
+  function trace(name,data){try{window.wmTraceV617&&window.wmTraceV617(name,data||{});}catch(e){}}
+  function workerId(){
+    try{return String((window.viewedWorker&&window.viewedWorker.id)||(window.session&&window.session.workerId)||'');}
+    catch(e){return '';}
+  }
+  function stop(reason){
+    generation++;
+    if(startupTimer){clearTimeout(startupTimer);startupTimer=null;}
+    if(unsubscribe){try{unsubscribe();}catch(e){}unsubscribe=null;}
+    trace('TEMPLATES_V675_LISTENER_STOP',{workerId:activeWorker,reason:reason||''});
+  }
+  function clear(reason){
+    try{templates=[];}catch(e){}
+    window.templates=[];
+    try{typeof renderTemplateSelect==='function'&&renderTemplateSelect();}catch(e){}
+    try{window.refreshWorkerTemplateManagerV661&&window.refreshWorkerTemplateManagerV661(false);}catch(e){}
+    trace('TEMPLATES_V675_CLEAR',{reason:reason||''});
+  }
+  function normalize(snapshot,requestedWorker){
+    var rows=[];
+    try{
+      snapshot.forEach(function(doc){
+        var row=Object.assign({id:doc.id},doc.data()||{});
+        if(String(row.ownerWorkerId||'')!==requestedWorker)return;
+        if(row.isDeleted===true||row.active===false)return;
+        rows.push(row);
+      });
+    }catch(e){trace('TEMPLATES_V675_NORMALIZE_ERROR',{error:String(e&&e.message||e)});}
+    rows.sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''),'he');});
+    return rows;
+  }
+  function render(rows,requestedWorker,source){
+    if(workerId()!==requestedWorker)return;
+    try{templates=rows;}catch(e){}
+    window.templates=rows;
+    try{typeof renderTemplateSelect==='function'&&renderTemplateSelect();}catch(e){}
+    try{window.refreshWorkerTemplateManagerV661&&window.refreshWorkerTemplateManagerV661(false);}catch(e){}
+    trace('TEMPLATES_V675_RENDER',{workerId:requestedWorker,visibleDocs:rows.length,source:source||''});
+  }
+  function attach(requestedWorker,token){
+    if(!requestedWorker||token!==generation||workerId()!==requestedWorker)return;
+    if(!window.db){trace('TEMPLATES_V675_SKIP_NO_DB',{workerId:requestedWorker});return;}
+    try{
+      var query=db.collection('installTemplates').where('ownerWorkerId','==',requestedWorker);
+      unsubscribe=query.onSnapshot({includeMetadataChanges:true},function(snapshot){
+        if(token!==generation||workerId()!==requestedWorker)return;
+        var rows=normalize(snapshot,requestedWorker);
+        render(rows,requestedWorker,snapshot.metadata&&snapshot.metadata.fromCache?'firestore-cache':'firestore-server');
+      },function(error){
+        trace('TEMPLATES_V675_LISTENER_ERROR',{workerId:requestedWorker,error:String(error&&error.message||error)});
+      });
+      trace('TEMPLATES_V675_LISTENER_ATTACH',{workerId:requestedWorker});
+    }catch(error){trace('TEMPLATES_V675_ATTACH_ERROR',{workerId:requestedWorker,error:String(error&&error.message||error)});}
+  }
+
+  window.loadTemplates=function(){
+    var requestedWorker=workerId();
+    if(!requestedWorker){stop('no-worker');activeWorker='';clear('no-worker');return Promise.resolve([]);}
+    if(activeWorker!==requestedWorker){
+      stop('worker-switch');
+      activeWorker=requestedWorker;
+      clear('worker-switch');
+    }
+    var token=generation;
+    if(!unsubscribe&&!startupTimer){
+      startupTimer=setTimeout(function(){startupTimer=null;attach(requestedWorker,token);},0);
+    }
+    trace('TEMPLATES_V675_NONBLOCKING_RETURN',{workerId:requestedWorker,currentVisible:(window.templates||[]).length||0});
+    return Promise.resolve(Array.isArray(window.templates)?window.templates:[]);
+  };
+  try{loadTemplates=window.loadTemplates;}catch(e){}
+
+  // Stop the old worker listener immediately on logout. The next login creates
+  // one fresh listener for the new worker and clears the previous worker UI.
+  document.addEventListener('click',function(event){
+    var target=event&&event.target&&event.target.closest?event.target.closest('#logoutBtn,[data-action="logout"]'):null;
+    if(!target)return;
+    stop('logout');activeWorker='';clear('logout');
+  },true);
+  window.addEventListener('beforeunload',function(){stop('beforeunload');});
+
+  var oldRows=window.requiredChangelogRows;
+  if(typeof oldRows==='function'&&!oldRows.__v675Wrapped){
+    var wrapped=function(){
+      var rows=oldRows.apply(this,arguments)||[];
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.75-beta';}))rows.unshift({
+        version:'6.75-beta',
+        title:'ייצוב סופי של תבניות לפי עובד',
+        createdAt:'2026-07-31',
+        items:[
+          'הוסר מסלול הטעינה הכפול של התבניות שהשאיר את מסך טוען נתונים פתוח.',
+          'התבניות מנוהלות באמצעות מאזין יחיד המסונן לפי ownerWorkerId של העובד הפעיל.',
+          'רק תבניות פעילות שלא נמחקו מוצגות; מסמכים ישנים או מחוקים אינם נספרים כתבניות פעילות.',
+          'במעבר עובד או יציאה הרשימה מתנקה והמאזין הקודם מנותק לפני חיבור העובד החדש.',
+          'טעינת התבניות אינה נחסמת ואינה יכולה לעכב את עליית מסך העובד.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v675Wrapped=true;
+    window.requiredChangelogRows=wrapped;
+    try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+  trace('TEMPLATES_V675_INSTALLED',{mode:'single-worker-listener-nonblocking'});
+})();
+
+
+/* VERSION 6.76 BETA - TEMPLATE EDITOR PRICE-LIST FILTER PARITY */
+(function registerChangelogV676(){
+  var previous=window.requiredChangelogRows;
+  if(typeof previous==='function'&&!previous.__v676TemplatePriceFilter){
+    var wrapped=function(){
+      var rows=previous.apply(this,arguments)||[];
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.76-beta';}))rows.unshift({
+        version:'6.76-beta',title:'סינון מחירון זהה גם בעריכת תבנית',createdAt:'2026-07-31',items:[
+          'חלון עריכת תבנית מציג רק פריטי מחירון פעילים שאינם מחוקים.',
+          'הפריטים מסוננים לפי סוג התבנית: מחירון סיב או מחירון RF.',
+          'כפילויות מאוחדות לפי שם, מחיר, סוג קלט וסוג מחירון — בדיוק כמו בטופס ההתקנה.',
+          'פריט ישן שכבר נבחר בתבנית נשמר פעם אחת גם אם אינו קיים עוד במחירון הפעיל.'
+        ]
+      });return rows;
+    };
+    wrapped.__v676TemplatePriceFilter=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
   }
 })();
