@@ -1,4 +1,4 @@
-/* File version: 6.60-beta - login event recovery support and cache-reset-safe runtime. */
+/* File version: 6.76-beta - full beta package version alignment; existing business logic preserved. */
 /* File version: 6.50 BETA - existing runtime logic retained; soft-delete/cache integration loaded from functions3b.js.
 Work Monitor app - JavaScript extensions and future changes.
 File version: 6.50 BETA - workEntries delta sync retained while priceList cache-first sync is added; stable files untouched.
@@ -12,7 +12,7 @@ CHANGELOG 6.01 - פיצול קובץ JavaScript
 4. index.html טוען את functions1.js ולאחריו את functions2.js לפי סדר התלויות.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions2b = "6.60-beta";
+window.WM_LOADED_FILE_VERSIONS.functions2b = "6.76-beta";
 
 
 (function(){
@@ -9605,7 +9605,7 @@ VERSION 6.18 BETA - FIRESTORE REQUEST AUDIT
   var enabled=false;
   try{
     var params=new URLSearchParams(location.search);
-    enabled=params.get('cacheDebug')==='1'||params.get('firestoreDebug')==='1'||params.get('firebaseDebug')==='1';
+    enabled=window.WM_FIREBASE_AUDIT_DEBUG===true||params.get('cacheDebug')==='1'||params.get('firestoreDebug')==='1'||params.get('firebaseDebug')==='1';
   }catch(e){enabled=/(^|\/)beta\.html$/i.test(location.pathname||'');}
   if(!enabled||window.__WM_FS_AUDIT_INSTALLED_V618)return;
   if(!window.db){
@@ -9731,7 +9731,7 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
 (function installFirebaseAuditWindowV620(){
   'use strict';
   var enabled=false;
-  try{var p=new URLSearchParams(location.search);enabled=p.get('firebaseDebug')==='1'||p.get('firestoreDebug')==='1'||p.get('cacheDebug')==='1';}catch(e){enabled=false;}
+  try{var p=new URLSearchParams(location.search);enabled=window.WM_FIREBASE_AUDIT_DEBUG===true||p.get('firebaseDebug')==='1'||p.get('firestoreDebug')==='1'||p.get('cacheDebug')==='1';}catch(e){enabled=window.WM_FIREBASE_AUDIT_DEBUG===true;}
   if(!enabled||window.__WM_FIREBASE_WINDOW_V620)return;
   window.__WM_FIREBASE_WINDOW_V620=true;
 
@@ -9798,7 +9798,7 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
     var text=fullText(),ok=false;
     try{await navigator.clipboard.writeText(text);ok=true;}catch(e){try{var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();ok=document.execCommand('copy');ta.remove();}catch(_e){}}
     add(ok?'AUDIT_LOG_COPIED':'AUDIT_LOG_COPY_FAILED',{characters:text.length});
-    var b=document.getElementById('wmFirebaseCopyV620');if(b){var old=b.textContent;b.textContent=ok?'הועתק ✓':'העתקה נכשלה';setTimeout(function(){b.textContent=old;},1400);}
+    var b=document.getElementById('wmFirebaseCopyV620');if(b){var old=b.textContent;b.textContent=ok?'✓':'!';setTimeout(function(){b.textContent=old;},1100);}
     return text;
   }
   function clear(){try{sessionStorage.removeItem(KEY);}catch(e){}lastFirebaseAt=0;add('AUDIT_LOG_CLEARED',{});}
@@ -9807,11 +9807,11 @@ VERSION 6.20 BETA - DEDICATED FIREBASE AUDIT WINDOW
   function ensure(){
     var box=document.getElementById('wmFirebaseAuditWindowV620');if(box)return box;
     box=document.createElement('section');box.id='wmFirebaseAuditWindowV620';box.className='wm-firebase-audit-v620';box.style.cssText='position:fixed;z-index:2147483647;left:8px;right:8px;bottom:8px;max-height:44vh;overflow:auto;background:#111;color:#fff;border:2px solid #3b82f6;border-radius:14px;padding:10px;direction:rtl;font:12px/1.45 Arial,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.45);';
-    box.innerHTML='<div class="wm-firebase-head-v620"><strong>🔥 Firebase Audit ' + String(window.APP_VERSION||'') + '</strong><div><button id="wmFirebaseCopyV620" type="button">העתק לוג</button><button id="wmFirebaseClearV620" type="button">נקה לוג</button><button id="wmFirebaseMinV620" type="button">מזער</button><button id="wmFirebaseCloseV620" type="button">סגור</button></div></div><div id="wmFirebaseSummaryV620" class="wm-firebase-summary-v620"></div><pre id="wmFirebaseRowsV620"></pre>';
+    box.innerHTML='<div class="wm-firebase-head-v620"><strong>🔥 Firebase Audit ' + String(window.APP_VERSION||'') + '</strong><div class="wm-firebase-tools-v665"><button id="wmFirebaseCopyV620" type="button" title="העתק לוג" aria-label="העתק לוג">📋</button><button id="wmFirebaseClearV620" type="button" title="נקה לוג" aria-label="נקה לוג">🗑</button><button id="wmFirebaseMinV620" type="button" title="מזער" aria-label="מזער">−</button><button id="wmFirebaseCloseV620" type="button" title="סגור" aria-label="סגור">✕</button></div></div><div id="wmFirebaseSummaryV620" class="wm-firebase-summary-v620"></div><pre id="wmFirebaseRowsV620"></pre>';
     (document.body||document.documentElement).appendChild(box);
     box.querySelector('#wmFirebaseCopyV620').onclick=copy;
     box.querySelector('#wmFirebaseClearV620').onclick=clear;
-    box.querySelector('#wmFirebaseMinV620').onclick=function(){box.classList.toggle('is-minimized');this.textContent=box.classList.contains('is-minimized')?'פתח':'מזער';};
+    box.querySelector('#wmFirebaseMinV620').onclick=function(){box.classList.toggle('is-minimized');var open=box.classList.contains('is-minimized');this.textContent=open?'□':'−';this.title=open?'פתח':'מזער';this.setAttribute('aria-label',this.title);};
     box.querySelector('#wmFirebaseCloseV620').onclick=function(){box.style.display='none';};
     return box;
   }
