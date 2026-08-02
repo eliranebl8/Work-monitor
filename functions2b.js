@@ -1,4 +1,4 @@
-/* File version: 6.77-beta - full beta package version alignment; existing business logic preserved. */
+/* File version: 6.82-beta - active smart-dashboard completion predicate fixed in place for planned/not-done installs. */
 /* File version: 6.50 BETA - existing runtime logic retained; soft-delete/cache integration loaded from functions3b.js.
 Work Monitor app - JavaScript extensions and future changes.
 File version: 6.50 BETA - workEntries delta sync retained while priceList cache-first sync is added; stable files untouched.
@@ -12,7 +12,7 @@ CHANGELOG 6.01 - פיצול קובץ JavaScript
 4. index.html טוען את functions1.js ולאחריו את functions2.js לפי סדר התלויות.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions2b = "6.77-beta";
+window.WM_LOADED_FILE_VERSIONS.functions2b = "6.82-beta";
 
 
 (function(){
@@ -1074,7 +1074,91 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
   function date436(s){try{return heDate(s)}catch(e){return s||''}}
   function sum436(arr){return (arr||[]).reduce(function(a,e){return a+Number(e&&e.amount||0)},0)}
   function isPlanned436(e){try{return (typeof isPlannedV49==='function' && isPlannedV49(e)) || e.entryStatus==='planned'}catch(_e){return e&&e.entryStatus==='planned'}}
-  function done436(arr){return (arr||[]).filter(function(e){return !isPlanned436(e)})}
+
+  // v6.81: מנקה כפילויות של אותה רשומת Firestore לפני חישובי הדשבורד.
+  // במנגנון דלתא יכולה להישאר בזיכרון גם גרסה ישנה של הרשומה וגם הגרסה המעודכנת
+  // שסומנה "לא בוצע". במקרה כזה הגרסה המחמירה יותר (לא בוצע/מתוזמן/מחוקה)
+  // חייבת לנצח כדי שלא תיספר התקנה ישנה כאילו בוצעה.
+  function dashboardStatusRank436(e){
+    if(!e) return 0;
+    if(e.isDeleted===true || e.deleted===true || e.active===false) return 100;
+    var values=[e.entryStatus,e.status,e.workStatus,e.state];
+    for(var i=0;i<values.length;i++){
+      var st=String(values[i]||'').trim().toLowerCase().replace(/[\s-]+/g,'_');
+      if(st==='not_done'||st==='notdone'||st==='not_completed'||st==='cancelled'||st==='canceled'||st==='deleted'||st==='לא_בוצע'||st==='מבוטל') return 90;
+      if(st==='planned'||st==='scheduled'||st==='pending'||st==='מתוזמן') return 80;
+      if(st==='done'||st==='completed'||st==='בוצע') return 10;
+    }
+    if(e.notDoneAt||e.notDoneReason||e.notDoneNote||e.cancelReason) return 90;
+    if(e.planned===true||e.isPlanned===true||e.scheduled===true||e.isScheduled===true) return 80;
+    return 5;
+  }
+  function dashboardUpdatedMs436(e){
+    function ts(v){
+      if(!v) return 0;
+      if(typeof v.toMillis==='function') try{return v.toMillis()}catch(_e){}
+      if(typeof v.seconds==='number') return v.seconds*1000+Number(v.nanoseconds||0)/1000000;
+      var n=Date.parse(v); return isNaN(n)?0:n;
+    }
+    return Math.max(ts(e&&e.updatedAt),ts(e&&e.notDoneAt),ts(e&&e.doneAt),ts(e&&e.createdAt));
+  }
+  function dedupeDashboardEntries436(arr){
+    var byKey=Object.create(null), loose=[];
+    (arr||[]).forEach(function(e){
+      if(!e) return;
+      var id=String(e.id||e.docId||e.entryId||'').trim();
+      if(!id){loose.push(e);return;}
+      var current=byKey[id];
+      if(!current){byKey[id]=e;return;}
+      var rankNew=dashboardStatusRank436(e), rankOld=dashboardStatusRank436(current);
+      if(rankNew>rankOld || (rankNew===rankOld && dashboardUpdatedMs436(e)>=dashboardUpdatedMs436(current))) byKey[id]=e;
+    });
+    return Object.keys(byKey).map(function(k){return byKey[k];}).concat(loose);
+  }
+
+  // v6.79: מקור האמת של כל מדדי הביצוע בדשבורד הוא עבודה שבוצעה בפועל בלבד.
+  // בודקים בנפרד גם entryStatus וגם status כדי שרשומה ישנה עם שדות סותרים
+  // (למשל entryStatus=done אבל status=not_done) לא תיספר בטעות כהתקנה שבוצעה.
+  function done436(arr){return (arr||[]).filter(function(e){
+    if(!e || e.isDeleted===true || e.deleted===true || e.active===false) return false;
+
+    // v6.82: זהו מסנן הביצוע הפעיל של הדשבורד עצמו, לא עטיפה חיצונית.
+    // כל שדה סטטוס נבדק בנפרד. מספיק ששדה אחד אומר מתוזמן/לא בוצע/מבוטל
+    // כדי שהרשומה תצא מכל מדדי הביצוע, גם אם שדה ישן אחר עדיין אומר done.
+    var rawStatuses=[e.entryStatus,e.status,e.workStatus,e.state,e.executionStatus,e.plannedStatus];
+    var hasExplicitStatus=false;
+    var hasDoneStatus=false;
+    for(var i=0;i<rawStatuses.length;i++){
+      var normalized=String(rawStatuses[i]||'').trim().toLowerCase()
+        .replace(/[\s\-–—]+/g,'_')
+        .replace(/[^a-z0-9_א-ת]/g,'');
+      if(!normalized) continue;
+      hasExplicitStatus=true;
+      if(normalized==='planned' || normalized==='scheduled' || normalized==='pending' ||
+         normalized==='waiting' || normalized==='open' || normalized==='not_done' ||
+         normalized==='notdone' || normalized==='not_completed' || normalized==='notcompleted' ||
+         normalized==='cancelled' || normalized==='canceled' || normalized==='cancel' ||
+         normalized==='deleted' || normalized==='לא_בוצע' || normalized==='לאבוצע' ||
+         normalized==='מתוזמן' || normalized==='ממתין' || normalized==='מבוטל' || normalized==='בוטל') return false;
+      if(normalized==='done' || normalized==='completed' || normalized==='complete' ||
+         normalized==='בוצע' || normalized==='סגור') hasDoneStatus=true;
+    }
+
+    if(e.planned===true || e.isPlanned===true || e.scheduled===true || e.isScheduled===true ||
+       e.pending===true || e.isPending===true || e.notDone===true || e.isNotDone===true ||
+       e.cancelled===true || e.canceled===true) return false;
+    if(isPlanned436(e)) return false;
+
+    // כל סימן תיעודי של "לא בוצע" גובר על done ישן. אין חריג ל-convertedFromPlanned:
+    // כאשר ההמרה באמת בוצעה, שדות notDone אמורים להיות מנוקים; אם הם עדיין קיימים,
+    // הרשומה אינה מקור אמין לביצוע ולכן אינה נספרת.
+    if(e.notDoneAt || e.notDoneReason || e.notDoneNote || e.cancelReason || e.cancelledAt || e.canceledAt) return false;
+
+    // רשומות חדשות בעלות סטטוס מפורש נספרות רק כאשר קיים סטטוס ביצוע מפורש.
+    // רשומות היסטוריות ללא שום שדה סטטוס נשארות תואמות לאחור ונחשבות בוצעו.
+    if(hasExplicitStatus && !hasDoneStatus) return false;
+    return true;
+  })}
   function planned436(arr){return (arr||[]).filter(isPlanned436)}
   function pct436(a,b){return b?Math.round((Number(a||0)/Number(b||0))*100):0}
   function today436(){try{return formatDate(new Date())}catch(e){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}}
@@ -1220,10 +1304,16 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
       .trim();
   }
   function isNewFiberModemInstall500(e){
-    var target='התקנת שקע סיב חדש - כולל מודם';
-    var targetNorm=normInstallName500(target);
+    // v6.79: הסיווג נשאר בתוך פונקציית הסיווג הקיימת, אך אינו תלוי עוד בשם אחד זהה לחלוטין.
+    // כך פריט תקין בשם "התקנת מודם" או וריאציה של "התקנת שקע סיב חדש ... מודם"
+    // מזוהה כהתקנת סיב ולא נופל בטעות ל-Change בגלל רווחים/מקפים/נוסח מחירון כפול.
+    var exactTarget=normInstallName500('התקנת שקע סיב חדש - כולל מודם');
     return !!(e && (e.items||[]).some(function(i){
-      return Number(i.quantity||0)>0 && normInstallName500(i.name)===targetNorm;
+      if(Number(i.quantity||0)<=0) return false;
+      var name=normInstallName500(i.name);
+      if(name===exactTarget) return true;
+      if(name.indexOf('התקנת מודם')!==-1 && name.indexOf('שדרוג מודם')===-1 && name.indexOf('הזזת מודם')===-1) return true;
+      return name.indexOf('התקנת שקע סיב חדש')!==-1 && name.indexOf('מודם')!==-1;
     }));
   }
   function isRfInstall500(e){
@@ -1238,10 +1328,14 @@ CHANGELOG 4.36 - דשבורד חכם + מניעת ספירה כפולה של ס�
 
   window.renderSmartDashboard=function(){
     var box=$('smartDashboard'); if(!box)return;
-    var all=Array.isArray(monthEntries)?monthEntries:[];
+    var all=dedupeDashboardEntries436(Array.isArray(monthEntries)?monthEntries:[]);
     var done=done436(all), planned=planned436(all);
     var total=sum436(done), plannedTotal=sum436(planned), potential=total+plannedTotal;
-    var services=done.filter(function(e){return e.workType==='service'}), installs=done.filter(function(e){return e.workType==='install'});
+    var services=done.filter(function(e){return e.workType==='service'}), installs=done.filter(function(e){
+      // v6.82: הגנה ישירה בתוך הספירה הפעילה של ההתקנות בדשבורד.
+      // גם אם רשומה הגיעה ממטמון ישן, היא נספרת רק לאחר שעברה שוב את done436.
+      return e && e.workType==='install' && done436([e]).length===1;
+    });
     var plannedServices=planned.filter(function(e){return e.workType==='service'}), plannedInstalls=planned.filter(function(e){return e.workType==='install'});
     var returnCalls=services.filter(function(e){return e.isReturnCall});
     var paidServices=services.filter(function(e){return !e.isReturnCall});
