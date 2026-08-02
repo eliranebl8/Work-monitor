@@ -1,4 +1,4 @@
-/* File version: 6.77-beta - professional visual polish for personal template list and editor; template logic unchanged. */
+/* File version: 6.82-beta - version verification and changelog alignment for active dashboard completion filtering. */
 /* File version: 6.50 BETA - workerDaysOff/installTemplates IndexedDB delta sync and synchronized soft delete.
 Work Monitor app - JavaScript continuation file.
 File version: 6.50 BETA - priceList cache-first synchronization diagnostics and changelog support.
@@ -6,7 +6,7 @@ Loaded after functions1.js and functions2.js. New additive functionality belongs
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.77-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.82-beta";
 
 
 /*
@@ -687,7 +687,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.77-beta';
+  var EXPECTED='6.82-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -2992,6 +2992,36 @@ Only active, non-deleted templates owned by the current worker are rendered.
   if(typeof oldRows==='function'&&!oldRows.__v677Wrapped){
     var wrapped=function(){
       var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.82-beta';}))rows.unshift({
+        version:'6.82-beta',title:'דשבורד חכם: מסנן ביצוע פעיל ומתוקן',createdAt:'2026-08-02',items:[
+          'תוקנה ישירות פונקציית renderSmartDashboard הפעילה והמסנן done436 שבתוכה, ללא עטיפה חדשה.',
+          'כל שדות הסטטוס נבדקים בנפרד, וכל סימן למתוזמן, לא בוצע, ממתין, מבוטל או מחוק מוציא את הרשומה מכל ספירות הביצוע.',
+          'רשומה עם סטטוס מפורש נספרת רק כאשר קיים בה סטטוס ביצוע מפורש; רשומות היסטוריות ללא סטטוס נשארות תואמות לאחור.',
+          'אותו מסנן מופעל שוב ישירות על מערך ההתקנות לפני חישוב התקנות שבוצעו, סיב, RF, CN/CH ו-Change.'
+        ]});
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.81-beta';}))rows.unshift({
+        version:'6.81-beta',title:'דשבורד חכם: מניעת ספירה של עותק ישן ממטמון הדלתא',createdAt:'2026-08-02',items:[
+          'אותרה פונקציית הדשבורד הפעילה בפועל ב-functions2b והחישוב תוקן בתוכה, לפני יצירת מערכי ההתקנות.',
+          'לפני הספירה מאוחדות כפילויות של אותו מסמך לפי מזהה הרשומה, כדי שגרסה ישנה מהמטמון לא תיספר לצד גרסת לא בוצע המעודכנת.',
+          'כאשר קיימות שתי גרסאות של אותה רשומה, סטטוס לא בוצע, מתוזמן, מבוטל או מחוק גובר תמיד על סטטוס ישן של בוצע.',
+          'אותו מקור נתונים נקי משמש את התקנות שבוצעו, התקנות סיב, RF, CN/CH ופקודות Change.'
+        ]
+      });
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.80-beta';}))rows.unshift({
+        version:'6.80-beta',title:'דשבורד חכם: רק התקנות שבוצעו בפועל',createdAt:'2026-08-02',items:[
+          'פונקציית הסינון הקיימת done436 עודכנה ישירות, ללא עטיפה וללא פונקציית דשבורד חלופית.',
+          'כל רשומה מתוזמנת, ממתינה, לא בוצעה, מבוטלת או מחוקה יוצאת מכל מדדי ההתקנות גם כאשר נשארו בה שדות סטטוס ישנים או סותרים.',
+          'אותו סינון משמש את סך ההתקנות שבוצעו, התקנות סיב, התקנות RF, ספירות CN/CH ופקודות Change.',
+          'נוספה הגנה גם לפי שדות planned/isPlanned/scheduled וסימוני notDoneAt/notDoneReason כדי למנוע ספירה שגויה של רשומות ישנות.'
+        ]
+      });
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.79-beta';}))rows.unshift({
+        version:'6.79-beta',title:'דשבורד חכם: התקנות שבוצעו וסיווג Change מדויק',createdAt:'2026-08-02',items:[
+          'פונקציות הסינון והסיווג הקיימות של הדשבורד החכם עודכנו ישירות, ללא עטיפה וללא יצירת פונקציות חלופיות.',
+          'הכרטיס התקנות שבוצעו וכל ספירות סיב, RF, CN, CH ו-Change מתעלמים מכל מתוזמנת, לא בוצעה, מבוטלת או מחוקה — גם ברשומות ישנות שבהן שדות הסטטוס סותרים.',
+          'סיווג התקנת סיב מזהה גם את הפריט התקנת מודם וגם וריאציות תקינות של התקנת שקע סיב חדש כולל מודם, כדי שלא יוצגו פקודות Change שגויות.'
+        ]
+      });
       if(!rows.some(function(r){return String(r.version||r.id||'')==='6.77-beta';}))rows.unshift({
         version:'6.77-beta',title:'עיצוב מקצועי לרשימת התבניות ולעורך התבנית',createdAt:'2026-08-01',items:[
           'רשימת התבניות קיבלה כרטיסים נקיים, ריווח מאוזן, היררכיית טקסט ברורה וכפתורי פעולה קומפקטיים.',
