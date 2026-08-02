@@ -1,4 +1,4 @@
-/* File version: 6.76-beta - template editor price items filtered exactly like the active Fiber/RF price list. */
+/* File version: 6.77-beta - professional visual polish for personal template list and editor; template logic unchanged. */
 /* File version: 6.50 BETA - workerDaysOff/installTemplates IndexedDB delta sync and synchronized soft delete.
 Work Monitor app - JavaScript continuation file.
 File version: 6.50 BETA - priceList cache-first synchronization diagnostics and changelog support.
@@ -6,7 +6,7 @@ Loaded after functions1.js and functions2.js. New additive functionality belongs
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.76-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.77-beta";
 
 
 /*
@@ -687,7 +687,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.76-beta';
+  var EXPECTED='6.77-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -2982,5 +2982,25 @@ Only active, non-deleted templates owned by the current worker are rendered.
       });return rows;
     };
     wrapped.__v676TemplatePriceFilter=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+  }
+})();
+
+
+/* v6.77-beta: visual-only polish for the personal template list and editor. */
+(function addChangelogV677(){
+  var oldRows=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof oldRows==='function'&&!oldRows.__v677Wrapped){
+    var wrapped=function(){
+      var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){}
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.77-beta';}))rows.unshift({
+        version:'6.77-beta',title:'עיצוב מקצועי לרשימת התבניות ולעורך התבנית',createdAt:'2026-08-01',items:[
+          'רשימת התבניות קיבלה כרטיסים נקיים, ריווח מאוזן, היררכיית טקסט ברורה וכפתורי פעולה קומפקטיים.',
+          'אזור עריכת התבנית עוצב מחדש עם שורות פריטים מסודרות, שדות כמות קומפקטיים וקריאים ותצוגת מחיר ברורה.',
+          'השינוי עיצובי בלבד ואינו משנה את הסינון, השמירה, המחיקה, הבעלות או מנגנון הסנכרון של התבניות.'
+        ]
+      });
+      return rows;
+    };
+    wrapped.__v677Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
   }
 })();
