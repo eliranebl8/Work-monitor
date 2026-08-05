@@ -1,4 +1,4 @@
-/* File version: 6.82-beta - active smart-dashboard completion predicate fixed in place for planned/not-done installs. */
+/* File version: 6.88-beta - canonical admin changelog completion through 6.88. */
 /* File version: 6.50 BETA - existing runtime logic retained; soft-delete/cache integration loaded from functions3b.js.
 Work Monitor app - JavaScript extensions and future changes.
 File version: 6.50 BETA - workEntries delta sync retained while priceList cache-first sync is added; stable files untouched.
@@ -12,7 +12,7 @@ CHANGELOG 6.01 - פיצול קובץ JavaScript
 4. index.html טוען את functions1.js ולאחריו את functions2.js לפי סדר התלויות.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions2b = "6.82-beta";
+window.WM_LOADED_FILE_VERSIONS.functions2b = "6.88-beta";
 
 
 (function(){
@@ -390,7 +390,7 @@ window.WM_LOADED_FILE_VERSIONS.functions2b = "6.82-beta";
   function ensureA11y422(){
     if(document.getElementById('a11yFloatingV422'))return;
     const wrap=document.createElement('div'); wrap.id='a11yFloatingV422'; wrap.className='a11y-floating-v422';
-    wrap.innerHTML=`<button type="button" class="a11y-main-btn-v422" onclick="toggleA11yPanelV422()" aria-label="פתיחת כלי נגישות">♿ נגישות</button><div id="a11yPanelV422" class="a11y-panel-v422 hidden" role="dialog" aria-label="כלי נגישות"><h3>כלי נגישות</h3><p class="muted">התאמות בסיסיות לנוחות שימוש. ההצהרה מצורפת כדי לתת מענה מסודר למשתמשים.</p><div class="actions"><button class="btn-light" type="button" onclick="toggleLargeTextV422()">הגדלת טקסט</button><button class="btn-light" type="button" onclick="toggleContrastV422()">ניגודיות גבוהה</button><button class="btn-light" type="button" onclick="toggleReadableFontV422()">פונט קריא</button><button class="btn-yellow" type="button" onclick="resetA11yV422()">איפוס</button><button class="btn-green" type="button" onclick="openAccessibilityStatementV422()">הצהרת נגישות</button><button class="btn-light" type="button" onclick="toggleA11yPanelV422()">סגור</button></div></div>`;
+    wrap.innerHTML=`<button type="button" class="a11y-main-btn-v422" onclick="toggleA11yPanelV422()" aria-label="פתיחת כלי נגישות" title="כלי נגישות">♿</button><div id="a11yPanelV422" class="a11y-panel-v422 hidden" role="dialog" aria-label="כלי נגישות"><h3>כלי נגישות</h3><p class="muted">התאמות בסיסיות לנוחות שימוש. ההצהרה מצורפת כדי לתת מענה מסודר למשתמשים.</p><div class="actions"><button class="btn-light" type="button" onclick="toggleLargeTextV422()">הגדלת טקסט</button><button class="btn-light" type="button" onclick="toggleContrastV422()">ניגודיות גבוהה</button><button class="btn-light" type="button" onclick="toggleReadableFontV422()">פונט קריא</button><button class="btn-yellow" type="button" onclick="resetA11yV422()">איפוס</button><button class="btn-green" type="button" onclick="openAccessibilityStatementV422()">הצהרת נגישות</button><button class="btn-light" type="button" onclick="toggleA11yPanelV422()">סגור</button></div></div>`;
     document.body.appendChild(wrap);
   }
   window.toggleA11yPanelV422=function(){const p=document.getElementById('a11yPanelV422'); if(p)p.classList.toggle('hidden')};
@@ -404,8 +404,18 @@ window.WM_LOADED_FILE_VERSIONS.functions2b = "6.82-beta";
     m.innerHTML=`<div class="accessibility-modal-card-v422" role="dialog" aria-modal="true" aria-label="הצהרת נגישות"><div class="cal-head"><h2>הצהרת נגישות</h2><button class="btn-light" type="button" onclick="document.getElementById('accessibilityModalV422').remove()">סגור</button></div><p>אנו רואים חשיבות רבה בהנגשת השירות לכלל המשתמשים, כולל אנשים עם מוגבלויות, ומשקיעים מאמץ כדי שהמערכת תהיה נוחה, ברורה ושמישה ככל האפשר.</p><h3>התאמות שבוצעו במערכת</h3><ul><li>כפתורים גדולים וברורים במובייל ובמחשב.</li><li>אפשרות להגדלת טקסט, ניגודיות גבוהה ופונט קריא דרך כפתור הנגישות.</li><li>מבנה כרטיסיות להפחתת גלילה ועומס חזותי.</li><li>שימוש בכותרות, טקסטים ברורים וצבעים בעלי ניגודיות טובה ככל האפשר.</li></ul><h3>דיווח על בעיית נגישות</h3><p>אם נתקלת בקושי להשתמש במערכת, אפשר לפנות אלינו ונעשה מאמץ לטפל בתקלה בהקדם.</p><p><b>איש קשר:</b> אלירן<br><b>טלפון:</b> 052-8899988<br><b>אימייל:</b> Eliranebl@gmail.com</p><p class="muted">עודכן לאחרונה: 04/05/2026 · גרסה ${APP_VERSION}</p><div class="actions"><button class="btn-green" type="button" onclick="document.getElementById('accessibilityModalV422').remove()">הבנתי</button></div></div>`;
     document.body.appendChild(m);
   };
-  document.addEventListener('DOMContentLoaded',function(){ensureA11y422(); try{setAppVersionUI()}catch(e){}});
-  window.addEventListener('load',function(){ensureA11y422(); try{setAppVersionUI()}catch(e){}; try{renderSmartDashboard()}catch(e){} });
+  function bootA11y422(){
+    ensureA11y422();
+    try{setAppVersionUI()}catch(e){}
+  }
+  // 6.87-beta: functions2b.js is loaded dynamically after the version gate.
+  // If DOMContentLoaded/load already fired, initialize immediately instead of waiting for missed events.
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',bootA11y422,{once:true});
+  }else{
+    bootA11y422();
+  }
+  window.addEventListener('load',function(){bootA11y422(); try{renderSmartDashboard()}catch(e){} },{once:true});
 })();
 ;
 (function(){
@@ -4655,6 +4665,54 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
   function requiredChangelogRows(){
     var d=todayHe();
     return [
+      {version:"6.88-beta", title:"השלמת מה חדש דרך מנגנון האדמין המקורי", items:["הרשומות 6.41 עד 6.88 הועברו ישירות למקור requiredChangelogRows שממנו מנהל משלים את Firestore.", "בכניסה לפאנל המנהל מתבצעת בדיקה אמיתית של כל גרסה חסרה ונכתבים רק מסמכים שאינם קיימים.", "רשומות קיימות, עריכות ידניות וגרסאות מוסתרות אינן נדרסות."], date:d},
+      {version:"6.87-beta", title:"אייקון נגישות יחיד והשלמת היסטוריה", items:["כפתור הנגישות הוחזר לאייקון יחיד והוכנה השלמת הרשומות מ-6.40 ואילך."], date:d},
+      {version:"6.86-beta", title:"החזרת נגישות ומה חדש", items:["הנגישות ומה חדש מאותחלים גם כאשר קובצי JavaScript נטענים לאחר DOMContentLoaded."], date:d},
+      {version:"6.85-beta", title:"בנייה מחדש של מטמון המחירון", items:["מטמון ישן שמכיל רק סיב נבנה מחדש פעם אחת עם פריטי סיב ו-RF."], date:d},
+      {version:"6.84-beta", title:"מעבר בין מחירון סיב ל-RF", items:["הכותרת והפריטים מתחלפים יחד לפי סוג המחירון שנבחר."], date:d},
+      {version:"6.83-beta", title:"איתור פק״ע מתוזמנת שלא בוצעה", items:["בדיקת מספר לקוח ממלאת כתובת ומציגה תאריך והודעה על פק״ע קודמת שלא בוצעה."], date:d},
+      {version:"6.82-beta", title:"ייצוב חישובי הדשבורד", items:["נוקו מסלולי חישוב ישנים כדי למנוע ספירה כפולה של מתוזמנות."], date:d},
+      {version:"6.81-beta", title:"תיקון פונקציית הדשבורד הפעילה", items:["התיקון הוחל על פונקציית הרינדור העדכנית שמציגה את הדשבורד."], date:d},
+      {version:"6.80-beta", title:"התקנות שבוצעו בלבד", items:["ספירת ההתקנות בתשלום הוגבלה להתקנות שבוצעו בפועל."], date:d},
+      {version:"6.79-beta", title:"סיווג התקנות ו-Change מדויק", items:["התקנות שבוצעו וסיווג Change מחושבים רק מעבודות שבוצעו בפועל."], date:d},
+      {version:"6.78-beta", title:"ספירות דשבורד ללא מתוזמנות", items:["עבודות מתוזמנות שלא בוצעו הוצאו מספירות הדשבורד החכם."], date:d},
+      {version:"6.77-beta", title:"עיצוב רשימת ועורך התבניות", items:["רשימת התבניות ועורך הכמויות קיבלו עיצוב מקצועי ותואם לאפליקציה."], date:d},
+      {version:"6.76-beta", title:"סינון מחירון בעריכת תבנית", items:["עורך התבנית משתמש באותם קריטריוני סינון של המחירון הראשי."], date:d},
+      {version:"6.75-beta", title:"מאזין יחיד לתבניות", items:["נשאר מאזין יחיד לפי ownerWorkerId ונמנע ערבוב בין משתמשים."], date:d},
+      {version:"6.74-beta", title:"טעינת תבניות ברקע", items:["טעינת התבניות הופרדה מהאתחול החוסם כדי שמסך הכניסה לא ייתקע."], date:d},
+      {version:"6.73-beta", title:"טעינת תבניות לפי עובד", items:["טעינת התבניות הותאמה לאותו עקרון סינון לפי עובד של שאר הנתונים."], date:d},
+      {version:"6.72-beta", title:"סכמת IndexedDB מאוחדת", items:["גרסת בסיס הנתונים המקומי אוחדה ונפתחה עם כל ה-object stores הנדרשים."], date:d},
+      {version:"6.71-beta", title:"תיקון סכמת מטמון התבניות", items:["נוסף תיקון סכמת IndexedDB עבור מאגר התבניות."], date:d},
+      {version:"6.70-beta", title:"הפרדה קשיחה בין תבניות עובדים", items:["תבניות מסוננות ומוצגות רק לפי העובד הפעיל."], date:d},
+      {version:"6.69-beta", title:"תבניות ב-IndexedDB ודלתאות בלבד", items:["התבניות הועברו למטמון IndexedDB עם סנכרון שינויים בלבד."], date:d},
+      {version:"6.68-beta", title:"Single-flight לתבניות", items:["נמנעו טעינות מקבילות מרובות של תבניות והמעבר בין משתמשים הוגן."], date:d},
+      {version:"6.67-beta", title:"טעינת תבניות אוטומטית", items:["התבניות נטענות אוטומטית בכניסה לכלים בלי לחיצה ידנית על רענן."], date:d},
+      {version:"6.66-beta", title:"אישור מחיקה ויציאה נקייה", items:["נוסף אישור מחיקת תבנית ומאזינים נסגרים בצורה נקייה ביציאה."], date:d},
+      {version:"6.65-beta", title:"מחיקת תבנית מיידית", items:["מחיקת תבנית עודכנה מיד במסך וכפתורי Audit הוקטנו."], date:d},
+      {version:"6.64-beta", title:"עריכת תבניות קומפקטית ומלאה", items:["נוסף עורך מלא בתוך הרשימה עם שינוי שם, מחירון, פריטים וכמויות."], date:d},
+      {version:"6.63-beta", title:"ייצוב עריכת תבניות", items:["תוקנו שמירה, עריכה ורענון של תבניות."], date:d},
+      {version:"6.62-beta", title:"שיפור רשימת התבניות", items:["שופרו פעולות התבניות והצגתן במסך ההגדרות."], date:d},
+      {version:"6.61-beta", title:"התאוששות בטוחה וניהול תבניות", items:["נוספה התאוששות בטוחה ושופרה טעינת התבניות לעובד."], date:d},
+      {version:"6.60-beta", title:"תיקון כניסה אחרי ניקוי מטמון", items:["תוקנה כניסה שלא הגיבה לאחר ניקוי המטמון המקומי."], date:d},
+      {version:"6.59-beta", title:"איחוד מסלול המחיקה הרכה", items:["כל המחיקות עברו למסלול Soft Delete אחיד."], date:d},
+      {version:"6.58-beta", title:"תיקון בחירת יום ומחיקת מתוזמנות", items:["תוקנו פתיחה שקטה, בחירת היום ומסלול מחיקת עבודות מתוזמנות."], date:d},
+      {version:"6.57-beta", title:"ייצוב אתחול מסך הבטא", items:["האתחול וה-Debug הותאמו לפתיחה שקטה וללא שכבות מיותרות."], date:d},
+      {version:"6.56-beta", title:"שיפור כלי ניקוי המטמון", items:["כלי ניקוי הנתונים המקומיים הופרדו מאיפוס מקומי מלא."], date:d},
+      {version:"6.55-beta", title:"שיפור סנכרון נעילות וימי חופש", items:["נעילות וימי חופש מתעדכנים מיד בלוח השנה וביום הנבחר."], date:d},
+      {version:"6.54-beta", title:"ייצוב טעינת נתונים לאחר מעבר משתמש", items:["נוקו נתוני המסך לפני טעינת העובד החדש כדי למנוע ערבוב."], date:d},
+      {version:"6.53-beta", title:"השלמת מה חדש בדלתא", items:["גרסאות חסרות נכתבות ל-appChangelog כמסמכים חסרים בלבד."], date:d},
+      {version:"6.52-beta", title:"מעבר בטוח בין עובדים", items:["במעבר משתמש נעצרים מאזיני העובד הקודם והמטמון נשמר בנפרד לפי workerId."], date:d},
+      {version:"6.51-beta", title:"ייצוב מחירון, ימי חופש ונעילות", items:["המחירון, ימי החופש והנעילות עברו סנכרון מקומי יציב יותר."], date:d},
+      {version:"6.50-beta", title:"ייצוב סינון רשומות מחוקות", items:["רשומות מחוקות הוסרו מהמסכים, החיפושים והסיכומים."], date:d},
+      {version:"6.49-beta", title:"ימי חופש ותבניות במטמון", items:["ימי חופש ותבניות נוספו למטמון המקומי ולסנכרון דלתאות."], date:d},
+      {version:"6.48-beta", title:"מחיקות רכות מסונכרנות", items:["הרחבת סנכרון המחיקות הרכות כדי שמחיקות יגיעו לכל מכשיר."], date:d},
+      {version:"6.47-beta", title:"טעינת Cache ו-Delta", items:["לאחר טעינה ראשונה העבודות נטענות מהמטמון ומסתנכרנות בדלתאות createdAt ו-updatedAt."], date:d},
+      {version:"6.46-beta", title:"הכנת מצב דלתא", items:["הכנת המעבר מטעינה מלאה לסנכרון שינויים בלבד."], date:d},
+      {version:"6.45-beta", title:"שמירת מטמון מהמאזין הפעיל", items:["ייצוב שמירת צילום העובד מתוך המאזין הפעיל בלבד."], date:d},
+      {version:"6.44-beta", title:"בדיקת גרסאות ואיפוס מטמון", items:["נוספה בדיקת התאמת גרסאות הקבצים וכלי איפוס מטמון באדמין."], date:d},
+      {version:"6.43-beta", title:"שמירת IndexedDB מתוך המאזין המקורי", items:["שמירת הנתונים הועברה למסלול המאזין המקורי כדי למנוע כפילויות."], date:d},
+      {version:"6.42-beta", title:"חיבור מאזין העבודות ל-IndexedDB", items:["מאזין העבודות הפעיל שומר צילום מקומי לשימוש בטעינות הבאות."], date:d},
+      {version:"6.41-beta", title:"בדיקת שמירה בטוחה ל-IndexedDB", items:["נוספה בדיקת שמירה מבוקרת ל-IndexedDB בלי לשנות את הענף היציב."], date:d},
       {version:"6.40-beta", title:"תיקון תקיעה במסך הכנת סביבת העבודה", items:["שחזור IndexedDB אינו ממתין יותר בתוך loadMonth ואינו יכול לעכב את שרשרת העלייה של העובד.","המסלול הרגיל של Firestore מתחיל מיד, והמטמון המקומי נטען ברקע בלבד.","נוסף watchdog בטא שמסיר את מסך הטעינה אם הוא נשאר מוצג מעבר לזמן הבטוח ורושם זאת בחלון הדיבאג.","היציבה 6.33 וקבציה לא שונו."], date:d},
       {version:"6.39-beta", title:"פתיחה מיידית מהמטמון המקומי", items:["בפתיחה חוזרת הבטא ממתינה עד 900 אלפיות השנייה לשחזור IndexedDB ומציגה את נתוני 730 הימים המקומיים לפני חיבור המאזין.","תוקן איפוס פנימי שמחק את נתוני IndexedDB רגע לפני חיבור listener העבודות.","listener הקיים של 730 הימים נשאר פעיל כמקור האמת ומחליף את המטמון רק לאחר snapshot תקין.","כשל או עיכוב ב-IndexedDB אינו חוסם את האפליקציה; לאחר timeout קצר ממשיכים אוטומטית למסלול Firestore הרגיל."], date:d},
       {version:"6.38-beta", title:"ניקוי קריאות כפולות בעליית הבטא", items:["תוקן מטמון המחירון כך ששתי קריאות פתיחה חופפות חולקות Promise אחד ואינן מורידות פעמיים את כל 309 פריטי המחירון.","תוקן באותו אופן מטמון תבניות ההתקנה כדי למנוע שאילתת פתיחה כפולה.","קריאות חוזרות למסמך העובד בזמן בדיקות הכניסה והמנוי חולקות כעת בקשה אחת ותוצאה טרייה לזמן קצר.","לא שונה עדיין listener העבודות של 730 הימים; זה יטופל בשלב הבא לאחר בדיקת Audit נקייה."], date:d},
@@ -5095,10 +5153,10 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
     if(!isAdminV627())return localDisplayRowsV627(includeInactive);
     var fb=await firebaseRows();
     if(!Array.isArray(fb))return localDisplayRowsV627(includeInactive);
-    if(!changelogCacheV623.seedAttempted){
-      changelogCacheV623.seedAttempted=true;
-      try{fb=await seedMissingRows(fb);changelogCacheV623.rows=fb.slice();}catch(e){console.warn('v6.27 admin changelog completion failed',e&&e.message?e.message:e);}
-    }
+    // 6.88-beta: every admin load re-checks the canonical required rows.
+    // seedMissingRows writes only missing document IDs and never overwrites existing/admin-hidden rows.
+    changelogCacheV623.seedAttempted=true;
+    try{fb=await seedMissingRows(fb);changelogCacheV623.rows=fb.slice();}catch(e){console.warn('v6.88 admin changelog completion failed',e&&e.message?e.message:e);}
     writeLocalRowsV627(fb,{revision:Number((await readStatusV627()||{}).revision||1),latestVersion:APP_VERSION});
     return sortRows(fb.filter(function(r){return (includeInactive||r.active!==false)&&!!(r.version||r.title||(r.items&&r.items.length));}));
   }
@@ -5206,8 +5264,23 @@ CHANGELOG 4.94 - מנגנון Changelog יחיד ונקי
     workerWrap.__workerLinksWrappedV494=true;
     window.showWorker=workerWrap;
   }
-  document.addEventListener('DOMContentLoaded',function(){ setTimeout(ensureWorkerLink,300); setTimeout(function(){ if(q('adminView')&&!q('adminView').classList.contains('hidden')){ ensureAdminPanel(); window.loadAdminChangelogV475(); } },700); });
-  window.addEventListener('load',function(){ setTimeout(ensureWorkerLink,300); setTimeout(ensureWorkerLink,1200); setTimeout(function(){ if(q('adminView')&&!q('adminView').classList.contains('hidden')){ ensureAdminPanel(); window.loadAdminChangelogV475(); } },900); });
+  function bootWhatsNewLinksV686(){
+    setTimeout(ensureWorkerLink,40);
+    setTimeout(ensureWorkerLink,300);
+    setTimeout(function(){
+      if(q('adminView')&&!q('adminView').classList.contains('hidden')){
+        ensureAdminPanel();
+        window.loadAdminChangelogV475();
+      }
+    },700);
+  }
+  // 6.87-beta: run immediately when this dynamically loaded file arrives after DOM readiness.
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',bootWhatsNewLinksV686,{once:true});
+  }else{
+    bootWhatsNewLinksV686();
+  }
+  window.addEventListener('load',function(){ bootWhatsNewLinksV686(); setTimeout(ensureWorkerLink,1200); },{once:true});
 })();
 ;
 (function(){
