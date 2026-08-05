@@ -1,4 +1,4 @@
-/* File version: 6.82-beta - version source aligned with active smart-dashboard completion predicate correction. */
+/* File version: 6.88-beta - APP_VERSION synchronized; admin changelog canonical source repaired. */
 /* File version: 6.50 BETA - version/changelog integration for local collection cache and synchronized soft delete.
 Work Monitor app - extracted JavaScript pilot - fixed script block separators.
 Upload index.html, styles.css, functions1.js, functions2.js and functions3.js to the same GitHub folder.
@@ -199,9 +199,9 @@ CHANGELOG 5.67 - דשבורד חכם: פירוט CN/CH בתוך התקנות ס�
 3. הושלמו רשומות "מה חדש" החסרות לגרסאות 5.64, 5.65 ו-5.66, ונוספה רשומת 5.67.
 4. לא שונו שמירת עבודות, מחירונים, דוחות, לוגין, CSS או HTML.
 */
-const APP_VERSION = "6.82-beta";
+const APP_VERSION = "6.88-beta";
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions1b = "6.82-beta";
+window.WM_LOADED_FILE_VERSIONS.functions1b = "6.88-beta";
 window.APP_VERSION = APP_VERSION;
 window.APP_VERSION_176 = APP_VERSION;
 window.APP_VERSION_181 = APP_VERSION;
@@ -9972,11 +9972,17 @@ service cloud.firestore {
 (function(){
   try{ if(typeof setAppVersionUI === "function") setAppVersionUI(); }catch(e){}
 
-  function isPlannedEntryV416(e){
-    try{ if(window.isPlannedV49) return window.isPlannedV49(e); }catch(_e){}
-    return e && e.entryStatus === "planned";
+  function isNotDoneEntryV416(e){
+    if(!e) return false;
+    var status=String(e.entryStatus||e.status||e.workStatus||e.plannedStatus||"").trim().toLowerCase();
+    return status==="not_done" || status==="not-done" || status==="notdone" || status==="לא בוצע" || e.notDone===true || e.isNotDone===true;
   }
-  function isDoneEntryV416(e){ return !isPlannedEntryV416(e); }
+  function isPlannedEntryV416(e){
+    if(isNotDoneEntryV416(e)) return false;
+    try{ if(window.isPlannedV49) return window.isPlannedV49(e); }catch(_e){}
+    return e && String(e.entryStatus||e.status||"").toLowerCase() === "planned";
+  }
+  function isDoneEntryV416(e){ return !isNotDoneEntryV416(e) && !isPlannedEntryV416(e); }
   function safeTodayV416(){
     try{ if(typeof todayStr === "function") return todayStr(); }catch(e){}
     var d=new Date();
@@ -10012,28 +10018,33 @@ service cloud.firestore {
         .get();
       const all=snap.docs
         .map(d=>({id:d.id,...d.data()}))
-        .filter(e=>e.workerId===viewedWorker.id);
+        .filter(e=>e.workerId===viewedWorker.id && e.isDeleted!==true && e.active!==false)
+        .sort((a,b)=>String(b.date||b.scheduledDate||b.plannedDate||"").localeCompare(String(a.date||a.scheduledDate||a.plannedDate||"")));
+      const notDoneMatches=all
+        .filter(e=>isNotDoneEntryV416(e))
+        .sort((a,b)=>String(b.date||b.scheduledDate||b.plannedDate||"").localeCompare(String(a.date||a.scheduledDate||a.plannedDate||"")));
       const doneMatches=all
         .filter(e=>isDoneEntryV416(e) && String(e.date||"")>=fromStr)
         .sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
       const plannedMatches=all
-        .filter(e=>isPlannedEntryV416(e) && String(e.date||"")>=today)
-        .sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
+        .filter(e=>isPlannedEntryV416(e) && String(e.date||e.scheduledDate||e.plannedDate||"")>=today)
+        .sort((a,b)=>String(a.date||a.scheduledDate||a.plannedDate||"").localeCompare(String(b.date||b.scheduledDate||b.plannedDate||"")));
 
       // v5.44: מילוי כתובת בפועל ללקוח חוזר.
       // הבדיקה רצה בעת יציאה משדה מספר הלקוח; אם נמצאה כתובת קודמת והשדה ריק,
       // הכתובת מוזרקת לשדה הכתובת של אותו טופס שירות/התקנה ומופעלים אירועי input/change.
       const addressTargetId = inputId === "sCustomer" ? "sAddress" : (inputId === "iCustomer" ? "iAddress" : "");
       const addressTarget = addressTargetId ? $(addressTargetId) : null;
-      const addressSource = doneMatches.find(e=>String(e.address||"").trim()) || plannedMatches.find(e=>String(e.address||"").trim()) || all.find(e=>String(e.address||"").trim());
+      // v6.83: אם קיימת פק״ע מתוזמנת שלא בוצעה, הכתובת שלה משתתפת בחיפוש ולא נזרקת בגלל הסטטוס.
+      const addressSource = doneMatches.find(e=>String(e.address||"").trim()) || plannedMatches.find(e=>String(e.address||"").trim()) || notDoneMatches.find(e=>String(e.address||"").trim()) || all.find(e=>String(e.address||"").trim());
       if(addressTarget && !String(addressTarget.value||"").trim() && addressSource && String(addressSource.address||"").trim()){
         addressTarget.value = String(addressSource.address||"").trim();
         try{ addressTarget.dispatchEvent(new Event("input",{bubbles:true})); }catch(_e){}
         try{ addressTarget.dispatchEvent(new Event("change",{bubbles:true})); }catch(_e){}
       }
 
-      if(!doneMatches.length && !plannedMatches.length){
-        box.innerHTML="<div class='recent-ok'>לא נמצאה עבודה שבוצעה ב־30 הימים האחרונים, ואין סידור מתוזמן ללקוח הזה ✅</div>";
+      if(!doneMatches.length && !plannedMatches.length && !notDoneMatches.length){
+        box.innerHTML="<div class='recent-ok'>לא נמצאה עבודה שבוצעה ב־30 הימים האחרונים, אין סידור מתוזמן ואין פק״ע מתוזמנת שלא בוצעה ללקוח הזה ✅</div>";
         return;
       }
       const parts=[];
@@ -10043,9 +10054,18 @@ service cloud.firestore {
       }
       if(plannedMatches.length){
         const next=plannedMatches[0];
-        parts.push(`📋 קיימת קריאה/התקנה מתוזמנת ללקוח זה.<br>מועד קרוב: ${safeDateV416(next.date)} · ${safeTextV416(next.description||"סידור מתוזמן")} · צפי ${safeMoneyV416(next.amount||0)}<br>כתובת: ${safeTextV416(next.address||"")}`);
+        const nextDate=next.date||next.scheduledDate||next.plannedDate||"";
+        parts.push(`📋 קיימת קריאה/התקנה מתוזמנת ללקוח זה.<br>מועד קרוב: ${safeDateV416(nextDate)} · ${safeTextV416(next.description||"סידור מתוזמן")} · צפי ${safeMoneyV416(next.amount||0)}<br>כתובת: ${safeTextV416(next.address||"")}`);
       }
-      const cls=doneMatches.length ? "recent-box" : "recent-ok";
+      if(notDoneMatches.length){
+        const nd=notDoneMatches[0];
+        const ndDate=nd.date||nd.scheduledDate||nd.plannedDate||"";
+        const ndReason=nd.notDoneReason ? ` · סיבה: ${safeTextV416(nd.notDoneReason)}` : "";
+        const ndNote=nd.notDoneNote ? `<br>פירוט: ${safeTextV416(nd.notDoneNote)}` : "";
+        const dateText=ndDate ? safeDateV416(ndDate) : "תאריך לא שמור ברשומה";
+        parts.push(`🚫 ללקוח הייתה פק״ע מתוזמנת שלא בוצעה.<br>תאריך: ${dateText} · ${safeTextV416(nd.description||"פק״ע מתוזמנת")}${ndReason}<br>כתובת: ${safeTextV416(nd.address||"")}${ndNote}`);
+      }
+      const cls=(doneMatches.length || notDoneMatches.length) ? "recent-box" : "recent-ok";
       box.innerHTML=`<div class="${cls}">${parts.join("<br><br>")}</div>`;
     }catch(e){
       const msg=e && (e.code==="permission-denied" || String(e.message||"").includes("permissions"))
