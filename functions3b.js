@@ -1,4 +1,4 @@
-/* File version: 6.82-beta - version verification and changelog alignment for active dashboard completion filtering. */
+/* File version: 6.88-beta - synchronized package; canonical changelog logic lives in functions2b.js. */
 /* File version: 6.50 BETA - workerDaysOff/installTemplates IndexedDB delta sync and synchronized soft delete.
 Work Monitor app - JavaScript continuation file.
 File version: 6.50 BETA - priceList cache-first synchronization diagnostics and changelog support.
@@ -6,7 +6,7 @@ Loaded after functions1.js and functions2.js. New additive functionality belongs
 APP_VERSION remains defined only in functions1.js.
 */
 window.WM_LOADED_FILE_VERSIONS = window.WM_LOADED_FILE_VERSIONS || {};
-window.WM_LOADED_FILE_VERSIONS.functions3b = "6.82-beta";
+window.WM_LOADED_FILE_VERSIONS.functions3b = "6.88-beta";
 
 
 /*
@@ -687,7 +687,7 @@ VERSION 6.45 BETA - FILE VERSION AUDIT + ADMIN LOCAL CACHE RESET TOOLS
   'use strict';
   if(window.__wmBetaDiagnosticsV644)return;
   window.__wmBetaDiagnosticsV644=true;
-  var EXPECTED='6.82-beta';
+  var EXPECTED='6.88-beta';
 
   function trace(event,data){
     try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}
@@ -890,6 +890,9 @@ VERSION 6.50 BETA - PRICELIST INDEXEDDB CACHE + DELTA SYNC
   var localRows=[];
   var currentSavedAt='';
   var loadPromise=null;
+  // v6.87-beta: v1 snapshots may contain only the Fiber subset created by older loaders.
+  // Schema 2 guarantees that the cached row contains the complete Fiber + RF collection.
+  var PRICE_CACHE_SCHEMA_V685=2;
   var originalLoad=window.loadPriceList||(typeof loadPriceList==='function'?loadPriceList:null);
 
   function trace(event,data){try{window.wmTraceV617&&window.wmTraceV617(event,data||{});}catch(e){}}
@@ -911,11 +914,19 @@ VERSION 6.50 BETA - PRICELIST INDEXEDDB CACHE + DELTA SYNC
   }
   async function writeRow(rows){
     var dbi=await openDb();
-    var row={key:KEY,rows:Array.isArray(rows)?rows:[],savedAt:new Date().toISOString(),appVersion:String(window.APP_VERSION||'6.51-beta'),schemaVersion:1};
+    var row={key:KEY,rows:Array.isArray(rows)?rows:[],savedAt:new Date().toISOString(),appVersion:String(window.APP_VERSION||'6.51-beta'),schemaVersion:PRICE_CACHE_SCHEMA_V685};
     await new Promise(function(resolve,reject){var tx=dbi.transaction(STORE,'readwrite');tx.objectStore(STORE).put(row);tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error);};tx.onabort=function(){reject(tx.error);};});
     currentSavedAt=row.savedAt;
     trace('PRICE_LIST_IDB_SAVE_SUCCESS',{docs:row.rows.length,savedAt:row.savedAt});
     return row;
+  }
+  // v6.84-beta: keep the complete price-list snapshot in IndexedDB, but expose
+  // only the currently selected Fiber/RF items to the installation form.
+  function normalizedPriceKindV684(item){
+    return String(item && (item.priceType || item.installKind || item.category) || 'fiber').toLowerCase()==='rf'?'rf':'fiber';
+  }
+  function selectedPriceKindV684(){
+    return String(window.installKindV411 || 'fiber').toLowerCase()==='rf'?'rf':'fiber';
   }
   function normalize(rows){
     var map={};
@@ -924,14 +935,20 @@ VERSION 6.50 BETA - PRICELIST INDEXEDDB CACHE + DELTA SYNC
       var x=Object.assign({},item,{inputMode:item.inputMode||'qty'});
       map[String(x.id)]=x;
     });
+    // localRows always contains both Fiber and RF so switching tabs never reuses
+    // the previously rendered subset and never requires another full download.
     localRows=Object.keys(map).map(function(id){return map[id];});
+    var wantedKind=selectedPriceKindV684();
     var unique={};
-    localRows.filter(function(x){return x.active!==false;}).forEach(function(item){
-      var key=String(item.name||'').trim()+'|'+Number(item.price||0)+'|'+String(item.inputMode||'qty');
+    localRows.filter(function(x){
+      return x.active!==false && normalizedPriceKindV684(x)===wantedKind;
+    }).forEach(function(item){
+      var key=String(item.name||'').trim()+'|'+Number(item.price||0)+'|'+String(item.inputMode||'qty')+'|'+normalizedPriceKindV684(item);
       if(!unique[key])unique[key]=item;
     });
     priceList=Object.keys(unique).map(function(k){return unique[k];}).sort(function(a,b){return Number(a.order||0)-Number(b.order||0);});
     window.priceList=priceList;
+    trace('PRICE_LIST_KIND_APPLIED',{kind:wantedKind,visibleDocs:priceList.length,cachedDocs:localRows.length});
     return priceList;
   }
   function firestoreValueToPlain(doc){return Object.assign({id:doc.id},doc.data()||{});}
@@ -962,23 +979,32 @@ VERSION 6.50 BETA - PRICELIST INDEXEDDB CACHE + DELTA SYNC
     loadPromise=(async function(){
       if(force===true){
         trace('PRICE_LIST_CACHE_FORCE_FULL_LOAD',{});
-        var forced=await originalLoad.apply(this,arguments);normalize(Array.isArray(priceList)?priceList:[]);await writeRow(localRows);startDeltaListeners(currentSavedAt);return forced||priceList;
+        var forcedSnap=await db.collection('priceList').get();
+        var forcedRows=forcedSnap.docs.map(function(doc){return Object.assign({id:doc.id},doc.data()||{});});
+        normalize(forcedRows);await writeRow(localRows);startDeltaListeners(currentSavedAt);return priceList;
       }
       try{
         trace('PRICE_LIST_IDB_RESTORE_START',{});
         var row=await readRow();
-        if(row&&Array.isArray(row.rows)&&row.rows.length){
+        if(row&&Array.isArray(row.rows)&&row.rows.length&&Number(row.schemaVersion||0)>=PRICE_CACHE_SCHEMA_V685){
           currentSavedAt=String(row.savedAt||'');
           normalize(row.rows);
-          trace('PRICE_LIST_IDB_RESTORE_SUCCESS',{docs:row.rows.length,savedAt:currentSavedAt});
+          trace('PRICE_LIST_IDB_RESTORE_SUCCESS',{docs:row.rows.length,savedAt:currentSavedAt,schemaVersion:row.schemaVersion});
           trace('PRICE_LIST_SKIP_FULL_DOWNLOAD',{docs:row.rows.length,savedAt:currentSavedAt});
           startDeltaListeners(currentSavedAt);
           return priceList;
         }
-        trace('PRICE_LIST_IDB_CACHE_MISS',{});
+        if(row&&Array.isArray(row.rows)&&row.rows.length){
+          trace('PRICE_LIST_CACHE_SCHEMA_REBUILD',{oldSchema:Number(row.schemaVersion||0),requiredSchema:PRICE_CACHE_SCHEMA_V685,cachedDocs:row.rows.length});
+        }else{
+          trace('PRICE_LIST_IDB_CACHE_MISS',{});
+        }
       }catch(err){trace('PRICE_LIST_IDB_RESTORE_ERROR',{error:String(err&&err.message||err)});}
-      var result=await originalLoad.apply(this,arguments);
-      normalize(Array.isArray(priceList)?priceList:[]);
+      // Seed the cache with the complete collection. The original loader filters
+      // by the selected installation kind, which is unsuitable for a shared cache.
+      var snap=await db.collection('priceList').get();
+      var allRows=snap.docs.map(function(doc){return Object.assign({id:doc.id},doc.data()||{});});
+      var result=normalize(allRows);
       try{await writeRow(localRows);}catch(err2){trace('PRICE_LIST_IDB_SAVE_ERROR',{error:String(err2&&err2.message||err2)});}
       startDeltaListeners(currentSavedAt);
       trace('PRICE_LIST_FULL_LOAD_SEEDED_CACHE',{docs:localRows.length});
@@ -2992,19 +3018,12 @@ Only active, non-deleted templates owned by the current worker are rendered.
   if(typeof oldRows==='function'&&!oldRows.__v677Wrapped){
     var wrapped=function(){
       var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){}
-      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.82-beta';}))rows.unshift({
-        version:'6.82-beta',title:'דשבורד חכם: מסנן ביצוע פעיל ומתוקן',createdAt:'2026-08-02',items:[
-          'תוקנה ישירות פונקציית renderSmartDashboard הפעילה והמסנן done436 שבתוכה, ללא עטיפה חדשה.',
-          'כל שדות הסטטוס נבדקים בנפרד, וכל סימן למתוזמן, לא בוצע, ממתין, מבוטל או מחוק מוציא את הרשומה מכל ספירות הביצוע.',
-          'רשומה עם סטטוס מפורש נספרת רק כאשר קיים בה סטטוס ביצוע מפורש; רשומות היסטוריות ללא סטטוס נשארות תואמות לאחור.',
-          'אותו מסנן מופעל שוב ישירות על מערך ההתקנות לפני חישוב התקנות שבוצעו, סיב, RF, CN/CH ו-Change.'
-        ]});
-      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.81-beta';}))rows.unshift({
-        version:'6.81-beta',title:'דשבורד חכם: מניעת ספירה של עותק ישן ממטמון הדלתא',createdAt:'2026-08-02',items:[
-          'אותרה פונקציית הדשבורד הפעילה בפועל ב-functions2b והחישוב תוקן בתוכה, לפני יצירת מערכי ההתקנות.',
-          'לפני הספירה מאוחדות כפילויות של אותו מסמך לפי מזהה הרשומה, כדי שגרסה ישנה מהמטמון לא תיספר לצד גרסת לא בוצע המעודכנת.',
-          'כאשר קיימות שתי גרסאות של אותה רשומה, סטטוס לא בוצע, מתוזמן, מבוטל או מחוק גובר תמיד על סטטוס ישן של בוצע.',
-          'אותו מקור נתונים נקי משמש את התקנות שבוצעו, התקנות סיב, RF, CN/CH ופקודות Change.'
+      if(!rows.some(function(r){return String(r.version||r.id||'')==='6.83-beta';}))rows.unshift({
+        version:'6.83-beta',title:'בדיקת לקוח: איתור פק״ע מתוזמנת שלא בוצעה',createdAt:'2026-08-04',items:[
+          'בדיקת מספר לקוח כוללת כעת גם פק״עות מתוזמנות מהעבר שסומנו לא בוצע, ללא הגבלת זמן.',
+          'כתובת מתוך פק״ע לא בוצעה יכולה למלא את שדה הכתובת כאשר הוא ריק.',
+          'ההתראה מציגה את תאריך הפק״ע, הכתובת, הסיבה והפירוט הקיימים ברשומה.',
+          'לא שונו ספירות, הכנסות, דשבורד או מנגנון מילוי הכתובת שכבר עובד.'
         ]
       });
       if(!rows.some(function(r){return String(r.version||r.id||'')==='6.80-beta';}))rows.unshift({
@@ -3033,4 +3052,81 @@ Only active, non-deleted templates owned by the current worker are rendered.
     };
     wrapped.__v677Wrapped=true;window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
   }
+})();
+
+
+/* ===== 6.84-beta: תיקון מעבר מחירון סיב / RF ===== */
+(function addChangelogV684(){
+  var oldRows=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof oldRows!=='function'||oldRows.__v684Wrapped)return;
+  var wrapped=function(){
+    var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){rows=[];}
+    if(!rows.some(function(r){return String(r.version||r.id||'')==='6.84-beta';}))rows.unshift({
+      version:'6.84-beta',title:'תיקון מעבר בין מחירון סיב למחירון RF',createdAt:'2026-08-05',items:[
+        'תוקן מעבר סוג ההתקנה כך שהכותרת והפריטים מתחלפים יחד בין סיב ל-RF.',
+        'מטמון המחירון שומר מעכשיו את שני סוגי המחירון ומסנן מחדש לפי הסוג שנבחר בכל מעבר.',
+        'נמנעה החזרת פריטי סיב מתוך המטמון כאשר נבחר מחירון RF, ולהפך.'
+      ]
+    });
+    return rows;
+  };
+  wrapped.__v684Wrapped=true;
+  window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+})();
+
+
+/* ===== 6.87-beta: בנייה מחדש של מטמון מחירון מלא ===== */
+(function addChangelogV685(){
+  var oldRows=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof oldRows!=='function'||oldRows.__v685Wrapped)return;
+  var wrapped=function(){
+    var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){rows=[];}
+    if(!rows.some(function(r){return String(r.version||r.id||'')==='6.87-beta';}))rows.unshift({
+      version:'6.87-beta',title:'תיקון טעינת פריטי מחירון RF',createdAt:'2026-08-05',items:[
+        'זוהה מטמון ישן שנבנה בעבר רק מפריטי סיב ולכן החזיר רשימת RF ריקה.',
+        'בעלייה הראשונה לגרסה זו מטמון המחירון הישן נבנה מחדש פעם אחת מכל אוסף priceList.',
+        'לאחר הבנייה נשמרים יחד פריטי סיב ו-RF, והמעבר ביניהם מתבצע מקומית ללא הורדה מלאה נוספת.'
+      ]
+    });
+    return rows;
+  };
+  wrapped.__v685Wrapped=true;
+  window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+})();
+
+
+/* ===== 6.87-beta: restore UI initialization after dynamic script loading ===== */
+(function addChangelogV686(){
+  var oldRows=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof oldRows!=='function'||oldRows.__v686Wrapped)return;
+  var wrapped=function(){
+    var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){rows=[];}
+    if(!rows.some(function(r){return String(r.version||r.id||'')==='6.87-beta';}))rows.unshift({
+      version:'6.87-beta',title:'החזרת נגישות ומה חדש לאחר טעינה דינמית',createdAt:'2026-08-06',items:[
+        'כפתור הנגישות מאותחל מיד גם כאשר קובצי JavaScript נטענים לאחר שאירוע DOMContentLoaded כבר הסתיים.',
+        'הקישור מה חדש נוסף מיד למסך העובד באותה צורת אתחול בטוחה ואינו תלוי עוד באירוע load שכבר חלף.',
+        'האתחול נשאר חד-פעמי ובטוח מפני כפילויות באמצעות בדיקות האלמנטים הקיימות.',
+        'לא שונו המחירונים, התבניות, העבודות, המטמון או מנגנון ההתחברות.'
+      ]
+    });
+    return rows;
+  };
+  wrapped.__v686Wrapped=true;
+  window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
+})();
+
+
+/* ===== 6.87-beta: complete changelog 6.40-6.87 and restore icon-only accessibility button ===== */
+(function completeChangelogV687(){
+  var oldRows=window.requiredChangelogRows||(typeof requiredChangelogRows==='function'?requiredChangelogRows:null);
+  if(typeof oldRows!=='function'||oldRows.__v687Complete)return;
+  var required=[{'version': '6.40-beta', 'title': 'בסיס מטמון בטא ושמירה מקומית', 'createdAt': '2026-08-06', 'items': ['המשך פיתוח ארכיטקטורת המטמון המקומי בענף הבטא בלבד.']}, {'version': '6.41-beta', 'title': 'בדיקת שמירה בטוחה ל-IndexedDB', 'createdAt': '2026-08-06', 'items': ['נוספה בדיקת שמירה מבוקרת ל-IndexedDB בלי לשנות את הענף היציב.']}, {'version': '6.42-beta', 'title': 'חיבור מאזין העבודות ל-IndexedDB', 'createdAt': '2026-08-06', 'items': ['מאזין העבודות הפעיל שומר צילום מקומי לשימוש בטעינות הבאות.']}, {'version': '6.43-beta', 'title': 'שמירת IndexedDB מתוך המאזין המקורי', 'createdAt': '2026-08-06', 'items': ['שמירת הנתונים הועברה למסלול המאזין המקורי כדי למנוע כפילויות.']}, {'version': '6.44-beta', 'title': 'בדיקת גרסאות ואיפוס מטמון', 'createdAt': '2026-08-06', 'items': ['נוספה בדיקת התאמת גרסאות הקבצים וכלי איפוס מטמון באדמין.']}, {'version': '6.45-beta', 'title': 'שמירת מטמון מהמאזין הפעיל', 'createdAt': '2026-08-06', 'items': ['ייצוב שמירת צילום העובד מתוך המאזין הפעיל בלבד.']}, {'version': '6.46-beta', 'title': 'הכנת מצב דלתא', 'createdAt': '2026-08-06', 'items': ['הכנת המעבר מטעינה מלאה לסנכרון שינויים בלבד.']}, {'version': '6.47-beta', 'title': 'טעינת Cache ו-Delta', 'createdAt': '2026-08-06', 'items': ['לאחר טעינה ראשונה העבודות נטענות מהמטמון ומסתנכרנות בדלתאות createdAt/updatedAt.']}, {'version': '6.48-beta', 'title': 'מחיקות רכות מסונכרנות', 'createdAt': '2026-08-06', 'items': ['הרחבת סנכרון המחיקות הרכות כדי שמחיקות יגיעו לכל מכשיר.']}, {'version': '6.49-beta', 'title': 'ימי חופש ותבניות במטמון', 'createdAt': '2026-08-06', 'items': ['ימי חופש ותבניות נוספו למטמון המקומי ולסנכרון דלתאות.']}, {'version': '6.50-beta', 'title': 'ייצוב סינון רשומות מחוקות', 'createdAt': '2026-08-06', 'items': ['רשומות מחוקות הוסרו מהמסכים, החיפושים והסיכומים.']}, {'version': '6.51-beta', 'title': 'ייצוב מחירון, ימי חופש ונעילות', 'createdAt': '2026-08-06', 'items': ['המחירון, ימי החופש והנעילות עברו סנכרון מקומי יציב יותר.']}, {'version': '6.52-beta', 'title': 'מעבר בטוח בין עובדים', 'createdAt': '2026-08-06', 'items': ['במעבר משתמש נעצרים מאזיני העובד הקודם והמטמון נשמר בנפרד לפי workerId.']}, {'version': '6.53-beta', 'title': 'השלמת מה חדש בדלתא', 'createdAt': '2026-08-06', 'items': ['גרסאות חסרות נכתבות ל-appChangelog כמסמכים חסרים בלבד.']}, {'version': '6.54-beta', 'title': 'ייצוב טעינת נתונים לאחר מעבר משתמש', 'createdAt': '2026-08-06', 'items': ['נוקו נתוני המסך לפני טעינת העובד החדש כדי למנוע ערבוב.']}, {'version': '6.55-beta', 'title': 'שיפור סנכרון נעילות וימי חופש', 'createdAt': '2026-08-06', 'items': ['נעילות וימי חופש מתעדכנים מיד בלוח השנה וביום הנבחר.']}, {'version': '6.56-beta', 'title': 'שיפור כלי ניקוי המטמון', 'createdAt': '2026-08-06', 'items': ['כלי ניקוי הנתונים המקומיים הופרדו מאיפוס מקומי מלא.']}, {'version': '6.57-beta', 'title': 'ייצוב אתחול מסך הבטא', 'createdAt': '2026-08-06', 'items': ['האתחול וה-Debug הותאמו לפתיחה שקטה וללא שכבות מיותרות.']}, {'version': '6.58-beta', 'title': 'תיקון בחירת יום ומחיקת מתוזמנות', 'createdAt': '2026-08-06', 'items': ['תוקנו פתיחה שקטה, בחירת היום ומסלול מחיקת עבודות מתוזמנות.']}, {'version': '6.59-beta', 'title': 'איחוד מסלול המחיקה הרכה', 'createdAt': '2026-08-06', 'items': ['כל המחיקות עברו למסלול Soft Delete אחיד.']}, {'version': '6.60-beta', 'title': 'תיקון כניסה אחרי ניקוי מטמון', 'createdAt': '2026-08-06', 'items': ['תוקנה כניסה שלא הגיבה לאחר ניקוי המטמון המקומי.']}, {'version': '6.61-beta', 'title': 'התאוששות בטוחה וניהול תבניות', 'createdAt': '2026-08-06', 'items': ['נוספה התאוששות בטוחה ושופרה טעינת התבניות לעובד.']}, {'version': '6.62-beta', 'title': 'שיפור רשימת התבניות', 'createdAt': '2026-08-06', 'items': ['שופרו פעולות התבניות והצגתן במסך ההגדרות.']}, {'version': '6.63-beta', 'title': 'ייצוב עריכת תבניות', 'createdAt': '2026-08-06', 'items': ['תוקנו שמירה, עריכה ורענון של תבניות.']}, {'version': '6.64-beta', 'title': 'עריכת תבניות קומפקטית ומלאה', 'createdAt': '2026-08-06', 'items': ['נוסף עורך מלא בתוך הרשימה עם שינוי שם, מחירון, פריטים וכמויות.']}, {'version': '6.65-beta', 'title': 'מחיקת תבנית מיידית', 'createdAt': '2026-08-06', 'items': ['מחיקת תבנית עודכנה מיד במסך וכפתורי Audit הוקטנו.']}, {'version': '6.66-beta', 'title': 'אישור מחיקה ויציאה נקייה', 'createdAt': '2026-08-06', 'items': ['נוסף אישור מחיקת תבנית ומאזינים נסגרים בצורה נקייה ביציאה.']}, {'version': '6.67-beta', 'title': 'טעינת תבניות אוטומטית', 'createdAt': '2026-08-06', 'items': ['התבניות נטענות אוטומטית בכניסה לכלים בלי לחיצה ידנית על רענן.']}, {'version': '6.68-beta', 'title': 'Single-flight לתבניות', 'createdAt': '2026-08-06', 'items': ['נמנעו טעינות מקבילות מרובות של תבניות והמעבר בין משתמשים הוגן.']}, {'version': '6.69-beta', 'title': 'תבניות ב-IndexedDB ודלתאות בלבד', 'createdAt': '2026-08-06', 'items': ['התבניות הועברו למטמון IndexedDB עם סנכרון שינויים בלבד.']}, {'version': '6.70-beta', 'title': 'הפרדה קשיחה בין תבניות עובדים', 'createdAt': '2026-08-06', 'items': ['תבניות מסוננות ומוצגות רק לפי העובד הפעיל.']}, {'version': '6.71-beta', 'title': 'תיקון סכמת מטמון התבניות', 'createdAt': '2026-08-06', 'items': ['נוסף תיקון סכמת IndexedDB עבור מאגר התבניות.']}, {'version': '6.72-beta', 'title': 'סכמת IndexedDB מאוחדת', 'createdAt': '2026-08-06', 'items': ['גרסת בסיס הנתונים המקומי אוחדה ונפתחה עם כל ה-object stores הנדרשים.']}, {'version': '6.73-beta', 'title': 'טעינת תבניות לפי עובד', 'createdAt': '2026-08-06', 'items': ['טעינת התבניות הותאמה לאותו עקרון סינון לפי עובד של שאר הנתונים.']}, {'version': '6.74-beta', 'title': 'טעינת תבניות ברקע', 'createdAt': '2026-08-06', 'items': ['טעינת התבניות הופרדה מהאתחול החוסם כדי שמסך הכניסה לא ייתקע.']}, {'version': '6.75-beta', 'title': 'מאזין יחיד לתבניות', 'createdAt': '2026-08-06', 'items': ['נשאר מאזין יחיד לפי ownerWorkerId ונמנע ערבוב בין משתמשים.']}, {'version': '6.76-beta', 'title': 'סינון מחירון בעריכת תבנית', 'createdAt': '2026-08-06', 'items': ['עורך התבנית משתמש באותם קריטריוני סינון של המחירון הראשי.']}, {'version': '6.77-beta', 'title': 'עיצוב רשימת ועורך התבניות', 'createdAt': '2026-08-06', 'items': ['רשימת התבניות ועורך הכמויות קיבלו עיצוב מקצועי ותואם לאפליקציה.']}, {'version': '6.78-beta', 'title': 'ספירות דשבורד ללא מתוזמנות', 'createdAt': '2026-08-06', 'items': ['עבודות מתוזמנות שלא בוצעו הוצאו מספירות הדשבורד החכם.']}, {'version': '6.79-beta', 'title': 'סיווג התקנות ו-Change מדויק', 'createdAt': '2026-08-06', 'items': ['התקנות שבוצעו וסיווג Change מחושבים רק מעבודות שבוצעו בפועל.']}, {'version': '6.80-beta', 'title': 'התקנות שבוצעו בלבד', 'createdAt': '2026-08-06', 'items': ['ספירת ההתקנות בתשלום הוגבלה להתקנות שבוצעו בפועל.']}, {'version': '6.81-beta', 'title': 'תיקון פונקציית הדשבורד הפעילה', 'createdAt': '2026-08-06', 'items': ['התיקון הוחל על פונקציית הרינדור העדכנית שמציגה את הדשבורד.']}, {'version': '6.82-beta', 'title': 'ייצוב חישובי הדשבורד', 'createdAt': '2026-08-06', 'items': ['נוקו מסלולי חישוב ישנים כדי למנוע ספירה כפולה של מתוזמנות.']}, {'version': '6.83-beta', 'title': 'איתור פק״ע מתוזמנת שלא בוצעה', 'createdAt': '2026-08-06', 'items': ['בדיקת מספר לקוח ממלאת כתובת ומציגה תאריך והודעה על פק״ע קודמת שלא בוצעה.']}, {'version': '6.84-beta', 'title': 'מעבר בין מחירון סיב ל-RF', 'createdAt': '2026-08-06', 'items': ['הכותרת והפריטים מתחלפים יחד לפי סוג המחירון שנבחר.']}, {'version': '6.85-beta', 'title': 'בנייה מחדש של מטמון המחירון', 'createdAt': '2026-08-06', 'items': ['מטמון ישן שמכיל רק סיב נבנה מחדש פעם אחת עם פריטי סיב ו-RF.']}, {'version': '6.86-beta', 'title': 'החזרת נגישות ומה חדש', 'createdAt': '2026-08-06', 'items': ['הנגישות ומה חדש מאותחלים גם כאשר קובצי JavaScript נטענים לאחר DOMContentLoaded.']}, {'version': '6.87-beta', 'title': 'אייקון נגישות והשלמת היסטוריית גרסאות', 'createdAt': '2026-08-06', 'items': ['כפתור הנגישות הוחזר לאייקון יחיד בלבד וכל רשומות מה חדש מ-6.40 עד 6.86 הושלמו.']}];
+  var wrapped=function(){
+    var rows=[];try{rows=oldRows.apply(this,arguments)||[];}catch(e){rows=[];}
+    var seen={};rows.forEach(function(r){seen[String(r.version||r.id||'')]=true;});
+    for(var i=required.length-1;i>=0;i--){var r=required[i];if(!seen[r.version]){rows.unshift(r);seen[r.version]=true;}}
+    return rows;
+  };
+  wrapped.__v687Complete=true;
+  window.requiredChangelogRows=wrapped;try{requiredChangelogRows=wrapped;}catch(e){}
 })();
