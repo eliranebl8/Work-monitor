@@ -1,10 +1,110 @@
-<!-- File version: 6.31 STABLE - load functions3.js for historical live sync. -->
+<!-- File version: 6.88-beta - canonical admin changelog completion through 6.88. -->
+<!-- File version: 6.50 BETA - local workerDaysOff/installTemplates cache and synchronized soft delete; stable 6.33 untouched. -->
 <!DOCTYPE html
 <!-- File version: 5.89 - Chrome-stable SVG password visibility icons -->
 
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8"/>
+<!-- VERSION 6.52 BETA: block the application until HTML + all JavaScript files prove they are the same version. -->
+<style id="wmVersionGateStyleV652">
+  #wmVersionGateV652{position:fixed;inset:0;z-index:2147483647;display:none;align-items:center;justify-content:center;padding:24px;background:#f3f5f8;font-family:Arial,sans-serif;direction:rtl;text-align:center;visibility:visible!important;}
+  #wmVersionGateV652 .wm-gate-card{width:min(520px,100%);background:#fff;border-radius:18px;padding:28px;box-shadow:0 12px 40px rgba(0,0,0,.16);}
+  #wmVersionGateV652 h1{margin:0 0 12px;font-size:25px;color:#263238;}
+  #wmVersionGateV652 p{margin:8px 0;color:#546e7a;line-height:1.55;}
+  #wmVersionGateV652 .wm-gate-spinner{width:38px;height:38px;margin:0 auto 18px;border:4px solid #dfe5ea;border-top-color:#1976d2;border-radius:50%;animation:wmGateSpinV652 .8s linear infinite;}
+  #wmVersionGateV652 button{display:none;margin:18px auto 0;border:0;border-radius:10px;padding:12px 22px;background:#1976d2;color:#fff;font-size:16px;font-weight:700;cursor:pointer;}
+  #wmVersionGateV652.wm-version-error{display:flex;}
+  #wmVersionGateV652.wm-version-error button{display:block;}
+  #wmVersionGateV652.wm-version-error .wm-gate-spinner{display:none;}
+  @keyframes wmGateSpinV652{to{transform:rotate(360deg)}}
+</style>
+<script>
+/*
+ * v6.66-beta: חלון Firebase Audit פעיל גם בדפדפן שבו אי אפשר לערוך URL.
+ * שנה רק בין true ל-false. התמיכה ב-?firebaseDebug=1 נשארה פעילה כרגיל.
+ */
+const WM_FIREBASE_AUDIT_DEBUG = false;
+window.WM_FIREBASE_AUDIT_DEBUG = WM_FIREBASE_AUDIT_DEBUG;
+</script>
+<script>
+(function(){
+  'use strict';
+  var EXPECTED='6.88-beta';
+  var FILES=['functions1b.js','functions2b.js','functions3b.js'];
+  /* v6.57: version gate stays invisible during a valid check; it appears only on a real mismatch. */
+  window.WM_EXPECTED_BETA_VERSION=EXPECTED;
+  window.WM_LOADED_FILE_VERSIONS=window.WM_LOADED_FILE_VERSIONS||{};
+
+  function gate(){return document.getElementById('wmVersionGateV652');}
+  function updateGate(title,text,isError){
+    var el=gate(); if(!el)return;
+    var h=el.querySelector('h1'),p=el.querySelector('[data-gate-text]');
+    if(h)h.textContent=title;
+    if(p)p.textContent=text;
+    el.classList.toggle('wm-version-error',!!isError);
+  }
+  function showError(details){
+    updateGate('המערכת נמצאת בתחזוקה','קובצי המערכת עדיין אינם מאותה גרסה או שלא ניתן היה להוריד אחד מהם. האפליקציה נעצרה כדי למנוע הצגת נתונים שגויים. לחץ על רענון בעוד מספר דקות.',true);
+    try{console.error('WORK_MONITOR_VERSION_MISMATCH',details||{});}catch(e){}
+    return false;
+  }
+  window.WM_FORCE_FRESH_RELOAD_V652=async function(){
+    try{if('caches' in window){var names=await caches.keys();await Promise.all(names.map(function(n){return caches.delete(n);}));}}catch(e){}
+    try{if(navigator.serviceWorker){var regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(function(r){return r.unregister();}));}}catch(e){}
+    var u=new URL(location.href);u.searchParams.set('_fresh',Date.now());location.replace(u.toString());
+  };
+  function sourceVersion(file,text){
+    var key=file.replace('.js','');
+    var rx=new RegExp('WM_LOADED_FILE_VERSIONS\\.'+key+'\\s*=\\s*["\\\']([^"\\\']+)["\\\']');
+    var m=text.match(rx);return m&&m[1]||'MISSING';
+  }
+  function executeSource(file,text){
+    var script=document.createElement('script');
+    script.setAttribute('data-wm-runtime-file',file);
+    script.text=text+'\n//# sourceURL='+file+'?runtime='+encodeURIComponent(EXPECTED);
+    document.body.appendChild(script);
+  }
+  async function fetchSource(file,token){
+    var url='./'+file+'?versionCheck='+encodeURIComponent(EXPECTED)+'&t='+token;
+    var response=await fetch(url,{cache:'no-store',credentials:'same-origin',headers:{'Cache-Control':'no-cache'}});
+    if(!response.ok)throw new Error(file+' HTTP '+response.status);
+    return await response.text();
+  }
+  window.WM_PREFLIGHT_AND_LOAD_BETA=async function(){
+    var token=Date.now();
+    var details={html:EXPECTED,expected:EXPECTED};
+    try{
+      updateGate('בודק את גרסת המערכת','מוריד ומאמת את קובצי האפליקציה לפני הפעלה.',false);
+      var sources=[];
+      for(var i=0;i<FILES.length;i++){
+        var file=FILES[i];
+        var text=await fetchSource(file,token);
+        details[file.replace('.js','')]=sourceVersion(file,text);
+        if(file==='functions1b.js'){
+          var m=text.match(/const\s+APP_VERSION\s*=\s*["']([^"']+)["']/);
+          details.appVersion=m&&m[1]||'MISSING';
+        }
+        sources.push({file:file,text:text});
+      }
+      details.allMatch=[details.html,details.functions1b,details.functions2b,details.functions3b,details.appVersion].every(function(v){return v===EXPECTED;});
+      if(!details.allMatch)return showError(details);
+      window.WM_LOADED_FILE_VERSIONS.html=EXPECTED;
+      for(var j=0;j<sources.length;j++)executeSource(sources[j].file,sources[j].text);
+      var loaded=window.WM_LOADED_FILE_VERSIONS||{};
+      var finalDetails={html:loaded.html,functions1b:loaded.functions1b,functions2b:loaded.functions2b,functions3b:loaded.functions3b,appVersion:window.APP_VERSION,expected:EXPECTED};
+      finalDetails.allMatch=[finalDetails.html,finalDetails.functions1b,finalDetails.functions2b,finalDetails.functions3b,finalDetails.appVersion].every(function(v){return v===EXPECTED;});
+      if(!finalDetails.allMatch)return showError(finalDetails);
+      try{console.info('WORK_MONITOR_VERSION_MATCH',finalDetails);}catch(e){}
+      var el=gate();if(el)el.remove();
+      return true;
+    }catch(err){
+      details.error=String(err&&err.message||err);
+      return showError(details);
+    }
+  };
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>מעקב עבודה</title>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -48,6 +148,14 @@
 <link rel="stylesheet" href="./styles.css"/>
 </head>
 <body class="app-booting-v433 app-booting-v434">
+<div id="wmVersionGateV652" role="alert" aria-live="assertive">
+  <div class="wm-gate-card">
+    <div class="wm-gate-spinner" aria-hidden="true"></div>
+    <h1>בודק את גרסת המערכת</h1>
+    <p data-gate-text>מוודא שכל קובצי האפליקציה שייכים לאותה גרסה לפני פתיחת המערכת.</p>
+    <button type="button" onclick="WM_FORCE_FRESH_RELOAD_V652()">רענון והורדת הגרסה החדשה</button>
+  </div>
+</div>
 <div class="app">
 <div class="top"><div class="brand"><div class="logo">₪</div><div>מעקב עבודה<br><span id="userLine" class="muted" style="font-size:13px">טוען נתונים</span><div class="app-version-mini" title="גרסת האפליקציה">v<span data-app-version></span></div><div id="lastLoginLineV518" class="last-login-line-v518 hidden"></div></div></div><button id="logoutBtn" class="btn-light hidden" onclick="logout()">יציאה</button></div>
 
@@ -67,7 +175,7 @@
 <h1 class="big-title">כניסת עובד</h1><p style="text-align:center">הכנס שם משתמש וסיסמה שקיבלת מהמנהל.</p>
 <input id="workerUsername" placeholder="שם משתמש" autocomplete="off"><div class="password-field-v585"><input id="workerPassword" type="password" placeholder="סיסמה" autocomplete="new-password"><button class="password-eye-v585" type="button" aria-label="הצג סיסמה" aria-pressed="false" title="הצג סיסמה" onclick="togglePasswordVisibilityV585('workerPassword',this)"><svg class="password-eye-svg-v589" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.75"></circle></svg></button></div>
 <label class="checkline"><input id="rememberMe" type="checkbox"> השאר אותי מחובר</label>
-<button class="btn-green" onclick="workerLogin()">כניסה</button>
+<button class="btn-green" id="workerLoginBtnV660">כניסה</button>
 <button class="btn-light" onclick="showRegister()">הרשמה לעובד חדש</button>
 <p id="workerLoginMsg" class="danger"></p>
 <div id="secretTap" class="secret" onclick="secretTap()"></div>
@@ -143,6 +251,18 @@
   <textarea id="securityRulesPreviewV45" readonly style="direction:ltr;text-align:left;min-height:210px;font-family:monospace;font-size:12px"></textarea>
   <div id="securityToolsMsgV169"></div>
 </div>
+
+<div id="adminLocalCacheToolsV644" class="card">
+  <div class="cal-head"><h2>🧪 כלי בדיקות מטמון מקומי</h2></div>
+  <p>הכפתורים מוחקים רק מידע מקומי במכשיר. הם אינם מוחקים עבודות או נתונים מ-Firebase.</p>
+  <div class="actions">
+    <button class="btn-yellow" type="button" id="clearAdminDataCacheBtnV660" onclick="clearAdminDataCacheV660()">🧹 נקה מטמון נתונים</button>
+    <button class="btn-danger" type="button" id="fullAdminLocalResetBtnV660" onclick="fullAdminLocalResetV660()">📱 איפוס מקומי מלא</button>
+  </div>
+  <p class="muted">נקה מטמון נתונים: IndexedDB, מטמון Firestore ו-Cache Storage. איפוס מלא מוחק בנוסף localStorage ו-sessionStorage ועלול לנתק מהחשבון.</p>
+  <div id="adminLocalCacheMsgV644"></div>
+</div>
+
 <div id="adminDataToolsPrimary" class="card">
   <div class="cal-head"><h2>📦 ייצוא, גיבוי, שחזור ותבניות</h2></div>
   <p>כלי ניהול מתקדמים: ייצוא אדמין מלא לאקסל, גיבוי מלא, שחזור מלא ותבניות התקנה מוכנות.</p>
@@ -410,6 +530,19 @@
       </div>
       <button class="btn-green" onclick="saveWorkerSelfSettings()">שמור הגדרות אישיות</button>
       <div id="selfSettingsMsg"></div>
+
+      <!-- v6.66-beta: מנהל תבניות קומפקטי עם מחיקה מיידית מהמסך. -->
+      <div id="workerTemplateManagerV661" class="worker-template-manager-v661">
+        <div class="worker-template-manager-head-v661">
+          <div>
+            <h3>🧩 ניהול התבניות שלי</h3>
+            <p class="muted">לחץ על העיפרון כדי לערוך שם, להוסיף או להסיר פריטים ולשנות כמויות.</p>
+          </div>
+          <button type="button" class="template-refresh-icon-v662" onclick="refreshWorkerTemplateManagerV661(true)" title="רענן" aria-label="רענן">↻</button>
+        </div>
+        <div id="workerTemplateManagerListV661" class="worker-template-scroll-v662"><p class="muted">התבניות ייטענו לאחר הכניסה.</p></div>
+        <div id="workerTemplateManagerMsgV661"></div>
+      </div>
     </div>
   </div>
 
@@ -888,9 +1021,7 @@
   </div>
 </div>
 
-<script src="./functions1.js"></script>
-<script src="./functions2.js"></script>
-<script src="./functions3.js"></script>
+<script>window.WM_PREFLIGHT_AND_LOAD_BETA&&window.WM_PREFLIGHT_AND_LOAD_BETA().catch(function(e){console.error("WORK_MONITOR_PREFLIGHT_FATAL",e);});</script>
 </body>
 
 
